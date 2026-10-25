@@ -1,0 +1,36 @@
+; Engine configuration file.
+; Hand-written for Dust & Mandibles. Godot rewrites this file when settings change in the editor.
+
+config_version=5
+
+[application]
+
+config/name="Dust & Mandibles"
+config/description="Two-player co-op cross-cliff tower defense against giant bugs."
+run/main_scene="res://scenes/world.tscn"
+config/features=PackedStringArray("4.5", "Forward Plus")
+
+[autoload]
+
+InputSetup="*res://autoload/InputSetup.gd"
+GameState="*res://autoload/GameState.gd"
+
+[debug]
+
+gdscript/warnings/untyped_declaration=1
+gdscript/warnings/unsafe_property_access=1
+gdscript/warnings/unsafe_method_access=1
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+
+[physics]
+
+common/physics_ticks_per_second=60
+
+[rendering]
+
+anti_aliasing/quality/msaa_3d=2
+lights_and_shadows/directional_shadow/size=4096

@@ -1,0 +1,17 @@
+# Godot 4
+.godot/
+/android/
+*.translation
+export_presets.cfg
+/builds/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Engine binaries (download separately)
+Godot_*.exe
