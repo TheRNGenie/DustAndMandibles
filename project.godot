@@ -13,6 +13,7 @@ config/features=PackedStringArray("4.5", "Forward Plus")
 [autoload]
 
 InputSetup="*res://autoload/InputSetup.gd"
+Settings="*res://autoload/Settings.gd"
 NetworkManager="*res://autoload/NetworkManager.gd"
 GameState="*res://autoload/GameState.gd"
 

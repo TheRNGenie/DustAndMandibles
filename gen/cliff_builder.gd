@@ -4,7 +4,7 @@ extends RefCounted
 ## carved climb lanes, the canyon floor and end walls. Keeps its noise so later
 ## systems (bug climbing in M2) can query the exact cliff surface.
 
-const FACE_Y_STEP := 0.5
+const FACE_Y_STEP := 0.6
 const FACE_Z_STEP := 1.0
 const PLATEAU_D_STEP := 1.0
 const PLATEAU_Z_STEP := 1.5
@@ -39,11 +39,11 @@ func face_offset(cliff_id: int, y: float, z: float) -> float:
 	var prof := 0.0
 	if y < WorldLayout.UNDERSIDE_BOTTOM:
 		# Recessed face with a wider base.
-		prof = -WorldLayout.OVERHANG + 1.4 * (1.0 - clampf(y, 0.0, 25.0) / WorldLayout.UNDERSIDE_BOTTOM)
+		prof = -WorldLayout.OVERHANG + 2.5 * (1.0 - clampf(y, 0.0, WorldLayout.UNDERSIDE_BOTTOM) / WorldLayout.UNDERSIDE_BOTTOM)
 	elif y < WorldLayout.LIP_BAND_BOTTOM:
 		var t := (y - WorldLayout.UNDERSIDE_BOTTOM) / (WorldLayout.LIP_BAND_BOTTOM - WorldLayout.UNDERSIDE_BOTTOM)
 		prof = lerpf(-WorldLayout.OVERHANG, 0.0, t)
-	var below_lip := 1.0 - smoothstep(24.5, 26.0, y)
+	var below_lip := 1.0 - smoothstep(WorldLayout.ROUGH_TOP, WorldLayout.UNDERSIDE_BOTTOM + 0.6, y)
 	var rough := (n.get_noise_2d(z * 0.12, y * 0.12) * 1.0 + n.get_noise_2d(z * 0.5, y * 0.5) * 0.3) * below_lip
 	var lane := 0.0
 	for lz in WorldLayout.LANE_Z:
@@ -116,11 +116,12 @@ func _add_static(parent: Node3D, node_name: String, mesh: ArrayMesh, mat: Materi
 
 func _face_rows() -> Array[float]:
 	var rows: Array[float] = []
+	var h := WorldLayout.CLIFF_HEIGHT
 	var y := -2.0
-	while y < 25.0:
+	while y < h - 3.0:
 		rows.append(y)
 		y += FACE_Y_STEP
-	rows.append_array([25.0, 25.4, 25.8, 26.2, 26.6, 27.3, WorldLayout.CLIFF_HEIGHT])
+	rows.append_array([h - 3.0, h - 2.6, h - 2.2, h - 1.8, h - 1.4, h - 0.7, h])
 	return rows
 
 
@@ -174,7 +175,7 @@ func _build_end_wall(end_sign: float) -> ArrayMesh:
 	var n := _noise[0]
 	var grid: Array = []
 	var y := -2.0
-	while y <= 38.0 + 0.001:
+	while y <= WorldLayout.CLIFF_HEIGHT + 10.0 + 0.001:
 		var row: Array[Vector3] = []
 		var x := -45.0
 		while x <= 45.0 + 0.001:

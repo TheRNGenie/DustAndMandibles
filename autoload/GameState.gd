@@ -19,6 +19,8 @@ var phase: Phase = Phase.LOBBY
 var wave: int = 0
 var time_left: float = 0.0
 var skip_votes: int = 0
+## True while the pause menu (or another full-screen menu) is open: the local player stops.
+var menu_open: bool = false
 ## Command-line flags (anything after `--` on the command line).
 var flags: PackedStringArray = PackedStringArray()
 

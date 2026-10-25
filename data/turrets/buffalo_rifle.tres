@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"buffalo_rifle"
+display_name = "Buffalo Rifle Nest"
+description = "Slow, heavy single shots that pierce armour."
+cost_scrap = 60
+max_hp = 120.0
+range = 95.0
+fire_interval = 1.6
+damage = 70.0
+armor_pierce = true
+pitch_limit_deg = 30.0
+turn_speed = 90.0
+spread_deg = 0.3
+hit_chance = 0.95

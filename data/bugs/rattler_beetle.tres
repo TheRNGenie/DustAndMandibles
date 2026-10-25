@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="BugDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/bug_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"rattler_beetle"
+display_name = "Rattler Beetle"
+behavior = 1
+max_hp = 120.0
+climb_speed = 1.2
+walk_speed = 1.8
+cost = 5
+group_size = 1
+front_armor = 0.5
+scrap_drop = 6
+chitin_drop = 2
+breach_dps = 15.0
+size = 1.5
+shell_color = Color(0.18, 0.549, 0.494, 1)
+first_wave = 3

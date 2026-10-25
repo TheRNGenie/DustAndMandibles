@@ -20,11 +20,9 @@ const STAND_HEIGHT := 1.8
 const SLIDE_HEIGHT := 1.0
 const EYE_STAND := 1.62
 const EYE_SLIDE := 0.85
-const BASE_FOV := 85.0
 const RESPAWN_DELAY := 3.0
 
 @export var cliff_id: int = WorldLayout.WEST
-@export var mouse_sensitivity: float = 0.0022
 
 var spawn_transform: Transform3D
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
@@ -49,7 +47,7 @@ func _ready() -> void:
 	_capsule = (collision.shape as CapsuleShape3D).duplicate() as CapsuleShape3D
 	collision.shape = _capsule
 	spawn_transform = global_transform
-	camera.fov = BASE_FOV
+	camera.fov = Settings.fov
 	body.mesh = CharacterBuilder.cowboy(Palette.team_color(cliff_id))
 	body.material_override = Materials.toon_unique(0.025)
 	net.prime()
@@ -89,12 +87,11 @@ func flash_body() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var motion := event as InputEventMouseMotion
-		rotate_y(-motion.relative.x * mouse_sensitivity)
-		head.rotation.x = clampf(head.rotation.x - motion.relative.y * mouse_sensitivity, -1.5, 1.5)
-	elif event.is_action_pressed("toggle_mouse"):
-		var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if captured else Input.MOUSE_MODE_CAPTURED
-	elif event is InputEventMouseButton and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		var sens := Settings.mouse_sensitivity
+		var y_sign := -1.0 if Settings.invert_y else 1.0
+		rotate_y(-motion.relative.x * sens)
+		head.rotation.x = clampf(head.rotation.x - motion.relative.y * sens * y_sign, -1.5, 1.5)
+	elif event is InputEventMouseButton and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not GameState.menu_open:
 		if (event as InputEventMouseButton).pressed:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 			get_viewport().set_input_as_handled()
@@ -104,25 +101,26 @@ func _physics_process(delta: float) -> void:
 	if _mantling:
 		return
 	_update_fall(delta)
-	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var blocked := GameState.menu_open
+	var input_dir := Vector2.ZERO if blocked else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var wish := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 	var on_floor := is_on_floor()
 	if not on_floor:
 		velocity.y -= _gravity * delta
 
-	if Input.is_action_just_pressed("jump"):
+	if not blocked and Input.is_action_just_pressed("jump"):
 		if on_floor:
 			velocity.y = JUMP_VELOCITY
 			_end_slide()
 		elif _try_mantle():
 			return
-	elif not on_floor and Input.is_action_pressed("jump") and velocity.y < 1.0:
+	elif not blocked and not on_floor and Input.is_action_pressed("jump") and velocity.y < 1.0:
 		# Holding jump against a ledge mantles onto it.
 		if _try_mantle():
 			return
 
-	var sprinting := Input.is_action_pressed("sprint") and input_dir.y < -0.1 and not _sliding
-	if Input.is_action_just_pressed("slide") and on_floor and not _sliding:
+	var sprinting := not blocked and Input.is_action_pressed("sprint") and input_dir.y < -0.1 and not _sliding
+	if not blocked and Input.is_action_just_pressed("slide") and on_floor and not _sliding:
 		var speed := Vector2(velocity.x, velocity.z).length()
 		if sprinting or speed > WALK_SPEED * 0.9:
 			_start_slide()
@@ -142,7 +140,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _handle_weapon() -> void:
-	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or GameState.menu_open:
 		return
 	if Input.is_action_just_pressed("fire") and revolver.trigger(camera):
 		net.fire(camera.global_position, -camera.global_transform.basis.z)
@@ -249,7 +247,7 @@ func _update_camera(delta: float, sprinting: bool) -> void:
 		_bob_t += delta * speed * 1.6
 	var bob := sin(_bob_t) * 0.035 * clampf(speed / SPRINT_SPEED, 0.0, 1.0)
 	head.position.y = lerpf(head.position.y, eye + bob, clampf(delta * 14.0, 0.0, 1.0))
-	var target_fov := BASE_FOV
+	var target_fov := Settings.fov
 	if _sliding:
 		target_fov += 12.0
 	elif sprinting:

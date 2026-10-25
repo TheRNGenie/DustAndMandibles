@@ -14,6 +14,8 @@ var bridge: RopeBridge
 var players_root: Node3D
 var spawner: MultiplayerSpawner
 var _loaded_peers: Dictionary = {}
+var _env: Environment
+var _sun: DirectionalLight3D
 var _started := false
 
 
@@ -37,6 +39,9 @@ func _ready() -> void:
 	add_child(vfx)
 	hud = Hud.new()
 	add_child(hud)
+	var pause := PauseMenu.new()
+	pause.name = "PauseMenu"
+	add_child(pause)
 
 	players_root = Node3D.new()
 	players_root.name = "Players"
@@ -127,6 +132,8 @@ func _return_to_menu() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if GameState.menu_open:
+		return
 	if event.is_action_pressed("ready_up"):
 		GameState.vote_skip()
 	elif event.is_action_pressed("debug_skip_phase") and GameState.has_flag("--debug"):
@@ -158,6 +165,7 @@ func _build_environment() -> void:
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)
+	_env = env
 
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
@@ -167,6 +175,20 @@ func _build_environment() -> void:
 	sun.directional_shadow_max_distance = 160.0
 	sun.rotation_degrees = Vector3(-42.0, -35.0, 0.0)
 	add_child(sun)
+	_sun = sun
+	Settings.changed.connect(_apply_settings)
+	_apply_settings()
+
+
+func _apply_settings() -> void:
+	_env.adjustment_enabled = true
+	_env.adjustment_brightness = Settings.brightness
+	_sun.shadow_enabled = Settings.shadows
+	if players_root == null:
+		return
+	var p := local_player()
+	if p != null:
+		p.camera.fov = Settings.fov
 
 
 # ------------------------------------------------------------------ debug screenshots

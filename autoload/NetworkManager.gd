@@ -20,6 +20,10 @@ var players: Dictionary = {}
 var local_name: String = "Rancher"
 var _peer: ENetMultiplayerPeer
 var _started := false
+var _port: int = DEFAULT_PORT
+var _address: String = DEFAULT_ADDRESS
+## Set by join_from_menu(); the main menu joins it on load.
+var pending_join: Dictionary = {}
 
 
 func _ready() -> void:
@@ -41,6 +45,7 @@ func host(port: int = DEFAULT_PORT) -> Error:
 	if err != OK:
 		return err
 	_peer = peer
+	_port = port
 	multiplayer.multiplayer_peer = peer
 	players = {1: {"name": local_name, "cliff": WorldLayout.WEST, "ready": false}}
 	players_changed.emit()
@@ -54,6 +59,8 @@ func join(address: String = DEFAULT_ADDRESS, port: int = DEFAULT_PORT) -> Error:
 	if err != OK:
 		return err
 	_peer = peer
+	_port = port
+	_address = address
 	multiplayer.multiplayer_peer = peer
 	return OK
 
@@ -66,6 +73,48 @@ func leave() -> void:
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	players.clear()
 	players_changed.emit()
+
+
+## "IP:port" a friend can paste to join this game (LAN address of this PC).
+func invite_code() -> String:
+	if is_online() and not multiplayer.is_server():
+		return "%s:%d" % [_address, _port] # a client shares the host's address
+	return "%s:%d" % [local_ip(), _port]
+
+
+## Best-guess LAN IPv4 address of this machine.
+func local_ip() -> String:
+	var fallback := DEFAULT_ADDRESS
+	for addr: String in IP.get_local_addresses():
+		if addr.contains(":") or addr.begins_with("127.") or addr.begins_with("169.254."):
+			continue
+		if addr.begins_with("192.168.") or addr.begins_with("10.") or addr.begins_with("172."):
+			return addr
+		fallback = addr
+	return fallback
+
+
+## Parses "IP:port" or a bare IP. Returns {} if it isn't usable.
+func parse_invite(text: String) -> Dictionary:
+	var t := text.strip_edges()
+	if t == "":
+		return {}
+	var address := t
+	var port := DEFAULT_PORT
+	var colon := t.rfind(":")
+	if colon > 0:
+		address = t.substr(0, colon)
+		port = int(t.substr(colon + 1))
+	if port <= 0 or port > 65535 or not (address.is_valid_ip_address() or address.contains(".")):
+		return {}
+	return {"address": address, "port": port}
+
+
+## Leaves the current game, returns to the menu and joins another one from there.
+func join_from_menu(address: String, port: int) -> void:
+	leave()
+	pending_join = {"address": address, "port": port}
+	get_tree().change_scene_to_file(MENU_SCENE)
 
 
 func local_id() -> int:

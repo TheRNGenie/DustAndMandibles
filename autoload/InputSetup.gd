@@ -1,6 +1,6 @@
 extends Node
 ## Registers every input action in code, so project.godot stays readable and
-## bindings live in one place.
+## bindings live in one place. Settings applies the player's remaps on top.
 
 const KEY_BINDINGS: Dictionary = {
 	"move_forward": [KEY_W, KEY_UP],
@@ -12,32 +12,44 @@ const KEY_BINDINGS: Dictionary = {
 	"slide": [KEY_CTRL, KEY_C],
 	"reload": [KEY_R],
 	"interact": [KEY_E],
-	"toggle_mouse": [KEY_ESCAPE],
+	"build_menu": [KEY_B],
+	"pause_menu": [KEY_ESCAPE],
 	"debug_overlay": [KEY_F3],
 	"ready_up": [KEY_G],
 	"debug_skip_phase": [KEY_F6],
+	"debug_add_scrap": [KEY_F7],
+	"debug_spawn_bug": [KEY_F8],
+	"debug_god_mode": [KEY_F9],
+	"debug_show_lanes": [KEY_F10],
+	"select_1": [KEY_1],
+	"select_2": [KEY_2],
+	"select_3": [KEY_3],
+	"select_4": [KEY_4],
 }
 
 const MOUSE_BINDINGS: Dictionary = {
 	"fire": [MOUSE_BUTTON_LEFT],
+	"alt_fire": [MOUSE_BUTTON_RIGHT],
 }
 
 
 func _enter_tree() -> void:
 	for action: String in KEY_BINDINGS:
-		_ensure_action(action)
-		for key: int in KEY_BINDINGS[action]:
-			var ev := InputEventKey.new()
-			ev.physical_keycode = key as Key
-			InputMap.action_add_event(action, ev)
+		reset_action(action)
 	for action: String in MOUSE_BINDINGS:
-		_ensure_action(action)
-		for button: int in MOUSE_BINDINGS[action]:
-			var ev := InputEventMouseButton.new()
-			ev.button_index = button as MouseButton
-			InputMap.action_add_event(action, ev)
+		reset_action(action)
 
 
-func _ensure_action(action: String) -> void:
+## Restores an action's default bindings.
+func reset_action(action: String) -> void:
 	if not InputMap.has_action(action):
 		InputMap.add_action(action)
+	InputMap.action_erase_events(action)
+	for key: int in KEY_BINDINGS.get(action, []):
+		var ev := InputEventKey.new()
+		ev.physical_keycode = key as Key
+		InputMap.action_add_event(action, ev)
+	for button: int in MOUSE_BINDINGS.get(action, []):
+		var mb := InputEventMouseButton.new()
+		mb.button_index = button as MouseButton
+		InputMap.action_add_event(action, mb)

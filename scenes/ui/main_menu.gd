@@ -12,6 +12,7 @@ var _connect_box: VBoxContainer
 var _lobby_box: VBoxContainer
 var _solo_btn: Button
 var _auto_ready := false
+var _settings: PauseMenu
 
 
 func _ready() -> void:
@@ -25,7 +26,13 @@ func _ready() -> void:
 	var flag_name := GameState.flag_value("--name")
 	if flag_name != "":
 		_name_edit.text = flag_name
-	if GameState.has_flag("--host"):
+	if not NetworkManager.pending_join.is_empty():
+		var pj := NetworkManager.pending_join
+		NetworkManager.pending_join = {}
+		_ip_edit.text = str(pj["address"])
+		_port_edit.text = str(pj["port"])
+		_on_join()
+	elif GameState.has_flag("--host"):
 		_auto_ready = true
 		_on_host()
 	elif GameState.has_flag("--join") or GameState.flag_value("--join") != "":
@@ -71,7 +78,7 @@ func _build_ui() -> void:
 	host_btn.pressed.connect(_on_host)
 	_connect_box.add_child(host_btn)
 	var row := HBoxContainer.new()
-	_ip_edit = _line_edit("Host IP", NetworkManager.DEFAULT_ADDRESS)
+	_ip_edit = _line_edit("Host IP or invite", NetworkManager.DEFAULT_ADDRESS)
 	_ip_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_port_edit = _line_edit("Port", str(NetworkManager.DEFAULT_PORT))
 	_port_edit.custom_minimum_size.x = 90
@@ -81,6 +88,12 @@ func _build_ui() -> void:
 	var join_btn := _button("Join game (east cliff)")
 	join_btn.pressed.connect(_on_join)
 	_connect_box.add_child(join_btn)
+	var settings_btn := _button("Settings")
+	settings_btn.pressed.connect(func() -> void: _settings.open())
+	_connect_box.add_child(settings_btn)
+	var quit_btn := _button("Quit")
+	quit_btn.pressed.connect(func() -> void: get_tree().quit())
+	_connect_box.add_child(quit_btn)
 
 	_lobby_box = VBoxContainer.new()
 	_lobby_box.add_theme_constant_override("separation", 8)
@@ -105,6 +118,10 @@ func _build_ui() -> void:
 	_status = _label("", 15, Palette.ROCK_B)
 	col.add_child(_status)
 
+	_settings = PauseMenu.new()
+	_settings.in_main_menu = true
+	add_child(_settings)
+
 
 func _on_host() -> void:
 	NetworkManager.local_name = _player_name()
@@ -122,7 +139,15 @@ func _on_host() -> void:
 
 func _on_join() -> void:
 	NetworkManager.local_name = _player_name()
-	var err := NetworkManager.join(_ip_edit.text.strip_edges(), int(_port_edit.text))
+	# The IP field also accepts a pasted invite ("IP:port").
+	var parsed := NetworkManager.parse_invite(_ip_edit.text)
+	if parsed.is_empty():
+		_show_connect("Enter the host's IP address or paste their invite.")
+		return
+	if _ip_edit.text.contains(":"):
+		_port_edit.text = str(parsed["port"])
+		_ip_edit.text = str(parsed["address"])
+	var err := NetworkManager.join(str(parsed["address"]), int(_port_edit.text))
 	if err != OK:
 		_show_connect("Could not start connecting (error %d)." % err)
 		return

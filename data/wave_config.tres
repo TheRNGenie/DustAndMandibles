@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="WaveConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/wave_config.gd" id="1_cfg"]
+
+[resource]
+script = ExtResource("1_cfg")
+budget_base = 20.0
+budget_linear = 12.0
+budget_quad = 1.5
+pulses_min = 3
+pulses_max = 5
+pulse_interval = 9.0
+split_min = 0.5
+split_max = 0.7
+west_share = PackedFloat32Array(0.5, 0.6, 0.4, 0.6, 0.5, 0.65, 0.35, 0.6, 0.7)
+build_time_first = 150.0
+build_time_last = 90.0
+warning_time = 10.0
+last_wave = 10
+hp_multiplier = 1.0
+homestead_hp = 500.0
+start_scrap = 150
+max_active_bugs = 150
