@@ -3,19 +3,24 @@
 Source of truth: the design doc "Cross-Cliff Co-op Defense: Game Plan & Build Prompt".
 
 **Done when:** you can walk to the lip, look across, and it already looks like a stylized western canyon.
+**Result:** passes (checked with screenshots from the spawn, from the lip looking down, and along the canyon). Needs a hands-on playtest of movement feel.
 
 | # | Task | Files | How it's verified | Status |
 |---|------|-------|-------------------|--------|
-| 1 | Project skeleton, input map, autoload stubs | `project.godot`, `autoload/` | Project opens; `godot --headless --quit-after 300` prints no errors | Written, not run |
-| 2 | Shader kit: toon ramp (3 bands, purple shadows, rim), inverted-hull outline, cliff strata (triplanar, height bands), sky, VFX star | `shaders/` | Shaders compile on import, no errors in the output panel | Written, not run |
-| 3 | Mesh kit (box, cylinder, cone, ellipsoid, limb into one SurfaceTool with vertex colours) and shared materials | `gen/mesh_kit.gd`, `gen/materials.gd`, `gen/palette.gd` | Props render with correct facing (no inside-out faces) and outlines | Written, not run |
-| 4 | Canyon generator: 45 m gap, 28 m cliffs, overhanging lip, 5 carved lanes with ledges, plateaus with hills beyond the play area, riverbed floor, end walls; trimesh collision | `gen/cliff_builder.gd`, `data/world_layout.gd` | Walk the plateau, look down: own face hidden by the lip, far face fully visible | Written, not run |
-| 5 | Dressing: homestead, water tower, windmill (spinning fan), fences + invisible walls, cacti, rocks, barrels, crates, nest mounds | `gen/building_builder.gd`, `gen/prop_builder.gd`, `scenes/world_dressing.gd` | Visual check from both plateaus | Written, not run |
-| 6 | First-person controller: walk, sprint, jump, slide, mantle, canyon fall teleports home after 3 s | `scenes/player/` | Manual: mantle onto crate/porch, slide, jump off the lip and get hauled back | Written, not run |
-| 7 | Revolver viewmodel: 6 rounds, reload, recoil, muzzle flash, hit sparks, tin-can targets | `scenes/player/revolver.gd`, `scenes/vfx/vfx_pool.gd`, `scenes/props/tin_can.gd` | Manual: shoot cans and rock, see sparks, reload | Written, not run |
-| 8 | HUD: crosshair, ammo sign, fall message, F3 debug overlay | `scenes/ui/hud.gd` | Manual | Written, not run |
-| 9 | README, DECISIONS, git init + push | root | Repo on GitHub | Docs written; git waiting on install |
+| 1 | Project skeleton, input map, autoload stubs | `project.godot`, `autoload/` | `godot --headless --quit-after 300` prints no errors | Done |
+| 2 | Shader kit: toon ramp, outline, cliff strata, sky, VFX star | `shaders/` | Compile on import, visual check | Done |
+| 3 | Mesh kit and shared materials | `gen/mesh_kit.gd`, `gen/materials.gd`, `gen/palette.gd` | Props render the right way out with outlines | Done |
+| 4 | Canyon generator with overhanging lip and climb lanes | `gen/cliff_builder.gd`, `data/world_layout.gd` | From the lip looking down, your own face is hidden; the far face is fully visible | Done |
+| 5 | Dressing: homestead, water tower, windmill, fences, props, nests | `gen/building_builder.gd`, `gen/prop_builder.gd`, `scenes/world_dressing.gd` | Visual check | Done |
+| 6 | First-person controller: walk, sprint, jump, slide, mantle, canyon fall | `scenes/player/` | Manual playtest | Done, needs playtest |
+| 7 | Revolver, hit sparks, tin-can targets | `scenes/player/revolver.gd`, `scenes/vfx/vfx_pool.gd`, `scenes/props/tin_can.gd` | Manual playtest | Done, needs playtest |
+| 8 | HUD: crosshair, ammo sign, fall message, F3 overlay | `scenes/ui/hud.gd` | Visual check | Done |
+| 9 | README, DECISIONS, git + push | root | On GitHub | Done |
 
-## Blocked
-Godot and Git are not installed on this PC yet, so nothing has been run. Next step once
-Godot is in: run headless, fix every error and warning, then a visual check.
+## Debug screenshot flag
+`godot --path . -- --shot=C:\path\shot.png [--pos=d,z] [--look=yaw,pitch] [--east]` renders 90 frames, saves a PNG and quits.
+
+## What to playtest
+- Sprint, slide (Ctrl while running), jump and mantle onto the target crate or the porch.
+- Walk off the lip into the canyon: you should be hauled home after 3 s.
+- Shoot the tin cans on the crate near the spawn and the rocks; reload with R.
