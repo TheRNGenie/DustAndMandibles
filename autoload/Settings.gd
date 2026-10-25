@@ -19,6 +19,7 @@ const REMAPPABLE: Dictionary = {
 	"reload": "Reload",
 	"interact": "Interact / repair",
 	"build_menu": "Build menu",
+	"demolish": "Demolish turret",
 	"ready_up": "Ready (skip build phase)",
 	"debug_overlay": "Debug overlay",
 }

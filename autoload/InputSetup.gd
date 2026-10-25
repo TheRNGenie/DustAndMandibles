@@ -13,6 +13,7 @@ const KEY_BINDINGS: Dictionary = {
 	"reload": [KEY_R],
 	"interact": [KEY_E],
 	"build_menu": [KEY_B],
+	"demolish": [KEY_X],
 	"pause_menu": [KEY_ESCAPE],
 	"debug_overlay": [KEY_F3],
 	"ready_up": [KEY_G],

@@ -1,26 +1,26 @@
 extends Node
-## Global game state: phase, wave number, phase timer.
-## The host runs the clock and broadcasts each phase change with a reliable RPC;
-## clients count down locally. Homestead HP and win/lose arrive in M2.
+## Global game state: phase, wave number, phase timer, Homestead health, win/lose.
+## The host runs the clock and broadcasts every change with reliable RPCs;
+## clients count down locally. A wave ends when WaveDirector says every bug is dead.
 
 signal phase_changed(new_phase: Phase)
 signal skip_votes_changed(votes: int, needed: int)
+signal homestead_changed(cliff_id: int, hp: float, max_hp: float)
+signal game_over(won: bool, reason: String)
 
 enum Phase { LOBBY, BUILD, WARNING, WAVE, GAME_OVER }
-
-const BUILD_TIME_FIRST := 150.0
-const BUILD_TIME_LAST := 90.0
-const WARNING_TIME := 10.0
-## Placeholder wave length until M2's bugs end the wave.
-const PLACEHOLDER_WAVE_TIME := 30.0
-const LAST_WAVE := 10
 
 var phase: Phase = Phase.LOBBY
 var wave: int = 0
 var time_left: float = 0.0
 var skip_votes: int = 0
+var homestead_hp: Array[float] = [0.0, 0.0]
+var won := false
+var end_reason := ""
 ## True while the pause menu (or another full-screen menu) is open: the local player stops.
 var menu_open: bool = false
+## Debug: Homesteads take no damage.
+var god_mode: bool = false
 ## Command-line flags (anything after `--` on the command line).
 var flags: PackedStringArray = PackedStringArray()
 
@@ -46,16 +46,29 @@ func flag_value(flag: String) -> String:
 	return ""
 
 
+func config() -> WaveConfig:
+	return Defs.WAVE_CONFIG
+
+
 func reset() -> void:
 	phase = Phase.LOBBY
 	wave = 0
 	time_left = 0.0
 	_voters.clear()
 	skip_votes = 0
+	won = false
+	end_reason = ""
+	god_mode = false
+	var hp := config().homestead_hp
+	homestead_hp = [hp, hp]
+
+
+func is_solo() -> bool:
+	return NetworkManager.players.size() <= 1
 
 
 func _process(delta: float) -> void:
-	if phase == Phase.LOBBY or phase == Phase.GAME_OVER:
+	if phase == Phase.LOBBY or phase == Phase.GAME_OVER or phase == Phase.WAVE:
 		return
 	time_left = maxf(time_left - delta, 0.0)
 	if multiplayer.is_server() and time_left <= 0.0:
@@ -68,13 +81,11 @@ func _process(delta: float) -> void:
 func start_run() -> void:
 	if not multiplayer.is_server():
 		return
+	reset()
+	Economy.reset()
+	_sync_homesteads.rpc(homestead_hp[0], homestead_hp[1])
 	wave = 1
 	_enter(Phase.BUILD)
-
-
-func build_time(w: int) -> float:
-	var t := clampf(float(w - 1) / float(LAST_WAVE - 1), 0.0, 1.0)
-	return lerpf(BUILD_TIME_FIRST, BUILD_TIME_LAST, t) * _time_scale()
 
 
 func _time_scale() -> float:
@@ -88,19 +99,27 @@ func _advance() -> void:
 		Phase.WARNING:
 			_enter(Phase.WAVE)
 		Phase.WAVE:
-			wave += 1
-			_enter(Phase.BUILD)
+			end_wave()
+
+
+## Host: WaveDirector calls this once every bug of the wave is dead.
+func end_wave() -> void:
+	if not multiplayer.is_server() or phase != Phase.WAVE:
+		return
+	if wave >= config().last_wave:
+		_finish.rpc(true, "You held the canyon for %d waves!" % wave)
+		return
+	wave += 1
+	_enter(Phase.BUILD)
 
 
 func _enter(p: Phase) -> void:
 	var duration := 0.0
 	match p:
 		Phase.BUILD:
-			duration = build_time(wave)
+			duration = config().build_time(wave) * _time_scale()
 		Phase.WARNING:
-			duration = WARNING_TIME * maxf(_time_scale(), 0.5)
-		Phase.WAVE:
-			duration = PLACEHOLDER_WAVE_TIME * maxf(_time_scale(), 0.5)
+			duration = config().warning_time * maxf(_time_scale(), 0.5)
 	_voters.clear()
 	_sync_phase.rpc(p, duration, wave)
 
@@ -113,6 +132,33 @@ func _sync_phase(p: int, duration: float, w: int) -> void:
 	skip_votes = 0
 	skip_votes_changed.emit(0, _needed_votes())
 	phase_changed.emit(phase)
+
+
+## Host: damage to a Homestead. Losing either one loses the run (shared fate).
+func damage_homestead(cliff_id: int, amount: float) -> void:
+	if not multiplayer.is_server() or phase == Phase.GAME_OVER or god_mode:
+		return
+	homestead_hp[cliff_id] = maxf(homestead_hp[cliff_id] - amount, 0.0)
+	_sync_homesteads.rpc(homestead_hp[0], homestead_hp[1])
+	if homestead_hp[cliff_id] <= 0.0:
+		var side := "west" if cliff_id == WorldLayout.WEST else "east"
+		_finish.rpc(false, "The %s Homestead fell on wave %d." % [side, wave])
+
+
+@rpc("authority", "call_local", "unreliable_ordered")
+func _sync_homesteads(west: float, east: float) -> void:
+	homestead_hp = [west, east]
+	for cid in 2:
+		homestead_changed.emit(cid, homestead_hp[cid], config().homestead_hp)
+
+
+@rpc("authority", "call_local", "reliable")
+func _finish(did_win: bool, reason: String) -> void:
+	won = did_win
+	end_reason = reason
+	phase = Phase.GAME_OVER
+	phase_changed.emit(phase)
+	game_over.emit(did_win, reason)
 
 
 ## Any player: vote to skip the rest of the build phase ("Ready").

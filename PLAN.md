@@ -1,31 +1,37 @@
-# PLAN: M1, Networked co-op skeleton
+# PLAN: M2, the core twist, playable (proof of concept)
 
 Source of truth: the design doc "Cross-Cliff Co-op Defense: Game Plan & Build Prompt".
-M0 (graybox and shader kit) is done; see git history.
+M0 and M1 are done. Since M1, two requests from Logan: a much deeper canyon (now 60 m)
+and a pause menu (Controls with remapping, Graphics, Audio, Social).
 
-**Done when:** two instances connect, both players see each other move and shoot, and phase changes happen together.
-**Result:** passes in automated two-instance tests (`tools/run_two_local.ps1`). Needs a hands-on playtest with two people.
+**Done when:** two players survive (or lose) 5 waves, and in a playtest both say they had to rely on the other's turrets.
+
+**Status:** all code below is written but NOT RUN yet (Logan asked to pause test runs).
+Next step: headless run + unit tests, fix every error, then a two-instance soak with `--autobuild`.
 
 | # | Task | Files | How it's verified | Status |
 |---|------|-------|-------------------|--------|
-| 1 | NetworkManager: ENet host/join, roster, cliff assignment (host west, joiner east), ready, start | `autoload/NetworkManager.gd` | Logs show both peers spawn players on the right cliffs | Done |
-| 2 | Main menu + lobby: name, IP (127.0.0.1), port 24565, Host/Join, roster, Ready, Start alone | `scenes/main_menu.tscn`, `scenes/ui/main_menu.gd` | `--host` / `--join` auto-connect and start once both are ready | Done |
-| 3 | Player spawning by the host via MultiplayerSpawner once every peer has loaded | `scenes/world.gd` | No "node not found" errors on the client | Done |
-| 4 | Movement sync: owner-authoritative, 20 Hz MultiplayerSynchronizer, interpolated; third-person cowboy body with team bandana | `scenes/player/player_net.gd`, `player.tscn`, `gen/character_builder.gd` | Joiner sees the host at the host's real position | Done |
-| 5 | Shooting: client predicts, host raycasts and applies damage, host tells others to draw tracer + sparks | `scenes/player/player_net.gd`, `revolver.gd`, `vfx_pool.gd` | `--netlog`: host logs "confirmed shot", other peer logs "drew shot" | Done |
-| 6 | Phase clock on the host (build 150 s to 90 s, warning 10 s, placeholder 30 s wave), reliable RPC broadcast, G to vote Ready/skip | `autoload/GameState.gd`, `scenes/ui/hud.gd` | Both HUDs show the same phase; voting skips together | Done |
-| 7 | Rope drawbridge: lowered in build phase, both halves haul up at the warning | `scenes/structures/bridge.gd` | Both peers report the bridge raised in the wave phase | Done |
-| 8 | HUD phase banner, hints, F3 overlay with peer id, role, ping | `scenes/ui/hud.gd` | Visual | Done |
-| 9 | Invisible walls on their own physics layer so they don't stop bullets | `data/world_layout.gd`, `world_dressing.gd` | Shots pass through | Done |
+| 0a | Deeper canyon (60 m), all heights derived from `CLIFF_HEIGHT` | `data/world_layout.gd`, `gen/cliff_builder.gd` | Screenshots from lip and floor | Written |
+| 0b | Pause menu + Settings (saved to `user://settings.cfg`): remapping, brightness, FPS cap, V-Sync, fullscreen, FOV, shadows, MSAA, render scale, volumes, Social invite/join | `autoload/Settings.gd`, `scenes/ui/pause_menu.gd`, `*_tab.gd`, `ui_style.gd` | Esc in game; Settings on title screen; remap persists after restart | Written |
+| 1 | Data: BugDef, TurretDef, WaveConfig + .tres files, `Defs` registry | `data/` | Unit tests load them | Written |
+| 2 | Cross-defense rule in one place + unit tests | `components/Targeting.gd`, `tests/test_targeting.gd` | `godot --headless -s res://tests/run_tests.gd` | Written |
+| 3 | Economy (ledger + synced autoload) + tests | `components/economy_ledger.gd`, `autoload/Economy.gd`, `tests/test_economy.gd` | Unit tests | Written |
+| 4 | Wave budget, split, pulses (planner + director) + tests | `components/wave_planner.gd`, `autoload/WaveDirector.gd`, `tests/test_wave_budget.gd` | Unit tests; waves end when bugs die | Written |
+| 5 | Bugs: procedural bodies (mite, spider, beetle, scorpion), IK legs, lane climbing, leaps, lane switches, cresting, breachers, spitter acid, armour plate, weak spots | `gen/bug_builder.gd`, `gen/leg_rig.gd`, `scenes/bugs/`, `components/LaneClimber.gd`, `Breacher.gd`, `Health.gd`, `Hitbox.gd`, `WeakSpot.gd` | F8 spawns; screenshots of bugs on the face | Written |
+| 6 | Turrets: Gatling Post, Buffalo Rifle Nest; pitch limit, range, line of sight, aim sync, tracers | `gen/turret_builder.gd`, `scenes/turrets/turret.gd` | `--autobuild` soak: turrets only shoot the far cliff | Written |
+| 7 | Build mode (B, 1/2, ghost, click, X demolish), repair (hold E), salvage piles | `scenes/player/build_mode.gd`, `scenes/structures/` | Manual | Written |
+| 8 | Homestead HP, win at wave 10, lose if either falls; player health, downed 15 s | `autoload/GameState.gd`, `scenes/structures/homestead.gd`, `scenes/player/player_vitals.gd` | Soak test | Written |
+| 9 | HUD: resources, both Homestead bars, kill feed ("X saved Y"), lane report, prompts, game over | `scenes/ui/hud_status.gd`, `hud_feed.gd` | Visual | Written |
+| 10 | Generated SFX (19 sounds) + Audio autoload with 3 buses | `tools/audio/make_sfx.py`, `audio/sfx/`, `autoload/Audio.gd` | Generated OK; listen in game | Generated |
+| 11 | Debug: F6 skip, F7 scrap, F8 spawn bug, F9 god mode, F10 lanes (with `--debug`); solo mode = build on both cliffs | `scenes/debug_tools.gd` | Manual | Written |
 
-## Testing locally
+## Tests
 ```
-powershell -File tools\run_two_local.ps1
+godot --headless --path . -s res://tests/run_tests.gd
 ```
-Opens a host window (west) and a join window (east) with `--fast --debug`.
-Automated checks add `-HostExtra/-JoinExtra "--shot=... --frames=N --autofire --autoskip --netlog"`.
+A tiny built-in runner (no addon download); see DECISIONS.md.
 
-## What to playtest
-- Host on one PC, join from another by LAN IP (open UDP 24565 in the firewall if needed).
-- Walk across the bridge in the build phase; press G on both PCs to skip; watch the bridge haul up.
-- Shoot near your partner and check they see the tracer.
+## What to playtest (once it runs)
+- Host + join; survive 5 waves; do both players feel they relied on the other's turrets?
+- Is the 60 m climb too slow? (climb speeds live in `data/bugs/*.tres`)
+- Do spitters (cling at 65% height) feel fair to hit?

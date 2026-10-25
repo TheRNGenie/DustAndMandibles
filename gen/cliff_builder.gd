@@ -61,6 +61,27 @@ func face_point(cliff_id: int, y: float, z: float) -> Vector3:
 	return Vector3(s * (WorldLayout.HALF_GAP - face_offset(cliff_id, y, z)), y, z)
 
 
+## Outward surface normal of a cliff face (pointing into the canyon).
+func face_normal(cliff_id: int, y: float, z: float) -> Vector3:
+	var e := 0.4
+	var dy := face_point(cliff_id, y + e, z) - face_point(cliff_id, y - e, z)
+	var dz := face_point(cliff_id, y, z + e) - face_point(cliff_id, y, z - e)
+	var n := dz.cross(dy).normalized()
+	var outward := Vector3(-WorldLayout.side_sign(cliff_id), 0.0, 0.0)
+	return n if n.dot(outward) >= 0.0 else -n
+
+
+## Plateau coordinates (d back from the lip, z) of a world position.
+func plateau_coords(cliff_id: int, pos: Vector3) -> Vector2:
+	return Vector2(WorldLayout.side_sign(cliff_id) * pos.x - WorldLayout.HALF_GAP, pos.z)
+
+
+## Ground height under a world position on a plateau.
+func ground_height_at(cliff_id: int, pos: Vector3) -> float:
+	var pc := plateau_coords(cliff_id, pos)
+	return plateau_height(cliff_id, maxf(pc.x, 0.0), pc.y)
+
+
 ## Plateau ground height at plateau coordinates (d back from lip, z along the canyon).
 func plateau_height(cliff_id: int, d: float, z: float) -> float:
 	var n := _noise[cliff_id]

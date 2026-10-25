@@ -1,6 +1,7 @@
 class_name Hud
 extends CanvasLayer
-## M0 HUD: crosshair, ammo sign, canyon-fall message and an F3 debug overlay.
+## HUD root: crosshair, ammo sign, phase banner, canyon-fall message and the F3 debug
+## overlay, plus HudStatus (health, resources, Homesteads) and HudFeed (kill feed, prompts).
 
 var _ammo_label: Label
 var _center_label: Label
@@ -8,6 +9,8 @@ var _debug_label: Label
 var _crosshair: Control
 var _phase_label: Label
 var _hint_label: Label
+var status: HudStatus
+var feed: HudFeed
 
 const PHASE_NAMES := {
 	GameState.Phase.LOBBY: "Waiting for riders",
@@ -19,6 +22,10 @@ const PHASE_NAMES := {
 
 
 func _ready() -> void:
+	status = HudStatus.new()
+	add_child(status)
+	feed = HudFeed.new()
+	add_child(feed)
 	_crosshair = Crosshair.new()
 	_crosshair.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -92,7 +99,9 @@ func _ready() -> void:
 
 
 ## Hooks the HUD up to a local player.
-func bind_player(player: Player) -> void:
+func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void:
+	status.bind_player(player)
+	feed.bind_player(player, bugs, builds)
 	player.revolver.ammo_changed.connect(_on_ammo_changed)
 	player.revolver.reload_started.connect(func(_d: float) -> void: _ammo_label.text = "Reloading")
 	player.fell_into_canyon.connect(func(delay: float) -> void: _show_message("Hauling you back up... (%.0f s)" % delay))

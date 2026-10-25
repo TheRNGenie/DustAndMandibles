@@ -30,6 +30,10 @@ const ROUGH_TOP := CLIFF_HEIGHT - 3.5
 ## Physics layers (bit values).
 const LAYER_WORLD := 1
 const LAYER_PLAYER_BLOCKER := 2
+const LAYER_BUG := 4
+const LAYER_STRUCTURE := 8
+## What player bullets hit.
+const MASK_SHOTS := LAYER_WORLD | LAYER_BUG | LAYER_STRUCTURE
 
 ## Players who fall below this height are in the canyon and get hauled home.
 const CANYON_FALL_Y := CLIFF_HEIGHT - 6.0

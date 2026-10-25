@@ -25,3 +25,12 @@ Assumptions and changes from the design doc, newest last.
 21. **Pause menu (Logan's request): Esc opens it in game; the title screen has a Settings button with the same tabs.** The game keeps running behind the menu (it's online co-op); your character just stops taking input. Settings save to `user://settings.cfg`, including key remaps, which override `InputSetup`'s defaults.
 22. **Social tab invites are "IP:port" for now** (LAN address of the host, copied to the clipboard). Joining from the tab leaves the current game and joins from the main menu. Proper invites through Steam or a relay would replace this behind the same tab once internet play is added (doc: "Internet play (later)").
 23. **Esc no longer frees the mouse directly**; it opens the pause menu, which frees it.
+24. **Unit tests use a tiny built-in runner (`tests/run_tests.gd` + `TestCase`) instead of GUT**, because GUT is a download. The tests are written so GUT can replace the runner later.
+25. **Turret pitch limit is 30 degrees, not 15.** With a 45 m gap, 15 degrees only reaches the top few metres of the far face; 30 still can't see your own face (the lip overhang hides it and it's nearly straight down). It's a per-turret field in `data/turrets/*.tres`.
+26. **Bug loot goes straight into the stockpile of the cliff the bug was climbing** (with a kill-feed line), instead of physical pickups. Keeps "your turrets earn for your partner" without syncing pickups. Pickups can come later.
+27. **Bugs emerge at the base of their lane** instead of walking from the nests. The nests are visual for now.
+28. **Breachers steer straight at targets over the open plateau** (no NavigationAgent3D). Generated terrain would need runtime navmesh baking; the plateau is open enough for the proof of concept.
+29. **Bugs aren't pooled.** They're replicated with MultiplayerSpawner, which creates and frees nodes; VFX are pooled. Revisit if waves of 150 bugs stutter.
+30. **Building is allowed in any phase**, not only the build phase. Repairing is allowed for anyone on any turret (paid by the repairer), since helping your partner is the point.
+31. **Spitter Scorpions cling at 65% of the cliff height** (the doc says halfway) so turrets can actually reach them on the deeper canyon.
+32. **Players have 100 HP, are downed for 15 s at 0 and respawn at home.** Breachers attack players within 7 m first.

@@ -16,6 +16,9 @@ InputSetup="*res://autoload/InputSetup.gd"
 Settings="*res://autoload/Settings.gd"
 NetworkManager="*res://autoload/NetworkManager.gd"
 GameState="*res://autoload/GameState.gd"
+Economy="*res://autoload/Economy.gd"
+WaveDirector="*res://autoload/WaveDirector.gd"
+Audio="*res://autoload/Audio.gd"
 
 [debug]
 

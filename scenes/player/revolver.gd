@@ -94,6 +94,7 @@ func trigger(camera: Camera3D) -> bool:
 	_flash_light.light_energy = 2.5
 	_flash_left = 0.05
 	ammo_changed.emit(ammo, MAX_AMMO)
+	Audio.play_at(&"revolver", global_position, -2.0)
 	var origin := camera.global_position
 	var dir := -camera.global_transform.basis.z
 	fired.emit(origin, dir)
@@ -105,6 +106,7 @@ func reload() -> void:
 		return
 	_reload_left = RELOAD_TIME
 	reload_started.emit(RELOAD_TIME)
+	Audio.play_at(&"reload", global_position, -6.0)
 
 
 func is_reloading() -> bool:
@@ -116,7 +118,7 @@ func raycast(origin: Vector3, dir: Vector3, exclude: Array[RID]) -> Dictionary:
 	var space := get_world_3d().direct_space_state
 	var q := PhysicsRayQueryParameters3D.create(origin, origin + dir * RANGE)
 	q.exclude = exclude
-	q.collision_mask = WorldLayout.LAYER_WORLD
+	q.collision_mask = WorldLayout.MASK_SHOTS
 	return space.intersect_ray(q)
 
 
@@ -127,9 +129,13 @@ func show_impact(hit: Dictionary, dir: Vector3) -> void:
 		return
 	var pos: Vector3 = hit["position"]
 	var normal: Vector3 = hit["normal"]
-	if vfx != null:
-		vfx.spark(pos, normal)
 	var collider: Object = hit["collider"]
+	if vfx != null:
+		if collider is Hitbox:
+			vfx.spark(pos, normal, Palette.ACID_GREEN)
+			Audio.play_at(&"hit_tick", pos)
+		else:
+			vfx.spark(pos, normal)
 	if collider is RigidBody3D:
 		var rb := collider as RigidBody3D
 		rb.apply_impulse(dir * IMPACT_FORCE, pos - rb.global_position)
@@ -137,10 +143,10 @@ func show_impact(hit: Dictionary, dir: Vector3) -> void:
 			rb.call("apply_hit", 0.0, pos, dir)
 
 
-## Host only: applies damage to whatever was hit.
-func apply_hit_result(hit: Dictionary, dir: Vector3) -> void:
+## Host only: applies damage to whatever was hit (bugs, through their Hitbox).
+func apply_hit_result(hit: Dictionary, dir: Vector3, source: String, source_cliff: int) -> void:
 	if hit.is_empty():
 		return
 	var collider: Object = hit["collider"]
-	if collider != null and not (collider is RigidBody3D) and collider.has_method("apply_hit"):
-		collider.call("apply_hit", DAMAGE, hit["position"], dir)
+	if collider is Hitbox:
+		(collider as Hitbox).apply_hit(DAMAGE, hit["position"], dir, false, source, source_cliff)

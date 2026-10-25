@@ -1,0 +1,209 @@
+class_name Turret
+extends StaticBody3D
+## A turret on its owner's cliff edge. It only ever targets bugs climbing the
+## OTHER cliff (Targeting.cliff_allows), within its pitch limit and range, with a
+## clear line of sight over the far lip. The host aims and rolls hits; clients get
+## the aim point and a shot counter, and draw muzzle flashes and tracers themselves.
+
+const RETARGET_TIME := 0.2
+const ALIGN_TOLERANCE_DEG := 4.0
+
+static var bug_manager: BugManager
+static var vfx: VfxPool
+
+var def: TurretDef
+var cliff_id: int = 0
+var cell: Vector2i
+var owner_name: String = ""
+var radius: float = 0.9
+var health: Health
+
+# Replicated.
+var aim_point: Vector3 = Vector3.ZERO
+var shots: int = 0
+
+var _head: Node3D
+var _gun: Node3D
+var _muzzle: Node3D
+var _target: Bug
+var _retarget := 0.0
+var _cooldown := 0.0
+var _seen_shots := 0
+
+
+func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: String) -> void:
+	def = d
+	cliff_id = cid
+	cell = c
+	owner_name = owner_label
+	position = pos
+	rotation.y = WorldLayout.facing_canyon_yaw(cid)
+	collision_layer = WorldLayout.LAYER_STRUCTURE
+	collision_mask = 0
+	var parts := TurretBuilder.build(d.id, Palette.team_color(cid))
+	var base := MeshInstance3D.new()
+	base.mesh = parts["base"]
+	base.material_override = Materials.toon(0.025)
+	add_child(base)
+	_head = Node3D.new()
+	_head.position.y = float(parts["head_y"])
+	add_child(_head)
+	var head_mi := MeshInstance3D.new()
+	head_mi.mesh = parts["head"]
+	head_mi.material_override = Materials.toon(0.02)
+	_head.add_child(head_mi)
+	_gun = Node3D.new()
+	_gun.position.y = float(parts["gun_y"])
+	_head.add_child(_gun)
+	var gun_mi := MeshInstance3D.new()
+	gun_mi.mesh = parts["gun"]
+	gun_mi.material_override = Materials.toon(0.015)
+	_gun.add_child(gun_mi)
+	_muzzle = Node3D.new()
+	_muzzle.position = parts["muzzle"]
+	_gun.add_child(_muzzle)
+	var col := CollisionShape3D.new()
+	var shape := CylinderShape3D.new()
+	shape.radius = 0.8
+	shape.height = 1.8
+	col.shape = shape
+	col.position.y = 0.9
+	add_child(col)
+	health = Health.new()
+	health.name = "Health"
+	health.setup(d.max_hp)
+	add_child(health)
+	health.died.connect(_on_destroyed)
+	add_child(_make_synchronizer())
+	add_to_group("turrets")
+	add_to_group("structures")
+	aim_point = pos + Vector3(-WorldLayout.side_sign(cid) * 20.0, 0.0, 0.0)
+
+
+func _make_synchronizer() -> MultiplayerSynchronizer:
+	var cfg := SceneReplicationConfig.new()
+	for p: String in [".:aim_point", ".:shots", "Health:hp"]:
+		var path := NodePath(p)
+		cfg.add_property(path)
+		cfg.property_set_spawn(path, true)
+		cfg.property_set_replication_mode(path, SceneReplicationConfig.REPLICATION_MODE_ALWAYS)
+	var sync := MultiplayerSynchronizer.new()
+	sync.name = "Sync"
+	sync.replication_config = cfg
+	sync.replication_interval = 0.1
+	return sync
+
+
+func _physics_process(delta: float) -> void:
+	if multiplayer.is_server():
+		_think(delta)
+	_aim_visual(delta)
+	if shots != _seen_shots:
+		_seen_shots = shots
+		_draw_shot()
+
+
+func _think(delta: float) -> void:
+	_cooldown -= delta
+	_retarget -= delta
+	if _retarget <= 0.0 or _target == null or not is_instance_valid(_target) or not _valid(_target):
+		_retarget = RETARGET_TIME
+		_target = _pick_target()
+	if _target == null:
+		return
+	aim_point = _target.global_position
+	if _cooldown > 0.0 or _aim_error_deg() > ALIGN_TOLERANCE_DEG:
+		return
+	_cooldown = def.fire_interval
+	shots += 1
+	if randf() <= def.hit_chance:
+		var dir := (aim_point - _muzzle.global_position).normalized()
+		_target.receive_hit(def.damage, aim_point, dir, def.armor_pierce, 1.0,
+				"%s's %s" % [owner_name, def.display_name], cliff_id)
+
+
+func _pick_target() -> Bug:
+	if bug_manager == null:
+		return null
+	var best: Bug = null
+	var best_score := -INF
+	for b in bug_manager.climbers_on(WorldLayout.other_cliff(cliff_id)):
+		if not _valid(b):
+			continue
+		var score := Targeting.priority(b.climb_y, b.global_position.distance_to(global_position))
+		if score > best_score:
+			best = b
+			best_score = score
+	return best
+
+
+## The cross-defense rule plus pitch limit, range and line of sight.
+func _valid(b: Bug) -> bool:
+	if not b.is_alive() or not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing()):
+		return false
+	var muzzle := _head.global_position
+	if not Targeting.in_arc(muzzle, b.global_position, def.pitch_limit_deg, def.range):
+		return false
+	var q := PhysicsRayQueryParameters3D.create(muzzle, b.global_position, WorldLayout.LAYER_WORLD)
+	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+
+func _aim_error_deg() -> float:
+	var want := (aim_point - _gun.global_position).normalized()
+	var have := -_gun.global_basis.z.normalized()
+	return rad_to_deg(want.angle_to(have))
+
+
+## Turns head (yaw) and gun (pitch) toward aim_point at the turret's turn speed.
+func _aim_visual(delta: float) -> void:
+	var local := to_local(aim_point) - _head.position
+	var yaw := atan2(-local.x, -local.z)
+	var horizontal := Vector2(local.x, local.z).length()
+	var pitch := clampf(atan2(local.y, horizontal), -deg_to_rad(def.pitch_limit_deg), deg_to_rad(40.0))
+	var step := deg_to_rad(def.turn_speed) * delta
+	_head.rotation.y = rotate_toward(_head.rotation.y, yaw, step)
+	_gun.rotation.x = rotate_toward(_gun.rotation.x, pitch, step)
+
+
+func _draw_shot() -> void:
+	var from := _muzzle.global_position
+	var spread := deg_to_rad(def.spread_deg)
+	var to := aim_point + Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * from.distance_to(aim_point) * spread
+	if vfx != null:
+		vfx.tracer(from, to)
+		vfx.muzzle_flash(from, -_gun.global_basis.z)
+	var sound := &"buffalo" if def.id == &"buffalo_rifle" else StringName("gatling_%d" % (randi() % 3 + 1))
+	Audio.play_at(sound, from, -4.0 if def.id == &"gatling_post" else 0.0)
+
+
+## Host: damage from spitter acid or breachers.
+func structure_damage(amount: float, source: String) -> void:
+	if multiplayer.is_server():
+		health.take_damage(amount, source)
+
+
+## Host: repairing heals HP.
+func repair(amount: float) -> void:
+	if multiplayer.is_server():
+		health.heal(amount)
+
+
+func needs_repair() -> bool:
+	return health.hp < health.max_hp - 0.5
+
+
+func interact_prompt() -> String:
+	var hp := "%s  %d/%d HP" % [def.display_name, int(health.hp), int(health.max_hp)]
+	if needs_repair():
+		return hp + "\nHold E: repair (1 scrap per %d HP)" % int(BuildManager.REPAIR_HP_PER_SCRAP)
+	return hp
+
+
+func local_interact(_holding: bool) -> void:
+	if needs_repair():
+		BuildManager.instance.repair(cliff_id, cell)
+
+
+func _on_destroyed(_source: String, _source_cliff: int) -> void:
+	if multiplayer.is_server():
+		BuildManager.instance.on_structure_destroyed(self)

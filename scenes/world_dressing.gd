@@ -55,7 +55,8 @@ func _build_homestead_area(cid: int) -> void:
 	var team := Palette.team_color(cid)
 	# Homestead: its own trimesh collision so players can walk on the porch.
 	var home_mesh := BuildingBuilder.homestead(100 + cid, team)
-	var home := StaticBody3D.new()
+	var home := Homestead.new()
+	home.cliff_id = cid
 	home.name = "Homestead%d" % cid
 	home.position = ground(cid, 23.0, 0.0)
 	home.rotation.y = yaw
@@ -80,6 +81,14 @@ func _build_homestead_area(cid: int) -> void:
 	fan.position = tower_pos + Vector3(0, 8.3, 0) - forward * 0.6
 	fan.rotation.y = yaw
 	parent.add_child(fan)
+
+	# Salvage piles (scrap each build phase).
+	for i in 2:
+		var pile := SalvagePile.new()
+		pile.name = "Salvage%d_%d" % [cid, i]
+		pile.setup(cid, 800 + cid * 10 + i)
+		pile.position = ground(cid, 14.0 + float(i) * 6.0, -9.0 + float(i) * 18.0)
+		parent.add_child(pile)
 
 	# Barrels and crates around the homestead, plus tin cans on a crate for target practice.
 	for i in 4:

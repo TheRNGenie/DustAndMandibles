@@ -39,6 +39,9 @@ var _capsule: CapsuleShape3D
 @onready var revolver: Revolver = $Head/Camera/Revolver
 @onready var net: PlayerNet = $Net
 @onready var body: MeshInstance3D = $Body
+@onready var vitals: PlayerVitals = $Vitals
+## Set by the world for the local player.
+var build_mode: BuildMode
 
 
 func _ready() -> void:
@@ -67,6 +70,17 @@ func _ready() -> void:
 
 func is_sliding() -> bool:
 	return _sliding
+
+
+func is_downed() -> bool:
+	return vitals.downed if is_multiplayer_authority() else net.sync_downed
+
+
+func display_name() -> String:
+	var id := get_multiplayer_authority()
+	if NetworkManager.players.has(id):
+		return str((NetworkManager.players[id] as Dictionary)["name"])
+	return NetworkManager.local_name
 
 
 ## Remote players: crouch the body while sliding.
@@ -101,7 +115,7 @@ func _physics_process(delta: float) -> void:
 	if _mantling:
 		return
 	_update_fall(delta)
-	var blocked := GameState.menu_open
+	var blocked := GameState.menu_open or vitals.downed
 	var input_dir := Vector2.ZERO if blocked else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var wish := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 	var on_floor := is_on_floor()
@@ -140,7 +154,9 @@ func _physics_process(delta: float) -> void:
 
 
 func _handle_weapon() -> void:
-	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or GameState.menu_open:
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or GameState.menu_open or vitals.downed:
+		return
+	if build_mode != null and build_mode.active:
 		return
 	if Input.is_action_just_pressed("fire") and revolver.trigger(camera):
 		net.fire(camera.global_position, -camera.global_transform.basis.z)

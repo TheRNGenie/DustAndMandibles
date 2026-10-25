@@ -11,6 +11,8 @@ var cliffs: CliffBuilder
 var vfx: VfxPool
 var hud: Hud
 var bridge: RopeBridge
+var bugs: BugManager
+var builds: BuildManager
 var players_root: Node3D
 var spawner: MultiplayerSpawner
 var _loaded_peers: Dictionary = {}
@@ -37,6 +39,18 @@ func _ready() -> void:
 	vfx = VfxPool.new()
 	vfx.name = "Vfx"
 	add_child(vfx)
+	Bug.cliffs = cliffs
+	bugs = BugManager.new()
+	bugs.name = "Bugs"
+	bugs.vfx = vfx
+	add_child(bugs)
+	builds = BuildManager.new()
+	builds.name = "Builds"
+	builds.cliffs = cliffs
+	add_child(builds)
+	Turret.bug_manager = bugs
+	Turret.vfx = vfx
+	WaveDirector.bug_manager = bugs
 	hud = Hud.new()
 	add_child(hud)
 	var pause := PauseMenu.new()
@@ -61,9 +75,10 @@ func _ready() -> void:
 	else:
 		_client_loaded.rpc_id(1)
 
-	var shot := GameState.flag_value("--shot")
-	if shot != "":
-		_take_screenshot(shot)
+	var tools := DebugTools.new()
+	tools.name = "DebugTools"
+	tools.world = self
+	add_child(tools)
 
 
 # ------------------------------------------------------------------ spawning (host decides)
@@ -111,7 +126,13 @@ func _spawn_player(data: Variant) -> Node:
 	player.ready.connect(func() -> void:
 		player.revolver.vfx = vfx
 		if peer_id == multiplayer.get_unique_id():
-			hud.bind_player(player), CONNECT_ONE_SHOT)
+			var bm := BuildMode.new()
+			bm.name = "BuildMode"
+			bm.player = player
+			bm.cliffs = cliffs
+			player.build_mode = bm
+			player.add_child(bm)
+			hud.bind_player(player, bugs, builds), CONNECT_ONE_SHOT)
 	return player
 
 
@@ -136,8 +157,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("ready_up"):
 		GameState.vote_skip()
-	elif event.is_action_pressed("debug_skip_phase") and GameState.has_flag("--debug"):
-		GameState.debug_skip()
 
 
 # ------------------------------------------------------------------ environment
@@ -189,37 +208,3 @@ func _apply_settings() -> void:
 	var p := local_player()
 	if p != null:
 		p.camera.fov = Settings.fov
-
-
-# ------------------------------------------------------------------ debug screenshots
-
-## `--shot=<path.png> [--pos=d,z] [--look=yaw,pitch] [--frames=N]` saves a frame and quits.
-func _take_screenshot(path: String) -> void:
-	var frames := int(GameState.flag_value("--frames")) if GameState.flag_value("--frames") != "" else 90
-	for i in 20:
-		await get_tree().process_frame
-	var player := local_player()
-	var pos := GameState.flag_value("--pos")
-	if player != null and pos != "":
-		var p := pos.split(",")
-		player.global_position = cliffs.plateau_point(player.cliff_id, p[0].to_float(), p[1].to_float()) + Vector3.UP * 0.2
-		player.spawn_transform = player.global_transform
-	var look := GameState.flag_value("--look")
-	if player != null and look != "":
-		var parts := look.split(",")
-		player.rotation.y += deg_to_rad(parts[0].to_float())
-		player.head.rotation.x = deg_to_rad(parts[1].to_float())
-	for i in frames:
-		await get_tree().process_frame
-		if i == 30 and GameState.has_flag("--autoskip"):
-			GameState.vote_skip()
-		if player != null and GameState.has_flag("--autofire") and i % 40 == 0 and i < frames - 60:
-			if player.revolver.trigger(player.camera):
-				player.net.fire(player.camera.global_position, -player.camera.global_transform.basis.z)
-	print("[peer %d] phase %d wave %d, players %d, bridge lowered %s" % [multiplayer.get_unique_id(),
-			GameState.phase, GameState.wave, players_root.get_child_count(), bridge.is_lowered()])
-	for p: Node in players_root.get_children():
-		print("[peer %d]   player %s at %s" % [multiplayer.get_unique_id(), p.name, str((p as Node3D).global_position.snapped(Vector3.ONE * 0.1))])
-	get_viewport().get_texture().get_image().save_png(path)
-	print("Saved screenshot to ", path)
-	get_tree().quit()

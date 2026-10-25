@@ -9,6 +9,7 @@ var sync_pos: Vector3
 var sync_yaw: float
 var sync_pitch: float
 var sync_sliding: bool
+var sync_downed: bool
 
 @onready var player: Player = get_parent() as Player
 
@@ -21,6 +22,7 @@ func _physics_process(delta: float) -> void:
 		sync_yaw = player.rotation.y
 		sync_pitch = player.head.rotation.x
 		sync_sliding = player.is_sliding()
+		sync_downed = player.vitals.downed
 	else:
 		var k := 1.0 - exp(-SMOOTHING * delta)
 		if player.global_position.distance_to(sync_pos) > 6.0:
@@ -36,6 +38,22 @@ func _physics_process(delta: float) -> void:
 func prime() -> void:
 	sync_pos = player.global_position
 	sync_yaw = player.rotation.y
+
+
+## Host: damage this player (from a breacher). Health lives on the owning peer.
+func server_damage(amount: float) -> void:
+	if not multiplayer.is_server():
+		return
+	if player.is_multiplayer_authority():
+		player.vitals.apply_damage(amount)
+	else:
+		_take_damage.rpc_id(player.get_multiplayer_authority(), amount)
+
+
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func _take_damage(amount: float) -> void:
+	if multiplayer.get_remote_sender_id() == 1:
+		player.vitals.apply_damage(amount)
 
 
 ## Called by the owning peer after the revolver fired.
@@ -64,7 +82,7 @@ func _request_fire(origin: Vector3, dir: Vector3) -> void:
 
 ## Host: applies damage, then tells every other peer to draw the shot.
 func _server_fire(origin: Vector3, dir: Vector3, hit: Dictionary) -> void:
-	player.revolver.apply_hit_result(hit, dir)
+	player.revolver.apply_hit_result(hit, dir, player.display_name(), player.cliff_id)
 	_fire_fx.rpc(origin, dir)
 
 
@@ -80,6 +98,7 @@ func _fire_fx(origin: Vector3, dir: Vector3) -> void:
 
 func _show_remote_shot(origin: Vector3, dir: Vector3, hit: Dictionary) -> void:
 	player.revolver.show_impact(hit, dir)
+	Audio.play_at(&"revolver", player.global_position + Vector3.UP * 1.4, -4.0)
 	var end: Vector3 = hit["position"] if not hit.is_empty() else origin + dir * Revolver.RANGE
 	var muzzle := player.global_position + Vector3.UP * 1.3 + player.global_transform.basis.x * 0.3
 	if player.revolver.vfx != null:

@@ -1,8 +1,9 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scenes/player/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scenes/player/revolver.gd" id="2_revolver"]
 [ext_resource type="Script" path="res://scenes/player/player_net.gd" id="3_net"]
+[ext_resource type="Script" path="res://scenes/player/player_vitals.gd" id="4_vitals"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -21,9 +22,12 @@ properties/2/replication_mode = 1
 properties/3/path = NodePath("Net:sync_sliding")
 properties/3/spawn = true
 properties/3/replication_mode = 2
+properties/4/path = NodePath("Net:sync_downed")
+properties/4/spawn = true
+properties/4/replication_mode = 2
 
 [node name="Player" type="CharacterBody3D"]
-collision_mask = 3
+collision_mask = 11
 floor_snap_length = 0.3
 script = ExtResource("1_player")
 
@@ -46,6 +50,9 @@ script = ExtResource("2_revolver")
 
 [node name="Net" type="Node" parent="."]
 script = ExtResource("3_net")
+
+[node name="Vitals" type="Node" parent="."]
+script = ExtResource("4_vitals")
 
 [node name="Sync" type="MultiplayerSynchronizer" parent="."]
 replication_interval = 0.05
