@@ -39,15 +39,51 @@ var _capsule: CapsuleShape3D
 @onready var camera: Camera3D = $Head/Camera
 @onready var collision: CollisionShape3D = $Collision
 @onready var revolver: Revolver = $Head/Camera/Revolver
+@onready var net: PlayerNet = $Net
+@onready var body: MeshInstance3D = $Body
 
 
 func _ready() -> void:
 	# Each player needs its own capsule so sliding doesn't resize the other player.
+	add_to_group("players")
 	_capsule = (collision.shape as CapsuleShape3D).duplicate() as CapsuleShape3D
 	collision.shape = _capsule
 	spawn_transform = global_transform
 	camera.fov = BASE_FOV
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	body.mesh = CharacterBuilder.cowboy(Palette.team_color(cliff_id))
+	body.material_override = Materials.toon_unique(0.025)
+	net.prime()
+	if is_multiplayer_authority():
+		camera.current = true
+		# Your own body only casts a shadow.
+		body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		if GameState.flag_value("--shot") == "": # automated screenshots ignore the mouse
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	else:
+		camera.current = false
+		revolver.visible = false
+		revolver.set_process(false)
+		set_physics_process(false)
+		set_process_unhandled_input(false)
+
+
+func is_sliding() -> bool:
+	return _sliding
+
+
+## Remote players: crouch the body while sliding.
+func set_remote_pose(sliding: bool) -> void:
+	var target := 0.55 if sliding else 1.0
+	body.scale.y = lerpf(body.scale.y, target, 0.3)
+
+
+## Remote players: a quick bright flash on the body when they fire.
+func flash_body() -> void:
+	var mat := body.material_override as ShaderMaterial
+	mat.set_shader_parameter("flash_color", Palette.GLOW_YELLOW)
+	mat.set_shader_parameter("flash_amount", 0.6)
+	var tw := create_tween()
+	tw.tween_method(func(v: float) -> void: mat.set_shader_parameter("flash_amount", v), 0.6, 0.0, 0.15)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -108,8 +144,8 @@ func _physics_process(delta: float) -> void:
 func _handle_weapon() -> void:
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
-	if Input.is_action_just_pressed("fire"):
-		revolver.trigger(camera, [get_rid()])
+	if Input.is_action_just_pressed("fire") and revolver.trigger(camera):
+		net.fire(camera.global_position, -camera.global_transform.basis.z)
 	if Input.is_action_just_pressed("reload"):
 		revolver.reload()
 

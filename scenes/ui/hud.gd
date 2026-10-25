@@ -6,6 +6,16 @@ var _ammo_label: Label
 var _center_label: Label
 var _debug_label: Label
 var _crosshair: Control
+var _phase_label: Label
+var _hint_label: Label
+
+const PHASE_NAMES := {
+	GameState.Phase.LOBBY: "Waiting for riders",
+	GameState.Phase.BUILD: "DAYBREAK",
+	GameState.Phase.WARNING: "DUST ON THE HORIZON",
+	GameState.Phase.WAVE: "SUNDOWN",
+	GameState.Phase.GAME_OVER: "THE END",
+}
 
 
 func _ready() -> void:
@@ -44,6 +54,34 @@ func _ready() -> void:
 	_center_label.add_theme_constant_override("outline_size", 8)
 	add_child(_center_label)
 
+	var banner := PanelContainer.new()
+	banner.add_theme_stylebox_override("panel", wood_sign_style())
+	banner.anchor_left = 0.5
+	banner.anchor_right = 0.5
+	banner.offset_left = -230
+	banner.offset_right = 230
+	banner.offset_top = 14
+	add_child(banner)
+	_phase_label = Label.new()
+	_phase_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_phase_label.add_theme_font_size_override("font_size", 24)
+	_phase_label.add_theme_color_override("font_color", Palette.BONE)
+	banner.add_child(_phase_label)
+	_hint_label = Label.new()
+	_hint_label.anchor_left = 0.5
+	_hint_label.anchor_right = 0.5
+	_hint_label.offset_left = -300
+	_hint_label.offset_right = 300
+	_hint_label.offset_top = 70
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_label.add_theme_font_size_override("font_size", 18)
+	_hint_label.add_theme_color_override("font_color", Palette.BONE)
+	_hint_label.add_theme_color_override("font_outline_color", Palette.OUTLINE)
+	_hint_label.add_theme_constant_override("outline_size", 6)
+	add_child(_hint_label)
+	GameState.phase_changed.connect(func(_p: GameState.Phase) -> void: _flash_phase())
+	GameState.skip_votes_changed.connect(func(_v: int, _n: int) -> void: _update_hint())
+
 	_debug_label = Label.new()
 	_debug_label.position = Vector2(12, 12)
 	_debug_label.add_theme_color_override("font_color", Color.WHITE)
@@ -65,10 +103,45 @@ func bind_player(player: Player) -> void:
 func _process(_delta: float) -> void:
 	if Input.is_action_just_pressed("debug_overlay"):
 		_debug_label.visible = not _debug_label.visible
+	_update_phase_label()
 	if _debug_label.visible:
-		_debug_label.text = "FPS %d\nDraw calls %d" % [
+		var role := "offline"
+		if NetworkManager.is_online():
+			role = "host" if multiplayer.is_server() else "client"
+		_debug_label.text = "FPS %d\nDraw calls %d\nPeer %d (%s)\nPing %d ms\nPlayers %d" % [
 			Engine.get_frames_per_second(),
-			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)]
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+			multiplayer.get_unique_id(), role, NetworkManager.get_ping_ms(),
+			get_tree().get_nodes_in_group("players").size()]
+
+
+func _update_phase_label() -> void:
+	var title: String = PHASE_NAMES.get(GameState.phase, "")
+	var secs := int(ceilf(GameState.time_left))
+	if GameState.phase == GameState.Phase.LOBBY:
+		_phase_label.text = title
+	else:
+		_phase_label.text = "Wave %d  -  %s  -  %d:%02d" % [GameState.wave, title, secs / 60, secs % 60]
+
+
+func _flash_phase() -> void:
+	_update_hint()
+	var tw := create_tween()
+	_phase_label.scale = Vector2(1.15, 1.15)
+	tw.tween_property(_phase_label, "scale", Vector2.ONE, 0.25)
+
+
+func _update_hint() -> void:
+	match GameState.phase:
+		GameState.Phase.BUILD:
+			_hint_label.text = "Build up your partner's defenses. Press G when ready (%d/%d)" % [
+				GameState.skip_votes, maxi(NetworkManager.players.size(), 1)]
+		GameState.Phase.WARNING:
+			_hint_label.text = "The bridge is coming up! Get back to your own cliff."
+		GameState.Phase.WAVE:
+			_hint_label.text = "Bugs are climbing. Cover your partner's cliff!"
+		_:
+			_hint_label.text = ""
 
 
 func _on_ammo_changed(current: int, max_ammo: int) -> void:

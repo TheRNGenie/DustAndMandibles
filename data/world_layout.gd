@@ -24,6 +24,10 @@ const OVERHANG := 2.2
 const LIP_BAND_BOTTOM := 26.6
 const UNDERSIDE_BOTTOM := 25.4
 
+## Physics layers (bit values).
+const LAYER_WORLD := 1
+const LAYER_PLAYER_BLOCKER := 2
+
 ## Players who fall below this height are in the canyon and get hauled home.
 const CANYON_FALL_Y := 22.0
 

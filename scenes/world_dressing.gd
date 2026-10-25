@@ -161,7 +161,11 @@ func _build_boundary(cid: int) -> void:
 
 func _add_wall(pos: Vector3, size: Vector3) -> void:
 	var body := StaticBody3D.new()
+	body.name = "BoundaryWall"
 	body.position = pos
+	# Only players collide with boundary walls; bullets and bugs pass through.
+	body.collision_layer = WorldLayout.LAYER_PLAYER_BLOCKER
+	body.collision_mask = 0
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = size

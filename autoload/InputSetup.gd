@@ -14,6 +14,8 @@ const KEY_BINDINGS: Dictionary = {
 	"interact": [KEY_E],
 	"toggle_mouse": [KEY_ESCAPE],
 	"debug_overlay": [KEY_F3],
+	"ready_up": [KEY_G],
+	"debug_skip_phase": [KEY_F6],
 }
 
 const MOUSE_BINDINGS: Dictionary = {

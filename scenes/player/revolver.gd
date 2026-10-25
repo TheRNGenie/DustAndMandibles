@@ -77,8 +77,9 @@ func _process(delta: float) -> void:
 	rotation = Vector3(_kick * 0.5 - dip * 0.6, 0, dip * 0.5)
 
 
-## Fires from the camera if possible. `exclude` is the shooter's own collision RID.
-func trigger(camera: Camera3D, exclude: Array[RID]) -> bool:
+## Fires if possible (ammo, cooldown, effects). Hit resolution is done by the caller
+## through raycast() / show_impact() / apply_hit_result(), so the host can confirm hits.
+func trigger(camera: Camera3D) -> bool:
 	if _cooldown > 0.0 or _reload_left > 0.0:
 		return false
 	if ammo <= 0:
@@ -96,7 +97,6 @@ func trigger(camera: Camera3D, exclude: Array[RID]) -> bool:
 	var origin := camera.global_position
 	var dir := -camera.global_transform.basis.z
 	fired.emit(origin, dir)
-	_resolve_hit(origin, dir, exclude)
 	return true
 
 
@@ -111,11 +111,18 @@ func is_reloading() -> bool:
 	return _reload_left > 0.0
 
 
-func _resolve_hit(origin: Vector3, dir: Vector3, exclude: Array[RID]) -> void:
+## Hitscan from origin along dir. Returns the intersect_ray result (empty on a miss).
+func raycast(origin: Vector3, dir: Vector3, exclude: Array[RID]) -> Dictionary:
 	var space := get_world_3d().direct_space_state
 	var q := PhysicsRayQueryParameters3D.create(origin, origin + dir * RANGE)
 	q.exclude = exclude
-	var hit := space.intersect_ray(q)
+	q.collision_mask = WorldLayout.LAYER_WORLD
+	return space.intersect_ray(q)
+
+
+## Cosmetic: spark at the hit point and a nudge for loose physics props (tin cans).
+## Runs on every peer that sees the shot; props are not synced.
+func show_impact(hit: Dictionary, dir: Vector3) -> void:
 	if hit.is_empty():
 		return
 	var pos: Vector3 = hit["position"]
@@ -126,5 +133,14 @@ func _resolve_hit(origin: Vector3, dir: Vector3, exclude: Array[RID]) -> void:
 	if collider is RigidBody3D:
 		var rb := collider as RigidBody3D
 		rb.apply_impulse(dir * IMPACT_FORCE, pos - rb.global_position)
-	if collider != null and collider.has_method("apply_hit"):
-		collider.call("apply_hit", DAMAGE, pos, dir)
+		if rb.has_method("apply_hit"):
+			rb.call("apply_hit", 0.0, pos, dir)
+
+
+## Host only: applies damage to whatever was hit.
+func apply_hit_result(hit: Dictionary, dir: Vector3) -> void:
+	if hit.is_empty():
+		return
+	var collider: Object = hit["collider"]
+	if collider != null and not (collider is RigidBody3D) and collider.has_method("apply_hit"):
+		collider.call("apply_hit", DAMAGE, hit["position"], dir)

@@ -9,6 +9,7 @@ var _sparks: Array[GPUParticles3D] = []
 var _dust: Array[GPUParticles3D] = []
 var _spark_i := 0
 var _dust_i := 0
+var _tracer_mat: StandardMaterial3D
 
 
 func _ready() -> void:
@@ -25,6 +26,30 @@ func spark(pos: Vector3, normal: Vector3) -> void:
 	var d := _dust[_dust_i]
 	_dust_i = (_dust_i + 1) % _dust.size()
 	_fire(d, pos + normal * 0.05, normal)
+
+
+## A brief bright streak from a muzzle to the hit point (for shots by the other player).
+func tracer(from: Vector3, to: Vector3) -> void:
+	var length := from.distance_to(to)
+	if length < 0.5:
+		return
+	if _tracer_mat == null:
+		_tracer_mat = StandardMaterial3D.new()
+		_tracer_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_tracer_mat.albedo_color = Palette.GLOW_YELLOW * 2.0
+		_tracer_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var mi := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.04, 0.04, length)
+	box.material = _tracer_mat
+	mi.mesh = box
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+	var up := Vector3.UP if absf((to - from).normalized().dot(Vector3.UP)) < 0.95 else Vector3.RIGHT
+	mi.global_transform = Transform3D(Basis.looking_at(to - from, up), (from + to) * 0.5)
+	var tw := mi.create_tween()
+	tw.tween_property(mi, "scale", Vector3(0.1, 0.1, 1.0), 0.08)
+	tw.tween_callback(mi.queue_free)
 
 
 func _fire(e: GPUParticles3D, pos: Vector3, normal: Vector3) -> void:
