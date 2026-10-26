@@ -20,7 +20,7 @@ godot --path D:\DustAndMandibles
 
 The main menu offers **Host** (you get the west cliff) and **Join** (IP, default 127.0.0.1, port 24565; you get the east cliff). Tick **Ready** on both; the game starts when both players are ready. The host can also **Start alone** for testing.
 
-Two local windows that connect automatically: `powershell -File tools\run_two_local.ps1`
+Two local windows that connect automatically: `powershell -ExecutionPolicy Bypass -File tools\run_two_local.ps1`
 
 Command-line flags (after `--`): `--host`, `--join[=ip]`, `--name=X`, `--solo`, `--fast` (short phases), `--debug` (F6 skips a phase), `--east` (when running `scenes/world.tscn` directly, offline).
 
