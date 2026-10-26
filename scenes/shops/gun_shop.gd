@@ -13,7 +13,6 @@ const SHELF: Array[Dictionary] = [
 	{"kind": "upgrade", "id": &"coach_shotgun"},
 ]
 
-static var selected := 0
 ## Host: what every peer owns, peer_id -> {weapon id: level}.
 static var loadouts: Dictionary = {}
 
@@ -37,7 +36,7 @@ func setup(cid: int) -> void:
 	var board := MeshInstance3D.new()
 	board.mesh = ShopBuilder.sign_board()
 	board.material_override = Materials.toon(0.02)
-	board.position = Vector3(2.6, 0, -0.4)
+	board.position = Vector3(3.1, 0, -0.4)
 	add_child(board)
 	_label = ShopBuilder.sign_label()
 	board.add_child(_label)
@@ -52,42 +51,71 @@ static func reset_loadouts() -> void:
 	loadouts.clear()
 
 
-func cycle_option() -> void:
-	selected = (selected + 1) % SHELF.size()
+signal menu_changed
 
+
+# ------------------------------------------------------------------ the menu screen
 
 func interact_prompt() -> String:
-	var gun := _local_gun()
-	if gun == null:
-		return ""
-	var item: Dictionary = SHELF[selected % SHELF.size()]
-	var id: StringName = item["id"]
-	var w := Gun.weapon(id)
-	var text := ""
-	if item["kind"] == "buy":
-		if gun.owns(id):
-			text = "%s: already yours" % w.display_name
-		else:
-			text = "E: buy %s (%d chitin)\n%s" % [w.display_name, w.price_chitin, w.description]
-	else:
-		var level := gun.level_of(id)
-		if not gun.owns(id):
-			text = "Upgrade %s: buy it first" % w.display_name
-		elif level >= w.upgrade_costs.size():
-			text = "%s is fully upgraded" % w.display_name
-		else:
-			text = "E: upgrade %s to level %d (%d chitin): +25%% damage, faster reload" % [w.display_name, level + 1, w.upgrade_costs[level]]
-	return "Gunsmith  " + text + "\nF: next item"
+	return "E: browse the gunsmith"
 
 
 func local_interact(holding: bool) -> void:
-	if holding:
-		return
-	var item: Dictionary = SHELF[selected % SHELF.size()]
+	if not holding and MenuScreen.instance != null:
+		MenuScreen.instance.open(self)
+
+
+func menu_title() -> String:
+	return "Gunsmith"
+
+
+func menu_tagline() -> String:
+	return "New irons and upgrades, paid in chitin. You can carry three guns; drop one with Q to make room."
+
+
+func menu_tabs() -> Array:
+	return ["Guns", "Upgrades"]
+
+
+func menu_items(tab: int) -> Array:
+	var gun := _local_gun()
+	if gun == null:
+		return []
+	var chitin := Economy.amount(NetworkManager.cliff_of(multiplayer.get_unique_id()), &"chitin")
+	var out: Array = []
+	for item: Dictionary in SHELF:
+		var id: StringName = item["id"]
+		var w := Gun.weapon(id)
+		if tab == 0 and item["kind"] == "buy":
+			var why := ""
+			if gun.owns(id):
+				why = "Already in your holster."
+			elif gun.owned.size() >= Gun.MAX_WEAPONS:
+				why = "Your three weapon slots are full. Drop one first (Q)."
+			out.append({"id": "buy:%s" % id, "name": w.display_name, "icon": id, "desc": w.description,
+					"price": "%d chitin" % w.price_chitin, "price_ok": chitin >= w.price_chitin, "disabled": why,
+					"buttons": [[&"buy", "Buy"]]})
+		elif tab == 1 and item["kind"] == "upgrade":
+			var level := gun.level_of(id)
+			var maxed := level >= w.upgrade_costs.size()
+			var why := ""
+			if not gun.owns(id):
+				why = "Buy it first."
+			elif maxed:
+				why = "Fully upgraded."
+			var cost: int = 0 if maxed else int(w.upgrade_costs[level])
+			out.append({"id": "upgrade:%s" % id, "name": "%s  (level %d)" % [w.display_name, level], "icon": id,
+					"desc": "+25% damage and a faster reload per level.", "price": "" if maxed else "%d chitin" % cost,
+					"price_ok": chitin >= cost, "disabled": why, "buttons": [[&"buy", "Upgrade"]]})
+	return out
+
+
+func menu_press(id: Variant, _action: StringName) -> void:
+	var parts := str(id).split(":")
 	if multiplayer.is_server():
-		_buy(multiplayer.get_unique_id(), str(item["kind"]), item["id"])
+		_buy(multiplayer.get_unique_id(), parts[0], StringName(parts[1]))
 	else:
-		_request_buy.rpc_id(1, str(item["kind"]), item["id"])
+		_request_buy.rpc_id(1, parts[0], StringName(parts[1]))
 
 
 @rpc("any_peer", "reliable")
@@ -131,6 +159,7 @@ func _buy(peer_id: int, kind: String, id: StringName) -> void:
 @rpc("authority", "call_local", "unreliable")
 func _sold() -> void:
 	Audio.play_at(&"reload", global_position)
+	menu_changed.emit()
 
 
 func _player_of(peer_id: int) -> Player:

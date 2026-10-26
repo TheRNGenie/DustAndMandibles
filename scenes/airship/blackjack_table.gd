@@ -1,17 +1,17 @@
 class_name BlackjackTable
 extends CasinoTable
-## Blackjack for 20 scrap: E deals, then E hits and F stands. Dealer stands on
-## all 17s, a natural pays 3:2. One player's hand at a time per peer; the sign
-## shows the latest hand.
+## Blackjack: Deal, then Hit or Stand. Dealer stands on all 17s, a natural pays
+## 3:2. One hand at a time at this table.
 
-## peer -> {"player": Array, "dealer": Array, "shoe": Array}
-var _hands: Dictionary = {}
-var _local_in_hand := false
+var _hand: Dictionary = {} # host: {"peer", "bet", "player", "dealer", "shoe"}
 
 
-func _ready() -> void:
-	title = "BLACKJACK  (%d scrap)" % BET
-	super._ready()
+func ui_title() -> String:
+	return "Blackjack"
+
+
+func ui_rules() -> String:
+	return "Get closer to 21 than the dealer without going over. Dealer stands on 17. Blackjack pays 3:2, a win pays 1:1."
 
 
 func _decorate(st: SurfaceTool) -> void:
@@ -19,68 +19,56 @@ func _decorate(st: SurfaceTool) -> void:
 		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(-0.6 + i * 0.3, 1.0, 0.3)), 0.07, 0.07, 0.03, 10, [Color("#C9302C"), Palette.BONE, Color("#2E6FA8")][i % 3])
 
 
-func interact_prompt() -> String:
-	if _local_in_hand:
-		return "Blackjack: E hit   F stand"
-	return "Blackjack: %d scrap a hand\nE: deal. Dealer stands on 17, blackjack pays 3:2." % BET
+func ui_actions() -> Array:
+	if bool(view.get("in_hand", false)):
+		if int(view.get("peer", 0)) == multiplayer.get_unique_id():
+			return [[&"hit", "Hit"], [&"stand", "Stand"]]
+		return []
+	return [[&"deal", "Deal"]]
 
 
-func _on_f() -> void:
-	if _local_in_hand:
-		_send(&"stand", 0)
-
-
-func _act(peer_id: int, action: StringName, _arg: int) -> void:
-	var h: Dictionary = _hands.get(peer_id, {})
-	if action == &"e" and h.is_empty():
-		if not _take_bet(peer_id):
+func _act(peer_id: int, action: StringName, _choice: int, bet: int) -> void:
+	if action == &"deal":
+		if not _hand.is_empty():
+			Economy.notify(peer_id, "Wait for the current hand to finish.")
+			return
+		bet = _valid_bet(bet)
+		if not _take(peer_id, bet):
 			return
 		var shoe := _shoe()
-		h = {"player": [shoe.pop_back(), shoe.pop_back()], "dealer": [shoe.pop_back(), shoe.pop_back()], "shoe": shoe}
-		_hands[peer_id] = h
-		if CasinoRules.bj_is_blackjack(h["player"]) or CasinoRules.bj_is_blackjack(h["dealer"]):
-			_finish(peer_id)
-			return
-		_update(peer_id, false)
-	elif action == &"e":
-		(h["player"] as Array).append((h["shoe"] as Array).pop_back())
-		if CasinoRules.bj_value(h["player"]) >= 21:
-			_finish(peer_id)
+		_hand = {"peer": peer_id, "bet": bet, "player": [shoe.pop_back(), shoe.pop_back()],
+				"dealer": [shoe.pop_back(), shoe.pop_back()], "shoe": shoe}
+		if CasinoRules.bj_is_blackjack(_hand["player"]) or CasinoRules.bj_is_blackjack(_hand["dealer"]):
+			_finish()
 		else:
-			_update(peer_id, false)
-	elif action == &"stand" and not h.is_empty():
-		_finish(peer_id)
+			_send_view(false, "Hit or stand?")
+	elif _hand.is_empty() or int(_hand["peer"]) != peer_id:
+		return
+	elif action == &"hit":
+		(_hand["player"] as Array).append((_hand["shoe"] as Array).pop_back())
+		if CasinoRules.bj_value(_hand["player"]) >= 21:
+			_finish()
+		else:
+			_send_view(false, "Hit or stand?")
+	elif action == &"stand":
+		_finish()
 
 
-func _update(peer_id: int, done: bool) -> void:
-	var h: Dictionary = _hands[peer_id]
-	var dealer: Array = h["dealer"]
-	var dealer_text := _hand_text(dealer) if done else "%s ??" % _hand_text([dealer[0]])
-	var text := "You: %s (%d)\nDealer: %s" % [_hand_text(h["player"]), CasinoRules.bj_value(h["player"]), dealer_text]
-	_show.rpc(text, &"pluck")
-	if peer_id != multiplayer.get_unique_id():
-		_set_in_hand.rpc_id(peer_id, not done)
-	else:
-		_set_in_hand(not done)
+func _send_view(done: bool, result: String) -> void:
+	var dealer: Array = _hand["dealer"]
+	var shown: Array = dealer if done else [dealer[0], 0] # 0 = face-down card
+	_broadcast({"kind": "cards", "in_hand": not done, "peer": _hand["peer"], "result": result,
+			"rows": [["Dealer", shown, CasinoRules.bj_value(dealer) if done else CasinoRules.bj_value([dealer[0]])],
+				["You", _hand["player"], CasinoRules.bj_value(_hand["player"])]]})
 
 
-func _finish(peer_id: int) -> void:
-	var h: Dictionary = _hands[peer_id]
-	if CasinoRules.bj_value(h["player"]) <= 21:
-		CasinoRules.bj_dealer_play(h["dealer"], h["shoe"])
-	var won := CasinoRules.bj_payout(h["player"], h["dealer"], BET)
-	_pay(peer_id, won)
-	var result := "BLACKJACK! +%d" % won if won > BET * 2 else ("You win +%d" % won if won > BET else ("Push" if won == BET else "Dealer wins"))
-	_show.rpc("You: %s (%d)\nDealer: %s (%d)\n%s" % [_hand_text(h["player"]), CasinoRules.bj_value(h["player"]),
-			_hand_text(h["dealer"]), CasinoRules.bj_value(h["dealer"]), result], &"coin" if won > BET else &"reload")
-	Economy.notify(peer_id, "Blackjack: %s" % result)
-	_hands.erase(peer_id)
-	if peer_id != multiplayer.get_unique_id():
-		_set_in_hand.rpc_id(peer_id, false)
-	else:
-		_set_in_hand(false)
-
-
-@rpc("authority", "call_remote", "reliable")
-func _set_in_hand(on: bool) -> void:
-	_local_in_hand = on
+func _finish() -> void:
+	var peer: int = _hand["peer"]
+	var bet: int = _hand["bet"]
+	if CasinoRules.bj_value(_hand["player"]) <= 21:
+		CasinoRules.bj_dealer_play(_hand["dealer"], _hand["shoe"])
+	var won := CasinoRules.bj_payout(_hand["player"], _hand["dealer"], bet)
+	_pay(peer, {&"scrap": won} if won > 0 else {})
+	var result := "BLACKJACK! You win %d" % won if won > bet * 2 else ("You win %d scrap" % won if won > bet else ("Push, bet returned" if won == bet else "Dealer wins"))
+	_send_view(true, result)
+	_hand = {}

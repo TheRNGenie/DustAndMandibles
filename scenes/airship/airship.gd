@@ -189,7 +189,7 @@ func _set_deck_active(on: bool) -> void:
 	_ladder_area.monitoring = on
 	_ladder_mi.visible = on
 	for c in get_children():
-		if c is SlotMachine or c is PrizeWheel or c is CasinoTable:
+		if c is CasinoGame:
 			(c as Node3D).process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
 	if not on:
 		for n: Node in get_tree().get_nodes_in_group("players"):

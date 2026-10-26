@@ -125,6 +125,20 @@ class ItemIcon extends Control:
 				draw_rect(Rect2(c + Vector2(-s * 0.35, s * 0.18), Vector2(s * 0.7, s * 0.24)), Palette.TEAM_WEST, true)
 				for k in 3:
 					draw_circle(c + Vector2(-s * 0.3 + k * s * 0.3, -s * 0.45), s * 0.18, Color("#8CC66E"))
+			&"hammer":
+				draw_line(c + Vector2(-s * 0.5, s * 0.7), c + Vector2(s * 0.3, -s * 0.3), Palette.WOOD, 5.0)
+				_poly([c + Vector2(s * 0.0, -s * 0.7), c + Vector2(s * 0.7, -s * 0.0), c + Vector2(s * 0.5, s * 0.2), c + Vector2(-s * 0.2, -s * 0.5)], Palette.METAL)
+			&"planks":
+				for k in 3:
+					_poly([c + Vector2(-s * 0.8, -s * 0.55 + k * s * 0.45), c + Vector2(s * 0.8, -s * 0.75 + k * s * 0.45),
+							c + Vector2(s * 0.8, -s * 0.45 + k * s * 0.45), c + Vector2(-s * 0.8, -s * 0.25 + k * s * 0.45)], Palette.WOOD.lightened(0.1 * k))
+			&"shield":
+				_poly([c + Vector2(-s * 0.7, -s * 0.7), c + Vector2(s * 0.7, -s * 0.7), c + Vector2(s * 0.6, s * 0.2), c + Vector2(0, s * 0.85), c + Vector2(-s * 0.6, s * 0.2)], Palette.METAL)
+				draw_rect(Rect2(c + Vector2(-s * 0.7, -s * 0.2), Vector2(s * 1.4, s * 0.18)), Palette.METAL.darkened(0.35), true)
+			&"house":
+				draw_rect(Rect2(c + Vector2(-s * 0.6, -s * 0.1), Vector2(s * 1.2, s * 0.9)), Palette.WOOD, true)
+				_poly([c + Vector2(-s * 0.8, -s * 0.05), c + Vector2(0, -s * 0.8), c + Vector2(s * 0.8, -s * 0.05)], Palette.ROOF)
+				draw_rect(Rect2(c + Vector2(-s * 0.15, s * 0.3), Vector2(s * 0.3, s * 0.5)), Palette.WOOD_DARK, true)
 			&"water":
 				_poly([c + Vector2(-s * 0.6, -s * 0.4), c + Vector2(s * 0.6, -s * 0.4), c + Vector2(s * 0.45, s * 0.8), c + Vector2(-s * 0.45, s * 0.8)], Palette.WOOD)
 				draw_rect(Rect2(c + Vector2(-s * 0.55, -s * 0.4), Vector2(s * 1.1, s * 0.2)), Palette.SKY_TOP, true)

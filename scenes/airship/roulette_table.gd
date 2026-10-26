@@ -1,20 +1,23 @@
 class_name RouletteTable
 extends CasinoTable
-## Single-zero roulette for 20 scrap: F picks the bet (red, black, odd, even,
-## 1-18, 19-36, 1st dozen, lucky 7), E spins. The wheel on the table spins on
-## every peer and the sign shows the number.
+## Single-zero roulette: pick a bet (red, black, odd, even, 1-18, 19-36, 1st
+## dozen, lucky 7) and Spin. The little wheel on the table spins on every peer.
 
 const SPIN_TIME := 3.0
 
-static var bet_index := 0
-
 var _wheel: MeshInstance3D
 var _t := SPIN_TIME
-var _pending := ""
+
+
+func ui_title() -> String:
+	return "Roulette"
+
+
+func ui_rules() -> String:
+	return "Single zero. Colours, odd/even and halves pay 1:1, the 1st dozen 2:1, Lucky 7 pays 35:1."
 
 
 func _ready() -> void:
-	title = "ROULETTE  (%d scrap)" % BET
 	super._ready()
 	var st := MeshKit.begin()
 	MeshKit.add_cylinder(st, Transform3D(), 0.38, 0.38, 0.06, 37, Palette.WOOD_DARK)
@@ -34,44 +37,39 @@ func _process(delta: float) -> void:
 	if _t >= SPIN_TIME:
 		return
 	_t += delta
-	var k := clampf(_t / SPIN_TIME, 0.0, 1.0)
-	_wheel.rotation.y += delta * lerpf(14.0, 0.5, k)
+	_wheel.rotation.y += delta * lerpf(14.0, 0.5, clampf(_t / SPIN_TIME, 0.0, 1.0))
 	if _t >= SPIN_TIME:
-		_show(_pending, &"coin")
+		view["spinning"] = false
+		Audio.play_at(&"coin", global_position + Vector3.UP, -4.0)
+		ui_changed.emit()
 
 
-func interact_prompt() -> String:
-	if _t < SPIN_TIME:
-		return "Roulette: the ball is rolling..."
-	var b: Array = CasinoRules.ROULETTE_BETS[bet_index]
-	return "Roulette: bet %d scrap on %s (pays %d:1)\nE: spin   F: change bet" % [BET, b[1], b[2]]
+func ui_choices() -> Array:
+	var out: Array = []
+	for b: Array in CasinoRules.ROULETTE_BETS:
+		out.append("%s (%d:1)" % [b[1], b[2]])
+	return out
 
 
-func _on_f() -> void:
-	bet_index = (bet_index + 1) % CasinoRules.ROULETTE_BETS.size()
+func ui_actions() -> Array:
+	return [] if _t < SPIN_TIME else [[&"spin", "Spin"]]
 
 
-func _local_choice() -> int:
-	return bet_index
-
-
-func _act(peer_id: int, action: StringName, arg: int) -> void:
-	if action != &"e" or _t < SPIN_TIME or not _take_bet(peer_id):
+func _act(peer_id: int, action: StringName, choice: int, bet: int) -> void:
+	if action != &"spin" or _t < SPIN_TIME:
 		return
-	var bi := clampi(arg, 0, CasinoRules.ROULETTE_BETS.size() - 1)
+	bet = _valid_bet(bet)
+	if not _take(peer_id, bet):
+		return
+	var bi := clampi(choice, 0, CasinoRules.ROULETTE_BETS.size() - 1)
 	var n := _rng.randi_range(0, 36)
-	var won := CasinoRules.roulette_payout(bi, n, BET)
-	_pay(peer_id, won)
+	var won := CasinoRules.roulette_payout(bi, n, bet)
+	_pay(peer_id, {&"scrap": won} if won > 0 else {})
 	var colour := "green" if n == 0 else ("red" if CasinoRules.RED_NUMBERS.has(n) else "black")
-	var text := "%d %s\n%s bet %s" % [n, colour, CasinoRules.ROULETTE_BETS[bi][1], ("wins +%d" % won) if won > 0 else "loses"]
-	_spin.rpc(text)
-	get_tree().create_timer(SPIN_TIME).timeout.connect(func() -> void:
-		Economy.notify(peer_id, "Roulette: %s" % text.replace("\n", ", ")))
+	_broadcast({"kind": "number", "peer": peer_id, "number": n, "colour": colour, "spinning": true,
+			"result": "%d %s - %s %s" % [n, colour, CasinoRules.ROULETTE_BETS[bi][1], ("wins %d scrap" % won) if won > 0 else "loses"]})
 
 
-@rpc("authority", "call_local", "reliable")
-func _spin(text: String) -> void:
+func _on_view() -> void:
 	_t = 0.0
-	_pending = text
-	_label.text = "%s\n..." % title
 	Audio.play_at(&"reload", global_position + Vector3.UP, -4.0)

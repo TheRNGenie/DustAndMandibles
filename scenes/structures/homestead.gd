@@ -142,6 +142,9 @@ func _set_state(f: int, b: bool, r: bool) -> void:
 	reinforced = r
 	if changed:
 		_rebuild()
+	var ledger := get_node_or_null("Ledger") as HouseLedger
+	if ledger != null:
+		ledger.notify_changed()
 	Audio.play_at(&"build", global_position + Vector3.UP * 2.0)
 
 

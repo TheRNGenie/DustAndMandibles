@@ -1,27 +1,24 @@
 class_name SlotMachine
-extends StaticBody3D
-## A one-armed bandit on the casino deck. E pulls (10 / 25 / 50 scrap, F changes
-## the bet). The host rolls three reels; three of a kind pays, two horseshoes
-## return the bet. Pays out of (and into) your cliff's stockpile.
+extends CasinoGame
+## A one-armed bandit on the casino deck. Pick a stake and Pull. The host rolls
+## three reels; three of a kind pays, two horseshoes return the stake.
 
-const BETS: Array[int] = [10, 25, 50]
+const BETS: Array = [10, 25, 50]
 ## Symbol, weight, payout multiplier for three of a kind.
 const SYMBOLS: Array[Array] = [["BUG", 30, 0], ["CACTUS", 25, 3], ["CHILI", 20, 5], ["HORSESHOE", 15, 8], ["STAR", 10, 20]]
 
-static var bet_index := 0
-
-var _label: Label3D
 var _arm: MeshInstance3D
 var _arm_t := 0.0
 
 
 func _ready() -> void:
-	collision_layer = WorldLayout.LAYER_STRUCTURE
-	collision_mask = 0
+	super._ready()
 	var st := MeshKit.begin()
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.75, 0)), Vector3(0.9, 1.5, 0.7), Color("#7A2E22"))
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 1.6, 0)), Vector3(0.95, 0.25, 0.75), Palette.GLOW_YELLOW.darkened(0.3))
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 1.05, -0.36)), Vector3(0.7, 0.35, 0.03), Palette.BONE)
+	for k in 3:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(-0.22 + k * 0.22, 1.05, -0.38)), Vector3(0.16, 0.26, 0.02), [Color("#B3261E"), Palette.CACTUS, Palette.GLOW_YELLOW][k])
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.5, -0.36)), Vector3(0.5, 0.12, 0.05), Palette.METAL)
 	for k in 5:
 		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(-0.36 + k * 0.18, 1.78, -0.3)), Vector3.ONE * 0.05, 3, 6, Palette.GLOW_YELLOW, 0.0, null, 0.9)
@@ -43,16 +40,6 @@ func _ready() -> void:
 	col.shape = shape
 	col.position.y = 0.9
 	add_child(col)
-	_label = Label3D.new()
-	_label.text = "- - -"
-	_label.font_size = 40
-	_label.outline_size = 8
-	_label.modulate = Palette.OUTLINE
-	_label.outline_modulate = Palette.BONE
-	_label.pixel_size = 0.004
-	_label.position = Vector3(0, 1.05, -0.39)
-	_label.rotation.y = PI
-	add_child(_label)
 
 
 func _process(delta: float) -> void:
@@ -60,27 +47,20 @@ func _process(delta: float) -> void:
 	_arm.rotation.x = sin(_arm_t / 0.4 * PI) * 0.9
 
 
-func cycle_option() -> void:
-	bet_index = (bet_index + 1) % BETS.size()
+func ui_title() -> String:
+	return "Slot Machine"
 
 
-func interact_prompt() -> String:
-	return "Slot machine: bet %d scrap\nE: pull   F: change bet\n3 of a kind pays: cactus x3, chili x5, horseshoe x8, star x20. Two horseshoes: bet back." % BETS[bet_index]
+func ui_rules() -> String:
+	return "Three of a kind pays: cactus x3, chili x5, horseshoe x8, star x20. Two horseshoes return your stake."
 
 
-func local_interact(holding: bool) -> void:
-	if holding:
-		return
-	if multiplayer.is_server():
-		_pull(multiplayer.get_unique_id(), bet_index)
-	else:
-		_request_pull.rpc_id(1, bet_index)
+func ui_bets() -> Array:
+	return BETS
 
 
-@rpc("any_peer", "reliable")
-func _request_pull(index: int) -> void:
-	if multiplayer.is_server():
-		_pull(multiplayer.get_remote_sender_id(), index)
+func ui_actions() -> Array:
+	return [[&"pull", "Pull the lever"]]
 
 
 static func roll(rng: RandomNumberGenerator) -> int:
@@ -106,26 +86,19 @@ static func payout(reels: Array) -> int:
 	return 1 if shoes == 2 else 0
 
 
-func _pull(peer_id: int, index: int) -> void:
-	var bet := BETS[clampi(index, 0, BETS.size() - 1)]
-	var cid := NetworkManager.cliff_of(peer_id)
-	if not Economy.spend(cid, {&"scrap": bet}):
-		Economy.notify(peer_id, "You need %d scrap to play." % bet)
+func _act(peer_id: int, action: StringName, _choice: int, bet: int) -> void:
+	if action != &"pull":
 		return
-	var rng := RandomNumberGenerator.new()
-	rng.randomize()
-	var reels := [roll(rng), roll(rng), roll(rng)]
+	bet = _valid_bet(bet)
+	if not _take(peer_id, bet):
+		return
+	var reels := [roll(_rng), roll(_rng), roll(_rng)]
 	var win := bet * payout(reels)
-	if win > 0:
-		Economy.earn(cid, {&"scrap": win})
-	_show.rpc(reels, win)
-	var shown := "%s %s %s" % [SYMBOLS[reels[0]][0], SYMBOLS[reels[1]][0], SYMBOLS[reels[2]][0]]
-	Economy.notify(peer_id, ("Slots: %s. You win %d scrap!" % [shown, win]) if win > 0 else ("Slots: %s. No luck." % shown))
+	_pay(peer_id, {&"scrap": win} if win > 0 else {})
+	_broadcast({"kind": "reels", "peer": peer_id, "reels": [SYMBOLS[reels[0]][0], SYMBOLS[reels[1]][0], SYMBOLS[reels[2]][0]],
+			"result": ("You win %d scrap!" % win) if win > 0 else "No luck this time."})
 
 
-@rpc("authority", "call_local", "reliable")
-func _show(reels: Array, win: int) -> void:
+func _on_view() -> void:
 	_arm_t = 0.4
-	_label.text = "%s %s %s" % [SYMBOLS[reels[0]][0], SYMBOLS[reels[1]][0], SYMBOLS[reels[2]][0]]
-	_label.modulate = Color("#2E7D32") if win > 0 else Palette.OUTLINE
-	Audio.play_at(&"coin" if win > 0 else &"reload", global_position + Vector3.UP, -4.0)
+	Audio.play_at(&"coin" if str(view.get("result", "")).begins_with("You win") else &"reload", global_position + Vector3.UP, -4.0)

@@ -44,6 +44,9 @@ func _ready() -> void:
 	bugs.name = "Bugs"
 	bugs.vfx = vfx
 	add_child(bugs)
+	var menu := MenuScreen.new()
+	menu.name = "MenuScreen"
+	add_child(menu)
 	var airship := Airship.new()
 	airship.name = "Airship"
 	add_child(airship)

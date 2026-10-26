@@ -50,22 +50,24 @@ static func gun_stall() -> ArrayMesh:
 ## A standing wooden sign board for prices. The text is a Label3D added by the shop.
 static func sign_board() -> ArrayMesh:
 	var st := MeshKit.begin()
-	for x: float in [-0.75, 0.75]:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(x, 0.8, 0.05)), Vector3(0.1, 1.6, 0.1), Palette.WOOD_DARK)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 1.55, 0)), Vector3(1.8, 1.25, 0.06), Palette.BONE.darkened(0.08))
+	for x: float in [-1.2, 1.2]:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(x, 1.5, 0.05)), Vector3(0.12, 3.0, 0.12), Palette.WOOD_DARK)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 1.95, 0.02)), Vector3(2.6, 2.1, 0.06), Palette.WOOD_DARK)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 1.95, 0)), Vector3(2.4, 1.9, 0.06), Palette.BONE.darkened(0.08))
 	return MeshKit.finish(st)
 
 
 ## The text label that sits on a sign board (faces -Z, like the shop counter).
 static func sign_label() -> Label3D:
 	var l := Label3D.new()
-	l.position = Vector3(0, 1.55, -0.04)
+	# Sized so ~14 lines fit inside the 2.4 x 1.9 m board.
+	l.position = Vector3(0, 1.95, -0.04)
 	l.rotation.y = PI
-	l.pixel_size = 0.0035
+	l.pixel_size = 0.0022
 	l.font_size = 48
 	l.modulate = Palette.OUTLINE
 	l.outline_size = 0
-	l.width = 480.0
+	l.width = 1000.0
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.double_sided = false
 	return l

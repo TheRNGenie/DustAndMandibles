@@ -149,11 +149,12 @@ static func _sign(parent: Node3D, top: Vector3) -> void:
 	root.position = top + Vector3(0, 0, -TOP_RADIUS + 1.6)
 	parent.add_child(root)
 	var st := MeshKit.begin()
-	for x: float in [-3.2, 3.2]:
-		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(x, 2.8, 0)), 0.22, 0.2, 5.6, 8, Palette.WOOD)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 5.0, 0)), Vector3(7.4, 1.7, 0.25), Palette.WOOD_DARK)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 5.0, 0)), Vector3(6.9, 1.3, 0.3), Palette.BONE)
-	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 6.15, 0)), 0.35, 0.0, 0.6, 6, Palette.GLOW_YELLOW, true, 0.6)
+	# A bigger board so both lines of lettering sit well inside it.
+	for x: float in [-4.1, 4.1]:
+		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(x, 3.3, 0)), 0.24, 0.22, 6.6, 8, Palette.WOOD)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 5.3, 0)), Vector3(8.6, 2.6, 0.25), Palette.WOOD_DARK)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 5.3, 0)), Vector3(8.0, 2.1, 0.3), Palette.BONE)
+	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 6.9, 0)), 0.35, 0.0, 0.6, 6, Palette.GLOW_YELLOW, true, 0.6)
 	var mi := MeshInstance3D.new()
 	mi.mesh = MeshKit.finish(st)
 	mi.material_override = Materials.toon(0.03)
@@ -162,20 +163,20 @@ static func _sign(parent: Node3D, top: Vector3) -> void:
 		var l := Label3D.new()
 		l.text = "OASIS"
 		l.font_size = 160
-		l.pixel_size = 0.009
+		l.pixel_size = 0.0075
 		l.outline_size = 0
 		l.modulate = Palette.ROCK_B
-		l.position = Vector3(0, 5.05, side * 0.17)
+		l.position = Vector3(0, 5.55, side * 0.17)
 		l.rotation.y = 0.0 if side > 0.0 else PI
 		l.double_sided = false
 		root.add_child(l)
 		var sub := Label3D.new()
 		sub.text = "trading post"
 		sub.font_size = 64
-		sub.pixel_size = 0.006
+		sub.pixel_size = 0.0065
 		sub.outline_size = 0
 		sub.modulate = Palette.WOOD_DARK
-		sub.position = Vector3(0, 4.45, side * 0.17)
+		sub.position = Vector3(0, 4.62, side * 0.17)
 		sub.rotation.y = l.rotation.y
 		sub.double_sided = false
 		root.add_child(sub)

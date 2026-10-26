@@ -107,21 +107,24 @@ func _ladder_test() -> void:
 	Economy.earn(player.cliff_id, {&"scrap": 200, &"chitin": 20})
 	var slots := ship.get_node("Slots0") as SlotMachine
 	for i in 6:
-		slots._pull(multiplayer.get_unique_id(), 0)
+		slots._act(1, &"pull", 0, 10)
 	var wheel := ship.get_node("Wheel") as PrizeWheel
-	wheel._spin(multiplayer.get_unique_id())
+	wheel._act(1, &"spin", 0, 0)
 	await get_tree().create_timer(PrizeWheel.SPIN_TIME + 0.5).timeout
-	wheel._spin(multiplayer.get_unique_id())
+	wheel._act(1, &"spin", 0, 0)
 	await get_tree().create_timer(PrizeWheel.SPIN_TIME + 0.5).timeout
 	var bj := ship.get_node("Blackjack") as BlackjackTable
-	bj._act(1, &"e", 0)
-	bj._act(1, &"stand", 0)
-	(ship.get_node("Baccarat") as BaccaratTable)._act(1, &"e", 1)
-	(ship.get_node("Roulette") as RouletteTable)._act(1, &"e", 0)
+	bj._act(1, &"deal", 0, 20)
+	bj._act(1, &"stand", 0, 0)
+	(ship.get_node("Baccarat") as BaccaratTable)._act(1, &"deal", 1, 20)
+	(ship.get_node("Roulette") as RouletteTable)._act(1, &"spin", 0, 20)
 	await get_tree().create_timer(RouletteTable.SPIN_TIME + 0.5).timeout
 	for tn: String in ["Blackjack", "Baccarat", "Roulette"]:
-		print("[ladder] %s sign: %s" % [tn, (ship.get_node(tn) as CasinoTable)._label.text.replace("
-", " | ")])
+		print("[ladder] %s: %s" % [tn, str((ship.get_node(tn) as CasinoGame).view.get("result", ""))])
+	if GameState.flag_value("--menushot") != "":
+		MenuScreen.instance.open(ship.get_node(GameState.flag_value("--menushot")))
+		await get_tree().create_timer(0.6).timeout
+		get_viewport().get_texture().get_image().save_png("res://docs/screenshots/menu_%s.png" % GameState.flag_value("--menushot").to_lower())
 	print("[ladder] after games: scrap %d chitin %d" % [Economy.amount(player.cliff_id, &"scrap"), Economy.amount(player.cliff_id, &"chitin")])
 	GameState.debug_skip()
 	await get_tree().create_timer(1.0).timeout
@@ -312,6 +315,22 @@ func _take_screenshot(path: String) -> void:
 			print("[house] cliff %d at %s, floors %d" % [h.cliff_id, str(h.global_position), h.floors])
 	if GameState.has_flag("--houseturrets") and multiplayer.is_server():
 		_house_turrets()
+	if GameState.flag_value("--openmenu") != "":
+		var which := GameState.flag_value("--openmenu")
+		var target: Node = null
+		match which:
+			"vendor":
+				target = world.find_child("Vendor", true, false)
+			"gunsmith":
+				target = world.find_child("GunShop", true, false)
+			"ledger":
+				target = Homestead.of(0).get_node("Ledger")
+		if target != null:
+			Economy.earn(0, {&"corn": 6, &"chili": 3, &"chitin": 30, &"scrap": 200})
+			MenuScreen.instance.open(target)
+			if GameState.flag_value("--menutab") != "":
+				MenuScreen.instance.tab = int(GameState.flag_value("--menutab"))
+				MenuScreen.instance.refresh()
 	if GameState.flag_value("--buildmenu") != "" and player != null:
 		player.build_mode.toggle()
 		player.build_mode.show_category(int(GameState.flag_value("--buildmenu")))

@@ -43,7 +43,7 @@ func setup(cid: int) -> void:
 	var board := MeshInstance3D.new()
 	board.mesh = ShopBuilder.sign_board()
 	board.material_override = Materials.toon(0.02)
-	board.position = Vector3(-2.5, 0, -0.3)
+	board.position = Vector3(-3.0, 0, -0.3)
 	add_child(board)
 	_label = ShopBuilder.sign_label()
 	board.add_child(_label)
@@ -69,10 +69,11 @@ func _process(delta: float) -> void:
 func _sync_prices(prices: Dictionary) -> void:
 	_prices = prices
 	_refresh_sign()
+	menu_changed.emit()
 
 
 func _refresh_sign() -> void:
-	var lines: PackedStringArray = ["PRODUCE BOUGHT HERE", "paid in chitin", ""]
+	var lines: PackedStringArray = ["PRODUCE BOUGHT (chitin)", ""]
 	for k: StringName in ITEMS:
 		var p := float(_prices.get(k, 0.0))
 		var base := float(MarketPrices.BASE[k])
@@ -85,62 +86,108 @@ func _refresh_sign() -> void:
 	_label.text = "\n".join(lines)
 
 
-## Lines on the counter: the four vegetables to sell, then the four seeds to buy.
-static func _line(i: int) -> StringName:
-	var n := ITEMS.size() + SEEDS.size()
-	i = i % n
-	return ITEMS[i] if i < ITEMS.size() else SEEDS.keys()[i - ITEMS.size()]
+signal menu_changed
 
 
-func cycle_option() -> void:
-	selected = (selected + 1) % (ITEMS.size() + SEEDS.size())
-
+# ------------------------------------------------------------------ the menu screen
 
 func interact_prompt() -> String:
-	var item := _line(selected)
-	if SEEDS.has(item):
-		var info: Array = SEEDS[item]
-		return "Vendor: buy %s for %d scrap each\nE: buy one (hold to keep buying)   F: next line" % [str(info[0]).to_lower(), seed_cost(item)]
-	var p := float(_prices.get(item, 0.0))
-	return "Vendor: sell %s for %.1f chitin each\nE: sell one (hold to keep selling)   F: next line" % [NAMES[item], p]
+	return "E: trade with the produce vendor"
 
 
-func local_interact(_holding: bool) -> void:
-	var item := _line(selected)
-	if multiplayer.is_server():
-		_sell(multiplayer.get_unique_id(), item)
+func local_interact(holding: bool) -> void:
+	if not holding and MenuScreen.instance != null:
+		MenuScreen.instance.open(self)
+
+
+func menu_title() -> String:
+	return "Produce & Seeds"
+
+
+func menu_tagline() -> String:
+	return "Sell your harvest for chitin (prices drop as you sell and recover over time). Seeds cost scrap."
+
+
+func menu_tabs() -> Array:
+	return ["Sell produce", "Buy seeds"]
+
+
+func menu_items(tab: int) -> Array:
+	var cid := _local_cliff()
+	var out: Array = []
+	if tab == 0:
+		for k: StringName in ITEMS:
+			var have := Economy.amount(cid, k)
+			var p := float(_prices.get(k, 0.0))
+			var base := float(MarketPrices.BASE[k])
+			var trend := "  - paying well!" if p > base * 1.15 else ("  - flooded, low price" if p < base * 0.85 else "")
+			out.append({"id": k, "name": NAMES[k], "icon": k, "desc": "You have %d.%s" % [have, trend],
+					"price": "%.1f chitin" % p, "price_ok": have > 0, "disabled": "" if have > 0 else "Nothing to sell yet.",
+					"buttons": [[&"sell1", "Sell 1"], [&"sellall", "Sell all"]]})
 	else:
-		_request_sell.rpc_id(1, item)
+		for s: StringName in SEEDS:
+			var info: Array = SEEDS[s]
+			var cost := seed_cost(s)
+			var crop_icon: StringName = &"chili" if s == &"seed_chili" else StringName(String(s).trim_prefix("seed_"))
+			out.append({"id": s, "name": str(info[0]), "icon": crop_icon, "desc": "Plant on a farm plot. You have %d." % Economy.amount(cid, s),
+					"price": "%d scrap" % cost, "price_ok": Economy.amount(cid, &"scrap") >= cost,
+					"buttons": [[&"buy1", "Buy 1"], [&"buy5", "Buy 5"]]})
+	return out
+
+
+func menu_press(id: Variant, action: StringName) -> void:
+	var count := 1
+	match action:
+		&"sellall":
+			count = maxi(Economy.amount(_local_cliff(), StringName(str(id))), 1)
+		&"buy5":
+			count = 5
+	if multiplayer.is_server():
+		_trade(multiplayer.get_unique_id(), StringName(str(id)), count)
+	else:
+		_request_trade.rpc_id(1, StringName(str(id)), count)
 
 
 @rpc("any_peer", "reliable")
-func _request_sell(item: StringName) -> void:
+func _request_trade(item: StringName, count: int) -> void:
 	if multiplayer.is_server():
-		_sell(multiplayer.get_remote_sender_id(), item)
+		_trade(multiplayer.get_remote_sender_id(), item, count)
 
 
-func _sell(peer_id: int, item: StringName) -> void:
+func _trade(peer_id: int, item: StringName, count: int) -> void:
+	for i in clampi(count, 1, 99):
+		if not _sell(peer_id, item):
+			break
+
+
+func _local_cliff() -> int:
+	return NetworkManager.cliff_of(multiplayer.get_unique_id())
+
+
+## Host: one sale or one seed purchase. Returns false when it couldn't happen.
+func _sell(peer_id: int, item: StringName) -> bool:
 	var payer := Economy.payer_cliff(peer_id, cliff_id)
 	if SEEDS.has(item):
 		var info: Array = SEEDS[item]
 		var cost := seed_cost(item)
-		if Economy.spend(payer, {&"scrap": cost}):
-			Economy.earn(payer, {item: 1})
-			_ka_ching.rpc()
-		else:
+		if not Economy.spend(payer, {&"scrap": cost}):
 			Economy.notify(peer_id, "%s cost %d scrap each." % [str(info[0]), cost])
-		return
+			return false
+		Economy.earn(payer, {item: 1})
+		_ka_ching.rpc()
+		return true
 	if not ITEMS.has(item):
-		return
+		return false
 	if not Economy.spend(payer, {item: 1}):
 		Economy.notify(peer_id, "You have no %s to sell. Grow some on a farm plot." % String(NAMES[item]).to_lower())
-		return
+		return false
 	_credit[payer] = float(_credit.get(payer, 0.0)) + market.sell(item, 1)
 	var whole := int(floor(float(_credit[payer])))
 	if whole > 0:
 		_credit[payer] = float(_credit[payer]) - whole
 		Economy.earn(payer, {&"chitin": whole})
 	_ka_ching.rpc()
+	return true
 
 
 @rpc("authority", "call_local", "unreliable")
