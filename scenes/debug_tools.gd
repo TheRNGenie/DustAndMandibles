@@ -350,6 +350,11 @@ func _take_screenshot(path: String) -> void:
 		var wid := StringName(GameState.flag_value("--weapon"))
 		player.gun.grant(wid, 0)
 		player.gun.equip(wid)
+	if GameState.flag_value("--reload") != "" and player != null:
+		# Start a reload with N rounds missing, then wait --reloadwait seconds.
+		player.gun.ammo = player.gun.def.mag_size - int(GameState.flag_value("--reload"))
+		player.gun.reload()
+		await get_tree().create_timer(GameState.flag_value("--reloadwait").to_float()).timeout
 	if GameState.has_flag("--smoke") and player != null and player.cigarette != null:
 		player.cigarette.light()
 	if GameState.flag_value("--buildmenu") != "" and player != null:

@@ -110,7 +110,41 @@ static func revolver() -> ArrayMesh:
 
 # ------------------------------------------------------------------ lever-action rifle
 
+## Where the rifle's lever hinges (gun space).
+const LEVER_PIVOT := Vector3(0, -0.02, -0.03)
+## Where the shotgun's barrels hinge when it breaks open (gun space).
+const HINGE := Vector3(0, -0.004, -0.055)
+## Where each gun's left (support) hand rests, and where rounds go in.
+const LEFT_FIST: Dictionary = {&"revolver": Vector3(-0.022, -0.075, 0.07), &"lever_rifle": Vector3(-0.004, -0.016, -0.2),
+	&"coach_shotgun": Vector3(-0.004, -0.024, -0.15)}
+const LOAD_POINT: Dictionary = {&"revolver": Vector3(0.022, 0.03, 0.03), &"lever_rifle": Vector3(0.026, -0.004, -0.04),
+	&"coach_shotgun": Vector3(0.0, 0.03, -0.045)}
+
+
 static func lever_rifle() -> ArrayMesh:
+	var st := MeshKit.begin()
+	st.append_from(rifle_body(), 0, Transform3D())
+	st.append_from(rifle_lever(), 0, Transform3D(Basis(), LEVER_PIVOT))
+	return st.commit()
+
+
+## The lever loop on its own, in lever-pivot space (it swings down to cycle).
+static func rifle_lever() -> ArrayMesh:
+	var st := MeshKit.begin()
+	var pts: Array = [Vector3(0, -0.02, -0.03), Vector3(0, -0.04, -0.01), Vector3(0, -0.05, 0.03), Vector3(0, -0.045, 0.07),
+			Vector3(0, -0.03, 0.085), Vector3(0, -0.016, 0.07)]
+	var local: Array = []
+	for p: Vector3 in pts:
+		local.append(p - LEVER_PIVOT)
+	bent(st, local, 0.0045, BLUED)
+	var loop: Array = []
+	for p: Vector3 in arc(Vector3(0, -0.05, 0.05), 0.022, 0.15 * PI, 1.15 * PI, 7):
+		loop.append(p - LEVER_PIVOT)
+	bent(st, loop, 0.0045, BLUED)
+	return MeshKit.finish(st)
+
+
+static func rifle_body() -> ArrayMesh:
 	var st := MeshKit.begin()
 	# Octagonal barrel and the tube magazine under it, held by a barrel band.
 	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0.026, -0.36)), 0.0135, 0.0135, 0.58, 8, BLUED)
@@ -132,9 +166,6 @@ static func lever_rifle() -> ArrayMesh:
 	# Hammer, trigger, and the loop lever.
 	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.9), Vector3(0, 0.036, 0.068)), Vector3(0.008, 0.022, 0.01), BLUED_DARK)
 	bent(st, [Vector3(0, -0.016, 0.01), Vector3(0, -0.03, 0.016), Vector3(0, -0.036, 0.024)], 0.0028, STEEL)
-	bent(st, [Vector3(0, -0.02, -0.03), Vector3(0, -0.04, -0.01), Vector3(0, -0.05, 0.03), Vector3(0, -0.045, 0.07),
-			Vector3(0, -0.03, 0.085), Vector3(0, -0.016, 0.07)], 0.0045, BLUED)
-	bent(st, arc(Vector3(0, -0.05, 0.05), 0.022, 0.15 * PI, 1.15 * PI, 7), 0.0045, BLUED)
 	# Walnut forend around the magazine.
 	rod(st, Vector3(0, 0.008, -0.08), Vector3(0, 0.008, -0.3), 0.021, 0.019, 10, WALNUT)
 	# Wrist and buttstock with a crescent buttplate.
@@ -152,12 +183,28 @@ static func lever_rifle() -> ArrayMesh:
 
 static func coach_shotgun() -> ArrayMesh:
 	var st := MeshKit.begin()
-	# Side-by-side barrels with a flat rib between them.
+	st.append_from(shotgun_action(), 0, Transform3D())
+	st.append_from(shotgun_barrels(), 0, Transform3D(Basis(), HINGE))
+	return st.commit()
+
+
+## Barrels, rib and forend, in hinge space (they tip down when the gun breaks open).
+static func shotgun_barrels() -> ArrayMesh:
+	var st := MeshKit.begin()
+	var o := -HINGE
 	for side: float in [-1.0, 1.0]:
-		MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(side * 0.0172, 0.022, -0.29)), 0.0172, 0.0168, 0.46, 12, BLUED)
-		MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(side * 0.0172, 0.022, -0.522)), 0.0178, 0.0178, 0.006, 12, BLUED_DARK)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.039, -0.29)), Vector3(0.012, 0.006, 0.46), BLUED_DARK)
-	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.044, -0.51)), Vector3.ONE * 0.003, 3, 6, BRASS)
+		MeshKit.add_cylinder(st, Transform3D(ALONG_Z, o + Vector3(side * 0.0172, 0.022, -0.29)), 0.0172, 0.0168, 0.46, 12, BLUED)
+		MeshKit.add_cylinder(st, Transform3D(ALONG_Z, o + Vector3(side * 0.0172, 0.022, -0.522)), 0.0178, 0.0178, 0.006, 12, BLUED_DARK)
+		# Chamber mouths at the breech end.
+		MeshKit.add_cylinder(st, Transform3D(ALONG_Z, o + Vector3(side * 0.0172, 0.022, -0.059)), 0.0125, 0.0125, 0.003, 10, Color("#1A1A1E"))
+	MeshKit.add_box(st, Transform3D(Basis(), o + Vector3(0, 0.039, -0.29)), Vector3(0.012, 0.006, 0.46), BLUED_DARK)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), o + Vector3(0, 0.044, -0.51)), Vector3.ONE * 0.003, 3, 6, BRASS)
+	rod(st, o + Vector3(0, 0.0, -0.065), o + Vector3(0, 0.0, -0.22), 0.026, 0.022, 10, WALNUT_DARK)
+	return MeshKit.finish(st)
+
+
+static func shotgun_action() -> ArrayMesh:
+	var st := MeshKit.begin()
 	# Receiver with engraved side plates.
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.012, 0.0)), Vector3(0.05, 0.052, 0.1), Color("#6F6A66"))
 	for side: float in [-1.0, 1.0]:
@@ -171,8 +218,7 @@ static func coach_shotgun() -> ArrayMesh:
 	bent(st, [Vector3(0, -0.014, 0.0), Vector3(0, -0.03, 0.004)], 0.0028, STEEL)
 	bent(st, [Vector3(0, -0.014, 0.02), Vector3(0, -0.03, 0.026)], 0.0028, STEEL)
 	bent(st, arc(Vector3(0, -0.018, 0.016), 0.026, -0.3 * PI, -1.1 * PI, 8), 0.0035, BLUED)
-	# Splinter forend, pistol grip, stock and butt plate in dark walnut.
-	rod(st, Vector3(0, 0.0, -0.06), Vector3(0, 0.0, -0.22), 0.026, 0.022, 10, WALNUT_DARK)
+	# Pistol grip, stock and butt plate in dark walnut.
 	rod(st, Vector3(0, -0.002, 0.05), Vector3(0, -0.06, 0.12), 0.019, 0.021, 10, WALNUT_DARK)
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, -0.066, 0.122)), Vector3(0.021, 0.01, 0.022), 4, 8, BLUED_DARK)
 	var a := Vector3(0, -0.01, 0.1)
@@ -180,6 +226,23 @@ static func coach_shotgun() -> ArrayMesh:
 	MeshKit.add_box(st, Transform3D(MeshKit.basis_from_y((b - a).normalized()), (a + b) * 0.5), Vector3(0.04, (b - a).length(), 0.07), WALNUT_DARK)
 	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.12), b + Vector3(0, -0.01, 0.03)), Vector3(0.042, 0.11, 0.03), WALNUT_DARK)
 	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.12), b + Vector3(0, -0.01, 0.047)), Vector3(0.044, 0.114, 0.006), Color("#2A1A12"))
+	return MeshKit.finish(st)
+
+
+## A rifle or revolver cartridge (brass case, lead nose), pointing -Z.
+static func cartridge() -> ArrayMesh:
+	var st := MeshKit.begin()
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0, 0.0)), 0.0065, 0.0065, 0.03, 8, BRASS)
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0, -0.02)), 0.006, 0.003, 0.012, 8, Color("#8A8A90"))
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0, 0.016)), 0.0075, 0.0075, 0.003, 8, BRASS.darkened(0.15))
+	return MeshKit.finish(st)
+
+
+## A red paper shotgun shell with a brass head, pointing -Z.
+static func shell() -> ArrayMesh:
+	var st := MeshKit.begin()
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0, -0.012)), 0.0115, 0.0115, 0.05, 10, Color("#B8352A"))
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0, 0.018)), 0.0125, 0.0125, 0.014, 10, BRASS)
 	return MeshKit.finish(st)
 
 
@@ -225,6 +288,14 @@ static func sleeve(st: SurfaceTool, wrist: Vector3, elbow: Vector3, look: Dictio
 
 ## Both arms holding gun `id` (first person). Same space as the gun mesh.
 static func arms(id: StringName, _team: Color, look: Dictionary = {}) -> ArrayMesh:
+	var st := MeshKit.begin()
+	st.append_from(arm_right(id, look), 0, Transform3D())
+	st.append_from(arm_left(id, look), 0, Transform3D())
+	return st.commit()
+
+
+## The trigger hand and its forearm (gun space).
+static func arm_right(id: StringName, look: Dictionary = {}) -> ArrayMesh:
 	look = DummyLook.clean(look)
 	var paint := DummyLook.paint(look)
 	var st := MeshKit.begin()
@@ -232,18 +303,32 @@ static func arms(id: StringName, _team: Color, look: Dictionary = {}) -> ArrayMe
 		&"lever_rifle":
 			fist(st, Vector3(0.004, -0.02, 0.1), Vector3(0, 0.6, -0.8), Vector3(1, 0.2, 0.1), paint)
 			sleeve(st, Vector3(0.03, -0.065, 0.14), Vector3(0.12, -0.32, 0.5), look)
-			fist(st, Vector3(-0.004, -0.016, -0.2), Vector3(0, 0, -1), Vector3(-0.7, -1, 0), paint)
-			sleeve(st, Vector3(-0.035, -0.065, -0.16), Vector3(-0.2, -0.3, 0.08), look)
 		&"coach_shotgun":
 			fist(st, Vector3(0.004, -0.035, 0.085), Vector3(0, 0.8, -0.6), Vector3(1, 0.2, 0.1), paint)
 			sleeve(st, Vector3(0.03, -0.08, 0.12), Vector3(0.12, -0.33, 0.48), look)
-			fist(st, Vector3(-0.004, -0.024, -0.15), Vector3(0, 0, -1), Vector3(-0.7, -1, 0), paint)
-			sleeve(st, Vector3(-0.035, -0.07, -0.11), Vector3(-0.2, -0.3, 0.1), look)
 		_:
 			fist(st, Vector3(0.003, -0.05, 0.07), Vector3(0, 0.95, -0.35), Vector3(1, 0.1, 0.25), paint)
 			sleeve(st, Vector3(0.025, -0.1, 0.11), Vector3(0.1, -0.33, 0.45), look)
-			fist(st, Vector3(-0.022, -0.075, 0.07), Vector3(0, 0.6, -0.8), Vector3(-1, -0.3, 0.2), paint)
-			sleeve(st, Vector3(-0.05, -0.11, 0.1), Vector3(-0.22, -0.34, 0.36), look)
+	return MeshKit.finish(st)
+
+
+## The support hand and forearm. With `local`, it is built around its own fist
+## (origin = LEFT_FIST[id]) so a node can move it on its own during reloads.
+static func arm_left(id: StringName, look: Dictionary = {}, local: bool = false) -> ArrayMesh:
+	look = DummyLook.clean(look)
+	var paint := DummyLook.paint(look)
+	var o: Vector3 = Vector3.ZERO if not local else -(LEFT_FIST[id] as Vector3)
+	var st := MeshKit.begin()
+	match id:
+		&"lever_rifle":
+			fist(st, o + Vector3(-0.004, -0.016, -0.2), Vector3(0, 0, -1), Vector3(-0.7, -1, 0), paint)
+			sleeve(st, o + Vector3(-0.035, -0.065, -0.16), o + Vector3(-0.2, -0.3, 0.08), look)
+		&"coach_shotgun":
+			fist(st, o + Vector3(-0.004, -0.024, -0.15), Vector3(0, 0, -1), Vector3(-0.7, -1, 0), paint)
+			sleeve(st, o + Vector3(-0.035, -0.07, -0.11), o + Vector3(-0.2, -0.3, 0.1), look)
+		_:
+			fist(st, o + Vector3(-0.022, -0.075, 0.07), Vector3(0, 0.6, -0.8), Vector3(-1, -0.3, 0.2), paint)
+			sleeve(st, o + Vector3(-0.05, -0.11, 0.1), o + Vector3(-0.22, -0.34, 0.36), look)
 	return MeshKit.finish(st)
 
 

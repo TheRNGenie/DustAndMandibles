@@ -43,11 +43,20 @@ var aiming := false
 var ammo: int = 6
 var _ammo_by_weapon: Dictionary = {}
 var _cooldown := 0.0
-var _reload_left := 0.0
-var _reload_time := 1.4
+## Reload stages (Hunt: Showdown style): tip the gun into the reload posture,
+## load one round at a time (fire between rounds to cancel), then close up.
+enum Reload { NONE, OPEN, LOAD, CLOSE }
+var _stage: Reload = Reload.NONE
+var _stage_t := 0.0
+var _stage_len := 0.0
+var _open := 0.0
+var _loaded_this_reload := 0
+## Lever stroke after a rifle shot (1 = closed), cylinder angle, last pose values.
+var _cycle := 1.0
+var _drum_angle := 0.0
+var _drum_target := 0.0
 var _kick := 0.0
 var _models: Dictionary = {}
-var _drum: MeshInstance3D
 var _flash: MeshInstance3D
 var _flash_light: OmniLight3D
 var _flash_left := 0.0
@@ -61,8 +70,8 @@ var _team := Palette.TEAM_WEST
 
 ## Rebuilds the first-person hands for a new outfit (dummy paint, coat sleeves).
 func refresh_arms(look: Dictionary) -> void:
-	for id: StringName in _arms:
-		(_arms[id] as MeshInstance3D).mesh = WeaponBuilder.arms(id, _team, look)
+	for id: StringName in _models:
+		(_models[id] as ViewModel).set_look(look)
 	_hand.mesh = WeaponBuilder.item_arm(_team, look)
 
 
@@ -76,33 +85,10 @@ func _ready() -> void:
 	var owner_player := get_parent().get_parent().get_parent() as Player
 	var team := Palette.team_color(owner_player.cliff_id) if owner_player != null else Palette.TEAM_WEST
 	for id: StringName in ORDER:
-		var root := Node3D.new()
-		add_child(root)
-		_models[id] = root
-		var body := MeshInstance3D.new()
-		match id:
-			&"revolver":
-				body.mesh = WeaponBuilder.revolver_body()
-				_drum = MeshInstance3D.new()
-				_drum.mesh = WeaponBuilder.revolver_drum()
-				_drum.material_override = mat
-				_drum.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-				_drum.position = Vector3(0, 0.018, -0.005)
-				root.add_child(_drum)
-			&"lever_rifle":
-				body.mesh = WeaponBuilder.lever_rifle()
-			_:
-				body.mesh = WeaponBuilder.coach_shotgun()
-		body.material_override = mat
-		body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(body)
-		# Gloved hands and coat sleeves holding this gun.
-		var arms := MeshInstance3D.new()
-		arms.mesh = WeaponBuilder.arms(id, team, Settings.look)
-		_arms[id] = arms
-		arms.material_override = mat
-		arms.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(arms)
+		var vm := ViewModel.new()
+		add_child(vm)
+		vm.build(id, team, Settings.look, mat)
+		_models[id] = vm
 	_hand = MeshInstance3D.new()
 	_hand.mesh = WeaponBuilder.item_arm(team, Settings.look)
 	_team = team
@@ -149,7 +135,9 @@ func equip(id: StringName) -> void:
 	_item_mi.visible = false
 	_hand.visible = false
 	ammo = int(_ammo_by_weapon.get(id, def.mag_size))
-	_reload_left = 0.0
+	_stage = Reload.NONE
+	_open = 0.0
+	_cycle = 1.0
 	for k: StringName in _models:
 		(_models[k] as Node3D).visible = k == id
 	var muzzle_z := -0.28 if id == &"revolver" else -0.62
@@ -226,33 +214,93 @@ static func shot_dirs(id: StringName, dir: Vector3, seed_value: int) -> Array[Ve
 
 func _process(delta: float) -> void:
 	_cooldown = maxf(_cooldown - delta, 0.0)
-	if _reload_left > 0.0:
-		_reload_left -= delta
-		if _drum != null and def.id == &"revolver":
-			_drum.rotate_z(delta * 14.0)
-		if _reload_left <= 0.0:
-			ammo = def.mag_size
-			ammo_changed.emit(ammo, def.mag_size)
+	_advance_reload(delta)
 	if _flash_left > 0.0:
 		_flash_left -= delta
 		if _flash_left <= 0.0:
 			_flash.visible = false
 			_flash_light.light_energy = 0.0
 	_kick = move_toward(_kick, 0.0, delta * 6.0)
-	var dip := 0.0
-	if _reload_left > 0.0:
-		dip = sin(clampf(1.0 - _reload_left / _reload_time, 0.0, 1.0) * PI)
+	_open = move_toward(_open, 1.0 if (_stage == Reload.OPEN or _stage == Reload.LOAD) else 0.0, delta / 0.3)
+	if def != null:
+		_cycle = minf(_cycle + delta / maxf(def.fire_interval * 0.8, 0.1), 1.0)
+	_drum_angle = move_toward(_drum_angle, _drum_target, delta * 9.0)
+	var vm := _models.get(def.id) as ViewModel if def != null else null
+	if vm != null:
+		var load_t := clampf(_stage_t / maxf(_stage_len, 0.001), 0.0, 1.0)
+		vm.pose(_open, load_t, _stage == Reload.LOAD, _cycle, _drum_angle, _loaded_this_reload)
 	aim = move_toward(aim, 1.0 if aiming else 0.0, delta * 7.0)
 	var aim_pos: Vector3 = AIM_POS.get(def.id, REST_POS) if def != null else REST_POS
-	position = REST_POS.lerp(aim_pos, aim) + Vector3(0, -dip * 0.12, _kick * 0.06 * (1.0 - aim * 0.5))
-	rotation = Vector3(_kick * 0.5 - dip * 0.6, 0, dip * 0.5)
+	position = REST_POS.lerp(aim_pos, aim) + Vector3(0, 0, _kick * 0.06 * (1.0 - aim * 0.5))
+	rotation = Vector3(_kick * 0.5, 0, 0)
+
+
+## Times for this gun: tipping in, each round, closing up (faster with upgrades).
+func _times() -> Vector3:
+	var k := pow(0.85, level_of(def.id))
+	match def.id:
+		&"lever_rifle":
+			return Vector3(0.3, def.reload_time * 0.2, 0.35) * k
+		&"coach_shotgun":
+			return Vector3(0.35, def.reload_time * 0.25, 0.3) * k
+	return Vector3(0.35, def.reload_time * 0.3, 0.3) * k
+
+
+func _advance_reload(delta: float) -> void:
+	if _stage == Reload.NONE or def == null:
+		return
+	_stage_t += delta
+	if _stage_t < _stage_len:
+		return
+	var times := _times()
+	match _stage:
+		Reload.OPEN:
+			if def.id == &"coach_shotgun":
+				(_models[def.id] as ViewModel).eject_shells()
+				ammo = 0
+				ammo_changed.emit(ammo, def.mag_size)
+			_begin(Reload.LOAD, times.y)
+		Reload.LOAD:
+			ammo = mini(ammo + 1, def.mag_size)
+			_loaded_this_reload += 1
+			ammo_changed.emit(ammo, def.mag_size)
+			Audio.play_at(&"reload", global_position, -10.0)
+			if def.id == &"revolver":
+				_drum_target += TAU / 6.0
+			if ammo < def.mag_size:
+				_begin(Reload.LOAD, times.y)
+			else:
+				_begin(Reload.CLOSE, times.z)
+		Reload.CLOSE:
+			_stage = Reload.NONE
+			if def.id == &"coach_shotgun":
+				_kick = 0.4 # snapped shut
+			elif def.id == &"lever_rifle":
+				_cycle = 0.0 # work the lever to chamber a round
+			Audio.play_at(&"reload", global_position, -6.0)
+
+
+func _begin(stage: Reload, length: float) -> void:
+	_stage = stage
+	_stage_t = 0.0
+	_stage_len = length
 
 
 ## Fires if possible (ammo, cooldown, effects). Hit resolution is done by PlayerNet.
 func trigger(camera: Camera3D) -> bool:
 	if holding != &"" or def == null:
 		return false
-	if _cooldown > 0.0 or _reload_left > 0.0:
+	if _stage != Reload.NONE:
+		# Like Hunt: fire between rounds to stop reloading (the shotgun has to
+		# snap shut first).
+		if def.id == &"coach_shotgun":
+			if _stage != Reload.CLOSE:
+				_begin(Reload.CLOSE, _times().z)
+			return false
+		if ammo <= 0 or _stage == Reload.CLOSE:
+			return false
+		_stage = Reload.NONE
+	if _cooldown > 0.0:
 		return false
 	if ammo <= 0:
 		reload()
@@ -260,8 +308,10 @@ func trigger(camera: Camera3D) -> bool:
 	ammo -= 1
 	_cooldown = def.fire_interval
 	_kick = 1.0 + def.shake
-	if _drum != null and def.id == &"revolver":
-		_drum.rotate_z(TAU / 6.0)
+	if def.id == &"revolver":
+		_drum_target += TAU / 6.0
+	elif def.id == &"lever_rifle":
+		_cycle = 0.0 # work the lever
 	_flash.visible = true
 	_flash.rotation.z = randf() * TAU
 	_flash_light.light_energy = 2.5
@@ -278,7 +328,7 @@ func trigger(camera: Camera3D) -> bool:
 ## Right mouse held: aim if a gun is out and not reloading.
 func set_aiming(on: bool) -> void:
 	on = on or GameState.has_flag("--aim") # debug screenshots
-	aiming = on and holding == &"" and def != null and _reload_left <= 0.0
+	aiming = on and holding == &"" and def != null and _stage == Reload.NONE
 
 
 ## How much the view is zoomed right now (1 = not at all).
@@ -289,16 +339,18 @@ func zoom_factor() -> float:
 
 
 func reload() -> void:
-	if holding != &"" or def == null or _reload_left > 0.0 or ammo == def.mag_size:
+	if holding != &"" or def == null or _stage != Reload.NONE or ammo == def.mag_size:
 		return
-	_reload_time = def.reload_time * pow(0.85, level_of(def.id))
-	_reload_left = _reload_time
-	reload_started.emit(_reload_time)
+	var times := _times()
+	_loaded_this_reload = 0
+	_begin(Reload.OPEN, times.x)
+	var rounds := def.mag_size if def.id == &"coach_shotgun" else def.mag_size - ammo
+	reload_started.emit(times.x + times.y * rounds + times.z)
 	Audio.play_at(&"reload", global_position, -6.0)
 
 
 func is_reloading() -> bool:
-	return _reload_left > 0.0
+	return _stage != Reload.NONE
 
 
 ## Hitscan from origin along dir. Returns the intersect_ray result (empty on a miss).
