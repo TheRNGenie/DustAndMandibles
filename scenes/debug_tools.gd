@@ -355,6 +355,15 @@ func _take_screenshot(path: String) -> void:
 		player.gun.ammo = player.gun.def.mag_size - int(GameState.flag_value("--reload"))
 		player.gun.reload()
 		await get_tree().create_timer(GameState.flag_value("--reloadwait").to_float()).timeout
+	if GameState.has_flag("--rocktest") and player != null:
+		# Throw a rock, then get bonked by one from the side; report the shove.
+		player.net.throw_rock(player.camera.global_position + Vector3(0, 0, -0.4), Vector3(0, 3, -18))
+		await get_tree().create_timer(0.2).timeout
+		var before := player.global_position
+		player.net._bonked(Vector3(1, 0, 0), 1.0)
+		await get_tree().create_timer(GameState.flag_value("--rockwait").to_float() if GameState.flag_value("--rockwait") != "" else 0.5).timeout
+		print("[rock] rocks in flight %d, shoved %.2f m, stagger left %.2f" % [get_tree().current_scene.get_children().filter(func(n: Node) -> bool: return n is PlayerNet.Rock).size(),
+				before.distance_to(player.global_position), player._stagger])
 	if GameState.has_flag("--smoke") and player != null and player.cigarette != null:
 		player.cigarette.light()
 	if GameState.flag_value("--buildmenu") != "" and player != null:

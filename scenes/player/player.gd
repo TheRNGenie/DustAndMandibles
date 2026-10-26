@@ -35,6 +35,12 @@ var _capsule: CapsuleShape3D
 var _shake := 0.0
 ## Ladder volumes the player is inside (the airship's rope ladder): forward climbs.
 var ladder_count := 0
+## Knocked about (rock hit): less control for a moment, the camera rolls.
+var _stagger := 0.0
+var _roll := 0.0
+var _roll_vel := 0.0
+var _rock_cd := 0.0
+const ROCK_COOLDOWN := 0.8
 ## Local player only: T lights one up (see Cigarette).
 var cigarette: Cigarette
 ## World height of the ladder's top (the deck): you step off forward once above it.
@@ -121,6 +127,12 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("throw_rock") and not GameState.menu_open and not vitals.downed and _rock_cd <= 0.0:
+		_rock_cd = ROCK_COOLDOWN
+		net.throw_rock(camera.global_position - camera.global_transform.basis.z * 0.4 + camera.global_transform.basis.x * 0.15,
+				-camera.global_transform.basis.z * 18.0 + Vector3.UP * 3.0 + velocity * 0.5)
+		get_viewport().set_input_as_handled()
+		return
 	if cigarette != null and event.is_action_pressed("smoke") and not GameState.menu_open and not vitals.downed:
 		cigarette.light()
 		get_viewport().set_input_as_handled()
@@ -144,6 +156,10 @@ func _physics_process(delta: float) -> void:
 	_update_fall(delta)
 	var blocked := GameState.menu_open or vitals.downed
 	var input_dir := Vector2.ZERO if blocked else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	_rock_cd = maxf(_rock_cd - delta, 0.0)
+	if _stagger > 0.0:
+		_stagger = maxf(_stagger - delta, 0.0)
+		input_dir *= 0.25
 	var wish := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 	var on_floor := is_on_floor()
 	if ladder_count > 0 and not blocked:
@@ -193,6 +209,8 @@ func _physics_process(delta: float) -> void:
 		if gun.aiming:
 			target_speed *= 0.6
 		var accel := ACCEL_GROUND if on_floor else ACCEL_AIR
+		if _stagger > 0.0:
+			accel *= 0.12
 		var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(wish * target_speed, accel * delta)
 		velocity.x = horiz.x
 		velocity.z = horiz.z
@@ -324,6 +342,23 @@ func _update_camera(delta: float, sprinting: bool) -> void:
 	_shake = move_toward(_shake, 0.0, delta * 2.5)
 	camera.h_offset = randf_range(-1.0, 1.0) * _shake * 0.08
 	camera.v_offset = randf_range(-1.0, 1.0) * _shake * 0.08
+	# Wobbly roll after a hit (springs back).
+	_roll_vel += (-_roll * 70.0 - _roll_vel * 8.0) * delta
+	_roll += _roll_vel * delta
+	camera.rotation.z = _roll
+
+
+## Hit by a rock (or similar): a shove, a stumble, a floppy dummy wobble.
+func bonk(dir: Vector3, strength: float) -> void:
+	rig.knock(dir, strength)
+	if not is_multiplayer_authority():
+		return
+	var flat := Vector3(dir.x, 0.0, dir.z).normalized()
+	velocity += flat * 7.0 * strength + Vector3.UP * 3.5 * strength
+	_stagger = 0.6 * strength
+	var side := signf(flat.dot(global_transform.basis.x))
+	_roll_vel += -side * 6.0 * strength
+	add_shake(0.5 * strength)
 
 
 ## Local player: shake the camera (0..1).

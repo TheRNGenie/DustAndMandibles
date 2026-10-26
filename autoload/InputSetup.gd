@@ -18,6 +18,7 @@ const KEY_BINDINGS: Dictionary = {
 	"drop_item": [KEY_Q],
 	"field_guide": [KEY_J],
 	"smoke": [KEY_T],
+	"throw_rock": [KEY_V],
 	"upgrade": [KEY_U],
 	"pause_menu": [KEY_ESCAPE],
 	"debug_overlay": [KEY_F3],

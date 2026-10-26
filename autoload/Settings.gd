@@ -26,6 +26,7 @@ const REMAPPABLE: Dictionary = {
 	"drop_item": "Drop weapon",
 	"field_guide": "Field Guide (wiki)",
 	"smoke": "Smoke a cigarette",
+	"throw_rock": "Throw a rock",
 	"ready_up": "Ready (skip build phase)",
 	"debug_overlay": "Debug overlay",
 }
