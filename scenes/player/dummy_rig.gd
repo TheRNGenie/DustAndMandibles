@@ -34,9 +34,9 @@ func build(team: Color, is_first_person: bool) -> void:
 	first_person = is_first_person
 	_mat = Materials.toon_unique(0.02)
 	_hips = _pivot(self, Vector3(0, 0.92, 0))
-	_part(_hips, _mesh("pelvis", team), Vector3.ZERO)
+	var pelvis := _part(_hips, _mesh("pelvis", team), Vector3.ZERO)
 	_torso = _pivot(_hips, Vector3(0, 0.08, 0))
-	_part(_torso, _mesh("torso", team), Vector3.ZERO)
+	var torso := _part(_torso, _mesh("torso", team), Vector3.ZERO)
 	_head = _pivot(_torso, Vector3(0, 0.58, 0))
 	var head_mi := _part(_head, _mesh("head", team), Vector3.ZERO)
 	for side: float in [-1.0, 1.0]:
@@ -56,9 +56,11 @@ func build(team: Color, is_first_person: bool) -> void:
 			upper.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 			fore.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 	if first_person:
-		head_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-		# Keep the torso out of the camera when you look down.
-		position.z = 0.18
+		# You see your legs and feet; the upper body only casts a shadow (it would
+		# fill the screen when you look down).
+		for mi: MeshInstance3D in [head_mi, torso, pelvis]:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		position.z = 0.06
 
 
 ## Called every frame. speed = horizontal speed (m/s); pitch = aim pitch (radians).

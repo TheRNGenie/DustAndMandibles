@@ -26,6 +26,8 @@ func _soak(seconds: float) -> void:
 		await get_tree().process_frame
 	if GameState.has_flag("--autobuild") and multiplayer.is_server():
 		_autobuild()
+	if GameState.flag_value("--showcase") != "":
+		_showcase()
 	var bugs := world.get("bugs") as BugManager
 	GameState.phase_changed.connect(func(p: GameState.Phase) -> void:
 		print("[soak %5.1fs] wave %d phase %d  homesteads %s  bugs %d  scrap W%d E%d" % [
@@ -235,7 +237,11 @@ func _farm() -> void:
 func _showcase() -> void:
 	var bm := world.get("bugs") as BugManager
 	var lane := 1
-	if GameState.flag_value("--showcase") == "3":
+	if GameState.flag_value("--showcase") == "4":
+		# Turret reach test: frozen spitters on the east face at the old and new cling heights.
+		bm.spawn_group(&"spitter_scorpion", 1, WorldLayout.EAST, 1, 39.0)
+		bm.spawn_group(&"spitter_scorpion", 1, WorldLayout.EAST, 3, 47.0)
+	elif GameState.flag_value("--showcase") == "3":
 		bm.spawn_group(&"iron_tumble", 1, WorldLayout.WEST, 2, 25.0)
 	elif GameState.flag_value("--showcase") == "2":
 		for id: StringName in [&"brood_mother", &"spiderling", &"crop_weevil"]:

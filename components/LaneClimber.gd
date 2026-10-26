@@ -35,7 +35,7 @@ func _init(b: Bug) -> void:
 
 
 func spit_height() -> float:
-	return WorldLayout.CLIFF_HEIGHT * 0.65
+	return WorldLayout.CLIFF_HEIGHT * 0.78
 
 
 func update(delta: float) -> void:

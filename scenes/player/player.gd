@@ -59,7 +59,7 @@ func _ready() -> void:
 	rig = DummyRig.new()
 	rig.name = "Rig"
 	add_child(rig)
-	rig.build(Palette.team_color(cliff_id), is_multiplayer_authority())
+	rig.build(Palette.team_color(cliff_id), is_multiplayer_authority() and not GameState.has_flag("--thirdperson"))
 	net.prime()
 	if is_multiplayer_authority():
 		camera.current = true

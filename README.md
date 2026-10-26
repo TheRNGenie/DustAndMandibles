@@ -11,6 +11,12 @@ Built with Godot 4 and GDScript. Every mesh, texture, shader and sound is genera
 - Godot 4.5 or newer (standard build, not .NET): `winget install GodotEngine.GodotEngine`
 - Later, for generating audio: Python 3 with `pip install numpy scipy`
 
+## Shareable build
+```
+godot --headless --path D:\DustAndMandibles --export-release "Windows Desktop" builds/windows/DustAndMandibles.exe
+```
+The .exe is self-contained: send it to a friend, one of you hosts, the other joins by IP (or pastes the invite from the pause menu's Social tab). Allow it through Windows Firewall when asked.
+
 ## Run
 Open the folder in Godot (Import > select `project.godot`) and press F5, or from a terminal:
 
