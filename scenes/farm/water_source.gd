@@ -30,7 +30,7 @@ func _process(delta: float) -> void:
 	if not multiplayer.is_server() or not working or stored >= capacity:
 		return
 	var rate := rates.y if GameState.storm else rates.x
-	_t += delta * GameState.growth_scale()
+	_t += delta * GameState.growth_scale() * Weather.water_temp_rate(GameState.temperature())
 	if _t >= rate:
 		_t = 0.0
 		stored += 1

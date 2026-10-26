@@ -26,6 +26,9 @@ var _target := START_HOUR
 var _rate := 0.0
 var _storm := 0.0
 var _snow := 0.0
+## Weather colour cast (alpha = strength) and fog thickness, eased.
+var _tint := Color(1, 1, 1, 0)
+var _fog_mult := 1.0
 var _base_fog := -1.0
 ## Lightning: a brief flash added on top of everything.
 var flash := 0.0
@@ -108,14 +111,19 @@ func _on_phase(p: GameState.Phase) -> void:
 func _process(delta: float) -> void:
 	if clock < _target:
 		clock = minf(clock + _rate * delta, _target)
-	var want_storm: float = [0.0, 0.25, 0.6, 0.95, 0.7][clampi(GameState.weather, 0, 4)]
+	var want_storm: float = [0.0, 0.25, 0.6, 0.95, 0.7, 0.85, 0.0, 0.5, 0.0][clampi(GameState.weather, 0, 8)]
+	_tint = _tint.lerp(_weather_tint(GameState.weather), clampf(delta / 4.0, 0.0, 1.0))
+	var fog_mult: float = [1.0, 1.0, 1.0, 1.0, 1.0, 9.0, 1.4, 11.0, 1.6][clampi(GameState.weather, 0, 8)]
+	_fog_mult = lerpf(_fog_mult, fog_mult, clampf(delta / 4.0, 0.0, 1.0))
 	_storm = move_toward(_storm, want_storm, delta / 5.0)
 	var snow := 1.0 if GameState.weather == Weather.Kind.SNOW else 0.0
+	if GameState.weather == Weather.Kind.DUST_STORM:
+		want_storm = 0.4
 	_snow = move_toward(_snow, snow, delta / 5.0)
 	if env != null:
 		if _base_fog < 0.0:
 			_base_fog = env.fog_density
-		env.fog_density = _base_fog * (1.0 + _storm * 1.6) * clarity_fog
+		env.fog_density = _base_fog * (1.0 + _storm * 1.6) * _fog_mult * clarity_fog
 	_apply_now()
 
 
@@ -143,6 +151,12 @@ func _apply_now() -> void:
 		top = top.lerp(Color("#5F6C7A").lerp(Color("#B8C4D0"), _snow), _storm * 0.85)
 		horizon = horizon.lerp(Color("#A9A29A").lerp(Color("#E4E8EC"), _snow), _storm * 0.85)
 		ambient = ambient.lerp(Color("#8A90A8").lerp(Color("#C8D0E0"), _snow), _storm * 0.6)
+	if _tint.a > 0.01:
+		var tc := Color(_tint.r, _tint.g, _tint.b)
+		top = top.lerp(tc, _tint.a)
+		horizon = horizon.lerp(tc.lightened(0.15), _tint.a)
+		ambient = ambient.lerp(tc, _tint.a * 0.6)
+		sun_color = sun_color.lerp(tc.lightened(0.3), _tint.a * 0.7)
 	if flash > 0.0:
 		flash = maxf(flash - get_process_delta_time() * 4.0, 0.0)
 		ambient = ambient.lerp(Color("#E8F0FF"), flash)
@@ -165,3 +179,17 @@ func _apply_now() -> void:
 	# Clouds pick up the light: white by day, warm at dusk, dim blue-grey at night.
 	sky.set_shader_parameter("cloud_color", Color("#FFF7EA").lerp(sun_color, 0.35) * clampf(energy / 1.2, 0.3, 1.0) + horizon * 0.15)
 	sky.set_shader_parameter("sun_color", sun_color)
+
+
+## Colour cast for the weather (alpha = how strong).
+static func _weather_tint(k: int) -> Color:
+	match k:
+		Weather.Kind.DUST_STORM:
+			return Color(0.78, 0.55, 0.32, 0.75)
+		Weather.Kind.HEAT_WAVE:
+			return Color(1.0, 0.82, 0.55, 0.35)
+		Weather.Kind.FOG:
+			return Color(0.85, 0.86, 0.88, 0.55)
+		Weather.Kind.BLOOD_MOON:
+			return Color(0.75, 0.12, 0.1, 0.7)
+	return Color(1, 1, 1, 0)

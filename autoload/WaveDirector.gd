@@ -26,6 +26,13 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 	match p:
 		GameState.Phase.WARNING:
 			_plan = _planner.plan(GameState.wave)
+			var extra := Weather.extra_bugs(GameState.weather)
+			if extra > 0.0:
+				# Blood moon: fold part of a second wave's worth of bugs into this one.
+				var more: Array = _planner.plan(GameState.wave)["groups"]
+				var groups: Array = _plan["groups"]
+				for i in int(more.size() * extra):
+					groups.append(more[i])
 			_announce.rpc(WavePlanner.heavier_cliff(float(_plan["west_share"])), float(_plan["west_share"]), _lane_counts())
 		GameState.Phase.WAVE:
 			if _plan.is_empty():

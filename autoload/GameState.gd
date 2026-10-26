@@ -145,9 +145,9 @@ func _enter(p: Phase) -> void:
 	if p == Phase.WARNING:
 		var rng := RandomNumberGenerator.new()
 		rng.randomize()
-		w = Weather.roll(rng)
+		w = Weather.roll(rng, Weather.is_night(12.0 + 6.0 * float(maxi(wave - 1, 0))))
 		if flag_value("--weather") != "":
-			w = clampi(int(flag_value("--weather")), 0, Weather.Kind.SNOW)
+			w = clampi(int(flag_value("--weather")), 0, Weather.Kind.BLOOD_MOON)
 	elif p == Phase.BUILD or p == Phase.LOBBY:
 		w = Weather.Kind.CLEAR
 	_sync_phase.rpc(p, duration, wave, w)
@@ -166,6 +166,12 @@ func _sync_phase(p: int, duration: float, w: int, kind: int) -> void:
 	skip_votes = 0
 	skip_votes_changed.emit(0, _needed_votes())
 	phase_changed.emit(phase)
+
+
+## Degrees F right now (time of day plus weather).
+func temperature() -> float:
+	var hour := DayCycle.instance.hour() if DayCycle.instance != null else 12.0
+	return Weather.temperature(hour, weather)
 
 
 ## Host: damage to a Homestead. Losing either one loses the run (shared fate).

@@ -91,7 +91,7 @@ func climbers_on(cliff: int) -> Array[Bug]:
 
 func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 	# Loot lands on the cliff the bug was climbing: your turrets earn for your partner.
-	var loot := {&"scrap": bug.def.scrap_drop, &"chitin": bug.def.chitin_drop}
+	var loot := {&"scrap": bug.def.scrap_drop, &"chitin": bug.def.chitin_drop * Weather.chitin_mult(GameState.weather)}
 	Economy.earn(bug.cliff_id, loot)
 	_pop.rpc(bug.global_position, bug.def.shell_color, float(bug.spec["scale"]))
 	_announce_kill.rpc(bug.def.display_name, bug.cliff_id, source, source_cliff, bug.def.scrap_drop)

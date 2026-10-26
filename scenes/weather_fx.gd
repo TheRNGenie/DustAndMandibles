@@ -65,10 +65,11 @@ func _process(delta: float) -> void:
 	_rain.emitting = Weather.is_rain(w)
 	_rain.amount = 2600 if w == Weather.Kind.THUNDERSTORM else 1400
 	_snow.emitting = w == Weather.Kind.SNOW
-	_dust.emitting = w == Weather.Kind.WINDY
+	_dust.emitting = w == Weather.Kind.WINDY or w == Weather.Kind.DUST_STORM
+	_dust.amount = 1600 if w == Weather.Kind.DUST_STORM else 500
 	_dust.gravity = Vector3(0, -0.3, wind_sign() * 26.0)
 	_snow.gravity = Vector3(0, -2.2, wind_sign() * (0.8 if w != Weather.Kind.WINDY else 4.0))
-	if w == Weather.Kind.WINDY:
+	if w == Weather.Kind.WINDY or w == Weather.Kind.DUST_STORM:
 		_push_local_player(delta)
 	if multiplayer.is_server() and w == Weather.Kind.THUNDERSTORM and GameState.phase == GameState.Phase.WAVE:
 		_bolt_t -= delta

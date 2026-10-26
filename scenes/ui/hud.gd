@@ -147,6 +147,7 @@ func _update_phase_label() -> void:
 		title = DayCycle.instance.stage_name()
 		if GameState.weather != Weather.Kind.CLEAR:
 			title += "  -  " + Weather.NAMES[GameState.weather].to_upper()
+		title += "  -  %d\u00B0F" % int(round(GameState.temperature()))
 	var secs := int(ceilf(GameState.time_left))
 	if GameState.phase == GameState.Phase.LOBBY:
 		_phase_label.text = title

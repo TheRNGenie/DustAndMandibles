@@ -85,7 +85,8 @@ func _process(delta: float) -> void:
 		return
 	var before := growth.stage
 	var w := GameState.weather
-	growth.tick(delta * GameState.growth_scale(), Weather.crop_rate(w) if Weather.is_rain(w) else 0.0, Weather.frost_rate(w))
+	var temp_rate := Weather.crop_temp_rate(GameState.temperature())
+	growth.tick(delta * GameState.growth_scale() * temp_rate, Weather.crop_rate(w) if Weather.is_rain(w) else 0.0, Weather.frost_rate(w))
 	_sync_t -= delta
 	if growth.stage != before or (growth.stage == CropGrowth.Stage.GROWING and _sync_t <= 0.0):
 		_sync_t = SYNC_INTERVAL

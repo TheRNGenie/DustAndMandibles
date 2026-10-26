@@ -98,7 +98,7 @@ func _ready() -> void:
 		)
 	GameState.weather_changed.connect(func(k: int) -> void:
 		if k != Weather.Kind.CLEAR or GameState.phase == GameState.Phase.WARNING:
-			add_line(Weather.BLURBS[k], Palette.SKY_TOP if k != Weather.Kind.SNOW else Palette.BONE))
+			add_line(Weather.BLURBS[k], Palette.TEAM_WEST if k == Weather.Kind.BLOOD_MOON else (Palette.SKY_TOP if k != Weather.Kind.SNOW else Palette.BONE)))
 
 
 func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void:
