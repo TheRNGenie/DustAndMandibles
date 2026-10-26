@@ -28,6 +28,8 @@ var build_id: StringName = &"farm_plot"
 var growth := CropGrowth.new()
 var _plant_mi: MeshInstance3D
 var _fruit_mi: MeshInstance3D
+var _packet_mi: MeshInstance3D
+var _shown := ""
 var _sign: MeshInstance3D
 var _sign_mat: StandardMaterial3D
 var _sync_t := 0.0
@@ -60,11 +62,16 @@ func setup(cid: int) -> void:
 	_sign.position = Vector3(SIZE * 0.5 + 0.1, 0.8, SIZE * 0.5 - 0.2)
 	add_child(_sign)
 	_plant_mi = MeshInstance3D.new()
-	_plant_mi.mesh = _plant_mesh()
 	_plant_mi.material_override = Materials.toon(0.015)
 	_plant_mi.position.y = 0.2
-	_plant_mi.set_meta("base_scale", PLANT_SCALE)
 	add_child(_plant_mi)
+	# The empty seed packet on a stake marks what's planted (garden-marker style).
+	_packet_mi = MeshInstance3D.new()
+	_packet_mi.material_override = Materials.toon(0.006)
+	_packet_mi.position = Vector3(SIZE * 0.5 - 0.15, 0.62, -SIZE * 0.5 + 0.15)
+	_packet_mi.scale = Vector3.ONE * 2.2
+	_packet_mi.rotation.y = PI
+	add_child(_packet_mi)
 	_fruit_mi = MeshInstance3D.new()
 	_fruit_mi.material_override = Materials.toon(0.015)
 	_fruit_mi.position.y = 0.2
@@ -181,7 +188,7 @@ func _broadcast() -> void:
 func _sync(crop_id: StringName, stage: int, progress: float, watered: bool) -> void:
 	if crop_id != &"" and (crop_def == null or crop_def.id != crop_id):
 		crop_def = Defs.crop(crop_id)
-		_fruit_mi.mesh = _fruit_mesh(crop_def.color)
+		_packet_mi.mesh = CropBuilder.packet(crop_def.id)
 	growth.crop = crop_def
 	growth.stage = stage as CropGrowth.Stage
 	growth.progress = progress
@@ -197,24 +204,18 @@ func _fx(sound: StringName) -> void:
 func _refresh_visual() -> void:
 	var empty := growth.stage == CropGrowth.Stage.EMPTY
 	var f := 0.0 if empty else growth.fraction()
-	_plant_mi.visible = not empty
-	_plant_mi.scale = Vector3.ONE * lerpf(0.25, 1.0, f) * PLANT_SCALE
-	_fruit_mi.visible = growth.stage == CropGrowth.Stage.RIPE
+	_plant_mi.visible = not empty and crop_def != null
+	_packet_mi.visible = not empty and crop_def != null
+	_fruit_mi.visible = false
+	if _plant_mi.visible:
+		var stage := CropBuilder.stage_for(f, growth.stage == CropGrowth.Stage.RIPE)
+		var key := "%s:%d" % [crop_def.id, stage]
+		if key != _shown:
+			_shown = key
+			_plant_mi.mesh = CropBuilder.patch(crop_def.id, stage)
+			# A little pop when the plant moves up a stage.
+			_plant_mi.scale = Vector3.ONE * 0.85
+			create_tween().tween_property(_plant_mi, "scale", Vector3.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	else:
+		_shown = ""
 	_sign_mat.albedo_color = Palette.BONE if empty or crop_def == null else crop_def.color
-
-
-static func _plant_mesh() -> ArrayMesh:
-	var st := MeshKit.begin()
-	for i in 3:
-		var x := -0.55 + i * 0.55
-		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(x, 0.4, 0)), 0.05, 0.03, 0.8, 5, Palette.CACTUS)
-		for side: float in [-1.0, 1.0]:
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, side * 0.6), Vector3(x + side * 0.12, 0.45, 0)), Vector3(0.14, 0.04, 0.08), 3, 6, Palette.CACTUS_DARK)
-	return MeshKit.finish(st)
-
-
-static func _fruit_mesh(color: Color) -> ArrayMesh:
-	var st := MeshKit.begin()
-	for i in 3:
-		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(-0.55 + i * 0.55, 0.75, 0.05)), Vector3(0.1, 0.16, 0.1), 4, 6, color, 0.0, null, 0.25)
-	return MeshKit.finish(st)

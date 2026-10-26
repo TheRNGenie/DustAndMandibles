@@ -45,6 +45,14 @@ func setup(cid: int) -> void:
 	board.material_override = Materials.toon(0.02)
 	board.position = Vector3(-3.0, 0, -0.3)
 	add_child(board)
+	# A rack of seed packets on the counter.
+	var rack := MeshInstance3D.new()
+	rack.mesh = CropBuilder.packet_rack()
+	rack.material_override = Materials.toon(0.006)
+	rack.position = Vector3(0.75, 1.62, -0.55)
+	rack.rotation.y = PI
+	rack.scale = Vector3.ONE * 1.8
+	add_child(rack)
 	_label = ShopBuilder.sign_label()
 	board.add_child(_label)
 	for k: StringName in ITEMS:
@@ -128,8 +136,9 @@ func menu_items(tab: int) -> Array:
 		for s: StringName in SEEDS:
 			var info: Array = SEEDS[s]
 			var cost := seed_cost(s)
-			var crop_icon: StringName = &"chili" if s == &"seed_chili" else StringName(String(s).trim_prefix("seed_"))
-			out.append({"id": s, "name": str(info[0]), "icon": crop_icon, "desc": "Plant on a farm plot. You have %d." % Economy.amount(cid, s),
+			var crop_id: StringName = info[1]
+			var icon: Variant = IconStudio.seed_packet(MenuScreen.instance, crop_id) if MenuScreen.instance != null else null
+			out.append({"id": s, "name": str(info[0]), "icon": icon, "desc": "Plant on a farm plot. You have %d." % Economy.amount(cid, s),
 					"price": "%d scrap" % cost, "price_ok": Economy.amount(cid, &"scrap") >= cost,
 					"buttons": [[&"buy1", "Buy 1"], [&"buy5", "Buy 5"]]})
 	return out

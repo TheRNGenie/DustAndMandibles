@@ -24,6 +24,13 @@ static func structure(host: Node, id: StringName) -> Texture2D:
 	return _cache[key]["tex"]
 
 
+static func seed_packet(host: Node, crop: StringName) -> Texture2D:
+	var key := "packet:%s" % crop
+	if not _cache.has(key) or not is_instance_valid(_cache[key]["vp"]):
+		_render(host, key, [[CropBuilder.packet(crop), Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)]], -20.0)
+	return _cache[key]["tex"]
+
+
 static func bug(host: Node, id: StringName) -> Texture2D:
 	var key := "bug:%s" % id
 	if not _cache.has(key) or not is_instance_valid(_cache[key]["vp"]):
@@ -68,7 +75,7 @@ static func _render(host: Node, key: String, parts: Array, yaw_deg: float) -> vo
 		first = false
 	root.rotation.y = deg_to_rad(yaw_deg)
 	var center := root.transform * aabb.get_center()
-	var radius := maxf(aabb.size.length() * 0.5, 0.3)
+	var radius := maxf(aabb.size.length() * 0.5, 0.04)
 	var cam := Camera3D.new()
 	cam.fov = 35.0
 	var dist := radius / sin(deg_to_rad(cam.fov * 0.5)) * 1.05

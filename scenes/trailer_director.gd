@@ -46,7 +46,7 @@ func _process(delta: float) -> void:
 			(e[1] as Callable).call()
 	if not _keys.is_empty():
 		_place_camera(maxf(_t, 0.0))
-	if _t >= _dur:
+	if _t >= _dur and GameState.flag_value("--shot") == "":
 		get_tree().quit()
 
 
@@ -287,3 +287,28 @@ func _shot_endcard() -> void:
 	_swarm(WorldLayout.WEST, [&"dust_mite", &"wolf_spider", &"dust_mite"], 10.0, 35.0)
 	_dur = 4.5
 	_keys = [[0.0, Vector3(0, 82, -55), Vector3(0, 48, 15)], [4.5, Vector3(0, 104, -105), Vector3(0, 48, 10)]]
+
+
+## Crop line-up: each row is one crop, each column one growth stage (left to right).
+func _shot_crops() -> void:
+	_set_time(10.0)
+	var crops: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs"]
+	var origin := Bug.cliffs.plateau_point(WorldLayout.WEST, 12.0, 6.0)
+	for r in crops.size():
+		for c in CropBuilder.STAGES:
+			var mi := MeshInstance3D.new()
+			mi.mesh = CropBuilder.patch(crops[r], c)
+			mi.material_override = Materials.toon(0.015)
+			mi.scale = Vector3.ONE * 0.55
+			world.add_child(mi)
+			mi.global_position = origin + Vector3(-r * 1.9, 0.05, c * 1.9 - 3.8)
+		var pk := MeshInstance3D.new()
+		pk.mesh = CropBuilder.packet(crops[r])
+		pk.material_override = Materials.toon(0.006)
+		pk.scale = Vector3.ONE * 4.0
+		world.add_child(pk)
+		pk.global_position = origin + Vector3(-r * 1.9, 0.05, -5.8)
+		pk.rotation.y = -PI * 0.5
+	var c0 := origin + Vector3(-2.85, 0.4, 0)
+	_dur = 1.0
+	_keys = [[0.0, c0 + Vector3(5.5, 3.4, 0), c0], [1.0, c0 + Vector3(5.5, 3.4, 0), c0]]
