@@ -8,6 +8,7 @@ uniform vec4 sun_color : source_color = vec4(1.0, 0.95, 0.8, 1.0);
 uniform float sun_size : hint_range(0.0, 0.1) = 0.012;
 uniform float bands = 0.0; // > 0 posterises the gradient
 uniform float cloud_amount : hint_range(0.0, 1.0) = 0.35;
+uniform vec4 cloud_color : source_color = vec4(1.0, 0.97, 0.92, 1.0);
 uniform sampler2D cloud_noise : filter_linear_mipmap, repeat_enable;
 
 void sky() {
@@ -27,7 +28,7 @@ void sky() {
 		float c = texture(cloud_noise, uv).r;
 		float mask = smoothstep(1.0 - cloud_amount, 1.0 - cloud_amount + 0.02, c);
 		mask *= smoothstep(0.02, 0.2, dir.y);
-		col = mix(col, vec3(1.0, 0.97, 0.92), mask * 0.9);
+		col = mix(col, cloud_color.rgb, mask * 0.9);
 	}
 	if (LIGHT0_ENABLED) {
 		float s = dot(dir, LIGHT0_DIRECTION);

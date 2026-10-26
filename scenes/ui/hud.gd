@@ -134,6 +134,8 @@ func _process(_delta: float) -> void:
 
 func _update_phase_label() -> void:
 	var title: String = PHASE_NAMES.get(GameState.phase, "")
+	if DayCycle.instance != null and (GameState.phase == GameState.Phase.BUILD or GameState.phase == GameState.Phase.WAVE):
+		title = DayCycle.instance.stage_name()
 	var secs := int(ceilf(GameState.time_left))
 	if GameState.phase == GameState.Phase.LOBBY:
 		_phase_label.text = title
