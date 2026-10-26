@@ -96,6 +96,11 @@ func _build() -> void:
 		footer.alignment = BoxContainer.ALIGNMENT_END
 		footer.add_theme_constant_override("separation", 10)
 		col.add_child(footer)
+		var wardrobe := UiStyle.button("Wardrobe")
+		wardrobe.pressed.connect(func() -> void:
+			close()
+			Wardrobe.open())
+		footer.add_child(wardrobe)
 		var guide := UiStyle.button("Field Guide (J)")
 		guide.pressed.connect(func() -> void:
 			close()

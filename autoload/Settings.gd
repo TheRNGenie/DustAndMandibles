@@ -46,6 +46,9 @@ var render_scale: float = 1.0
 var master_volume: float = 0.8
 var sfx_volume: float = 1.0
 var music_volume: float = 0.6
+## Your dummy's outfit (see DummyLook), as {slot: option}.
+var look: Dictionary = DummyLook.default_look()
+signal look_changed
 
 ## action -> Array of serialized events ("k:<physical keycode>" or "m:<mouse button>").
 var _bindings: Dictionary = {}
@@ -171,7 +174,15 @@ func save_settings() -> void:
 		cfg.set_value("settings", key, get(key))
 	for action: String in _bindings:
 		cfg.set_value("bindings", action, _bindings[action])
+	cfg.set_value("look", "outfit", JSON.stringify(look))
 	cfg.save(PATH)
+
+
+func set_look(slot: String, option: String) -> void:
+	look[slot] = option
+	look = DummyLook.clean(look)
+	save_settings()
+	look_changed.emit()
 
 
 func load_settings() -> void:
@@ -181,6 +192,8 @@ func load_settings() -> void:
 	for key in SAVED_KEYS:
 		if cfg.has_section_key("settings", key):
 			set(key, cfg.get_value("settings", key))
+	if cfg.has_section_key("look", "outfit"):
+		look = DummyLook.clean(JSON.parse_string(str(cfg.get_value("look", "outfit"))))
 	if cfg.has_section("bindings"):
 		for action: String in cfg.get_section_keys("bindings"):
 			if not InputMap.has_action(action):

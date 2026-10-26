@@ -66,7 +66,8 @@ func _ready() -> void:
 	rig = DummyRig.new()
 	rig.name = "Rig"
 	add_child(rig)
-	rig.build(Palette.team_color(cliff_id), is_multiplayer_authority() and not GameState.has_flag("--thirdperson"))
+	rig.build(Palette.team_color(cliff_id), is_multiplayer_authority() and not GameState.has_flag("--thirdperson"),
+			Settings.look if is_multiplayer_authority() else {})
 	net.prime()
 	if is_multiplayer_authority():
 		cigarette = Cigarette.new()

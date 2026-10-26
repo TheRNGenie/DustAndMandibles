@@ -55,6 +55,15 @@ var _flash_left := 0.0
 var holding: StringName = &""
 var _item_mi: MeshInstance3D
 var _hand: MeshInstance3D
+var _arms: Dictionary = {}
+var _team := Palette.TEAM_WEST
+
+
+## Rebuilds the first-person hands for a new outfit (dummy paint, coat sleeves).
+func refresh_arms(look: Dictionary) -> void:
+	for id: StringName in _arms:
+		(_arms[id] as MeshInstance3D).mesh = WeaponBuilder.arms(id, _team, look)
+	_hand.mesh = WeaponBuilder.item_arm(_team, look)
 
 
 static func weapon(id: StringName) -> WeaponDef:
@@ -89,12 +98,14 @@ func _ready() -> void:
 		root.add_child(body)
 		# Gloved hands and coat sleeves holding this gun.
 		var arms := MeshInstance3D.new()
-		arms.mesh = WeaponBuilder.arms(id, team)
+		arms.mesh = WeaponBuilder.arms(id, team, Settings.look)
+		_arms[id] = arms
 		arms.material_override = mat
 		arms.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(arms)
 	_hand = MeshInstance3D.new()
-	_hand.mesh = WeaponBuilder.item_arm(team)
+	_hand.mesh = WeaponBuilder.item_arm(team, Settings.look)
+	_team = team
 	_hand.material_override = mat
 	_hand.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_hand.visible = false

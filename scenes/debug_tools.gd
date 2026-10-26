@@ -330,6 +330,11 @@ func _take_screenshot(path: String) -> void:
 				target = world.find_child("GunShop", true, false)
 			"ledger":
 				target = Homestead.of(0).get_node("Ledger")
+			"wardrobe":
+				for kv: Array in [["hair", GameState.flag_value("--hairstyle")]]:
+					if str(kv[1]) != "":
+						Settings.look[kv[0]] = kv[1]
+				Wardrobe.open()
 			"guide":
 				FieldGuide.open()
 				if GameState.flag_value("--menutab") != "":

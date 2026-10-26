@@ -12,6 +12,9 @@ var sync_sliding: bool
 var sync_downed: bool
 ## The gun in hand ("" when holding an item), so others see it in your fist.
 var sync_weapon: StringName = &"revolver"
+## Your outfit (DummyLook) as JSON, so the other player sees how you're dressed.
+var sync_look: String = ""
+var _applied_look := ""
 
 @onready var player: Player = get_parent() as Player
 
@@ -28,8 +31,14 @@ func _physics_process(delta: float) -> void:
 		var g := player.gun
 		sync_weapon = g.def.id if (g.holding == &"" and g.def != null) else &""
 		player.rig.set_weapon(sync_weapon)
+		sync_look = JSON.stringify(Settings.look)
 	else:
 		player.rig.set_weapon(sync_weapon)
+	if sync_look != _applied_look and sync_look != "":
+		_applied_look = sync_look
+		player.rig.apply_look(DummyLook.clean(JSON.parse_string(sync_look)))
+		if player.is_multiplayer_authority():
+			player.gun.refresh_arms(Settings.look)
 		var k := 1.0 - exp(-SMOOTHING * delta)
 		if player.global_position.distance_to(sync_pos) > 6.0:
 			player.global_position = sync_pos # teleport (respawn, mantle)
