@@ -260,6 +260,13 @@ func _showcase() -> void:
 		if p.gun.trigger(p.camera):
 			p.net.fire(p.camera.global_position, -p.camera.global_transform.basis.z)
 			shots += 1
+		var seeds0 := Economy.amount(WorldLayout.WEST, &"seed_corn")
+		vendor._sell(1, &"seed_corn")
+		vendor._sell(1, &"seed_corn")
+		var seeds1 := Economy.amount(WorldLayout.WEST, &"seed_corn")
+		var plot := dressing.get_node("Plot0_0_0") as CropPlot
+		plot._use(1, &"corn")
+		print("[shop] corn seeds %d -> bought -> %d -> planted -> %d, plot stage %d" % [seeds0, seeds1, Economy.amount(WorldLayout.WEST, &"seed_corn"), plot.growth.stage])
 		print("[shop] fired shotgun: %d, ammo %d/%d, pellets %d" % [shots, p.gun.ammo, p.gun.def.mag_size, Gun.shot_dirs(&"coach_shotgun", Vector3.FORWARD, 7).size()])
 		return
 	elif GameState.flag_value("--showcase") == "5":

@@ -13,6 +13,10 @@ const PLANT_SCALE := 1.45
 ## Seed order for F (cycle) on an empty plot.
 const SEEDS: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs"]
 
+## The seed resource each crop needs (bought from the Oasis vendor for scrap).
+const SEED_RES: Dictionary = {&"corn": &"seed_corn", &"prickly_pear": &"seed_prickly_pear",
+	&"firecracker_chili": &"seed_chili", &"herbs": &"seed_herbs"}
+
 ## The seed this player has picked for empty plots (local, shared by all plots).
 static var selected_seed := 0
 
@@ -102,7 +106,8 @@ func cycle_option() -> void:
 
 func interact_prompt() -> String:
 	if growth.stage == CropGrowth.Stage.EMPTY:
-		return "E: plant %s   (F: change seed)\nCorn and prickly pear sell well, chili is mortar ammo, herbs heal you" % seed_def().display_name
+		var have := Economy.amount(_local_cliff(), SEED_RES[seed_def().id])
+		return "E: plant %s (%d seeds left)   F: change seed\nBuy more seeds at the Oasis vendor" % [seed_def().display_name, have]
 	var n := crop_def.display_name
 	match growth.stage:
 		CropGrowth.Stage.PLANTED:
@@ -132,9 +137,13 @@ func _use(peer_id: int, seed_id: StringName) -> void:
 	match growth.stage:
 		CropGrowth.Stage.EMPTY:
 			var def := Defs.crop(seed_id)
-			if def != null:
-				crop_def = def
-				growth.plant(def)
+			if def == null:
+				return
+			if not Economy.spend(payer, {SEED_RES[seed_id]: 1}):
+				Economy.notify(peer_id, "No %s seeds. Buy them at the Oasis vendor for scrap." % def.display_name.to_lower())
+				return
+			crop_def = def
+			growth.plant(def)
 		CropGrowth.Stage.PLANTED:
 			if Economy.spend(payer, {&"water": crop_def.water_cost}):
 				growth.water()
@@ -152,6 +161,13 @@ func eaten() -> void:
 	if multiplayer.is_server() and has_crop():
 		growth.clear()
 		_broadcast()
+
+
+func _local_cliff() -> int:
+	for n: Node in get_tree().get_nodes_in_group("players"):
+		if n.is_multiplayer_authority():
+			return (n as Player).cliff_id if not GameState.is_solo() else cliff_id
+	return cliff_id
 
 
 func _broadcast() -> void:

@@ -3,7 +3,8 @@ extends RefCounted
 ## Pure resource bookkeeping per cliff (one player per cliff), with no networking,
 ## so it can be unit-tested. The Economy autoload wraps it and syncs it.
 
-const RESOURCES: Array[StringName] = [&"scrap", &"chitin", &"water", &"corn", &"prickly_pear", &"chili", &"herbs"]
+const RESOURCES: Array[StringName] = [&"scrap", &"chitin", &"water", &"corn", &"prickly_pear", &"chili", &"herbs",
+	&"seed_corn", &"seed_prickly_pear", &"seed_chili", &"seed_herbs"]
 
 ## cliff_id -> {resource: int}
 var stock: Dictionary = {}
