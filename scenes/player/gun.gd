@@ -31,8 +31,8 @@ var owned: Dictionary = {&"revolver": 0}
 var slots: Array[StringName] = [&"revolver", &"", &""]
 const MAX_WEAPONS := 3
 ## Right-click aim: where the gun sits, and how far the view zooms in.
-const AIM_POS: Dictionary = {&"revolver": Vector3(0.0, -0.075, -0.5), &"lever_rifle": Vector3(0.0, -0.07, -0.4),
-	&"coach_shotgun": Vector3(0.0, -0.075, -0.42)}
+const AIM_POS: Dictionary = {&"revolver": Vector3(0.0, -0.075, -0.5), &"lever_rifle": Vector3(0.0, -0.056, -0.44),
+	&"coach_shotgun": Vector3(0.0, -0.058, -0.4)}
 const AIM_ZOOM: Dictionary = {&"revolver": 1.4, &"lever_rifle": 2.2, &"coach_shotgun": 1.25}
 ## Aimed shotguns spread this much less.
 const AIM_SPREAD := 0.6
@@ -64,6 +64,8 @@ static func weapon(id: StringName) -> WeaponDef:
 func _ready() -> void:
 	position = REST_POS
 	var mat := Materials.toon(0.004)
+	var owner_player := get_parent().get_parent().get_parent() as Player
+	var team := Palette.team_color(owner_player.cliff_id) if owner_player != null else Palette.TEAM_WEST
 	for id: StringName in ORDER:
 		var root := Node3D.new()
 		add_child(root)
@@ -85,10 +87,17 @@ func _ready() -> void:
 		body.material_override = mat
 		body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(body)
+		# Gloved hands and coat sleeves holding this gun.
+		var arms := MeshInstance3D.new()
+		arms.mesh = WeaponBuilder.arms(id, team)
+		arms.material_override = mat
+		arms.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(arms)
 	_hand = MeshInstance3D.new()
-	_hand.mesh = WeaponBuilder.dummy_hand()
+	_hand.mesh = WeaponBuilder.item_arm(team)
 	_hand.material_override = mat
 	_hand.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_hand.visible = false
 	add_child(_hand)
 	_item_mi = MeshInstance3D.new()
 	_item_mi.material_override = mat
@@ -127,6 +136,7 @@ func equip(id: StringName) -> void:
 	def = weapon(id)
 	holding = &""
 	_item_mi.visible = false
+	_hand.visible = false
 	ammo = int(_ammo_by_weapon.get(id, def.mag_size))
 	_reload_left = 0.0
 	for k: StringName in _models:
@@ -162,6 +172,7 @@ func hold_item(id: StringName) -> void:
 		(_models[k] as Node3D).visible = false
 	_item_mi.mesh = WeaponBuilder.held_item(id) if id != &"none" else null
 	_item_mi.visible = id != &"none"
+	_hand.visible = id != &"none"
 	loadout_changed.emit()
 
 

@@ -341,6 +341,10 @@ func _take_screenshot(path: String) -> void:
 			if GameState.flag_value("--menutab") != "":
 				MenuScreen.instance.tab = int(GameState.flag_value("--menutab"))
 				MenuScreen.instance.refresh()
+	if GameState.flag_value("--weapon") != "" and player != null:
+		var wid := StringName(GameState.flag_value("--weapon"))
+		player.gun.grant(wid, 0)
+		player.gun.equip(wid)
 	if GameState.has_flag("--smoke") and player != null and player.cigarette != null:
 		player.cigarette.light()
 	if GameState.flag_value("--buildmenu") != "" and player != null:

@@ -25,6 +25,9 @@ properties/3/replication_mode = 2
 properties/4/path = NodePath("Net:sync_downed")
 properties/4/spawn = true
 properties/4/replication_mode = 2
+properties/5/path = NodePath("Net:sync_weapon")
+properties/5/spawn = true
+properties/5/replication_mode = 2
 
 [node name="Player" type="CharacterBody3D"]
 collision_mask = 11

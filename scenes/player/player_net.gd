@@ -10,6 +10,8 @@ var sync_yaw: float
 var sync_pitch: float
 var sync_sliding: bool
 var sync_downed: bool
+## The gun in hand ("" when holding an item), so others see it in your fist.
+var sync_weapon: StringName = &"revolver"
 
 @onready var player: Player = get_parent() as Player
 
@@ -23,7 +25,11 @@ func _physics_process(delta: float) -> void:
 		sync_pitch = player.head.rotation.x
 		sync_sliding = player.is_sliding()
 		sync_downed = player.vitals.downed
+		var g := player.gun
+		sync_weapon = g.def.id if (g.holding == &"" and g.def != null) else &""
+		player.rig.set_weapon(sync_weapon)
 	else:
+		player.rig.set_weapon(sync_weapon)
 		var k := 1.0 - exp(-SMOOTHING * delta)
 		if player.global_position.distance_to(sync_pos) > 6.0:
 			player.global_position = sync_pos # teleport (respawn, mantle)

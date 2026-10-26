@@ -15,13 +15,7 @@ func setup(id: StringName, lvl: int, pos: Vector3) -> void:
 	collision_layer = WorldLayout.LAYER_TRAP
 	collision_mask = 0
 	_mi = MeshInstance3D.new()
-	match id:
-		&"lever_rifle":
-			_mi.mesh = WeaponBuilder.lever_rifle()
-		&"coach_shotgun":
-			_mi.mesh = WeaponBuilder.coach_shotgun()
-		_:
-			_mi.mesh = WeaponBuilder.revolver_body()
+	_mi.mesh = WeaponBuilder.gun(id)
 	_mi.material_override = Materials.toon(0.01)
 	_mi.scale = Vector3.ONE * 2.2
 	add_child(_mi)
