@@ -38,6 +38,10 @@ var _drum: MeshInstance3D
 var _flash: MeshInstance3D
 var _flash_light: OmniLight3D
 var _flash_left := 0.0
+## What's in your hand instead of a gun ("" = a gun): the water bucket or a vegetable.
+var holding: StringName = &""
+var _item_mi: MeshInstance3D
+var _hand: MeshInstance3D
 
 
 static func weapon(id: StringName) -> WeaponDef:
@@ -68,11 +72,16 @@ func _ready() -> void:
 		body.material_override = mat
 		body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(body)
-	var hand := MeshInstance3D.new()
-	hand.mesh = WeaponBuilder.dummy_hand()
-	hand.material_override = mat
-	hand.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(hand)
+	_hand = MeshInstance3D.new()
+	_hand.mesh = WeaponBuilder.dummy_hand()
+	_hand.material_override = mat
+	_hand.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_hand)
+	_item_mi = MeshInstance3D.new()
+	_item_mi.material_override = mat
+	_item_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_item_mi.visible = false
+	add_child(_item_mi)
 	_flash = MeshInstance3D.new()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(0.16, 0.16)
@@ -103,6 +112,8 @@ func equip(id: StringName) -> void:
 	if def != null:
 		_ammo_by_weapon[def.id] = ammo
 	def = weapon(id)
+	holding = &""
+	_item_mi.visible = false
 	ammo = int(_ammo_by_weapon.get(id, def.mag_size))
 	_reload_left = 0.0
 	for k: StringName in _models:
@@ -111,6 +122,16 @@ func equip(id: StringName) -> void:
 	_flash.position = Vector3(0, 0.02, muzzle_z)
 	_flash_light.position = Vector3(0, 0.02, muzzle_z - 0.05)
 	ammo_changed.emit(ammo, def.mag_size)
+	loadout_changed.emit()
+
+
+## Puts the gun away and holds the water bucket or a vegetable instead.
+func hold_item(id: StringName) -> void:
+	holding = id
+	for k: StringName in _models:
+		(_models[k] as Node3D).visible = false
+	_item_mi.mesh = WeaponBuilder.held_item(id)
+	_item_mi.visible = true
 	loadout_changed.emit()
 
 
@@ -169,6 +190,8 @@ func _process(delta: float) -> void:
 
 ## Fires if possible (ammo, cooldown, effects). Hit resolution is done by PlayerNet.
 func trigger(camera: Camera3D) -> bool:
+	if holding != &"":
+		return false
 	if _cooldown > 0.0 or _reload_left > 0.0:
 		return false
 	if ammo <= 0:
@@ -193,7 +216,7 @@ func trigger(camera: Camera3D) -> bool:
 
 
 func reload() -> void:
-	if _reload_left > 0.0 or ammo == def.mag_size:
+	if holding != &"" or _reload_left > 0.0 or ammo == def.mag_size:
 		return
 	_reload_time = def.reload_time * pow(0.85, level_of(def.id))
 	_reload_left = _reload_time

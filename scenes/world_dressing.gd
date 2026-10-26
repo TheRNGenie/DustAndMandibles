@@ -7,6 +7,9 @@ var cliffs: CliffBuilder
 var parent: Node3D
 var _rng := RandomNumberGenerator.new()
 
+## Width of the lip walkway from the plateau to the Oasis drawbridge.
+const WALKWAY_D := 4.5
+
 
 func _init(cliff_builder: CliffBuilder, parent_node: Node3D, seed_value: int = 99) -> void:
 	cliffs = cliff_builder
@@ -20,6 +23,7 @@ func build() -> void:
 		_scatter_props(cid)
 		_build_boundary(cid)
 	_build_nests()
+	OasisBuilder.build(parent, 4242)
 
 
 ## Ground position on a plateau.
@@ -102,20 +106,6 @@ func _build_homestead_area(cid: int) -> void:
 	well.rotation.y = yaw
 	parent.add_child(well)
 
-	# Vendor cart (sell produce for chitin) and gunsmith (spend chitin on weapons).
-	var vendor := VendorCart.new()
-	vendor.name = "Vendor%d" % cid
-	vendor.setup(cid)
-	vendor.position = ground(cid, 27.0, -10.0)
-	vendor.rotation.y = yaw
-	parent.add_child(vendor)
-	var shop := GunShop.new()
-	shop.name = "GunShop%d" % cid
-	shop.setup(cid)
-	shop.position = ground(cid, 27.0, 10.0)
-	shop.rotation.y = yaw
-	parent.add_child(shop)
-
 	# Three starter farm plots; build more from the build menu.
 	for k in 3:
 		var plot := CropPlot.new()
@@ -155,7 +145,7 @@ func _scatter_props(cid: int) -> void:
 		var d := _rng.randf_range(4.0, 55.0)
 		var z := _rng.randf_range(-70.0, 70.0)
 		var in_build_area := d < WorldLayout.PLATEAU_DEPTH + 2.0 and absf(z) < WorldLayout.PLATEAU_WIDTH * 0.5 + 2.0
-		if in_build_area:
+		if in_build_area or _in_walkway(d, z):
 			continue
 		add_mesh(PropBuilder.cactus(_rng.randi()), ground(cid, d, z), _rng.randf() * TAU, "", true)
 		placed += 1
@@ -167,6 +157,8 @@ func _scatter_props(cid: int) -> void:
 			size = _rng.randf_range(0.3, 0.7)
 			if d < 4.0:
 				continue # keep the turret line clear
+		if _in_walkway(d, z):
+			continue
 		add_mesh(PropBuilder.rock(_rng.randi(), size), ground(cid, d, z) + Vector3(0, -0.2 * size, 0),
 				_rng.randf() * TAU, "", size > 0.8)
 	# Rocks and cacti on the canyon floor.
@@ -184,15 +176,25 @@ func _scatter_props(cid: int) -> void:
 
 ## Fence along the playable boundary (back and sides) plus invisible walls.
 ## The canyon side stays open so players can lean over (and fall off) the lip.
+## Fence along the playable boundary plus invisible walls. The canyon side stays
+## open so players can lean over (and fall off) the lip, and a walkway along the
+## lip leads south to the drawbridge over to the Oasis.
 func _build_boundary(cid: int) -> void:
 	var half_w := WorldLayout.PLATEAU_WIDTH * 0.5
 	var depth := WorldLayout.PLATEAU_DEPTH
+	var walk_end := OasisBuilder.CENTER_Z - 3.5
 	var pts: Array[Vector3] = []
-	var d := 1.0
+	pts.append(ground(cid, 0.6, walk_end))
+	pts.append(ground(cid, WALKWAY_D, walk_end))
+	var z := walk_end + 2.5
+	while z < -half_w:
+		pts.append(ground(cid, WALKWAY_D, z))
+		z += 2.5
+	var d := WALKWAY_D
 	while d < depth:
 		pts.append(ground(cid, d, -half_w))
 		d += 2.5
-	var z := -half_w
+	z = -half_w
 	while z <= half_w + 0.01:
 		pts.append(ground(cid, depth, z))
 		z += 2.5
@@ -205,10 +207,18 @@ func _build_boundary(cid: int) -> void:
 	var s := WorldLayout.side_sign(cid)
 	var wall_h := 8.0
 	var y := WorldLayout.CLIFF_HEIGHT + wall_h * 0.5 - 1.0
-	var mid_d := WorldLayout.HALF_GAP + depth * 0.5
-	_add_wall(Vector3(s * (WorldLayout.HALF_GAP + depth + 0.5), y, 0), Vector3(1, wall_h, WorldLayout.PLATEAU_WIDTH + 2.0))
-	_add_wall(Vector3(s * mid_d, y, -half_w - 0.5), Vector3(depth + 4.0, wall_h, 1))
-	_add_wall(Vector3(s * mid_d, y, half_w + 0.5), Vector3(depth + 4.0, wall_h, 1))
+	var gap := WorldLayout.HALF_GAP
+	_add_wall(Vector3(s * (gap + depth + 0.5), y, 0), Vector3(1, wall_h, WorldLayout.PLATEAU_WIDTH + 2.0))
+	_add_wall(Vector3(s * (gap + (WALKWAY_D + depth + 2.0) * 0.5), y, -half_w - 0.5), Vector3(depth + 2.0 - WALKWAY_D, wall_h, 1))
+	_add_wall(Vector3(s * (gap + (depth + 2.0) * 0.5 - 1.0), y, half_w + 0.5), Vector3(depth + 4.0, wall_h, 1))
+	# Walkway: inner wall along it and a cap at its far end.
+	var walk_len := -half_w - walk_end
+	_add_wall(Vector3(s * (gap + WALKWAY_D + 0.5), y, (-half_w + walk_end) * 0.5), Vector3(1, wall_h, walk_len + 1.0))
+	_add_wall(Vector3(s * (gap + WALKWAY_D * 0.5 - 1.0), y, walk_end - 0.5), Vector3(WALKWAY_D + 2.0, wall_h, 1))
+
+
+static func _in_walkway(d: float, z: float) -> bool:
+	return d < WALKWAY_D + 2.0 and z < -WorldLayout.PLATEAU_WIDTH * 0.5 + 1.0 and z > OasisBuilder.CENTER_Z - 6.0
 
 
 func _add_wall(pos: Vector3, size: Vector3) -> void:

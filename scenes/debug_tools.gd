@@ -243,8 +243,8 @@ func _showcase() -> void:
 	if GameState.flag_value("--showcase") == "6":
 		# Shop test: sell corn at the vendor, buy and fire the shotgun.
 		var dressing := world.get_node("Dressing")
-		var vendor := dressing.get_node("Vendor0") as VendorCart
-		var shop := dressing.get_node("GunShop0") as GunShop
+		var vendor := dressing.get_node("Vendor") as VendorCart
+		var shop := dressing.get_node("GunShop") as GunShop
 		Economy.earn(WorldLayout.WEST, {&"corn": 20, &"chitin": 5})
 		var before := Economy.amount(WorldLayout.WEST, &"chitin")
 		for i in 12:

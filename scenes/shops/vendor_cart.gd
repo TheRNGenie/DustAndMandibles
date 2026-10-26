@@ -36,7 +36,7 @@ func setup(cid: int) -> void:
 	var board := MeshInstance3D.new()
 	board.mesh = ShopBuilder.sign_board()
 	board.material_override = Materials.toon(0.02)
-	board.position = Vector3(2.4, 0, -0.3)
+	board.position = Vector3(-2.5, 0, -0.3)
 	add_child(board)
 	_label = ShopBuilder.sign_label()
 	board.add_child(_label)

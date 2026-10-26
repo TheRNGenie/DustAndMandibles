@@ -1,11 +1,11 @@
 class_name RopeBridge
 extends Node3D
-## Rope drawbridge across the canyon, in two halves that meet in the middle.
+## Two rope drawbridges, one from each cliff to the Oasis spire in the middle.
 ## Lowered during the build phase so players can visit each other; both halves
 ## haul up at the warning bell so nobody can camp the other side during a wave.
 ## Driven locally on every peer from the replicated phase, so it needs no sync.
 
-const BRIDGE_Z := -17.0
+const BRIDGE_Z := OasisBuilder.CENTER_Z
 const WIDTH := 2.4
 const SAG := 0.7
 const RAISED_ANGLE := deg_to_rad(80.0)
@@ -20,7 +20,7 @@ func setup(cliffs: CliffBuilder) -> void:
 	for cid in 2:
 		var pivot := cliffs.plateau_point(cid, 0.3, BRIDGE_Z)
 		pivot.y = WorldLayout.CLIFF_HEIGHT
-		var length := absf(pivot.x)
+		var length := absf(pivot.x) - OasisBuilder.landing_x()
 		var half := AnimatableBody3D.new()
 		half.name = "Half%d" % cid
 		half.sync_to_physics = false
@@ -69,7 +69,7 @@ func _apply() -> void:
 
 ## Deck height offset at distance t (0 at the cliff, 1 at the middle).
 static func sag_at(t: float) -> float:
-	return -SAG * sin(t * PI * 0.5)
+	return -SAG * sin(t * PI)
 
 
 func _add_collision(half: AnimatableBody3D, length: float) -> void:
