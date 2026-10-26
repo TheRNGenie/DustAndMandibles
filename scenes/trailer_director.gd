@@ -312,3 +312,30 @@ func _shot_crops() -> void:
 	var c0 := origin + Vector3(-2.85, 0.4, 0)
 	_dur = 1.0
 	_keys = [[0.0, c0 + Vector3(5.5, 3.4, 0), c0], [1.0, c0 + Vector3(5.5, 3.4, 0), c0]]
+
+
+## Bug line-up for model checks: --trailer=lineup (--lineup=a,b,c picks which).
+func _shot_lineup() -> void:
+	_set_time(10.5)
+	var ids := ["dust_mite", "wolf_spider", "rattler_beetle", "spitter_scorpion", "brood_mother"]
+	if GameState.flag_value("--lineup") != "":
+		ids = Array(GameState.flag_value("--lineup").split(","))
+	var cl := Bug.cliffs
+	var spacing := 3.4
+	for i in ids.size():
+		var z := (float(i) - (ids.size() - 1) * 0.5) * spacing
+		var st := Bug.State.FLYING if ids[i] == "dragonfly_bandit" else Bug.State.BREACHING
+		var pos := cl.plateau_point(WorldLayout.WEST, 6.0, z) + (Vector3.UP * 1.6 if st == Bug.State.FLYING else Vector3.ZERO)
+		_bm().spawn_at(StringName(ids[i]), WorldLayout.WEST, 2, z, 0.0, st, pos)
+	_at(-0.9, func() -> void:
+		for b: Node in get_tree().get_nodes_in_group("bugs"):
+			(b as Bug).speed_mult = 0.0)
+	var c := cl.plateau_point(WorldLayout.WEST, 6.0, 0.0) + Vector3(0, 0.6, 0)
+	_dur = 2.0
+	# From the house side, so the bugs (heading inland) face the camera.
+	var biggest := 0.0
+	for id in ids:
+		biggest = maxf(biggest, Defs.bug(StringName(id)).size)
+	var back := 1.6 + ids.size() * 1.5 + biggest * 2.2
+	var side := 0.6 + biggest * 2.2
+	_keys = [[0.0, c + Vector3(-back, 1.2 + biggest * 0.6, side), c], [2.0, c + Vector3(-back, 1.2 + biggest * 0.6, side), c]]

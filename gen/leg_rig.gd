@@ -59,8 +59,13 @@ func _mi(mesh: Mesh, mat: Material) -> MeshInstance3D:
 static func _segment_mesh(color: Color) -> ArrayMesh:
 	var key := color.to_html()
 	if not _segment_meshes.has(key):
+		# Tapered, with a darker band at each end and a lighter stripe in the middle,
+		# so legs read as jointed armour rather than pipes.
 		var st := MeshKit.begin()
-		MeshKit.add_cylinder(st, Transform3D(), 1.0, 0.8, 1.0, 8, color)
+		MeshKit.add_cylinder(st, Transform3D(), 1.0, 0.78, 1.0, 10, color)
+		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, -0.44, 0)), 1.06, 1.04, 0.1, 10, color.darkened(0.35))
+		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.44, 0)), 0.84, 0.82, 0.1, 10, color.darkened(0.35))
+		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.05, 0)), 0.93, 0.91, 0.12, 10, color.lightened(0.18))
 		_segment_meshes[key] = MeshKit.finish(st)
 	return _segment_meshes[key]
 

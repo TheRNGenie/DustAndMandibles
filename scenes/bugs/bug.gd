@@ -157,6 +157,22 @@ func _physics_process(delta: float) -> void:
 	_update_visibility()
 	if not is_hidden():
 		_legs.update(delta, global_transform, spd, _project)
+		_animate_body(delta, spd)
+
+
+## Breathing, a bob in the stride, and a little lean into the walk.
+var _anim_t := randf() * 10.0
+
+
+func _animate_body(delta: float, spd: float) -> void:
+	_anim_t += delta
+	var s := float(spec["scale"])
+	var breathe := sin(_anim_t * 2.2) * 0.03
+	var stride := clampf(spd * 0.4, 0.0, 1.0)
+	_body.scale = Vector3(s * (1.0 - breathe * 0.5), s * (1.0 + breathe), s * (1.0 - breathe * 0.3))
+	_body.position = Vector3(0, absf(sin(_anim_t * (6.0 + spd * 2.0))) * 0.05 * s * stride, 0)
+	_body.rotation = Vector3(sin(_anim_t * (3.0 + spd)) * 0.04 * stride, 0, sin(_anim_t * (6.0 + spd * 2.0)) * 0.03 * stride)
+	_face.transform = _body.transform.scaled_local(Vector3.ONE / s) if s > 0.0 else Transform3D()
 
 
 func _update_visibility() -> void:
