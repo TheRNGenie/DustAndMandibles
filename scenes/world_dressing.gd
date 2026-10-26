@@ -24,6 +24,7 @@ func build() -> void:
 		_build_boundary(cid)
 	_build_nests()
 	_build_webs()
+	CanyonDressing.build(parent, cliffs, 5151)
 	OasisBuilder.build(parent, 4242)
 
 
