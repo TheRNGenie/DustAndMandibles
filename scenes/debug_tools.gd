@@ -148,6 +148,10 @@ func _take_screenshot(path: String) -> void:
 	if GameState.flag_value("--buildmode") != "" and player != null:
 		player.build_mode.toggle()
 		player.build_mode._select(int(GameState.flag_value("--buildmode")))
+	if GameState.flag_value("--buildmenu") != "" and player != null:
+		player.build_mode.toggle()
+		player.build_mode.show_category(int(GameState.flag_value("--buildmenu")))
+		player.build_mode.open_menu()
 	if GameState.flag_value("--pause") != "":
 		var pm := world.get_node("PauseMenu") as PauseMenu
 		pm.open()

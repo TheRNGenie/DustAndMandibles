@@ -16,6 +16,7 @@ const REMAPPABLE: Dictionary = {
 	"sprint": "Sprint",
 	"slide": "Slide",
 	"fire": "Fire",
+	"alt_fire": "Aim / zoom (in build mode: close)",
 	"reload": "Reload",
 	"interact": "Interact / repair",
 	"build_menu": "Build menu",

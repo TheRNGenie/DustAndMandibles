@@ -141,7 +141,9 @@ func fire(origin: Vector3, dir: Vector3) -> void:
 	var gun := player.gun
 	var id := gun.def.id
 	var level := gun.level_of(id)
-	var seed_value := randi()
+	var seed_value := randi() & ~1
+	if gun.aim > 0.6:
+		seed_value |= 1 # aimed shots spread less (see Gun.shot_dirs)
 	var dmg := Gun.damage_for(id, level)
 	for d in Gun.shot_dirs(id, dir, seed_value):
 		var hit := gun.raycast(origin, d, [player.get_rid()], gun.def.range)

@@ -1,11 +1,11 @@
 class_name BuildMode
 extends Node3D
-## Local player's build tool. B toggles it; number keys 1-0 or the mouse wheel pick
-## what to build (6 turrets for the cliff edge, then traps and the rain catcher for
-## behind the turret line). A ghost snaps to the grid: green = OK, red = blocked or
-## too expensive. Left click asks the host to build. X demolishes what you look at
-## (50% refund, scaled by health). U upgrades the turret you look at with chitin.
-## Right click or B leaves build mode.
+## Local player's build tool. B opens the build menu on the left of the screen
+## (Farming / Cliff Turrets / Tactical / Last Resorts); pick a category, then an item
+## (mouse, or number keys). The menu tucks away and a ghost snaps to the grid:
+## green = OK, red = blocked or too expensive. Left click asks the host to build.
+## B brings the menu back, the wheel cycles items in the category, right click leaves.
+## X demolishes what you look at (50% refund, scaled by health). U upgrades a turret.
 
 signal changed
 
@@ -14,6 +14,10 @@ const REACH := 40.0
 var player: Player
 var cliffs: CliffBuilder
 var active := false
+## The side menu is up (cursor free) rather than placing.
+var menu_open := false
+## Open category in the menu (-1 = category list).
+var category := 1
 var selected := 0
 var _ghost: MeshInstance3D
 var _ghost_mat: StandardMaterial3D
@@ -63,26 +67,82 @@ func _unhandled_input(event: InputEvent) -> void:
 	if GameState.menu_open or player.is_downed():
 		return
 	if event.is_action_pressed("build_menu"):
-		_set_active(not active)
+		if not active:
+			_set_active(true)
+			open_menu()
+		elif menu_open:
+			_set_active(false)
+		else:
+			open_menu()
 	elif active and event.is_action_pressed("alt_fire"):
 		_set_active(false)
+		get_viewport().set_input_as_handled()
 	elif active and event.is_action_pressed("fire"):
-		if _ok:
+		if _ok and not menu_open:
 			BuildManager.instance.build(selected_id(), _cliff, _cell)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("demolish"):
 		_act_on_target(&"demolish")
 	elif event.is_action_pressed("upgrade"):
 		_act_on_target(&"upgrade")
-	elif active and event.is_action_pressed("next_item"):
-		_select((selected + 1) % Defs.BUILD_ORDER.size())
-	elif active and event.is_action_pressed("prev_item"):
-		_select((selected - 1 + Defs.BUILD_ORDER.size()) % Defs.BUILD_ORDER.size())
+	elif active and not menu_open and event.is_action_pressed("next_item"):
+		_cycle(1)
+	elif active and not menu_open and event.is_action_pressed("prev_item"):
+		_cycle(-1)
 	if active:
-		for i in mini(Defs.BUILD_ORDER.size(), 10):
+		for i in 9:
 			if event.is_action_pressed("select_%d" % (i + 1)):
-				_select(i)
+				_number_key(i)
 				get_viewport().set_input_as_handled()
+
+
+func category_items(c: int) -> Array:
+	return Defs.BUILD_CATEGORIES[c]["items"] if c >= 0 else []
+
+
+func open_menu() -> void:
+	menu_open = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	changed.emit()
+
+
+func close_menu() -> void:
+	menu_open = false
+	if not GameState.menu_open:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	changed.emit()
+
+
+func show_category(c: int) -> void:
+	category = c
+	changed.emit()
+
+
+## From the menu: build this item (closes the menu, shows the ghost).
+func choose(id: StringName) -> void:
+	for c in Defs.BUILD_CATEGORIES.size():
+		if category_items(c).has(id):
+			category = c
+	_select(Defs.BUILD_ORDER.find(id))
+	close_menu()
+
+
+func _number_key(i: int) -> void:
+	if menu_open and category < 0:
+		if i < Defs.BUILD_CATEGORIES.size():
+			show_category(i)
+		return
+	var items := category_items(category)
+	if i < items.size():
+		choose(items[i])
+
+
+func _cycle(step: int) -> void:
+	var items := category_items(category)
+	if items.is_empty():
+		return
+	var i := items.find(selected_id())
+	_select(Defs.BUILD_ORDER.find(items[(i + step + items.size()) % items.size()]))
 
 
 func _select(i: int) -> void:
@@ -98,6 +158,8 @@ func toggle() -> void:
 
 func _set_active(on: bool) -> void:
 	active = on
+	if not on and menu_open:
+		close_menu()
 	_ghost.visible = on
 	_grid.visible = on
 	_grid_t = 0.0
@@ -144,14 +206,15 @@ func _process(delta: float) -> void:
 func status_text() -> String:
 	if not active:
 		return ""
+	if menu_open:
+		return ""
 	var id := selected_id()
-	var n := Defs.BUILD_ORDER.size()
-	var prev_id := Defs.BUILD_ORDER[(selected - 1 + n) % n]
-	var next_id := Defs.BUILD_ORDER[(selected + 1) % n]
-	var where := "cliff edge" if Defs.is_turret(id) else "behind the turret line"
-	var line := "BUILD  <  %s  |  [%d] %s - %d scrap (%s)  |  %s  >" % [Defs.name_of(prev_id), (selected + 1) % 10,
-			Defs.name_of(id), Defs.cost_of(id), where, Defs.name_of(next_id)]
-	line += "\n" + _description(id)
+	var where := "behind the turret line"
+	if id == &"scaffold" or (Defs.is_turret(id) and not Defs.turret(id).guards_plateau):
+		where = "cliff edge"
+	elif Defs.is_turret(id):
+		where = "plateau"
+	var line := "BUILDING  %s - %d scrap  (B: menu, wheel: next, right click: done)" % [Defs.name_of(id), Defs.cost_of(id)]
 	if _cell.x >= 0 and not _ok and Buildable.cell_ok_for(id, _cell):
 		if not BuildManager.instance.may_build(multiplayer.get_unique_id(), _cliff):
 			line += "\nYou can only build on your own plateau. Your turrets cover your partner."

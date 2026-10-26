@@ -111,11 +111,12 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var motion := event as InputEventMouseMotion
-		var sens := Settings.mouse_sensitivity
+		var sens := Settings.mouse_sensitivity / gun.zoom_factor()
 		var y_sign := -1.0 if Settings.invert_y else 1.0
 		rotate_y(-motion.relative.x * sens)
 		head.rotation.x = clampf(head.rotation.x - motion.relative.y * sens * y_sign, -1.5, 1.5)
-	elif event is InputEventMouseButton and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not GameState.menu_open:
+	elif event is InputEventMouseButton and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not GameState.menu_open \
+			and not (build_mode != null and build_mode.menu_open):
 		if (event as InputEventMouseButton).pressed:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 			get_viewport().set_input_as_handled()
@@ -143,7 +144,7 @@ func _physics_process(delta: float) -> void:
 		if _try_mantle():
 			return
 
-	var sprinting := not blocked and Input.is_action_pressed("sprint") and input_dir.y < -0.1 and not _sliding
+	var sprinting := not blocked and Input.is_action_pressed("sprint") and input_dir.y < -0.1 and not _sliding and not gun.aiming
 	if not blocked and Input.is_action_just_pressed("slide") and on_floor and not _sliding:
 		var speed := Vector2(velocity.x, velocity.z).length()
 		if sprinting or speed > WALK_SPEED * 0.9:
@@ -153,6 +154,8 @@ func _physics_process(delta: float) -> void:
 		_process_slide(delta)
 	else:
 		var target_speed := SPRINT_SPEED if sprinting else WALK_SPEED
+		if gun.aiming:
+			target_speed *= 0.6
 		var accel := ACCEL_GROUND if on_floor else ACCEL_AIR
 		var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(wish * target_speed, accel * delta)
 		velocity.x = horiz.x
@@ -164,10 +167,11 @@ func _physics_process(delta: float) -> void:
 
 
 func _handle_weapon() -> void:
-	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or GameState.menu_open or vitals.downed:
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or GameState.menu_open or vitals.downed \
+			or (build_mode != null and build_mode.active):
+		gun.set_aiming(false)
 		return
-	if build_mode != null and build_mode.active:
-		return
+	gun.set_aiming(Input.is_action_pressed("alt_fire") and not _sliding)
 	if Input.is_action_just_pressed("fire") and gun.trigger(camera):
 		net.fire(camera.global_position, -camera.global_transform.basis.z)
 	if Input.is_action_just_pressed("reload"):
@@ -278,6 +282,7 @@ func _update_camera(delta: float, sprinting: bool) -> void:
 		target_fov += 12.0
 	elif sprinting:
 		target_fov += 7.0
+	target_fov /= gun.zoom_factor()
 	camera.fov = lerpf(camera.fov, target_fov, clampf(delta * 8.0, 0.0, 1.0))
 	# Screen shake (gunfire, nearby explosions).
 	_shake = move_toward(_shake, 0.0, delta * 2.5)

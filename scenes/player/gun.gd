@@ -30,6 +30,16 @@ var owned: Dictionary = {&"revolver": 0}
 ## The three weapon hotbar slots, filled in the order you get weapons ("" = empty).
 var slots: Array[StringName] = [&"revolver", &"", &""]
 const MAX_WEAPONS := 3
+## Right-click aim: where the gun sits, and how far the view zooms in.
+const AIM_POS: Dictionary = {&"revolver": Vector3(0.0, -0.075, -0.5), &"lever_rifle": Vector3(0.0, -0.07, -0.4),
+	&"coach_shotgun": Vector3(0.0, -0.075, -0.42)}
+const AIM_ZOOM: Dictionary = {&"revolver": 1.4, &"lever_rifle": 2.2, &"coach_shotgun": 1.25}
+## Aimed shotguns spread this much less.
+const AIM_SPREAD := 0.6
+
+## 0 = hip, 1 = fully aimed down the sights.
+var aim := 0.0
+var aiming := false
 var ammo: int = 6
 var _ammo_by_weapon: Dictionary = {}
 var _cooldown := 0.0
@@ -183,6 +193,8 @@ static func shot_dirs(id: StringName, dir: Vector3, seed_value: int) -> Array[Ve
 	var right := dir.cross(up).normalized()
 	var real_up := right.cross(dir).normalized()
 	var spread := tan(deg_to_rad(d.spread_deg))
+	if seed_value & 1:
+		spread *= AIM_SPREAD # odd seed = the shooter was aiming
 	for i in d.pellets:
 		var a := rng.randf() * TAU
 		var r := sqrt(rng.randf()) * spread
@@ -208,7 +220,9 @@ func _process(delta: float) -> void:
 	var dip := 0.0
 	if _reload_left > 0.0:
 		dip = sin(clampf(1.0 - _reload_left / _reload_time, 0.0, 1.0) * PI)
-	position = REST_POS + Vector3(0, -dip * 0.12, _kick * 0.06)
+	aim = move_toward(aim, 1.0 if aiming else 0.0, delta * 7.0)
+	var aim_pos: Vector3 = AIM_POS.get(def.id, REST_POS) if def != null else REST_POS
+	position = REST_POS.lerp(aim_pos, aim) + Vector3(0, -dip * 0.12, _kick * 0.06 * (1.0 - aim * 0.5))
 	rotation = Vector3(_kick * 0.5 - dip * 0.6, 0, dip * 0.5)
 
 
@@ -237,6 +251,19 @@ func trigger(camera: Camera3D) -> bool:
 		p.add_shake(def.shake)
 	fired.emit(camera.global_position, -camera.global_transform.basis.z)
 	return true
+
+
+## Right mouse held: aim if a gun is out and not reloading.
+func set_aiming(on: bool) -> void:
+	on = on or GameState.has_flag("--aim") # debug screenshots
+	aiming = on and holding == &"" and def != null and _reload_left <= 0.0
+
+
+## How much the view is zoomed right now (1 = not at all).
+func zoom_factor() -> float:
+	if def == null:
+		return 1.0
+	return lerpf(1.0, float(AIM_ZOOM.get(def.id, 1.3)), aim)
 
 
 func reload() -> void:

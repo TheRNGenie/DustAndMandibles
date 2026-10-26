@@ -47,9 +47,10 @@ Regenerate sounds and music: `python tools/audio/make_sfx.py` and `python tools/
 | Jump / mantle | Space (hold near a ledge to climb onto it) |
 | Slide | Ctrl or C while running |
 | Fire | Left mouse |
+| Aim / zoom | Hold right mouse |
 | Reload | R |
 | Interact / hold to repair | E |
-| Build mode | B (1-0 or mouse wheel to pick, click to place, X demolish, right-click exit) |
+| Build menu | B: pick a category (Farming, Cliff Turrets, Tactical, Last Resorts) and an item, click to place. B reopens the menu, wheel cycles, X demolishes, right click leaves |
 | Upgrade the turret you look at | U (chitin) |
 | Hotbar | 1-3 any weapons, 4-6 carried harvest, 7 medicine (herbs, heal), 8 water bucket |
 | Q | Drop the weapon in your hand (E picks a dropped weapon up) |

@@ -49,6 +49,15 @@ const BUILD_ORDER: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"wat
 	&"chili_mortar", &"dynamite_lobber", &"lasso_harpoon", &"scaffold", &"scattergun_post", &"sharpshooter_tower", &"barbed_wire", &"bear_trap",
 	&"dynamite_crate", &"palisade", &"lantern_post", &"rain_catcher", &"farm_plot"]
 
+## Build menu (B) categories, in tab order.
+const BUILD_CATEGORIES: Array[Dictionary] = [
+	{"name": "Farming", "items": [&"farm_plot", &"rain_catcher"]},
+	{"name": "Cliff Turrets", "items": [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar",
+		&"dynamite_lobber", &"lasso_harpoon", &"scaffold"]},
+	{"name": "Tactical", "items": [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post"]},
+	{"name": "Last Resorts", "items": [&"scattergun_post", &"sharpshooter_tower"]},
+]
+
 ## Chitin cost of turret upgrade tiers 1, 2, 3.
 const UPGRADE_COSTS: Array[int] = [10, 25, 50]
 
