@@ -53,3 +53,4 @@ Assumptions and changes from the design doc, newest last.
 49. **The Iron Tumble (wave 10 boss)**: 3000 HP, climbs the heavier cliff's centre lane at 0.8 m/s pushing a boulder; its back plate halves turret damage from across the canyon, its glowing rear belly seam takes double damage from the owner shooting down. At half health it drops off and re-climbs the other cliff, with six spiderlings as escorts. If it crests, the boulder smashes the Homestead for 150.
 50. **Polish:** floating damage numbers and a hit-marker X for your own shots (yellow on weak spots), light screen shake on firing and near big blasts, a boss health bar. No hit-stop (time scale changes would desync co-op).
 51. **Exports:** Windows and Linux presets are in `export_presets.cfg` (no longer gitignored). Exporting needs Godot's export templates for 4.7.2, which are a separate download.
+31b. Spitter Scorpions cling for 25 s, then climb on, so a wave can never stall on one that nobody can reach.

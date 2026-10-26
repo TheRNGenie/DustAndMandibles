@@ -36,6 +36,11 @@ func _ready() -> void:
 	body.material_override = Materials.toon(0.004)
 	body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(body)
+	var hand := MeshInstance3D.new()
+	hand.mesh = WeaponBuilder.dummy_hand()
+	hand.material_override = Materials.toon(0.004)
+	hand.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(hand)
 	_drum = MeshInstance3D.new()
 	_drum.mesh = WeaponBuilder.revolver_drum()
 	_drum.material_override = Materials.toon(0.004)

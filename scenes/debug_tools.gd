@@ -47,6 +47,9 @@ func _soak(seconds: float) -> void:
 				_farm()
 			GameState.vote_skip()
 	print("[soak] end: wave %d phase %d homesteads %s bugs %d" % [GameState.wave, GameState.phase, str(GameState.homestead_hp), bugs.alive_count()])
+	for n: Node in get_tree().get_nodes_in_group("bugs"):
+		var b := n as Bug
+		print("  left: %s state %d cliff %d y %.1f pos %s hp %.0f" % [b.def.id, b.state, b.cliff_id, b.climb_y, str(b.global_position.snapped(Vector3.ONE * 0.1)), b.health.hp])
 	get_tree().quit()
 
 

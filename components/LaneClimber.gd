@@ -10,6 +10,8 @@ const LEAP_TIME := 0.35
 const SPIT_INTERVAL := 3.5
 const SPIT_DAMAGE := 10.0
 const SPIT_RANGE := 110.0
+## Spitters cling this long, then climb on (so a wave can't stall on one out of reach).
+const CLING_TIME := 25.0
 
 ## Emitted by spitters; the BugManager draws the acid and applies the hit.
 static var spit_requested: Callable
@@ -21,6 +23,7 @@ var _leap_cd := 0.0
 var _leap_left := 0.0
 var _spit_cd := 0.0
 var _last_y := 0.0
+var _clung := 0.0
 
 
 func _init(b: Bug) -> void:
@@ -37,7 +40,8 @@ func spit_height() -> float:
 
 func update(delta: float) -> void:
 	var d := bug.def
-	if d.behavior == BugDef.Behavior.SPITTER and bug.climb_y >= spit_height():
+	if d.behavior == BugDef.Behavior.SPITTER and bug.climb_y >= spit_height() and _clung < CLING_TIME:
+		_clung += delta
 		_spit(delta)
 		return
 	var speed := d.climb_speed * bug.speed()

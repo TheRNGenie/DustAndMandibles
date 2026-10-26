@@ -183,9 +183,11 @@ func _on_spit(bug: Bug, damage: float, max_range: float) -> void:
 	var target := targets[randi() % targets.size()]
 	var flight := 1.2
 	_draw_spit.rpc(bug.global_position, target.global_position + Vector3.UP, flight)
+	var target_ref: WeakRef = weakref(target)
 	get_tree().create_timer(flight).timeout.connect(func() -> void:
-		if is_instance_valid(target) and target.has_method("structure_damage"):
-			target.call("structure_damage", damage, "Spitter acid"))
+		var t := target_ref.get_ref() as Node3D
+		if t != null and t.has_method("structure_damage"):
+			t.call("structure_damage", damage, "Spitter acid"))
 
 
 @rpc("authority", "call_local", "reliable")

@@ -31,3 +31,17 @@ static func revolver_drum() -> ArrayMesh:
 		var p := Vector3(cos(a), sin(a), 0) * 0.019
 		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), p + Vector3(0, 0, -0.026)), 0.006, 0.006, 0.006, 6, Palette.GLOW_YELLOW.darkened(0.3), true)
 	return MeshKit.finish(st)
+
+
+## The crash-test-dummy hand and forearm holding the revolver grip (first person).
+static func dummy_hand() -> ArrayMesh:
+	var st := MeshKit.begin()
+	var yellow := Color("#E8C547")
+	var joint := Color("#3A3A40")
+	# Fist around the grip.
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, 0.35), Vector3(0.0, -0.075, 0.08)), Vector3(0.05, 0.08, 0.06), yellow)
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, 0.35), Vector3(-0.022, -0.06, 0.055)), Vector3(0.02, 0.05, 0.03), yellow.darkened(0.1))
+	# Wrist joint and forearm reaching back and down out of view.
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.0, -0.11, 0.13)), Vector3.ONE * 0.03, 4, 8, joint)
+	MeshKit.add_limb(st, Vector3(0.0, -0.11, 0.13), Vector3(0.04, -0.3, 0.45), 0.03, yellow, 8)
+	return MeshKit.finish(st)

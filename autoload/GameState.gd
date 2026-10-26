@@ -88,6 +88,8 @@ func start_run() -> void:
 	Economy.reset()
 	_sync_homesteads.rpc(homestead_hp[0], homestead_hp[1])
 	wave = 1
+	if has_flag("--debug") and flag_value("--startwave") != "":
+		wave = clampi(int(flag_value("--startwave")), 1, config().last_wave)
 	_enter(Phase.BUILD)
 
 

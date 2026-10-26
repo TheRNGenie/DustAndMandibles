@@ -40,6 +40,9 @@ var _shake := 0.0
 @onready var revolver: Revolver = $Head/Camera/Revolver
 @onready var net: PlayerNet = $Net
 @onready var body: MeshInstance3D = $Body
+var rig: DummyRig
+var _remote_sliding := false
+var _last_pos := Vector3.ZERO
 @onready var vitals: PlayerVitals = $Vitals
 ## Set by the world for the local player.
 var build_mode: BuildMode
@@ -52,13 +55,14 @@ func _ready() -> void:
 	collision.shape = _capsule
 	spawn_transform = global_transform
 	camera.fov = Settings.fov
-	body.mesh = CharacterBuilder.cowboy(Palette.team_color(cliff_id))
-	body.material_override = Materials.toon_unique(0.025)
+	body.visible = false
+	rig = DummyRig.new()
+	rig.name = "Rig"
+	add_child(rig)
+	rig.build(Palette.team_color(cliff_id), is_multiplayer_authority())
 	net.prime()
 	if is_multiplayer_authority():
 		camera.current = true
-		# Your own body only casts a shadow.
-		body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 		if GameState.flag_value("--shot") == "": # automated screenshots ignore the mouse
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	else:
@@ -84,19 +88,24 @@ func display_name() -> String:
 	return NetworkManager.local_name
 
 
-## Remote players: crouch the body while sliding.
+## Remote players: the replicated slide state drives the body pose.
 func set_remote_pose(sliding: bool) -> void:
-	var target := 0.55 if sliding else 1.0
-	body.scale.y = lerpf(body.scale.y, target, 0.3)
+	_remote_sliding = sliding
 
 
 ## Remote players: a quick bright flash on the body when they fire.
 func flash_body() -> void:
-	var mat := body.material_override as ShaderMaterial
-	mat.set_shader_parameter("flash_color", Palette.GLOW_YELLOW)
-	mat.set_shader_parameter("flash_amount", 0.6)
-	var tw := create_tween()
-	tw.tween_method(func(v: float) -> void: mat.set_shader_parameter("flash_amount", v), 0.6, 0.0, 0.15)
+	rig.flash()
+
+
+func _process(delta: float) -> void:
+	# Body animation for everyone: walk with speed, aim with pitch, crouch when sliding.
+	var moved := global_position - _last_pos
+	_last_pos = global_position
+	moved.y = 0.0
+	var speed := moved.length() / maxf(delta, 0.0001)
+	var sliding := _sliding if is_multiplayer_authority() else _remote_sliding
+	rig.animate(delta, minf(speed, 12.0), sliding, head.rotation.x)
 
 
 func _unhandled_input(event: InputEvent) -> void:
