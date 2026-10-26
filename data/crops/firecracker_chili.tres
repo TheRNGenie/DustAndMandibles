@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CropDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/crop_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"firecracker_chili"
+display_name = "Firecracker chili"
+grow_time = 150.0
+water_cost = 1
+harvest = {&"chili": 4}
+color = Color(0.9, 0.2, 0.12, 1)

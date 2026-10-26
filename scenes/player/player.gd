@@ -133,7 +133,7 @@ func _physics_process(delta: float) -> void:
 		if _try_mantle():
 			return
 
-	var sprinting := not blocked and Input.is_action_pressed("sprint") and input_dir.y < -0.1 and not _sliding
+	var sprinting := not blocked and vitals.can_sprint() and Input.is_action_pressed("sprint") and input_dir.y < -0.1 and not _sliding
 	if not blocked and Input.is_action_just_pressed("slide") and on_floor and not _sliding:
 		var speed := Vector2(velocity.x, velocity.z).length()
 		if sprinting or speed > WALK_SPEED * 0.9:
@@ -161,7 +161,7 @@ func _handle_weapon() -> void:
 	if Input.is_action_just_pressed("fire") and revolver.trigger(camera):
 		net.fire(camera.global_position, -camera.global_transform.basis.z)
 	if Input.is_action_just_pressed("reload"):
-		revolver.reload()
+		revolver.reload(vitals.reload_multiplier())
 
 
 # ------------------------------------------------------------------ slide

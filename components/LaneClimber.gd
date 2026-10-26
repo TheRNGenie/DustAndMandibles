@@ -40,7 +40,7 @@ func update(delta: float) -> void:
 	if d.behavior == BugDef.Behavior.SPITTER and bug.climb_y >= spit_height():
 		_spit(delta)
 		return
-	var speed := d.climb_speed * bug.speed_mult
+	var speed := d.climb_speed * bug.speed()
 	if d.behavior == BugDef.Behavior.LEAPER:
 		_leap_cd -= delta
 		if _leap_cd <= 0.0 and _leap_left <= 0.0:
@@ -48,7 +48,7 @@ func update(delta: float) -> void:
 			_leap_cd = randf_range(2.0, 3.5)
 		if _leap_left > 0.0:
 			_leap_left -= delta
-			speed += LEAP_HEIGHT / LEAP_TIME
+			speed += LEAP_HEIGHT / LEAP_TIME * minf(bug.speed(), 1.0)
 	_last_y = bug.climb_y
 	bug.climb_y += speed * delta
 	_maybe_switch_lane(d)

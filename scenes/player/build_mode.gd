@@ -1,9 +1,11 @@
 class_name BuildMode
 extends Node3D
-## Local player's build tool. B toggles it; number keys pick a turret; a ghost
-## snaps to the turret line on the cliff edge (green = OK, red = blocked or too
-## expensive); left click asks the host to build; X demolishes the turret you
-## look at (50% refund, scaled by its health). Right click or B leaves build mode.
+## Local player's build tool. B toggles it; number keys 1-0 or the mouse wheel pick
+## what to build (6 turrets for the cliff edge, then traps and the rain catcher for
+## behind the turret line). A ghost snaps to the grid: green = OK, red = blocked or
+## too expensive. Left click asks the host to build. X demolishes what you look at
+## (50% refund, scaled by health). U upgrades the turret you look at with chitin.
+## Right click or B leaves build mode.
 
 signal changed
 
@@ -32,8 +34,8 @@ func _ready() -> void:
 	_refresh_ghost_mesh()
 
 
-func selected_def() -> TurretDef:
-	return Defs.turret(Defs.TURRET_ORDER[selected])
+func selected_id() -> StringName:
+	return Defs.BUILD_ORDER[selected]
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -45,15 +47,26 @@ func _unhandled_input(event: InputEvent) -> void:
 		_set_active(false)
 	elif active and event.is_action_pressed("fire"):
 		if _ok:
-			BuildManager.instance.build(selected_def().id, _cliff, _cell)
+			BuildManager.instance.build(selected_id(), _cliff, _cell)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("demolish"):
-		_demolish_target()
-	for i in Defs.TURRET_ORDER.size():
+		_act_on_target(&"demolish")
+	elif event.is_action_pressed("upgrade"):
+		_act_on_target(&"upgrade")
+	elif active and event.is_action_pressed("next_item"):
+		_select((selected + 1) % Defs.BUILD_ORDER.size())
+	elif active and event.is_action_pressed("prev_item"):
+		_select((selected - 1 + Defs.BUILD_ORDER.size()) % Defs.BUILD_ORDER.size())
+	for i in mini(Defs.BUILD_ORDER.size(), 10):
 		if event.is_action_pressed("select_%d" % (i + 1)):
-			selected = i
+			_select(i)
 			_set_active(true)
-			_refresh_ghost_mesh()
+
+
+func _select(i: int) -> void:
+	selected = i
+	_refresh_ghost_mesh()
+	changed.emit()
 
 
 func _set_active(on: bool) -> void:
@@ -68,64 +81,87 @@ func _process(_delta: float) -> void:
 	var hit := _aim_hit()
 	_cell = Vector2i(-1, -1)
 	_ok = false
+	_ghost.visible = false
 	if hit.is_empty():
-		_ghost.visible = false
 		return
 	var pos: Vector3 = hit["position"]
 	_cliff = Buildable.cliff_at(pos)
 	if _cliff < 0:
-		_ghost.visible = false
 		return
 	_cell = Buildable.world_to_cell(cliffs, _cliff, pos)
-	if not Buildable.is_turret_cell(_cell):
-		_ghost.visible = false
+	if not Buildable.cell_ok_for(selected_id(), _cell):
 		return
 	_ghost.visible = true
 	_ghost.global_position = Buildable.cell_center(cliffs, _cliff, _cell)
 	_ghost.rotation.y = WorldLayout.facing_canyon_yaw(_cliff)
 	var bm := BuildManager.instance
 	var mine := bm.may_build(multiplayer.get_unique_id(), _cliff)
-	var affordable := Economy.can_afford(_cliff if GameState.is_solo() else player.cliff_id, {&"scrap": selected_def().cost_scrap})
-	_ok = mine and bm.is_free(_cliff, _cell) and affordable
+	var payer := _cliff if GameState.is_solo() else player.cliff_id
+	var affordable := Economy.can_afford(payer, {&"scrap": Defs.cost_of(selected_id())})
+	_ok = mine and bm.is_free_for(selected_id(), _cliff, _cell) and affordable
 	_ghost_mat.albedo_color = Color(0.4, 1.0, 0.4, 0.45) if _ok else Color(1.0, 0.3, 0.25, 0.45)
 
 
-## Why the ghost is red, for the HUD.
+## The build bar text for the HUD: the selected item, its neighbours and why the ghost is red.
 func status_text() -> String:
 	if not active:
 		return ""
-	var d := selected_def()
-	var line := "BUILD: [%d] %s - %d scrap.  Click to place, X demolish, B/right-click exit." % [selected + 1, d.display_name, d.cost_scrap]
-	if _cell.x >= 0 and not _ok:
+	var id := selected_id()
+	var n := Defs.BUILD_ORDER.size()
+	var prev_id := Defs.BUILD_ORDER[(selected - 1 + n) % n]
+	var next_id := Defs.BUILD_ORDER[(selected + 1) % n]
+	var where := "cliff edge" if Defs.is_turret(id) else "behind the turret line"
+	var line := "BUILD  <  %s  |  [%d] %s - %d scrap (%s)  |  %s  >" % [Defs.name_of(prev_id), (selected + 1) % 10,
+			Defs.name_of(id), Defs.cost_of(id), where, Defs.name_of(next_id)]
+	line += "\n" + _description(id)
+	if _cell.x >= 0 and not _ok and Buildable.cell_ok_for(id, _cell):
 		if not BuildManager.instance.may_build(multiplayer.get_unique_id(), _cliff):
-			line += "\nYou can only build on your own cliff edge. Your turrets cover your partner."
-		elif not BuildManager.instance.is_free(_cliff, _cell):
+			line += "\nYou can only build on your own plateau. Your turrets cover your partner."
+		elif not BuildManager.instance.is_free_for(id, _cliff, _cell):
 			line += "\nThat spot is taken."
 		else:
 			line += "\nNot enough scrap."
-	elif _cell.x < 0:
-		line += "\nAim at the turret line along your cliff edge."
+	elif not _ghost.visible:
+		line += "\nAim at the %s on your plateau." % where
 	return line
+
+
+static func _description(id: StringName) -> String:
+	if Defs.is_turret(id):
+		return Defs.turret(id).description
+	return Defs.structure(id).description
 
 
 func _aim_hit() -> Dictionary:
 	var cam := player.camera
 	var from := cam.global_position
 	var to := from - cam.global_transform.basis.z * REACH
-	var q := PhysicsRayQueryParameters3D.create(from, to, WorldLayout.LAYER_WORLD | WorldLayout.LAYER_STRUCTURE)
+	var q := PhysicsRayQueryParameters3D.create(from, to, WorldLayout.LAYER_WORLD | WorldLayout.LAYER_STRUCTURE | WorldLayout.LAYER_TRAP)
 	q.exclude = [player.get_rid()]
 	return get_world_3d().direct_space_state.intersect_ray(q)
 
 
-func _demolish_target() -> void:
+func _act_on_target(action: StringName) -> void:
 	var hit := _aim_hit()
 	if hit.is_empty():
 		return
-	var t := hit["collider"] as Turret
-	if t != null:
-		BuildManager.instance.demolish(t.cliff_id, t.cell)
+	var c: Object = hit["collider"]
+	if c == null or c.get("cell") == null or c.get("cliff_id") == null:
+		return
+	var cell: Vector2i = c.get("cell")
+	var cid := int(c.get("cliff_id"))
+	if cell.x < 0:
+		return
+	if action == &"upgrade":
+		if c is Turret:
+			BuildManager.instance.upgrade(cid, cell)
+	else:
+		BuildManager.instance.demolish(cid, cell)
 
 
 func _refresh_ghost_mesh() -> void:
-	var parts := TurretBuilder.build(selected_def().id, Color.WHITE)
-	_ghost.mesh = parts["base"]
+	var id := selected_id()
+	if Defs.is_turret(id):
+		_ghost.mesh = TurretBuilder.build(id, Color.WHITE)["base"]
+	else:
+		_ghost.mesh = StructureBuilder.build(Defs.structure(id).kind)

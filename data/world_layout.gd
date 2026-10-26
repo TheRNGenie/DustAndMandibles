@@ -32,8 +32,10 @@ const LAYER_WORLD := 1
 const LAYER_PLAYER_BLOCKER := 2
 const LAYER_BUG := 4
 const LAYER_STRUCTURE := 8
+## Traps players can walk over (wire, bear traps, dynamite crates).
+const LAYER_TRAP := 16
 ## What player bullets hit.
-const MASK_SHOTS := LAYER_WORLD | LAYER_BUG | LAYER_STRUCTURE
+const MASK_SHOTS := LAYER_WORLD | LAYER_BUG | LAYER_STRUCTURE | LAYER_TRAP
 
 ## Players who fall below this height are in the canyon and get hauled home.
 const CANYON_FALL_Y := CLIFF_HEIGHT - 6.0

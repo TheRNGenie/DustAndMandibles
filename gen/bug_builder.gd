@@ -18,6 +18,16 @@ static func build(def: BugDef) -> Dictionary:
 			spec = _beetle(def.shell_color)
 		&"spitter_scorpion":
 			spec = _scorpion(def.shell_color)
+		&"brood_mother":
+			spec = _brood(def.shell_color)
+		&"spiderling":
+			spec = _spider(def.shell_color)
+		&"burrow_tick":
+			spec = _tick(def.shell_color)
+		&"dragonfly_bandit":
+			spec = _dragonfly(def.shell_color)
+		&"crop_weevil":
+			spec = _weevil(def.shell_color)
 		_:
 			spec = _mite(def.shell_color)
 	return _scaled(spec, def.size)
@@ -134,4 +144,70 @@ static func _scorpion(shell: Color) -> Dictionary:
 		"body": MeshKit.finish(st), "legs": _legs(4, -0.25, 0.45, 0.3, 0.0, 0.6, -0.25),
 		"upper": 0.45, "lower": 0.5, "thick": 0.05, "leg_color": shell.darkened(0.35), "ik": true,
 		"weak_spot": prev + Vector3(0, 0.05, -0.08), "weak_radius": 0.22, "body_radius": 0.6, "clearance": 0.32,
+	}
+
+
+static func _brood(shell: Color) -> Dictionary:
+	var spec := _spider(shell)
+	# Same spider frame with a huge abdomen covered in glowing egg sacs.
+	var st := MeshKit.begin()
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.1, -0.3)), Vector3(0.4, 0.28, 0.45), 6, 12, shell)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.35, 0.7)), Vector3(0.7, 0.55, 0.85), 8, 14, shell.darkened(0.2))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	for i in 9:
+		var a := rng.randf() * TAU
+		var p := Vector3(cos(a) * 0.45, 0.55 + rng.randf() * 0.3, 0.7 + sin(a) * 0.55)
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(), p), Vector3.ONE * 0.13, 4, 6, Palette.BONE, 0.0, null, 0.3)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.9, 0.7)), Vector3(0.2, 0.08, 0.3), 4, 8, Palette.GLOW_YELLOW, 0.0, null, 0.7)
+	_eyes(st, Vector3(0, 0.27, -0.68), 0.1, 0.055, 6)
+	spec["body"] = MeshKit.finish(st)
+	spec["weak_spot"] = Vector3(0, 0.9, 0.7)
+	spec["body_radius"] = 0.95
+	return spec
+
+
+static func _tick(shell: Color) -> Dictionary:
+	var st := MeshKit.begin()
+	# Round, flat, leathery body with a small head and a glowing bite.
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.1, 0.1)), Vector3(0.5, 0.25, 0.55), 6, 12, shell)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.3, 0.15)), Vector3(0.25, 0.08, 0.28), 4, 8, shell.darkened(0.25))
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.05, -0.48)), Vector3(0.16, 0.1, 0.14), 4, 8, Palette.GLOW_YELLOW, 0.0, null, 0.6)
+	return {
+		"body": MeshKit.finish(st), "legs": _legs(4, -0.25, 0.4, 0.35, 0.0, 0.3, -0.18),
+		"upper": 0.25, "lower": 0.25, "thick": 0.05, "leg_color": shell.darkened(0.4), "ik": false,
+		"weak_spot": Vector3(0, 0.05, -0.48), "weak_radius": 0.18, "body_radius": 0.55, "clearance": 0.2,
+	}
+
+
+static func _dragonfly(shell: Color) -> Dictionary:
+	var st := MeshKit.begin()
+	# Long segmented tail, big glowing eyes, two pairs of translucent-looking wings.
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0, -0.2)), Vector3(0.22, 0.2, 0.35), 5, 10, shell)
+	for i in 6:
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0, 0.25 + i * 0.22)), Vector3(0.1 - i * 0.008, 0.1 - i * 0.008, 0.13), 4, 8, shell if i % 2 == 0 else shell.darkened(0.25))
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(-0.13, 0.05, -0.55)), Vector3(0.12, 0.12, 0.12), 4, 8, Palette.GLOW_YELLOW, 0.0, null, 0.7)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.13, 0.05, -0.55)), Vector3(0.12, 0.12, 0.12), 4, 8, Palette.GLOW_YELLOW, 0.0, null, 0.7)
+	for side: float in [-1.0, 1.0]:
+		for k: float in [-0.25, 0.1]:
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, side * 0.1), Vector3(side * 0.75, 0.12, k)), Vector3(0.7, 0.02, 0.16), 3, 8, Palette.SKY_TOP.lightened(0.4))
+	return {
+		"body": MeshKit.finish(st), "legs": [],
+		"upper": 0.1, "lower": 0.1, "thick": 0.02, "leg_color": shell, "ik": false,
+		"weak_spot": Vector3(0, 0.05, -0.55), "weak_radius": 0.22, "body_radius": 0.45, "clearance": 0.0,
+	}
+
+
+static func _weevil(shell: Color) -> Dictionary:
+	var st := MeshKit.begin()
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.12, 0.15)), Vector3(0.32, 0.26, 0.45), 6, 10, shell)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.1, -0.35)), Vector3(0.16, 0.15, 0.16), 4, 8, shell.darkened(0.2))
+	# The long snout it eats crops with.
+	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5 + 0.3), Vector3(0, 0.02, -0.65)), 0.05, 0.03, 0.45, 6, shell.darkened(0.35))
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.36, 0.2)), Vector3(0.12, 0.05, 0.2), 4, 8, Palette.GLOW_YELLOW, 0.0, null, 0.7)
+	_eyes(st, Vector3(0, 0.16, -0.48), 0.07, 0.035)
+	return {
+		"body": MeshKit.finish(st), "legs": _legs(3, -0.15, 0.4, 0.25, 0.0, 0.3, -0.2),
+		"upper": 0.25, "lower": 0.28, "thick": 0.04, "leg_color": shell.darkened(0.4), "ik": false,
+		"weak_spot": Vector3(0, 0.36, 0.2), "weak_radius": 0.16, "body_radius": 0.45, "clearance": 0.22,
 	}

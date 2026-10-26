@@ -34,9 +34,8 @@ func plan(w: int) -> Dictionary:
 	var pulses := rng.randi_range(config.pulses_min, config.pulses_max)
 	var groups: Array = []
 	var options := unlocked(w)
-	var newest := _newest(options, w)
-	# Make sure the bug introduced this wave shows up on both cliffs.
-	if newest != null:
+	# Make sure every bug introduced this wave shows up on both cliffs.
+	for newest in _newest(options, w):
 		for cid in 2:
 			var c := float(newest.cost * newest.group_size)
 			if pools[cid] - spent[cid] >= c:
@@ -66,11 +65,12 @@ func _group(d: BugDef, cliff: int, pulses: int) -> Dictionary:
 	}
 
 
-func _newest(options: Array[BugDef], w: int) -> BugDef:
+func _newest(options: Array[BugDef], w: int) -> Array[BugDef]:
+	var out: Array[BugDef] = []
 	for d in options:
 		if d.first_wave == w:
-			return d
-	return null
+			out.append(d)
+	return out
 
 
 ## Which cliff gets the larger share (for the warning HUD). -1 if even.

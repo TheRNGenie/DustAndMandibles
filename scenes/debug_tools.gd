@@ -34,7 +34,17 @@ func _soak(seconds: float) -> void:
 	var start := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - start < int(seconds * 1000.0) and GameState.phase != GameState.Phase.GAME_OVER:
 		await get_tree().create_timer(1.0).timeout
+		if GameState.has_flag("--god"):
+			GameState.god_mode = true
+		if GameState.has_flag("--autokill"):
+			# Stand-in for players with revolvers: 25 damage per second to every breacher and bandit.
+			for n: Node in get_tree().get_nodes_in_group("bugs"):
+				var b := n as Bug
+				if b.is_alive() and (b.state == Bug.State.BREACHING or b.state == Bug.State.FLYING):
+					b.receive_hit(25.0, b.global_position, Vector3.DOWN, false, 1.0, "Rancher", b.cliff_id)
 		if GameState.phase == GameState.Phase.BUILD:
+			if GameState.has_flag("--farm"):
+				_farm()
 			GameState.vote_skip()
 	print("[soak] end: wave %d phase %d homesteads %s bugs %d" % [GameState.wave, GameState.phase, str(GameState.homestead_hp), bugs.alive_count()])
 	get_tree().quit()
@@ -128,7 +138,7 @@ func _take_screenshot(path: String) -> void:
 		player.head.rotation.x = deg_to_rad(parts[1].to_float())
 	if GameState.has_flag("--autobuild") and multiplayer.is_server():
 		_autobuild()
-	if GameState.has_flag("--showcase") and multiplayer.is_server():
+	if (GameState.has_flag("--showcase") or GameState.flag_value("--showcase") != "") and multiplayer.is_server():
 		_showcase()
 	if GameState.flag_value("--pause") != "":
 		var pm := world.get_node("PauseMenu") as PauseMenu
@@ -177,23 +187,62 @@ func _apply_freecam(player: Player) -> void:
 
 ## Spends each cliff's scrap on the next free turret slot (Buffalo every third).
 func _reinvest(builds: BuildManager) -> void:
+	# Farm first (plant, water, harvest every plot) and use the wells, like a player would.
+	_farm()
+	var turret_cycle: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"water_cannon",
+		&"gatling_post", &"chili_mortar", &"dynamite_lobber", &"lasso_harpoon"]
+	var trap_cycle: Array[StringName] = [&"lantern_post", &"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"rain_catcher"]
 	for cid in 2:
+		var i := 0
 		for col in Buildable.COLS:
-			var id := &"buffalo_rifle" if col % 3 == 0 else &"gatling_post"
-			var cost := Defs.turret(id).cost_scrap
-			if Economy.amount(cid, &"scrap") < cost:
+			var id := turret_cycle[i % turret_cycle.size()]
+			if not builds.is_free(cid, Vector2i(0, col)):
+				i += 1
+				continue
+			if Economy.amount(cid, &"scrap") < Defs.cost_of(id):
 				break
-			if builds.is_free(cid, Vector2i(0, col)):
-				builds.build(id, cid, Vector2i(0, col))
+			builds.build(id, cid, Vector2i(0, col))
+			i += 1
+		# Spare scrap goes into traps around the Homestead.
+		var j := 0
+		for col: int in [7, 9, 11, 13, 8, 12]:
+			var tid := trap_cycle[j % trap_cycle.size()]
+			j += 1
+			var cell := Vector2i(9, col)
+			if builds.is_free_for(tid, cid, cell) and Economy.amount(cid, &"scrap") >= Defs.cost_of(tid) + 60:
+				builds.build(tid, cid, cell)
+		# Upgrade a turret with spare chitin.
+		for col in Buildable.COLS:
+			var t := builds.turret_at(cid, Vector2i(0, col))
+			if t != null and t.upgrade_cost() > 0 and Economy.amount(cid, &"chitin") >= t.upgrade_cost():
+				builds.upgrade(cid, Vector2i(0, col))
+				break
+
+
+func _farm() -> void:
+	for n: Node in get_tree().get_nodes_in_group("crops"):
+		var plot := n as CropPlot
+		for k in 2:
+			plot.local_interact(false)
+	for n: Node in get_tree().get_nodes_in_group("water_sources"):
+		(n as WaterSource).local_interact(false)
 
 
 ## Test helper: one of each bug, frozen on the west face (lanes 1-4, 25 m up) for portraits.
 func _showcase() -> void:
 	var bm := world.get("bugs") as BugManager
 	var lane := 1
-	for id: StringName in [&"dust_mite", &"wolf_spider", &"rattler_beetle", &"spitter_scorpion"]:
-		bm.spawn_group(id, 1, WorldLayout.WEST, lane, 25.0)
-		lane += 1
+	if GameState.flag_value("--showcase") == "2":
+		for id: StringName in [&"brood_mother", &"spiderling", &"crop_weevil"]:
+			bm.spawn_group(id, 1, WorldLayout.WEST, lane, 25.0)
+			lane += 1
+		var cliffs := world.get("cliffs") as CliffBuilder
+		bm.spawn_at(&"burrow_tick", WorldLayout.WEST, 4, 16.0, 0.0, Bug.State.BREACHING, cliffs.plateau_point(WorldLayout.WEST, 3.0, 16.0))
+		bm.spawn_at(&"dragonfly_bandit", WorldLayout.WEST, 4, 20.0, 0.0, Bug.State.FLYING, Vector3(-18.0, 30.0, 20.0))
+	else:
+		for id: StringName in [&"dust_mite", &"wolf_spider", &"rattler_beetle", &"spitter_scorpion"]:
+			bm.spawn_group(id, 1, WorldLayout.WEST, lane, 25.0)
+			lane += 1
 	await get_tree().process_frame
 	for b: Node in get_tree().get_nodes_in_group("bugs"):
 		(b as Bug).speed_mult = 0.0

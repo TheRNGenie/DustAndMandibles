@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"water_cannon"
+display_name = "Water Cannon"
+description = "Knocks climbers off the cliff; the higher they are, the harder they fall."
+cost_scrap = 50
+max_hp = 130.0
+range = 70.0
+fire_interval = 1.40
+damage = 4.0
+armor_pierce = false
+pitch_limit_deg = 30.0
+turn_speed = 120.0
+spread_deg = 0.0
+hit_chance = 0.90
+effect = 1
+flight_time = 0.00
+effect_size = 0.0
+ammo_cost = {&"water": 2}

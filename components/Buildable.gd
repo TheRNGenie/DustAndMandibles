@@ -25,6 +25,16 @@ static func world_to_cell(cliffs: CliffBuilder, cliff_id: int, pos: Vector3) -> 
 	return Vector2i(row, col)
 
 
+## Traps and structures go behind the turret line, inside the playable plateau.
+static func is_structure_cell(cell: Vector2i) -> bool:
+	var rows := int(WorldLayout.PLATEAU_DEPTH / WorldLayout.CELL) - 1
+	return cell.x >= TURRET_ROWS and cell.x < rows and cell.y >= 0 and cell.y < COLS
+
+
+static func cell_ok_for(id: StringName, cell: Vector2i) -> bool:
+	return is_turret_cell(cell) if Defs.is_turret(id) else is_structure_cell(cell)
+
+
 static func is_turret_cell(cell: Vector2i) -> bool:
 	return cell.x >= 0 and cell.x < TURRET_ROWS and cell.y >= 0 and cell.y < COLS
 

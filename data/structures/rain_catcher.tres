@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StructureDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/structure_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"rain_catcher"
+display_name = "Rain catcher"
+description = "Collects water: fast in storms, slow from dew."
+kind = 5
+cost_scrap = 30
+max_hp = 80.0
+radius = 1.0

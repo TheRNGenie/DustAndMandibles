@@ -2,7 +2,7 @@ class_name BugDef
 extends Resource
 ## One bug type. Adding a bug = a new .tres plus a body in BugBuilder, no core code.
 
-enum Behavior { SWARM, TANK, LEAPER, SPITTER }
+enum Behavior { SWARM, TANK, LEAPER, SPITTER, BROOD, BURROWER, FLIER, CROP_EATER }
 
 @export var id: StringName = &""
 @export var display_name: String = ""

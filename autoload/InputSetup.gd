@@ -14,6 +14,9 @@ const KEY_BINDINGS: Dictionary = {
 	"interact": [KEY_E],
 	"build_menu": [KEY_B],
 	"demolish": [KEY_X],
+	"eat": [KEY_F],
+	"drink": [KEY_Q],
+	"upgrade": [KEY_U],
 	"pause_menu": [KEY_ESCAPE],
 	"debug_overlay": [KEY_F3],
 	"ready_up": [KEY_G],
@@ -26,11 +29,19 @@ const KEY_BINDINGS: Dictionary = {
 	"select_2": [KEY_2],
 	"select_3": [KEY_3],
 	"select_4": [KEY_4],
+	"select_5": [KEY_5],
+	"select_6": [KEY_6],
+	"select_7": [KEY_7],
+	"select_8": [KEY_8],
+	"select_9": [KEY_9],
+	"select_10": [KEY_0],
 }
 
 const MOUSE_BINDINGS: Dictionary = {
 	"fire": [MOUSE_BUTTON_LEFT],
 	"alt_fire": [MOUSE_BUTTON_RIGHT],
+	"next_item": [MOUSE_BUTTON_WHEEL_DOWN],
+	"prev_item": [MOUSE_BUTTON_WHEEL_UP],
 }
 
 

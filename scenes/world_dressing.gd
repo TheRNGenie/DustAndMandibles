@@ -82,6 +82,37 @@ func _build_homestead_area(cid: int) -> void:
 	fan.rotation.y = yaw
 	parent.add_child(fan)
 
+	# The windmill's well: broken until someone pays to fix it.
+	var well := WaterSource.new()
+	well.name = "Well%d" % cid
+	well.cliff_id = cid
+	well.display_name = "Windmill well"
+	well.fix_cost = 80
+	well.working = false
+	well.rates = Vector2(8.0, 8.0)
+	well.capacity = 10
+	well.collision_layer = WorldLayout.LAYER_WORLD
+	var trough_col := CollisionShape3D.new()
+	var trough_shape := BoxShape3D.new()
+	trough_shape.size = Vector3(1.2, 0.9, 2.6)
+	trough_col.shape = trough_shape
+	trough_col.position.y = 0.45
+	well.add_child(trough_col)
+	well.position = tower_pos + Basis(Vector3.UP, yaw) * Vector3(2.0, 0.0, 0.0)
+	well.rotation.y = yaw
+	parent.add_child(well)
+
+	# Crop field: a row each of corn, prickly pear and firecracker chili.
+	var crop_ids: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili"]
+	for row in 3:
+		for col in 3:
+			var plot := CropPlot.new()
+			plot.name = "Plot%d_%d_%d" % [cid, row, col]
+			plot.setup(cid, Defs.crop(crop_ids[row]))
+			plot.position = ground(cid, 12.5 + float(col) * 2.4, 2.5 + float(row) * 2.4)
+			plot.rotation.y = yaw
+			parent.add_child(plot)
+
 	# Salvage piles (scrap each build phase).
 	for i in 2:
 		var pile := SalvagePile.new()

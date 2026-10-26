@@ -56,6 +56,37 @@ func _take_damage(amount: float) -> void:
 		player.vitals.apply_damage(amount)
 
 
+## Owner: ask the host to spend 1 food or water so you can eat or drink.
+func request_consume(kind: StringName) -> void:
+	if multiplayer.is_server():
+		_consume(multiplayer.get_unique_id(), kind)
+	else:
+		_request_consume.rpc_id(1, kind)
+
+
+@rpc("any_peer", "reliable")
+func _request_consume(kind: StringName) -> void:
+	if multiplayer.is_server() and multiplayer.get_remote_sender_id() == player.get_multiplayer_authority():
+		_consume(multiplayer.get_remote_sender_id(), kind)
+
+
+func _consume(peer_id: int, kind: StringName) -> void:
+	var payer := Economy.payer_cliff(peer_id, player.cliff_id)
+	if not Economy.spend(payer, {kind: 1}):
+		Economy.notify(peer_id, "No %s left in your stockpile." % ("food" if kind == &"food" else "water"))
+		return
+	if peer_id == multiplayer.get_unique_id():
+		player.vitals.consumed(kind)
+	else:
+		_consumed.rpc_id(peer_id, kind)
+
+
+@rpc("any_peer", "reliable")
+func _consumed(kind: StringName) -> void:
+	if multiplayer.get_remote_sender_id() == 1:
+		player.vitals.consumed(kind)
+
+
 ## Called by the owning peer after the revolver fired.
 func fire(origin: Vector3, dir: Vector3) -> void:
 	var hit := player.revolver.raycast(origin, dir, [player.get_rid()])

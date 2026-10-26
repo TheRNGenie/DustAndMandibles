@@ -21,6 +21,10 @@ var health: Health
 # Replicated.
 var aim_point: Vector3 = Vector3.ZERO
 var shots: int = 0
+## Upgrade tier 0-3 (bought with chitin): more damage, range and fire rate.
+var tier: int = 0
+## False while the owner's stockpile can't pay this turret's ammo (water, chili).
+var has_ammo: bool = true
 
 var _head: Node3D
 var _gun: Node3D
@@ -82,7 +86,7 @@ func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: Strin
 
 func _make_synchronizer() -> MultiplayerSynchronizer:
 	var cfg := SceneReplicationConfig.new()
-	for p: String in [".:aim_point", ".:shots", "Health:hp"]:
+	for p: String in [".:aim_point", ".:shots", ".:tier", ".:has_ammo", "Health:hp"]:
 		var path := NodePath(p)
 		cfg.add_property(path)
 		cfg.property_set_spawn(path, true)
@@ -114,12 +118,16 @@ func _think(delta: float) -> void:
 	aim_point = _target.global_position
 	if _cooldown > 0.0 or _aim_error_deg() > ALIGN_TOLERANCE_DEG:
 		return
-	_cooldown = def.fire_interval
+	# Water Cannons and Chili Mortars burn your farm's output as ammo.
+	if not def.ammo_cost.is_empty():
+		has_ammo = Economy.spend(cliff_id, def.ammo_cost)
+		if not has_ammo:
+			_cooldown = 1.0
+			return
+	_cooldown = def.fire_interval * (1.0 - 0.08 * tier)
 	shots += 1
 	if randf() <= def.hit_chance:
-		var dir := (aim_point - _muzzle.global_position).normalized()
-		_target.receive_hit(def.damage, aim_point, dir, def.armor_pierce, 1.0,
-				"%s's %s" % [owner_name, def.display_name], cliff_id)
+		TurretEffects.apply(self, _target, aim_point, def.damage * (1.0 + 0.25 * tier))
 
 
 func _pick_target() -> Bug:
@@ -142,10 +150,29 @@ func _valid(b: Bug) -> bool:
 	if not b.is_alive() or not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing()):
 		return false
 	var muzzle := _head.global_position
-	if not Targeting.in_arc(muzzle, b.global_position, def.pitch_limit_deg, def.range):
+	if not Targeting.in_arc(muzzle, b.global_position, def.pitch_limit_deg, def.range * range_multiplier()):
 		return false
 	var q := PhysicsRayQueryParameters3D.create(muzzle, b.global_position, WorldLayout.LAYER_WORLD)
 	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+
+func range_multiplier() -> float:
+	return 1.0 + 0.1 * tier
+
+
+func muzzle_position() -> Vector3:
+	return _muzzle.global_position
+
+
+func upgrade_cost() -> int:
+	return Defs.UPGRADE_COSTS[tier] if tier < Defs.UPGRADE_COSTS.size() else -1
+
+
+## Host: buy the next tier.
+func upgrade() -> void:
+	if multiplayer.is_server() and upgrade_cost() > 0:
+		tier += 1
+		health.setup(def.max_hp * (1.0 + 0.2 * tier))
 
 
 func _aim_error_deg() -> float:
@@ -170,9 +197,19 @@ func _draw_shot() -> void:
 	var spread := deg_to_rad(def.spread_deg)
 	var to := aim_point + Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * from.distance_to(aim_point) * spread
 	if vfx != null:
-		vfx.tracer(from, to)
+		if def.flight_time > 0.0:
+			vfx.lob(from, to, def.flight_time, TurretEffects.shot_color(def))
+		else:
+			vfx.tracer(from, to, TurretEffects.shot_color(def), 0.12 if def.effect == TurretDef.Effect.KNOCKBACK else 0.05)
 		vfx.muzzle_flash(from, -_gun.global_basis.z)
-	var sound := &"buffalo" if def.id == &"buffalo_rifle" else StringName("gatling_%d" % (randi() % 3 + 1))
+	var sound := StringName("gatling_%d" % (randi() % 3 + 1))
+	match def.id:
+		&"buffalo_rifle", &"lasso_harpoon":
+			sound = &"buffalo"
+		&"water_cannon":
+			sound = &"acid_spit"
+		&"chili_mortar", &"dynamite_lobber":
+			sound = &"build"
 	Audio.play_at(sound, from, -4.0 if def.id == &"gatling_post" else 0.0)
 
 
@@ -193,10 +230,17 @@ func needs_repair() -> bool:
 
 
 func interact_prompt() -> String:
-	var hp := "%s  %d/%d HP" % [def.display_name, int(health.hp), int(health.max_hp)]
+	var text := "%s (tier %d)  %d/%d HP" % [def.display_name, tier, int(health.hp), int(health.max_hp)]
+	if not has_ammo:
+		var needs: PackedStringArray = []
+		for k: Variant in def.ammo_cost.keys():
+			needs.append(String(k))
+		text += "\nOut of ammo: needs %s" % ", ".join(needs)
 	if needs_repair():
-		return hp + "\nHold E: repair (1 scrap per %d HP)" % int(BuildManager.REPAIR_HP_PER_SCRAP)
-	return hp
+		text += "\nHold E: repair (1 scrap per %d HP)" % int(BuildManager.REPAIR_HP_PER_SCRAP)
+	if upgrade_cost() > 0:
+		text += "\nU: upgrade to tier %d (%d chitin)" % [tier + 1, upgrade_cost()]
+	return text
 
 
 func local_interact(_holding: bool) -> void:

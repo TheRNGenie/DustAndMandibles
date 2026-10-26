@@ -2,6 +2,8 @@ class_name TurretDef
 extends Resource
 ## One turret type. Turrets sit on your own cliff edge and only fire at the far cliff.
 
+enum Effect { HITSCAN, KNOCKBACK, BURN, SPLASH, PIN }
+
 @export var id: StringName = &""
 @export var display_name: String = ""
 @export var description: String = ""
@@ -19,3 +21,11 @@ extends Resource
 ## Random aim error in degrees (cosmetic tracer spread; hits are rolled with hit_chance).
 @export var spread_deg: float = 1.5
 @export var hit_chance: float = 0.85
+## What a hit does: plain damage, knock off the cliff, burning patch, splash, or pin in place.
+@export var effect: Effect = Effect.HITSCAN
+## Lobbed shots (mortar, dynamite) travel this long; 0 = instant hitscan.
+@export var flight_time: float = 0.0
+## Radius of splash / burning patch, or pin duration in seconds for PIN.
+@export var effect_size: float = 0.0
+## Resources spent per shot from the owner's stockpile, e.g. {&"water": 2}.
+@export var ammo_cost: Dictionary = {}

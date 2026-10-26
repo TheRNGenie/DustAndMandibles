@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"dynamite_lobber"
+display_name = "Dynamite Lobber"
+description = "Arcing dynamite with a big splash for clustered lanes."
+cost_scrap = 75
+max_hp = 120.0
+range = 90.0
+fire_interval = 3.00
+damage = 45.0
+armor_pierce = true
+pitch_limit_deg = 30.0
+turn_speed = 120.0
+spread_deg = 2.0
+hit_chance = 0.95
+effect = 3
+flight_time = 1.40
+effect_size = 3.5
+ammo_cost = {}

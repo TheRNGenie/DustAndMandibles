@@ -8,6 +8,14 @@ static func build(id: StringName, team: Color) -> Dictionary:
 	match id:
 		&"buffalo_rifle":
 			return _buffalo(team)
+		&"water_cannon":
+			return _water_cannon(team)
+		&"chili_mortar":
+			return _mortar(team, Palette.TEAM_WEST.darkened(0.2), 0.22)
+		&"dynamite_lobber":
+			return _mortar(team, Palette.WOOD_DARK, 0.3)
+		&"lasso_harpoon":
+			return _harpoon(team)
 		_:
 			return _gatling(team)
 
@@ -63,3 +71,65 @@ static func _buffalo(team: Color) -> Dictionary:
 	MeshKit.add_box(gun, Transform3D(Basis(), Vector3(0, 0.03, -1.5)), Vector3(0.1, 0.1, 0.1), Palette.METAL.darkened(0.3))
 	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun),
 			"head_y": 1.2, "gun_y": 0.12, "muzzle": Vector3(0, 0, -1.55)}
+
+
+## Simple shared base: a wooden platform on four legs.
+static func _platform(st: SurfaceTool, rng: RandomNumberGenerator, top: float) -> void:
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, top, 0)), Vector3(1.4, 0.18, 1.4), Palette.WOOD, 0.03, rng)
+	for x: float in [-0.55, 0.55]:
+		for z: float in [-0.55, 0.55]:
+			MeshKit.add_box(st, Transform3D(Basis(), Vector3(x, top * 0.5, z)), Vector3(0.16, top, 0.16), Palette.WOOD_DARK, 0.02, rng)
+
+
+static func _water_cannon(team: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 31
+	var base := MeshKit.begin()
+	_platform(base, rng, 0.6)
+	# A water barrel feeding the cannon.
+	MeshKit.add_cylinder(base, Transform3D(Basis(), Vector3(0.0, 1.0, 0.45)), 0.35, 0.35, 0.7, 10, Palette.WOOD)
+	MeshKit.add_cylinder(base, Transform3D(Basis(), Vector3(0.0, 1.36, 0.45)), 0.3, 0.3, 0.04, 10, Palette.SKY_TOP, false, 0.4)
+	var head := MeshKit.begin()
+	MeshKit.add_cylinder(head, Transform3D(), 0.25, 0.25, 0.14, 10, Palette.METAL)
+	MeshKit.add_box(head, Transform3D(Basis(), Vector3(0, 0.25, 0.2)), Vector3(0.4, 0.3, 0.05), team)
+	var gun := MeshKit.begin()
+	var along := Basis(Vector3.RIGHT, PI * 0.5)
+	MeshKit.add_cylinder(gun, Transform3D(along, Vector3(0, 0, -0.3)), 0.16, 0.1, 0.8, 10, Palette.METAL.lightened(0.15))
+	MeshKit.add_cylinder(gun, Transform3D(along, Vector3(0, 0, -0.75)), 0.08, 0.12, 0.15, 10, Palette.GLOW_YELLOW.darkened(0.3))
+	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun),
+			"head_y": 1.3, "gun_y": 0.15, "muzzle": Vector3(0, 0, -0.85)}
+
+
+static func _mortar(team: Color, tube: Color, radius: float) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 41
+	var base := MeshKit.begin()
+	_platform(base, rng, 0.4)
+	for i in 3:
+		MeshKit.add_cylinder(base, Transform3D(Basis(), Vector3(-0.45 + i * 0.3, 0.62, 0.5)), 0.1, 0.1, 0.25, 8, Palette.TEAM_WEST if radius < 0.25 else Palette.ROOF)
+	var head := MeshKit.begin()
+	MeshKit.add_cylinder(head, Transform3D(), 0.35, 0.35, 0.12, 10, Palette.WOOD_DARK)
+	MeshKit.add_box(head, Transform3D(Basis(), Vector3(0.3, 0.2, 0)), Vector3(0.05, 0.3, 0.3), team)
+	var gun := MeshKit.begin()
+	var along := Basis(Vector3.RIGHT, PI * 0.5)
+	MeshKit.add_cylinder(gun, Transform3D(along, Vector3(0, 0, -0.2)), radius + 0.04, radius, 0.6, 12, tube)
+	MeshKit.add_cylinder(gun, Transform3D(along, Vector3(0, 0, -0.5)), radius + 0.06, radius + 0.06, 0.08, 12, Palette.METAL)
+	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun),
+			"head_y": 0.6, "gun_y": 0.3, "muzzle": Vector3(0, 0, -0.55)}
+
+
+static func _harpoon(team: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 51
+	var base := MeshKit.begin()
+	_platform(base, rng, 0.7)
+	MeshKit.add_cylinder(base, Transform3D(Basis(), Vector3(0.4, 0.95, 0.4)), 0.22, 0.22, 0.3, 10, Palette.BONE.darkened(0.3))
+	var head := MeshKit.begin()
+	MeshKit.add_box(head, Transform3D(), Vector3(0.3, 0.12, 0.3), Palette.WOOD_DARK)
+	MeshKit.add_box(head, Transform3D(Basis(), Vector3(-0.2, 0.15, 0.0)), Vector3(0.04, 0.3, 0.12), team)
+	var gun := MeshKit.begin()
+	MeshKit.add_box(gun, Transform3D(Basis(), Vector3(0, 0, -0.2)), Vector3(0.12, 0.1, 1.0), Palette.WOOD)
+	MeshKit.add_box(gun, Transform3D(Basis(Vector3.UP, 0.0), Vector3(0, 0.02, -0.55)), Vector3(1.0, 0.06, 0.08), Palette.WOOD_DARK)
+	MeshKit.add_cylinder(gun, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0.08, -0.6)), 0.025, 0.0, 0.3, 6, Palette.METAL)
+	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun),
+			"head_y": 1.3, "gun_y": 0.12, "muzzle": Vector3(0, 0.08, -0.75)}

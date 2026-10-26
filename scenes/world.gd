@@ -50,6 +50,7 @@ func _ready() -> void:
 	add_child(builds)
 	Turret.bug_manager = bugs
 	Turret.vfx = vfx
+	StructureNode.vfx = vfx
 	WaveDirector.bug_manager = bugs
 	hud = Hud.new()
 	add_child(hud)
@@ -195,6 +196,12 @@ func _build_environment() -> void:
 	sun.rotation_degrees = Vector3(-42.0, -35.0, 0.0)
 	add_child(sun)
 	_sun = sun
+	var cycle := DayCycle.new()
+	cycle.name = "DayCycle"
+	cycle.env = env
+	cycle.sun = sun
+	cycle.sky = sky_mat
+	add_child(cycle)
 	Settings.changed.connect(_apply_settings)
 	_apply_settings()
 

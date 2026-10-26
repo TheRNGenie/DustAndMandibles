@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StructureDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/structure_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"lantern_post"
+display_name = "Lantern post"
+description = "Lights the night and reveals Burrow Ticks."
+kind = 4
+cost_scrap = 10
+max_hp = 60.0
+radius = 9.0

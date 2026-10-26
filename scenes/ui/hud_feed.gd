@@ -67,10 +67,13 @@ func _ready() -> void:
 	col.add_child(back)
 
 	WaveDirector.wave_announced.connect(_on_wave_announced)
+	Economy.notice.connect(func(t: String) -> void: add_line(t, Palette.GLOW_YELLOW))
 	GameState.game_over.connect(_on_game_over)
 	GameState.phase_changed.connect(func(p: GameState.Phase) -> void:
 		if p == GameState.Phase.WARNING:
-			Audio.play_ui(&"bell"))
+			Audio.play_ui(&"bell")
+		elif p == GameState.Phase.BUILD and GameState.storm:
+			add_line("A storm rolls in: rain catchers fill fast this daybreak.", Palette.SKY_TOP))
 
 
 func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void:
@@ -99,6 +102,9 @@ func add_line(text: String, color: Color = Palette.BONE) -> void:
 
 
 func _on_bug_killed(bug_name: String, bug_cliff: int, source: String, source_cliff: int, loot: Dictionary) -> void:
+	if source_cliff == -2:
+		add_line(bug_name, Palette.ROCK_C) # a plain announcement (e.g. a bandit escaped)
+		return
 	var scrap := int(loot.get(&"scrap", 0))
 	var saved := _cliff_owner_name(bug_cliff)
 	var text: String

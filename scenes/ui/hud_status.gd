@@ -6,6 +6,8 @@ extends Control
 var cliff_id: int = 0
 var _hp_bar: ProgressBar
 var _resources: Label
+var _hunger_bar: ProgressBar
+var _thirst_bar: ProgressBar
 var _homes: Array[ProgressBar] = []
 var _downed: Label
 
@@ -18,14 +20,26 @@ func _ready() -> void:
 	panel.anchor_top = 1.0
 	panel.anchor_bottom = 1.0
 	panel.offset_left = 24
-	panel.offset_top = -120
-	panel.offset_right = 330
+	panel.offset_top = -170
+	panel.offset_right = 420
 	panel.offset_bottom = -24
 	add_child(panel)
 	var col := VBoxContainer.new()
 	panel.add_child(col)
 	_hp_bar = _bar(Palette.TEAM_WEST, 100.0)
 	col.add_child(_hp_bar)
+	var needs := HBoxContainer.new()
+	needs.add_theme_constant_override("separation", 8)
+	col.add_child(needs)
+	_hunger_bar = _bar(Palette.SAND.darkened(0.1), 100.0)
+	_hunger_bar.custom_minimum_size = Vector2(150, 10)
+	_thirst_bar = _bar(Palette.SKY_TOP, 100.0)
+	_thirst_bar.custom_minimum_size = Vector2(150, 10)
+	for pair: Array in [["Food", _hunger_bar], ["Water", _thirst_bar]]:
+		var cap := UiStyle.label(str(pair[0]), 13, Palette.BONE)
+		cap.autowrap_mode = TextServer.AUTOWRAP_OFF
+		needs.add_child(cap)
+		needs.add_child(pair[1] as ProgressBar)
 	_resources = UiStyle.label("", 20, Palette.BONE)
 	_resources.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	col.add_child(_resources)
@@ -70,6 +84,9 @@ func bind_player(player: Player) -> void:
 	player.vitals.health_changed.connect(func(hp: float, mx: float) -> void:
 		_hp_bar.max_value = mx
 		_hp_bar.value = hp)
+	player.vitals.needs_changed.connect(func(h: float, t: float) -> void:
+		_hunger_bar.value = h
+		_thirst_bar.value = t)
 	player.vitals.downed_changed.connect(func(is_down: bool, secs: float) -> void:
 		_downed.text = "DOWNED - back on your feet in %d s" % int(ceilf(secs)) if is_down else "")
 	_refresh_resources()
@@ -77,11 +94,16 @@ func bind_player(player: Player) -> void:
 
 func _refresh_resources() -> void:
 	if GameState.is_solo():
-		_resources.text = "West  scrap %d  chitin %d\nEast  scrap %d  chitin %d" % [
-			Economy.amount(0, &"scrap"), Economy.amount(0, &"chitin"),
-			Economy.amount(1, &"scrap"), Economy.amount(1, &"chitin")]
+		_resources.text = "West  %s\nEast  %s" % [_line(0), _line(1)]
 	else:
-		_resources.text = "Scrap %d    Chitin %d" % [Economy.amount(cliff_id, &"scrap"), Economy.amount(cliff_id, &"chitin")]
+		_resources.text = _line(cliff_id)
+	_resources.add_theme_font_size_override("font_size", 16)
+
+
+static func _line(cid: int) -> String:
+	return "Scrap %d  Chitin %d  Water %d  Food %d  Chili %d" % [Economy.amount(cid, &"scrap"),
+			Economy.amount(cid, &"chitin"), Economy.amount(cid, &"water"), Economy.amount(cid, &"food"),
+			Economy.amount(cid, &"chili")]
 
 
 static func _fill(color: Color) -> StyleBoxFlat:

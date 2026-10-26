@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"lasso_harpoon"
+display_name = "Lasso Harpoon"
+description = "Pins one climber in place for 3 s so the others can focus it."
+cost_scrap = 45
+max_hp = 110.0
+range = 80.0
+fire_interval = 4.00
+damage = 5.0
+armor_pierce = false
+pitch_limit_deg = 30.0
+turn_speed = 120.0
+spread_deg = 0.5
+hit_chance = 0.95
+effect = 4
+flight_time = 0.00
+effect_size = 3.0
+ammo_cost = {}

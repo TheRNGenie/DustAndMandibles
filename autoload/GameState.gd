@@ -15,6 +15,8 @@ var wave: int = 0
 var time_left: float = 0.0
 var skip_votes: int = 0
 var homestead_hp: Array[float] = [0.0, 0.0]
+## This build phase is a storm: rain catchers fill fast.
+var storm := false
 var won := false
 var end_reason := ""
 ## True while the pause menu (or another full-screen menu) is open: the local player stops.
@@ -57,6 +59,7 @@ func reset() -> void:
 	_voters.clear()
 	skip_votes = 0
 	won = false
+	storm = false
 	end_reason = ""
 	god_mode = false
 	var hp := config().homestead_hp
@@ -92,6 +95,11 @@ func _time_scale() -> float:
 	return 0.15 if has_flag("--fast") else 1.0
 
 
+## How fast crops grow and wells fill (faster with --fast so tests see results).
+func growth_scale() -> float:
+	return 1.0 / _time_scale()
+
+
 func _advance() -> void:
 	match phase:
 		Phase.BUILD:
@@ -121,12 +129,16 @@ func _enter(p: Phase) -> void:
 		Phase.WARNING:
 			duration = config().warning_time * maxf(_time_scale(), 0.5)
 	_voters.clear()
-	_sync_phase.rpc(p, duration, wave)
+	var is_storm := p == Phase.BUILD and wave >= 2 and randf() < 0.3
+	if p != Phase.BUILD:
+		is_storm = storm
+	_sync_phase.rpc(p, duration, wave, is_storm)
 
 
 @rpc("authority", "call_local", "reliable")
-func _sync_phase(p: int, duration: float, w: int) -> void:
+func _sync_phase(p: int, duration: float, w: int, is_storm: bool) -> void:
 	wave = w
+	storm = is_storm
 	time_left = duration
 	phase = p as Phase
 	skip_votes = 0

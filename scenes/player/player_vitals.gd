@@ -7,6 +7,7 @@ extends Node
 signal health_changed(hp: float, max_hp: float)
 signal downed_changed(downed: bool, seconds: float)
 signal prompt_changed(text: String)
+signal needs_changed(hunger: float, thirst: float)
 
 const MAX_HP := 100.0
 const DOWNED_TIME := 15.0
@@ -14,6 +15,12 @@ const REGEN_DELAY := 5.0
 const REGEN_PER_SEC := 4.0
 const INTERACT_REACH := 3.5
 const HOLD_REPEAT := 0.35
+## Hunger and thirst drain slowly: a full bar lasts about two wave cycles.
+const NEED_MAX := 100.0
+const NEED_DRAIN := 0.2 # per second
+const NEED_LOW := 20.0
+const EAT_AMOUNT := 35.0
+const DRINK_AMOUNT := 35.0
 
 var hp := MAX_HP
 var downed := false
@@ -21,6 +28,8 @@ var _downed_left := 0.0
 var _since_hit := 99.0
 var _hold := 0.0
 var _prompt := ""
+var hunger := NEED_MAX
+var thirst := NEED_MAX
 
 @onready var player: Player = get_parent() as Player
 
@@ -40,9 +49,47 @@ func _process(delta: float) -> void:
 		return
 	_since_hit += delta
 	if _since_hit > REGEN_DELAY and hp < MAX_HP:
-		hp = minf(hp + REGEN_PER_SEC * delta, MAX_HP)
+		# Eating well doubles regeneration.
+		var regen := REGEN_PER_SEC * (2.0 if hunger > 70.0 else 1.0)
+		hp = minf(hp + regen * delta, MAX_HP)
 		health_changed.emit(hp, MAX_HP)
+	_update_needs(delta)
 	_update_interact(delta)
+
+
+func _update_needs(delta: float) -> void:
+	if GameState.phase == GameState.Phase.LOBBY or GameState.phase == GameState.Phase.GAME_OVER:
+		return
+	var drain := NEED_DRAIN * delta * GameState.growth_scale()
+	hunger = maxf(hunger - drain, 0.0)
+	thirst = maxf(thirst - drain, 0.0)
+	needs_changed.emit(hunger, thirst)
+	if GameState.menu_open:
+		return
+	if Input.is_action_just_pressed("eat") and hunger < NEED_MAX - 5.0:
+		player.net.request_consume(&"food")
+	if Input.is_action_just_pressed("drink") and thirst < NEED_MAX - 5.0:
+		player.net.request_consume(&"water")
+
+
+## Low hunger disables sprint.
+func can_sprint() -> bool:
+	return hunger > NEED_LOW
+
+
+## Low thirst makes reloading slower.
+func reload_multiplier() -> float:
+	return 1.6 if thirst <= NEED_LOW else 1.0
+
+
+## Owner: the host approved eating or drinking.
+func consumed(kind: StringName) -> void:
+	if kind == &"food":
+		hunger = minf(hunger + EAT_AMOUNT, NEED_MAX)
+	else:
+		thirst = minf(thirst + DRINK_AMOUNT, NEED_MAX)
+	needs_changed.emit(hunger, thirst)
+	Audio.play_ui(&"coin", -8.0)
 
 
 ## Runs on the owning peer.
@@ -83,7 +130,7 @@ func _look_target() -> Object:
 	var cam := player.camera
 	var from := cam.global_position
 	var q := PhysicsRayQueryParameters3D.create(from, from - cam.global_transform.basis.z * INTERACT_REACH,
-			WorldLayout.LAYER_WORLD | WorldLayout.LAYER_STRUCTURE)
+			WorldLayout.LAYER_WORLD | WorldLayout.LAYER_STRUCTURE | WorldLayout.LAYER_TRAP)
 	q.exclude = [player.get_rid()]
 	var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
 	if hit.is_empty():

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="BugDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/bug_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"burrow_tick"
+display_name = "Burrow Tick"
+behavior = 5
+max_hp = 40.0
+climb_speed = 0.0
+walk_speed = 2.8
+cost = 3
+group_size = 1
+front_armor = 0.0
+scrap_drop = 3
+chitin_drop = 1
+breach_dps = 8.0
+size = 0.9
+shell_color = Color(0.55, 0.42, 0.3, 1)
+first_wave = 6

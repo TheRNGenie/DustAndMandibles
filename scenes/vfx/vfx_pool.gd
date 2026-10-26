@@ -14,8 +14,7 @@ var _pops: Array[GPUParticles3D] = []
 var _pop_stars: Array[GPUParticles3D] = []
 var _flashes: Array[GPUParticles3D] = []
 var _i: Dictionary = {}
-var _tracer_mat: StandardMaterial3D
-var _acid_mat: ShaderMaterial
+var _tracer_mats: Dictionary = {}
 
 
 func _ready() -> void:
@@ -65,38 +64,42 @@ func pop(pos: Vector3, color: Color, size: float) -> void:
 
 
 ## A brief bright streak from a muzzle to the hit point.
-func tracer(from: Vector3, to: Vector3) -> void:
+func tracer(from: Vector3, to: Vector3, color: Color = Palette.GLOW_YELLOW, width: float = 0.05) -> void:
 	var length := from.distance_to(to)
 	if length < 0.5:
 		return
-	if _tracer_mat == null:
-		_tracer_mat = StandardMaterial3D.new()
-		_tracer_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		_tracer_mat.albedo_color = Palette.GLOW_YELLOW * 2.0
-		_tracer_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var key := color.to_html()
+	if not _tracer_mats.has(key):
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.albedo_color = color * 2.0
+		_tracer_mats[key] = m
 	var mi := MeshInstance3D.new()
 	var box := BoxMesh.new()
-	box.size = Vector3(0.05, 0.05, length)
-	box.material = _tracer_mat
+	box.size = Vector3(width, width, length)
+	box.material = _tracer_mats[key]
 	mi.mesh = box
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 	var up := Vector3.UP if absf((to - from).normalized().dot(Vector3.UP)) < 0.95 else Vector3.RIGHT
 	mi.global_transform = Transform3D(Basis.looking_at(to - from, up), (from + to) * 0.5)
 	var tw := mi.create_tween()
-	tw.tween_property(mi, "scale", Vector3(0.1, 0.1, 1.0), 0.08)
+	tw.tween_property(mi, "scale", Vector3(0.1, 0.1, 1.0), 0.1)
 	tw.tween_callback(mi.queue_free)
 
 
 ## A glob of acid arcing from a spitter to its target.
 func acid_blob(from: Vector3, to: Vector3, flight: float) -> void:
-	if _acid_mat == null:
-		_acid_mat = Materials.toon_unique(0.02)
+	lob(from, to, flight, Palette.ACID_GREEN)
+
+
+## A lobbed shot (acid, chili, dynamite) arcing to its target.
+func lob(from: Vector3, to: Vector3, flight: float, color: Color) -> void:
 	var mi := MeshInstance3D.new()
 	var st := MeshKit.begin()
-	MeshKit.add_ellipsoid(st, Transform3D(), Vector3.ONE * 0.35, 5, 8, Palette.ACID_GREEN, 0.0, null, 0.6)
+	MeshKit.add_ellipsoid(st, Transform3D(), Vector3.ONE * 0.35, 5, 8, color, 0.0, null, 0.6)
 	mi.mesh = MeshKit.finish(st)
-	mi.material_override = _acid_mat
+	mi.material_override = Materials.toon(0.02)
 	add_child(mi)
 	mi.global_position = from
 	var peak := (from + to) * 0.5 + Vector3.UP * (6.0 + from.distance_to(to) * 0.1)
@@ -106,8 +109,31 @@ func acid_blob(from: Vector3, to: Vector3, flight: float) -> void:
 		var b := peak.lerp(to, t)
 		mi.global_position = a.lerp(b, t), 0.0, 1.0, flight)
 	tw.tween_callback(func() -> void:
-		spark(to, Vector3.UP, Palette.ACID_GREEN)
+		spark(to, Vector3.UP, color)
 		mi.queue_free())
+
+
+## A burning chili patch on the cliff face: looping flame stars for a few seconds.
+func fire_patch(center: Vector3, radius: float, seconds: float) -> void:
+	var e := GPUParticles3D.new()
+	e.amount = int(12 + radius * 6.0)
+	e.lifetime = 0.6
+	e.local_coords = false
+	var pm := _process_material(Vector2(0.5, 2.0), 30.0, 3.0)
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	pm.emission_sphere_radius = radius
+	pm.direction = Vector3(0, 1, 0)
+	e.process_material = pm
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.7, 0.7)
+	quad.material = Materials.star(Palette.TEAM_WEST.lightened(0.2), 2.5)
+	e.draw_pass_1 = quad
+	add_child(e)
+	e.global_position = center
+	e.emitting = true
+	get_tree().create_timer(seconds).timeout.connect(func() -> void:
+		e.emitting = false
+		get_tree().create_timer(1.0).timeout.connect(e.queue_free))
 
 
 func _fire(e: GPUParticles3D, pos: Vector3, normal: Vector3) -> void:

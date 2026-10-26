@@ -19,6 +19,7 @@ var ammo: int = MAX_AMMO
 var vfx: VfxPool
 var _cooldown := 0.0
 var _reload_left := 0.0
+var _reload_time := RELOAD_TIME
 var _kick := 0.0
 var _drum: MeshInstance3D
 var _flash: MeshInstance3D
@@ -72,7 +73,7 @@ func _process(delta: float) -> void:
 	_kick = move_toward(_kick, 0.0, delta * 6.0)
 	var dip := 0.0
 	if _reload_left > 0.0:
-		dip = sin(clampf(1.0 - _reload_left / RELOAD_TIME, 0.0, 1.0) * PI)
+		dip = sin(clampf(1.0 - _reload_left / _reload_time, 0.0, 1.0) * PI)
 	position = REST_POS + Vector3(0, -dip * 0.12, _kick * 0.06)
 	rotation = Vector3(_kick * 0.5 - dip * 0.6, 0, dip * 0.5)
 
@@ -101,11 +102,12 @@ func trigger(camera: Camera3D) -> bool:
 	return true
 
 
-func reload() -> void:
+func reload(time_multiplier: float = 1.0) -> void:
 	if _reload_left > 0.0 or ammo == MAX_AMMO:
 		return
-	_reload_left = RELOAD_TIME
-	reload_started.emit(RELOAD_TIME)
+	_reload_time = RELOAD_TIME * time_multiplier
+	_reload_left = _reload_time
+	reload_started.emit(_reload_time)
 	Audio.play_at(&"reload", global_position, -6.0)
 
 
@@ -148,5 +150,5 @@ func apply_hit_result(hit: Dictionary, dir: Vector3, source: String, source_clif
 	if hit.is_empty():
 		return
 	var collider: Object = hit["collider"]
-	if collider is Hitbox:
-		(collider as Hitbox).apply_hit(DAMAGE, hit["position"], dir, false, source, source_cliff)
+	if collider != null and not (collider is RigidBody3D) and collider.has_method("apply_hit"):
+		collider.call("apply_hit", DAMAGE, hit["position"], dir, false, source, source_cliff)
