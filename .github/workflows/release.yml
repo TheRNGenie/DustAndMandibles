@@ -63,11 +63,10 @@ jobs:
           if (-not (Test-Path builds/windows/DustAndMandibles.exe)) { throw "export failed" }
           Get-Item builds/windows/DustAndMandibles.exe | Select-Object Name, Length
 
-      - name: Build the setup program
+      - name: Add the setup program
+        # Prebuilt from tools/installer/Setup.cs (see the build line at the top of that file).
         shell: pwsh
-        run: |
-          & "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe" -nologo -target:exe `
-            "-out:builds/DustAndMandiblesSetup.exe" "-win32icon:tools/installer/icon.ico" tools/installer/Setup.cs
+        run: Copy-Item tools/installer/DustAndMandiblesSetup.exe builds/DustAndMandiblesSetup.exe
 
       - name: Publish the release
         uses: softprops/action-gh-release@v2
