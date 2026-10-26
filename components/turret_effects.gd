@@ -17,16 +17,19 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 			target.receive_hit(damage, aim, dir, false, 1.0, source, t.cliff_id)
 			target.status.root(t.def.effect_size)
 		TurretDef.Effect.BURN, TurretDef.Effect.SPLASH:
+			# Capture plain values: the turret may be destroyed while the shot is in the air.
 			var bugs := Turret.bug_manager
 			var cliff := target.cliff_id
 			var radius := t.def.effect_size * t.range_multiplier()
+			var splash := t.def.effect == TurretDef.Effect.SPLASH
+			var owner_cliff := t.cliff_id
 			t.get_tree().create_timer(t.def.flight_time).timeout.connect(func() -> void:
-				if bugs == null:
+				if not is_instance_valid(bugs):
 					return
-				if t.def.effect == TurretDef.Effect.SPLASH:
-					bugs.splash(cliff, aim, radius, damage, source, t.cliff_id)
+				if splash:
+					bugs.splash(cliff, aim, radius, damage, source, owner_cliff)
 				else:
-					bugs.add_fire(cliff, aim, radius, damage, 5.0, source, t.cliff_id))
+					bugs.add_fire(cliff, aim, radius, damage, 5.0, source, owner_cliff))
 
 
 ## Colour of the shot's streak or lob.
