@@ -43,15 +43,13 @@ func _ready() -> void:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
-	var quad := PlaneMesh.new()
-	quad.size = Vector2(WorldLayout.CELL * 0.88, WorldLayout.CELL * 0.88)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.vertex_color_use_as_albedo = true
-	mat.no_depth_test = false
-	quad.material = mat
-	mm.mesh = quad
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mm.mesh = _tile_mesh()
+	_grid.material_override = mat
 	_grid.multimesh = mm
 	_grid.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_grid.top_level = true
@@ -171,7 +169,7 @@ func _process(delta: float) -> void:
 		return
 	_grid_t -= delta
 	if _grid_t <= 0.0:
-		_grid_t = 0.4
+		_grid_t = 0.1
 		_rebuild_grid()
 	var hit := _aim_hit()
 	_cell = Vector2i(-1, -1)
@@ -187,6 +185,10 @@ func _process(delta: float) -> void:
 		_aim_house_mount(pos)
 		return
 	_cell = Buildable.world_to_cell(cliffs, _cliff, pos)
+	if selected_id() == &"farm_plot":
+		# 2 x 2 plots: centre the footprint on where you aim.
+		var pc := cliffs.plateau_coords(_cliff, pos)
+		_cell = Buildable.cell_of(pc.x - WorldLayout.CELL * 0.5, pc.y - WorldLayout.CELL * 0.5)
 	# Aiming at a built turret or scaffold: use its own cell (so scaffolding can go
 	# over a turret, and turrets onto a scaffold, wherever on it you aim).
 	var hit_node := hit["collider"] as Node
@@ -197,7 +199,7 @@ func _process(delta: float) -> void:
 	if not Buildable.cell_ok_for(selected_id(), _cell):
 		return
 	_ghost.visible = true
-	_ghost.global_position = Buildable.cell_center(cliffs, _cliff, _cell)
+	_ghost.global_position = Buildable.footprint_center(cliffs, _cliff, selected_id(), _cell)
 	var bm0 := BuildManager.instance
 	if Defs.is_turret(selected_id()) and Buildable.is_turret_cell(_cell):
 		_ghost.global_position.y += ScaffoldNode.LEVEL_HEIGHT * maxi(bm0.free_turret_level(_cliff, _cell), 0)
@@ -243,9 +245,11 @@ func status_text() -> String:
 	if menu_open:
 		return ""
 	var id := selected_id()
-	var where := "behind the turret line"
+	var where := "open plots"
+	if Buildable.TACTICAL.has(id):
+		where = "tactical row or open plots"
 	if id == &"scaffold" or (Defs.is_turret(id) and not Defs.turret(id).guards_plateau):
-		where = "cliff edge"
+		where = "cliff-edge row"
 	elif Defs.is_house_turret(id):
 		where = "house mounts (porch, balcony, roof deck)"
 	elif Defs.is_turret(id):
@@ -303,37 +307,61 @@ func _refresh_ghost_mesh() -> void:
 		_ghost.mesh = StructureBuilder.build(Defs.structure(id).kind)
 
 
-## Tiles every cell on your plateau that fits the selected item: green = free,
-## red = taken. Turret-line cells are the cliff edge, the rest is behind it.
+## Tiles every cell on your plateau where the selected item can go, as framed
+## tiles coloured by zone: gold = cliff edge, rust = tactical row, sage = plots.
+## Taken cells go dark red; the cells you're aiming at light up.
+const ZONE_COLORS := {Buildable.Zone.TURRET: Color("#FFC84A"), Buildable.Zone.TACTICAL: Color("#E8784A"), Buildable.Zone.PLOT: Color("#9FD27A")}
+
+
 func _rebuild_grid() -> void:
 	var id := selected_id()
 	var cliffs_to_show: Array[int] = [player.cliff_id]
 	if GameState.is_solo():
 		cliffs_to_show = [WorldLayout.WEST, WorldLayout.EAST]
 	var cells: Array = []
-	var rows := int(WorldLayout.PLATEAU_DEPTH / WorldLayout.CELL)
 	for cid in cliffs_to_show:
 		if Defs.is_house_turret(id):
 			var home := Homestead.of(cid)
 			for i in (home.mount_count() if home != null else 0):
 				cells.append([cid, Vector2i(-1, i)])
 			continue
-		for row in rows:
+		for row in Buildable.ROWS:
 			for col in Buildable.COLS:
 				var c := Vector2i(row, col)
-				if Buildable.cell_ok_for(id, c):
+				if Buildable.zone_ok(id, c):
 					cells.append([cid, c])
+	var aimed: Array[Vector2i] = []
+	if _cell.x >= 0:
+		aimed = Buildable.footprint(id, _cell)
 	var mm := _grid.multimesh
 	mm.instance_count = cells.size()
 	var bm := BuildManager.instance
 	for i in cells.size():
 		var cid: int = cells[i][0]
 		var c: Vector2i = cells[i][1]
-		var pos := (Buildable.cell_center(cliffs, cid, c) if c.x >= 0 else Homestead.of(cid).mount_global(c.y)) + Vector3.UP * 0.12
+		var pos := (Buildable.cell_center(cliffs, cid, c) if c.x >= 0 else Homestead.of(cid).mount_global(c.y)) + Vector3.UP * 0.06
 		mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, WorldLayout.facing_canyon_yaw(cid)), pos))
-		var free := bm.is_free_for(id, cid, c)
-		var highlight := cid == _cliff and c == _cell
-		var col := Color(0.2, 0.85, 0.25, 0.5) if free else Color(0.95, 0.25, 0.2, 0.5)
-		if highlight:
-			col.a = 0.85
+		var taken := bm.cell_taken(cid, c) if (c.x >= 0 and not Defs.is_turret(id) and id != &"scaffold") else not bm.is_free_for(id, cid, c)
+		var col: Color = ZONE_COLORS.get(Buildable.zone(c), Color("#9FD27A")) if c.x >= 0 else Color("#9FD27A")
+		col.a = 0.8
+		if taken:
+			col = Color(0.55, 0.15, 0.12, 0.45)
+		if cid == _cliff and (aimed.has(c) or c == _cell):
+			col = Color(1.0, 1.0, 0.85, 0.95) if _ok else Color(1.0, 0.35, 0.3, 0.9)
 		mm.set_instance_color(i, col)
+
+
+## One grid tile: a thin rounded frame with a faint fill (colour from the instance).
+static func _tile_mesh() -> ArrayMesh:
+	var st := MeshKit.begin()
+	var s := WorldLayout.CELL * 0.86
+	var w := 0.12
+	var h := s * 0.5
+	var frame := Color(1, 1, 1, 1)
+	var fill := Color(1, 1, 1, 0.3)
+	var n := Vector3.UP
+	MeshKit.quad(st, Vector3(-h + w, 0, -h + w), Vector3(h - w, 0, -h + w), Vector3(h - w, 0, h - w), Vector3(-h + w, 0, h - w), n, fill)
+	for side in 4:
+		var b := Basis(Vector3.UP, side * PI * 0.5)
+		MeshKit.quad(st, b * Vector3(-h, 0.005, -h), b * Vector3(h, 0.005, -h), b * Vector3(h - w, 0.005, -h + w), b * Vector3(-h + w, 0.005, -h + w), n, frame)
+	return MeshKit.finish(st)

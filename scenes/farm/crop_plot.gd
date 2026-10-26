@@ -8,7 +8,7 @@ extends StaticBody3D
 
 const SYNC_INTERVAL := 2.0
 ## Plot size in metres (plants scale with it).
-const SIZE := 2.6
+const SIZE := 3.4 # fills a 2 x 2 block of grid cells with a little gap
 const PLANT_SCALE := 1.45
 ## Seed order for F (cycle) on an empty plot.
 const SEEDS: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs"]

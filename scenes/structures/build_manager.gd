@@ -65,7 +65,15 @@ func is_free_for(id: StringName, cid: int, cell: Vector2i) -> bool:
 		return scaffold_levels(cid, cell) < MAX_SCAFFOLD
 	if Defs.is_turret(id) and Buildable.is_turret_cell(cell):
 		return free_turret_level(cid, cell) >= 0
-	return not _occupied.has(_key(cid, cell, 0)) and scaffold_levels(cid, cell) == 0
+	for c in Buildable.footprint(id, cell):
+		if _occupied.has(_key(cid, c, 0)) or scaffold_levels(cid, c) > 0:
+			return false
+	return true
+
+
+## Is something already standing on this cell (any level, or a scaffold)?
+func cell_taken(cid: int, cell: Vector2i) -> bool:
+	return _occupied.has(_key(cid, cell, 0)) or scaffold_levels(cid, cell) > 0
 
 
 ## Kept for older callers: is a turret slot free here?
@@ -175,7 +183,7 @@ func _spawn_built(data: Variant) -> Node:
 	var cell := Vector2i(int(d["row"]), int(d["col"]))
 	var id := StringName(d["type"])
 	var level := int(d.get("level", 0))
-	var pos := Buildable.cell_center(cliffs, cid, cell) if cell.x >= 0 else Homestead.of(cid).mount_global(cell.y)
+	var pos := Buildable.footprint_center(cliffs, cid, id, cell) if cell.x >= 0 else Homestead.of(cid).mount_global(cell.y)
 	var node: Node3D
 	if Defs.is_turret(id):
 		var t := Turret.new()
@@ -201,11 +209,16 @@ func _spawn_built(data: Variant) -> Node:
 		node = s
 	node.name = "Built%d" % int(d["id"])
 	if id != &"scaffold":
-		var key := _key(cid, cell, level)
-		_occupied[key] = node
+		# Every cell of the footprint (farm plots cover 2 x 2) points at the node.
+		var keys: Array[String] = []
+		for c in (Buildable.footprint(id, cell) if cell.x >= 0 else [cell]):
+			keys.append(_key(cid, c, level))
+		for key in keys:
+			_occupied[key] = node
 		node.tree_exiting.connect(func() -> void:
-			if _occupied.get(key) == node:
-				_occupied.erase(key))
+			for key in keys:
+				if _occupied.get(key) == node:
+					_occupied.erase(key))
 	else:
 		var ck := _cell_key(cid, cell)
 		node.tree_exiting.connect(func() -> void:

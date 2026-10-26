@@ -147,6 +147,11 @@ func _scaffold_test() -> void:
 	bm.build(&"buffalo_rifle", 0, cell)
 	await get_tree().create_timer(0.3).timeout
 	print("[scaffold] levels %d, turrets on the cell: %d" % [bm.scaffold_levels(0, cell), bm.turrets_on(0, cell).size()])
+	bm.build(&"farm_plot", 0, Vector2i(3, 4))
+	await get_tree().create_timer(0.3).timeout
+	print("[scaffold] farm plot covers (4,5): %s, (5,6) free: %s, bear trap on row 1: %s, gatling on row 2: %s" % [
+		bm.cell_taken(0, Vector2i(4, 5)), not bm.cell_taken(0, Vector2i(5, 6)),
+		bm.is_free_for(&"bear_trap", 0, Vector2i(1, 6)), bm.is_free_for(&"gatling_post", 0, Vector2i(2, 6))])
 	get_tree().quit()
 
 
@@ -408,7 +413,7 @@ func _reinvest(builds: BuildManager) -> void:
 		for col: int in [7, 9, 11, 13, 8, 12]:
 			var tid := trap_cycle[j % trap_cycle.size()]
 			j += 1
-			var cell := Vector2i(9, col)
+			var cell := Vector2i(1, col)
 			if builds.is_free_for(tid, cid, cell) and Economy.amount(cid, &"scrap") >= Defs.cost_of(tid) + 60:
 				builds.build(tid, cid, cell)
 		# Upgrade a turret with spare chitin.
@@ -485,7 +490,7 @@ func _showcase() -> void:
 		var cl := world.get("cliffs") as CliffBuilder
 		Economy.earn(WorldLayout.WEST, {&"scrap": 500})
 		builds.build(&"scattergun_post", WorldLayout.WEST, Vector2i(4, 9))
-		builds.build(&"sharpshooter_tower", WorldLayout.WEST, Vector2i(6, 12))
+		builds.build(&"sharpshooter_tower", WorldLayout.WEST, Vector2i(5, 12))
 		for i in 3:
 			bm.spawn_at(&"rattler_beetle", WorldLayout.WEST, 2, 0.0, 0.0, Bug.State.BREACHING, cl.plateau_point(WorldLayout.WEST, 3.0, -4.0 + i * 4.0))
 		bm.spawn_group(&"spitter_scorpion", 1, WorldLayout.WEST, 1, 55.0)
@@ -530,4 +535,4 @@ func _autobuild() -> void:
 		for col: int in [3, 6, 9, 12, 15]:
 			builds.build(&"gatling_post", cid, Vector2i(0, col))
 		for col: int in [5, 11]:
-			builds.build(&"buffalo_rifle", cid, Vector2i(1, col))
+			builds.build(&"buffalo_rifle", cid, Vector2i(0, col))

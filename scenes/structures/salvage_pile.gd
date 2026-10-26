@@ -10,18 +10,25 @@ var available := true
 var _mesh: MeshInstance3D
 
 
-func setup(cid: int, seed_value: int) -> void:
+## `big` makes the heap behind the house: twice the size and twice the scrap.
+var scrap := SCRAP
+
+
+func setup(cid: int, seed_value: int, big: bool = false) -> void:
 	cliff_id = cid
 	collision_layer = WorldLayout.LAYER_WORLD
+	var k := 1.8 if big else 1.0
+	scrap = SCRAP * (2 if big else 1)
 	_mesh = MeshInstance3D.new()
 	_mesh.mesh = _pile_mesh(seed_value)
 	_mesh.material_override = Materials.toon()
+	_mesh.scale = Vector3(k * 1.4, k, k) if big else Vector3.ONE
 	add_child(_mesh)
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(1.8, 0.8, 1.8)
+	shape.size = Vector3(1.8 * k * (1.4 if big else 1.0), 0.8 * k, 1.8 * k)
 	col.shape = shape
-	col.position.y = 0.4
+	col.position.y = 0.4 * k
 	add_child(col)
 
 
@@ -36,7 +43,7 @@ func interact_prompt() -> String:
 		return "Picked clean. Comes back next daybreak."
 	if GameState.phase != GameState.Phase.BUILD:
 		return "Salvage only during the build phase"
-	return "E: Salvage (+%d scrap)" % SCRAP
+	return "E: Salvage (+%d scrap)" % scrap
 
 
 func local_interact(_holding: bool) -> void:
@@ -56,7 +63,7 @@ func _collect(peer_id: int) -> void:
 	if not available or GameState.phase != GameState.Phase.BUILD:
 		return
 	var payer := cliff_id if GameState.is_solo() else NetworkManager.cliff_of(peer_id)
-	Economy.earn(payer, {&"scrap": SCRAP})
+	Economy.earn(payer, {&"scrap": scrap})
 	_set_available.rpc(false)
 
 

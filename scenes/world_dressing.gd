@@ -61,12 +61,12 @@ func _build_homestead_area(cid: int) -> void:
 	var home := Homestead.new()
 	home.cliff_id = cid
 	home.name = "Homestead%d" % cid
-	home.position = ground(cid, 23.0, 0.0)
+	home.position = ground(cid, Buildable.HOUSE_D, Buildable.HOUSE_Z)
 	home.rotation.y = yaw
 	parent.add_child(home)
 
-	add_mesh(BuildingBuilder.water_tower(200 + cid), ground(cid, 26.0, 13.5), yaw, "WaterTower%d" % cid, true)
-	var tower_pos := ground(cid, 20.0, -13.0)
+	add_mesh(BuildingBuilder.water_tower(200 + cid), ground(cid, Buildable.WATER_TOWER.x, Buildable.WATER_TOWER.y), yaw, "WaterTower%d" % cid, true)
+	var tower_pos := ground(cid, Buildable.WINDMILL.x, Buildable.WINDMILL.y)
 	add_mesh(BuildingBuilder.windmill_tower(300 + cid), tower_pos, yaw, "Windmill%d" % cid, true)
 	var fan := Spinner.new()
 	fan.mesh = BuildingBuilder.windmill_fan()
@@ -98,37 +98,56 @@ func _build_homestead_area(cid: int) -> void:
 	well.rotation.y = yaw
 	parent.add_child(well)
 
-	# Starter farm field beside the house: 3 plots along the line of the house front,
-	# 4 rows toward the canyon, with walking room between them.
-	var pitch := CropPlot.SIZE + 1.0
-	for row in 4:
-		for col in 3:
+	# Starter farm field beside the house: 3 x 4 plots on the grid (2 x 2 cells each),
+	# the 3-plot side along the house front, rows running toward the canyon.
+	for r in Buildable.FIELD_ROWS.size():
+		for c in Buildable.FIELD_COLS.size():
+			var anchor := Vector2i(Buildable.FIELD_ROWS[r], Buildable.FIELD_COLS[c])
 			var plot := CropPlot.new()
-			plot.name = "Plot%d_%d_%d" % [cid, row, col]
+			plot.name = "Plot%d_%d_%d" % [cid, r, c]
 			plot.setup(cid)
-			plot.position = ground(cid, 18.95 - float(row) * pitch, 6.8 + float(col) * pitch)
+			plot.position = Buildable.footprint_center(cliffs, cid, &"farm_plot", anchor)
 			plot.rotation.y = yaw
 			parent.add_child(plot)
 
-	# Salvage piles (scrap each build phase).
-	for i in 2:
-		var pile := SalvagePile.new()
-		pile.name = "Salvage%d_%d" % [cid, i]
-		pile.setup(cid, 800 + cid * 10 + i)
-		pile.position = ground(cid, 14.0 + float(i) * 12.0, -9.0 + float(i) * 17.0)
-		parent.add_child(pile)
+	# One big salvage heap against the back of the house (scrap each build phase).
+	var pile := SalvagePile.new()
+	pile.name = "Salvage%d" % cid
+	pile.setup(cid, 800 + cid * 10, true)
+	pile.position = ground(cid, Buildable.SALVAGE.x, Buildable.SALVAGE.y)
+	pile.rotation.y = yaw
+	parent.add_child(pile)
 
-	# Barrels and crates around the homestead, plus tin cans on a crate for target practice.
-	for i in 4:
-		var p := ground(cid, 19.0 + _rng.randf_range(-1.0, 1.0), -5.0 - float(i) * 0.9)
-		add_mesh(PropBuilder.barrel(400 + i + cid * 10), p, _rng.randf() * TAU, "", true)
-	var crate_pos := ground(cid, 11.0, -4.0)
-	add_mesh(PropBuilder.crate(500 + cid), crate_pos, yaw + 0.2, "TargetCrate%d" % cid, true)
-	for i in 3:
-		var can := TinCan.new()
-		var side := Vector3(cos(yaw), 0, -sin(yaw))
-		can.position = crate_pos + Vector3(0, 0.99, 0) + side * (float(i) - 1.0) * 0.25
-		parent.add_child(can)
+	_build_paths(cid)
+
+
+## Packed-dirt paths on the grid's path cells: around the house and from the
+## front door to the bridge walkway.
+func _build_paths(cid: int) -> void:
+	var st := MeshKit.begin()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 900 + cid
+	var half := WorldLayout.CELL * 0.5
+	for row in Buildable.ROWS:
+		for col in Buildable.COLS:
+			var cell := Vector2i(row, col)
+			if Buildable.zone(cell) != Buildable.Zone.PATH:
+				continue
+			# Corners follow the ground so the trail never sinks into a bump.
+			var d := Buildable.LIP_MARGIN + (float(row) + 0.5) * WorldLayout.CELL
+			var z := -WorldLayout.PLATEAU_WIDTH * 0.5 + (float(col) + 0.5) * WorldLayout.CELL
+			var corners: Array[Vector3] = []
+			for k: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+				corners.append(ground(cid, d + k.x * half, z + k.y * half) + Vector3.UP * 0.06)
+			var shade := Color("#B07A4C").lerp(Color("#A5704A"), rng.randf() * 0.5)
+			MeshKit.quad(st, corners[0], corners[1], corners[2], corners[3], Vector3.UP, MeshKit.vcol(shade))
+			MeshKit.quad(st, corners[0], corners[3], corners[2], corners[1], Vector3.UP, MeshKit.vcol(shade))
+	var mi := MeshInstance3D.new()
+	mi.name = "Paths%d" % cid
+	mi.mesh = MeshKit.finish(st)
+	mi.material_override = Materials.toon(0.0)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
 
 
 func _scatter_props(cid: int) -> void:
@@ -148,10 +167,8 @@ func _scatter_props(cid: int) -> void:
 		var d := _rng.randf_range(2.0, 58.0)
 		var z := _rng.randf_range(-80.0, 80.0)
 		var size := _rng.randf_range(0.5, 2.6)
-		if d < WorldLayout.PLATEAU_DEPTH and absf(z) < WorldLayout.PLATEAU_WIDTH * 0.5:
-			size = _rng.randf_range(0.3, 0.7)
-			if d < 4.0:
-				continue # keep the turret line clear
+		if d < WorldLayout.PLATEAU_DEPTH + 1.0 and absf(z) < WorldLayout.PLATEAU_WIDTH * 0.5 + 1.0:
+			continue # the build area stays clear
 		if _in_walkway(d, z):
 			continue
 		add_mesh(PropBuilder.rock(_rng.randi(), size), ground(cid, d, z) + Vector3(0, -0.2 * size, 0),
