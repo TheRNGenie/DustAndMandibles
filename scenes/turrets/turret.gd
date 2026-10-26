@@ -279,16 +279,9 @@ func _draw_shot() -> void:
 		else:
 			vfx.tracer(from, to, TurretEffects.shot_color(def), 0.12 if def.effect == TurretDef.Effect.KNOCKBACK else 0.05)
 		vfx.muzzle_flash(from, -_gun.global_basis.z)
-	var sound := StringName("gatling_%d" % (randi() % 3 + 1))
-	match def.id:
-		&"buffalo_rifle", &"lasso_harpoon", &"sharpshooter_tower":
-			sound = &"buffalo"
-		&"scattergun_post":
-			sound = &"dynamite"
-		&"water_cannon":
-			sound = &"acid_spit"
-		&"chili_mortar", &"dynamite_lobber":
-			sound = &"build"
+	var sound := def.sound
+	if sound == &"gatling" or not Audio.has_sound(sound):
+		sound = StringName("gatling_%d" % (randi() % 3 + 1))
 	Audio.play_at(sound, from, -4.0 if def.id == &"gatling_post" else 0.0)
 
 

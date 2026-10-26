@@ -23,3 +23,4 @@ effect_size = 3.5
 guards_plateau = true
 guards_house = true
 ammo_cost = {}
+sound = &"cannon"

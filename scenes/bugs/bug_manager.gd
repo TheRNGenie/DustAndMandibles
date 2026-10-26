@@ -95,9 +95,18 @@ func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 	# Loot lands on the cliff the bug was climbing: your turrets earn for your partner.
 	var loot := {&"scrap": bug.def.scrap_drop, &"chitin": bug.def.chitin_drop * Weather.chitin_mult(GameState.weather)}
 	Economy.earn(bug.cliff_id, loot)
+	_corpse.rpc(get_path_to(bug))
 	_pop.rpc(bug.global_position, bug.def.shell_color, float(bug.spec["scale"]))
 	_announce_kill.rpc(bug.def.display_name, bug.cliff_id, source, source_cliff, bug.def.scrap_drop)
 	bug.queue_free()
+
+
+## Every peer leaves a flipping, twitching corpse where the bug died.
+@rpc("authority", "call_local", "reliable")
+func _corpse(path: NodePath) -> void:
+	var bug := get_node_or_null(path) as Bug
+	if bug != null and bug.is_inside_tree():
+		BugCorpse.from_bug(bug)
 
 
 @rpc("authority", "call_local", "reliable")

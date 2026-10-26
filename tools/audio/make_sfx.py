@@ -232,31 +232,164 @@ def build_place(rng):
 
 
 def guitar_smash(rng):
-    """An acoustic guitar swung into something: wood crack, body boom, every
-    string twanging out of tune, and a sour ring that dies away."""
-    length = 2.2
+    """An acoustic guitar swung hard into the canyon floor: a distorted strum on
+    impact, a body boom and dirt thud, wood splintering for a beat afterwards,
+    strings snapping with a ping, and a sour out-of-tune chord ringing out."""
+    length = 2.6
     n = int(SR * length)
     t = t_axis(length)
     out = np.zeros(n)
-    # Body boom and wood crack.
-    out += np.sin(2 * np.pi * 95 * t) * np.exp(-t / 0.12) * 1.2
-    out += np.sin(2 * np.pi * 180 * t) * np.exp(-t / 0.06) * 0.6
-    crack = bandpass(rng.standard_normal(n), 900, 6000) * env(n, 0.0005, 0.07)
-    out += crack * 1.4
-    splinter = highpass(rng.standard_normal(n), 3000) * env(n, 0.002, 0.25, 2.0)
-    out += splinter * 0.25
-    # Six strings, knocked out of tune, struck almost together.
+    # Dirt thud and hollow body boom.
+    out += lowpass(brown_noise(rng, n), 160) * env(n, 0.001, 0.12) * 1.6
+    out += np.sin(2 * np.pi * (110 - 30 * t) * t) * np.exp(-t / 0.15) * 1.3
+    out += np.sin(2 * np.pi * 210 * t) * np.exp(-t / 0.05) * 0.5
+    # The crack, then a run of splinters over the next 0.4 s.
+    out += bandpass(rng.standard_normal(n), 800, 7000) * env(n, 0.0003, 0.05) * 2.0
+    for _ in range(14):
+        start = int(SR * rng.uniform(0.01, 0.42))
+        ln = int(SR * rng.uniform(0.006, 0.03))
+        burst = bandpass(rng.standard_normal(ln), 1500, 8000) * env(ln, 0.0003, 0.008)
+        end = min(n, start + ln)
+        out[start:end] += burst[: end - start] * rng.uniform(0.4, 1.0)
+    # Six strings, knocked out of tune and struck together, driven into grit.
+    strum = np.zeros(n)
     for i, f in enumerate([82.4, 110.0, 146.8, 196.0, 246.9, 329.6]):
-        f *= 1.0 + rng.uniform(-0.04, 0.04)
-        delay = int(SR * rng.uniform(0.0, 0.03))
-        s = karplus(f, length - 0.05, rng, damp=0.9975)
+        f *= 1.0 + rng.uniform(-0.06, 0.06)
+        delay = int(SR * (0.004 * i + rng.uniform(0.0, 0.01)))
+        s = karplus(f, length - 0.05, rng, damp=0.998)
         seg = s[: n - delay]
-        out[delay:delay + len(seg)] += seg * (0.55 - i * 0.04)
-    # A loose string flapping (falling pitch buzz).
+        strum[delay:delay + len(seg)] += seg * (0.6 - i * 0.05)
+    out += np.tanh(strum * 2.5) * 0.55
+    # Two strings snap: bright pings that drop in pitch.
+    for _ in range(2):
+        start = rng.uniform(0.05, 0.35)
+        ts = np.clip(t - start, 0, None)
+        f = rng.uniform(1400, 2200) * np.exp(-ts * 3.0)
+        ping = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-ts / 0.18) * (t >= start)
+        out += ping * 0.3
+    # A loose string flapping (falling buzz).
     f = 330 * np.exp(-t * 1.6) + 60
-    buzz = signal.sawtooth(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.5) * 0.18
-    out += lowpass(buzz, 3000)
+    out += lowpass(signal.sawtooth(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.5) * 0.2, 3000)
     return out
+
+
+def echo(x, delays, gains, cutoff=1800):
+    """Canyon slap-back: quieter, duller copies of the sound."""
+    out = np.concatenate([x, np.zeros(int(SR * max(delays)) + 1)])
+    for d, g in zip(delays, gains):
+        i = int(SR * d)
+        out[i:i + len(x)] += lowpass(x, cutoff) * g
+    return out
+
+
+def click(rng, length=0.02, cutoff=2500):
+    n = int(SR * length)
+    return highpass(rng.standard_normal(n), cutoff) * env(n, 0.0005, length * 0.25)
+
+
+def place(out, x, at):
+    i = int(SR * at)
+    end = min(len(out), i + len(x))
+    out[i:end] += x[: end - i]
+    return out
+
+
+def revolver_v2(rng):
+    """Single-action revolver: a mid crack, a quick canyon echo, the hammer clicking back."""
+    shot = gunshot(rng, length=0.5, thump_hz=75, decay=0.1, f0=7000, f1=1200)
+    out = echo(shot, [0.18, 0.4], [0.25, 0.1])
+    return place(out, click(rng, 0.015, 3000) * 0.25, 0.32)
+
+
+def lever_rifle(rng):
+    """Lever-action rifle: a sharp high crack, a ringing tail, then clack-clack of the lever."""
+    shot = gunshot(rng, length=0.7, thump_hz=60, decay=0.14, f0=11000, f1=1500)
+    t = t_axis(0.7)
+    ring = np.sin(2 * np.pi * 1800 * t) * np.exp(-t / 0.05) * 0.12
+    out = echo(shot + ring, [0.25, 0.55], [0.3, 0.12])
+    out = place(out, click(rng, 0.03, 1800) * 0.5, 0.42)
+    return place(out, click(rng, 0.03, 1400) * 0.5, 0.55)
+
+
+def shotgun(rng):
+    """Coach gun: a wide, chesty blast, lots of low-mid body, short boom."""
+    n = int(SR * 0.9)
+    t = t_axis(0.9)
+    blast = sweep_lowpass(rng.standard_normal(n), 5000, 400) * env(n, 0.002, 0.18, 3.0)
+    body = lowpass(brown_noise(rng, n), 500) * env(n, 0.002, 0.3, 3.0)
+    thump = np.sin(2 * np.pi * 50 * t) * env(n, 0.001, 0.12)
+    return echo(blast * 1.2 + body * 1.4 + thump, [0.3], [0.2], 900)
+
+
+def repeater(rng):
+    """Porch repeater: a small, snappy shot with a tick of the action."""
+    shot = gunshot(rng, length=0.22, thump_hz=95, decay=0.05, f0=10000, f1=2500)
+    return place(np.concatenate([shot, np.zeros(int(SR * 0.05))]), click(rng, 0.01, 4000) * 0.3, 0.12) * 0.8
+
+
+def sharpshooter(rng):
+    """Sharpshooter tower: a whip-crack and long rolling echoes down the canyon."""
+    shot = gunshot(rng, length=0.6, thump_hz=55, decay=0.09, f0=12000, f1=2500)
+    crack = highpass(rng.standard_normal(len(shot)), 4000) * env(len(shot), 0.0003, 0.01)
+    return echo(shot + crack * 0.8, [0.35, 0.8, 1.3], [0.35, 0.2, 0.1], 1200)
+
+
+def harpoon(rng):
+    """Crossbow harpoon: a fat bowstring twang, a rope whoosh paying out."""
+    length = 0.9
+    n = int(SR * length)
+    t = t_axis(length)
+    f = 95 * (1 + 0.3 * np.exp(-t * 20))
+    twang = signal.sawtooth(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.18)
+    whoosh = sweep_lowpass(rng.standard_normal(n), 600, 3000) * np.exp(-((t - 0.25) / 0.15) ** 2) * 0.5
+    thunk = np.sin(2 * np.pi * 140 * t) * np.exp(-t / 0.03)
+    return lowpass(twang, 2000) * 0.8 + whoosh + thunk * 0.6
+
+
+def scattergun(rng):
+    """Scattergun post: a short blast and pellets rattling off rock."""
+    n = int(SR * 0.6)
+    blast = sweep_lowpass(rng.standard_normal(n), 7000, 600) * env(n, 0.002, 0.1, 3.0)
+    out = blast + lowpass(brown_noise(rng, n), 400) * env(n, 0.002, 0.15) * 0.8
+    for _ in range(9):
+        out = place(out, click(rng, 0.006, 3500) * rng.uniform(0.1, 0.3), rng.uniform(0.15, 0.45))
+    return out
+
+
+def water_blast(rng):
+    """Water cannon: a pressurised whoosh and a splashy burble."""
+    length = 0.8
+    n = int(SR * length)
+    t = t_axis(length)
+    hiss = bandpass(rng.standard_normal(n), 1500, 7000) * env(n, 0.01, 0.35, 3.0)
+    gush = lowpass(rng.standard_normal(n), 900) * env(n, 0.005, 0.3, 3.0)
+    burble = np.sin(2 * np.pi * (250 + 150 * np.sin(2 * np.pi * 31 * t)) * t) * env(n, 0.02, 0.25) * 0.35
+    return hiss * 0.6 + gush + burble
+
+
+def mortar(rng, fuse=False):
+    """Mortar tube: a hollow THOOMP, and for the lobber a hissing fuse after."""
+    length = 1.0
+    n = int(SR * length)
+    t = t_axis(length)
+    thoomp = np.sin(2 * np.pi * (140 * np.exp(-t * 6) + 55) * t) * env(n, 0.002, 0.18)
+    b, a = signal.iirpeak(320 / (SR / 2), 6)
+    pipe = signal.lfilter(b, a, rng.standard_normal(n)) * env(n, 0.002, 0.12)
+    out = thoomp * 1.2 + pipe * 0.8 + lowpass(rng.standard_normal(n), 300) * env(n, 0.002, 0.08) * 0.5
+    if fuse:
+        sizzle = highpass(rng.standard_normal(n), 3500) * (t > 0.15) * np.exp(-np.clip(t - 0.15, 0, None) / 0.5) * 0.25
+        out += sizzle * (1 + 0.5 * np.sin(2 * np.pi * 17 * t))
+    return out
+
+
+def cannon(rng):
+    """Rooftop cannon: a heavy boom with a long rumble behind it."""
+    n = int(SR * 2.0)
+    t = t_axis(2.0)
+    boom = lowpass(brown_noise(rng, n), 250) * env(n, 0.001, 0.9, 3.0)
+    crack = sweep_lowpass(rng.standard_normal(n), 6000, 500) * env(n, 0.001, 0.1, 3.0)
+    sub = np.sin(2 * np.pi * (60 - 20 * t) * t) * env(n, 0.001, 0.4)
+    return boom * 1.5 + crack + sub
 
 
 def thunder(rng):
@@ -293,6 +426,18 @@ def main():
     save("pluck", karplus(196.0, 1.2, rng), 0.7)
     save("guitar_smash", guitar_smash(rng), 0.95)
     save("thunder", thunder(rng), 0.95)
+    # Per-weapon and per-turret shots.
+    save("revolver", revolver_v2(rng))
+    save("lever_rifle", lever_rifle(rng))
+    save("shotgun", shotgun(rng), 0.95)
+    save("repeater", repeater(rng), 0.8)
+    save("sharpshooter", sharpshooter(rng))
+    save("harpoon", harpoon(rng), 0.8)
+    save("scattergun", scattergun(rng))
+    save("water_blast", water_blast(rng), 0.75)
+    save("mortar", mortar(rng), 0.9)
+    save("lobber", mortar(rng, True), 0.9)
+    save("cannon", cannon(rng), 0.95)
 
 
 if __name__ == "__main__":

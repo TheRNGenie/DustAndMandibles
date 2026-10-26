@@ -22,3 +22,4 @@ flight_time = 0.0
 effect_size = 0.0
 guards_plateau = true
 ammo_cost = {}
+sound = &"scattergun"

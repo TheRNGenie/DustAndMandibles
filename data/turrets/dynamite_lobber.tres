@@ -21,3 +21,4 @@ effect = 3
 flight_time = 1.40
 effect_size = 3.5
 ammo_cost = {}
+sound = &"lobber"

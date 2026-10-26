@@ -18,4 +18,4 @@ pierce_armor = true
 price_chitin = 15
 upgrade_costs = PackedInt32Array(10, 25)
 shake = 0.25
-sound = &"buffalo"
+sound = &"lever_rifle"

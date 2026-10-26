@@ -23,3 +23,4 @@ effect_size = 0.0
 guards_plateau = true
 guards_house = true
 ammo_cost = {}
+sound = &"repeater"

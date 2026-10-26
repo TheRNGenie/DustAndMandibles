@@ -17,3 +17,4 @@ pitch_limit_deg = 30.0
 turn_speed = 90.0
 spread_deg = 0.3
 hit_chance = 0.95
+sound = &"buffalo"

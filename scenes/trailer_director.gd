@@ -334,6 +334,11 @@ func _shot_lineup() -> void:
 		for b: Node in get_tree().get_nodes_in_group("bugs"):
 			(b as Bug).speed_mult = 0.0)
 	var c := cl.plateau_point(WorldLayout.WEST, 6.0, 0.0) + Vector3(0, 0.6, 0)
+	if GameState.flag_value("--killat") != "":
+		# Kill the line-up partway through to show the death animation.
+		_at(GameState.flag_value("--killat").to_float() - 2.5, func() -> void:
+			for b: Node in get_tree().get_nodes_in_group("bugs"):
+				(b as Bug).health.take_damage(99999.0, "debug"))
 	_dur = 2.0
 	# From the house side, so the bugs (heading inland) face the camera.
 	var biggest := 0.0
@@ -419,3 +424,14 @@ func _shot_porch() -> void:
 
 
 const D_FRONT := 11.0
+
+
+## The Oasis market: the two shopkeepers at their stalls.
+func _shot_market() -> void:
+	_set_time(10.0)
+	var v := get_tree().root.find_child("Vendor", true, false) as Node3D
+	var front := v.to_global(Vector3(2.0, 2.0, -6.5))
+	var look := v.to_global(Vector3(2.5, 1.2, 0.0))
+	_player.global_position = v.to_global(Vector3(1.8, 0.2, -3.0))
+	_dur = 3.0
+	_keys = [[0.0, front, look], [3.0, front + Vector3(0.5, 0, 0), look]]

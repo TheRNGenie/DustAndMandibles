@@ -360,10 +360,22 @@ func _land() -> void:
 	fell_into_canyon.emit(SPLAT_HOLD)
 
 
+## Back on your own house's porch, facing out over the yard. Falls back to the
+## first spawn point if the house isn't there (tests, menus).
+func _porch_transform() -> Transform3D:
+	var home := Homestead.of(cliff_id)
+	if home == null or not home.is_inside_tree():
+		return spawn_transform
+	var at := home.to_global(HouseBuilder.porch_spawn())
+	var fwd := -home.global_basis.z
+	fwd.y = 0.0
+	return Transform3D(Basis.looking_at(fwd.normalized(), Vector3.UP), at)
+
+
 func respawn() -> void:
 	_falling = false
 	fall_intensity = 0.0
-	global_transform = spawn_transform
+	global_transform = _porch_transform()
 	head.rotation = Vector3.ZERO
 	velocity = Vector3.ZERO
 	_end_slide()

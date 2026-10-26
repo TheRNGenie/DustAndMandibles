@@ -6,7 +6,9 @@ extends Node
 const SFX_DIR := "res://audio/sfx/"
 const NAMES: Array[StringName] = [&"revolver", &"gatling_1", &"gatling_2", &"gatling_3", &"buffalo",
 	&"dynamite", &"skitter", &"beetle_hiss", &"spider_screech", &"bug_pop", &"bell", &"build",
-	&"coin", &"acid_spit", &"hit_tick", &"armor_ping", &"homestead_hit", &"reload", &"pluck", &"guitar_smash", &"thunder"]
+	&"coin", &"acid_spit", &"hit_tick", &"armor_ping", &"homestead_hit", &"reload", &"pluck", &"guitar_smash", &"thunder",
+	&"lever_rifle", &"shotgun", &"repeater", &"sharpshooter", &"harpoon", &"scattergun", &"water_blast",
+	&"mortar", &"lobber", &"cannon"]
 const POOL_3D := 32
 const POOL_UI := 8
 const PITCH_VARIATION := 0.08

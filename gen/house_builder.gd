@@ -141,6 +141,12 @@ static func rocking_chair() -> ArrayMesh:
 	return MeshKit.finish(st)
 
 
+## Where a player stands after a canyon fall: on the porch, right of the door,
+## clear of the rocking chair (house space, feet on the boards).
+static func porch_spawn() -> Vector3:
+	return Vector3(1.9, 0.32, -D * 0.5 - PORCH_DEPTH * 0.5 - 0.1)
+
+
 static func chimney_top(floors: int) -> Vector3:
 	return Vector3(W * 0.3, H * clampi(floors, 1, 3) + 2.95, D * 0.15)
 

@@ -55,6 +55,10 @@ var _look_t := 3.0
 var _look_yaw := 0.0
 var _head_yaw := 0.0
 var _wobble_vel := Vector3.ZERO
+## NPC use: the right arm hangs and swings instead of aiming.
+var relaxed := false
+## 0..1: raises the right arm and waves (shopkeepers greeting you).
+var wave := 0.0
 
 
 func build(team: Color, is_first_person: bool, dummy_look: Dictionary = {}) -> void:
@@ -167,6 +171,10 @@ func animate(delta: float, speed: float, sliding: bool, pitch: float, vy: float 
 	# Right arm (index 1) aims the gun. A long gun pulls the left hand onto the forend.
 	_shoulders[1].rotation.x = -1.35 - pitch * 0.9
 	_elbows[1].rotation.x = -0.15
+	if relaxed:
+		var hang := sin(_phase) * 0.55 * k + breathe * 2.0
+		_shoulders[1].rotation.x = lerpf(hang - 0.1, -2.7, wave)
+		_elbows[1].rotation.x = lerpf(-0.3, -0.35 + sin(_life * 11.0) * 0.45, wave)
 	var two_hands := 1.0 if (_weapon == &"lever_rifle" or _weapon == &"coach_shotgun") else 0.0
 	_two = move_toward(_two, two_hands, delta * 4.0)
 	var swing := -sin(_phase) * 0.55 * k
@@ -188,7 +196,7 @@ func animate(delta: float, speed: float, sliding: bool, pitch: float, vy: float 
 	_hips.rotation = Vector3(_wobble.x, _wobble.y, _wobble.z)
 	_head.rotation.z = -_wobble.z * 1.4
 	_shoulders[0].rotation.z = -absf(_wobble.z) * 2.0 - 0.05 - _air * 0.6
-	_shoulders[1].rotation.z = absf(_wobble.x) * 1.5
+	_shoulders[1].rotation.z = absf(_wobble.x) * 1.5 + (0.35 * wave if relaxed else 0.0)
 
 
 ## A quick bright flash (firing).

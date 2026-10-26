@@ -45,6 +45,11 @@ func setup(cid: int) -> void:
 	board.material_override = Materials.toon(0.02)
 	board.position = Vector3(-3.0, 0, -0.3)
 	add_child(board)
+	var keeper := Shopkeeper.new()
+	keeper.position = Vector3(1.85, 0, -0.7)
+	add_child(keeper)
+	keeper.setup({"hat": "sombrero", "facial": "horseshoe", "hair": "long", "hair_color": "black", "outfit": "poncho",
+		"neck": "bandana", "extra": "spurs", "paint": "orange"}, Color("#3E6A5A"))
 	# A rack of seed packets on the counter.
 	var rack := MeshInstance3D.new()
 	rack.mesh = CropBuilder.packet_rack()

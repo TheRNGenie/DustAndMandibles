@@ -21,3 +21,4 @@ effect = 1
 flight_time = 0.00
 effect_size = 0.0
 ammo_cost = {&"water": 2}
+sound = &"water_blast"

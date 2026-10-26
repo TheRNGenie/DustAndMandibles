@@ -38,6 +38,11 @@ func setup(cid: int) -> void:
 	board.material_override = Materials.toon(0.02)
 	board.position = Vector3(3.1, 0, -0.4)
 	add_child(board)
+	var keeper := Shopkeeper.new()
+	keeper.position = Vector3(0.5, 0, 0.15)
+	add_child(keeper)
+	keeper.setup({"hat": "gambler", "facial": "walrus", "hair": "none", "hair_color": "grey", "outfit": "vest",
+		"neck": "bolo", "extra": "bandolier", "paint": "white"}, Color("#4A4E58"))
 	_label = ShopBuilder.sign_label()
 	board.add_child(_label)
 	var lines: PackedStringArray = ["GUNSMITH", "prices in chitin", ""]

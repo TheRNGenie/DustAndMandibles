@@ -21,3 +21,4 @@ effect = 2
 flight_time = 1.30
 effect_size = 3.0
 ammo_cost = {&"chili": 1}
+sound = &"mortar"

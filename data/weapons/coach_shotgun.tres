@@ -18,4 +18,4 @@ pierce_armor = false
 price_chitin = 20
 upgrade_costs = PackedInt32Array(10, 25)
 shake = 0.45
-sound = &"dynamite"
+sound = &"shotgun"

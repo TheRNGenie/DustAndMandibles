@@ -35,3 +35,5 @@ enum Effect { HITSCAN, KNOCKBACK, BURN, SPLASH, PIN }
 @export var guards_house: bool = false
 ## Resources spent per shot from the owner's stockpile, e.g. {&"water": 2}.
 @export var ammo_cost: Dictionary = {}
+## Shot sound (audio/sfx name). "gatling" picks one of three variants.
+@export var sound: StringName = &"gatling"
