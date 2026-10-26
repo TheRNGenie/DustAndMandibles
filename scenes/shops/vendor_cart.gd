@@ -1,7 +1,7 @@
 class_name VendorCart
 extends StaticBody3D
-## The produce vendor at the Oasis. Sell vegetables for chitin (for turret and
-## weapon upgrades) and buy seeds for scrap. F picks a line, E sells or buys one,
+## The produce vendor at the Oasis. Chilies sell for chitin (for turret and
+## weapon upgrades), other vegetables sell for scrap, and seeds cost scrap. F picks a line, E sells or buys one,
 ## hold E to repeat. Vegetable prices drop as you sell (down to -50%) and climb
 ## back while you don't (up to +50%); the sign shows today's prices.
 
@@ -20,8 +20,8 @@ static var selected := 0
 
 var cliff_id: int = 0
 var market := MarketPrices.new()
-## Fractional chitin owed to each cliff (paid out in whole units).
-var _credit: Dictionary = {0: 0.0, 1: 0.0}
+## Fractional earnings owed to each cliff, per currency (paid out in whole units).
+var _credit: Dictionary = {}
 var _prices: Dictionary = {}
 var _label: Label3D
 var _sync_t := 0.0
@@ -86,12 +86,12 @@ func _sync_prices(prices: Dictionary) -> void:
 
 
 func _refresh_sign() -> void:
-	var lines: PackedStringArray = ["PRODUCE BOUGHT (chitin)", ""]
+	var lines: PackedStringArray = ["PRODUCE BOUGHT", ""]
 	for k: StringName in ITEMS:
 		var p := float(_prices.get(k, 0.0))
 		var base := float(MarketPrices.BASE[k])
 		var trend := "  (high!)" if p > base * 1.15 else ("  (low)" if p < base * 0.85 else "")
-		lines.append("%s ... %.1f%s" % [NAMES[k], p, trend])
+		lines.append("%s ... %s%s" % [NAMES[k], _price_text(k, p), trend])
 	lines.append("")
 	lines.append("SEEDS SOLD (scrap)")
 	for s: StringName in SEEDS:
@@ -118,7 +118,13 @@ func menu_title() -> String:
 
 
 func menu_tagline() -> String:
-	return "Sell your harvest for chitin (prices drop as you sell and recover over time). Seeds cost scrap."
+	return "Chilies sell for chitin, other produce for scrap (prices drop as you sell and recover over time). Seeds cost scrap."
+
+
+static func _price_text(item: StringName, p: float) -> String:
+	if MarketPrices.currency(item) == &"chitin":
+		return "%.1f chitin" % p
+	return "%d scrap" % int(roundf(p))
 
 
 func menu_tabs() -> Array:
@@ -135,7 +141,7 @@ func menu_items(tab: int) -> Array:
 			var base := float(MarketPrices.BASE[k])
 			var trend := "  - paying well!" if p > base * 1.15 else ("  - flooded, low price" if p < base * 0.85 else "")
 			out.append({"id": k, "name": NAMES[k], "icon": k, "desc": "You have %d.%s" % [have, trend],
-					"price": "%.1f chitin" % p, "price_ok": have > 0, "disabled": "" if have > 0 else "Nothing to sell yet.",
+					"price": _price_text(k, p), "price_ok": have > 0, "disabled": "" if have > 0 else "Nothing to sell yet.",
 					"buttons": [[&"sell1", "Sell 1"], [&"sellall", "Sell all"]]})
 	else:
 		for s: StringName in SEEDS:
@@ -195,11 +201,13 @@ func _sell(peer_id: int, item: StringName) -> bool:
 	if not Economy.spend(payer, {item: 1}):
 		Economy.notify(peer_id, "You have no %s to sell. Grow some on a farm plot." % String(NAMES[item]).to_lower())
 		return false
-	_credit[payer] = float(_credit.get(payer, 0.0)) + market.sell(item, 1)
-	var whole := int(floor(float(_credit[payer])))
+	var cur := MarketPrices.currency(item)
+	var key := "%d:%s" % [payer, cur]
+	_credit[key] = float(_credit.get(key, 0.0)) + market.sell(item, 1)
+	var whole := int(floor(float(_credit[key])))
 	if whole > 0:
-		_credit[payer] = float(_credit[payer]) - whole
-		Economy.earn(payer, {&"chitin": whole})
+		_credit[key] = float(_credit[key]) - whole
+		Economy.earn(payer, {cur: whole})
 	_ka_ching.rpc()
 	return true
 
