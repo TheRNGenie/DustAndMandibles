@@ -341,27 +341,52 @@ static func item_arm(_team: Color, look: Dictionary = {}) -> ArrayMesh:
 	return MeshKit.finish(st)
 
 
-## What you hold when a hotbar item is selected: the water bucket or a vegetable.
+## What you hold when a hotbar item is selected: the water bucket, a vegetable,
+## or a bundle of sage (medicine).
 static func held_item(id: StringName) -> ArrayMesh:
 	var st := MeshKit.begin()
 	var at := Vector3(0.0, -0.06, -0.02)
 	match id:
 		&"water":
-			MeshKit.add_cylinder(st, Transform3D(Basis(), at), 0.07, 0.085, 0.13, 12, Palette.WOOD)
-			MeshKit.add_cylinder(st, Transform3D(Basis(), at + Vector3(0, 0.035, 0)), 0.088, 0.088, 0.015, 12, Palette.METAL)
-			MeshKit.add_cylinder(st, Transform3D(Basis(), at + Vector3(0, 0.055, 0)), 0.075, 0.075, 0.01, 12, Palette.SKY_TOP, false, 0.3)
-			MeshKit.add_limb(st, at + Vector3(-0.08, 0.06, 0), at + Vector3(0.0, 0.14, 0), 0.006, Palette.METAL, 5)
-			MeshKit.add_limb(st, at + Vector3(0.0, 0.14, 0), at + Vector3(0.08, 0.06, 0), 0.006, Palette.METAL, 5)
+			# Wooden bucket with iron hoops, sloshing water and a rope handle.
+			MeshKit.add_cylinder(st, Transform3D(Basis(), at), 0.07, 0.085, 0.13, 14, Palette.WOOD)
+			for y: float in [-0.04, 0.04]:
+				MeshKit.add_cylinder(st, Transform3D(Basis(), at + Vector3(0, y, 0)), 0.081 - y * 0.12, 0.081 - y * 0.12, 0.012, 14, BLUED_DARK)
+			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, 0.06), at + Vector3(0, 0.05, 0)), 0.078, 0.078, 0.008, 14, Palette.SKY_TOP, false, 0.35)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), at + Vector3(0.03, 0.056, 0.02)), Vector3(0.015, 0.003, 0.012), 3, 6, Color(1, 1, 1), 0.0, null, 0.5)
+			var prev := at + Vector3(-0.085, 0.06, 0)
+			for k in 8:
+				var a := PI * float(k + 1) / 8.0
+				var p := at + Vector3(-cos(a) * 0.085, 0.06 + sin(a) * 0.09, 0)
+				MeshKit.add_limb(st, prev, p, 0.005, Color("#B8955A"), 4)
+				prev = p
 		&"corn":
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.RIGHT, 1.2), at), Vector3(0.03, 0.08, 0.03), 5, 8, Color("#F5D140"))
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.RIGHT, 1.2), at + Vector3(0.025, 0.0, 0.03)), Vector3(0.012, 0.07, 0.03), 4, 6, Palette.CACTUS)
+			var b := Basis(Vector3.RIGHT, 1.2)
+			MeshKit.add_ellipsoid(st, Transform3D(b, at), Vector3(0.032, 0.085, 0.032), 6, 10, CropBuilder.CORN)
+			for k in 6:
+				MeshKit.add_ellipsoid(st, Transform3D(b, at + b * Vector3(0, -0.06 + k * 0.024, 0.0)), Vector3(0.034, 0.006, 0.034), 3, 10, CropBuilder.CORN.darkened(0.12))
+			for s: float in [-1.0, 1.0]:
+				MeshKit.add_ellipsoid(st, Transform3D(b * Basis(Vector3.BACK, s * 0.35), at + b * Vector3(s * 0.025, -0.02, 0.0)), Vector3(0.014, 0.08, 0.03), 4, 6, CropBuilder.HUSK)
 		&"prickly_pear":
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(), at), Vector3(0.045, 0.055, 0.04), 5, 8, Color("#D94C8C"))
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), at), Vector3(0.045, 0.058, 0.042), 6, 10, CropBuilder.PEAR)
+			MeshKit.add_cylinder(st, Transform3D(Basis(), at + Vector3(0, 0.058, 0)), 0.018, 0.012, 0.012, 8, CropBuilder.PEAR.darkened(0.3))
+			for k in 8:
+				var a := TAU * k / 8.0
+				MeshKit.add_ellipsoid(st, Transform3D(Basis(), at + Vector3(cos(a) * 0.04, -0.01 + (k % 3) * 0.02, sin(a) * 0.035)), Vector3.ONE * 0.004, 2, 4, CropBuilder.SPINE)
 		&"chili":
-			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, 1.3), at), 0.02, 0.0, 0.12, 8, Color("#E3361F"))
-			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, 1.3), at + Vector3(0, -0.01, 0.065)), 0.008, 0.008, 0.03, 5, Palette.CACTUS)
+			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, 1.3), at), 0.022, 0.0, 0.13, 10, CropBuilder.CHILI, true, 0.1)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), at + Vector3(0.005, 0.012, -0.02)), Vector3(0.006, 0.003, 0.02), 3, 6, Color(1, 1, 1), 0.0, null, 0.4)
+			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, 1.3), at + Vector3(0, -0.012, 0.07)), 0.026, 0.02, 0.012, 8, CropBuilder.CHILI_GREEN)
+			MeshKit.add_limb(st, at + Vector3(0, -0.015, 0.075), at + Vector3(0.01, 0.0, 0.1), 0.005, CropBuilder.CHILI_GREEN, 4)
 		_:
-			for i in 4:
-				MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, -0.4 + i * 0.27), at + Vector3(-0.02 + i * 0.013, 0.03, 0)), Vector3(0.012, 0.05, 0.02), 3, 6, Color("#8CC66E"))
-			MeshKit.add_cylinder(st, Transform3D(Basis(), at + Vector3(0, -0.02, 0)), 0.012, 0.012, 0.04, 5, Palette.BONE.darkened(0.3))
+			# A bundle of sage tied with twine: medicine.
+			for k in 7:
+				var a := float(k) * 0.9
+				var tip := at + Vector3(sin(a) * 0.025, 0.08, cos(a) * 0.02)
+				MeshKit.add_limb(st, at + Vector3(0, -0.04, 0), tip, 0.004, CropBuilder.SAGE_DARK.darkened(0.2), 3)
+				for j in 3:
+					var p := (at + Vector3(0, -0.04, 0)).lerp(tip, 0.45 + j * 0.2)
+					MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, sin(a) * 0.5), p), Vector3(0.012, 0.022, 0.006), 3, 6, CropBuilder.SAGE if j % 2 else CropBuilder.SAGE_DARK)
+			MeshKit.add_cylinder(st, Transform3D(Basis(), at + Vector3(0, -0.02, 0)), 0.016, 0.016, 0.02, 8, Color("#C8A878"))
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), at + Vector3(0, 0.085, 0)), Vector3.ONE * 0.012, 3, 6, CropBuilder.SAGE_FLOWER)
 	return MeshKit.finish(st)

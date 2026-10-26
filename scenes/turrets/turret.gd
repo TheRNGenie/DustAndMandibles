@@ -36,6 +36,14 @@ var _target: Bug
 var _retarget := 0.0
 var _cooldown := 0.0
 var _seen_shots := 0
+var _gun_mi: MeshInstance3D
+var _spin: MeshInstance3D
+var _spin_speed := 0.0
+var _recoil := 0.0
+var _recoil_len := 0.06
+var _stars: Node3D
+var _shown_tier := -1
+var _idle_t := 0.0
 
 
 func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: String, stack_level: int = 0) -> void:
@@ -63,10 +71,21 @@ func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: Strin
 	_gun = Node3D.new()
 	_gun.position.y = float(parts["gun_y"])
 	_head.add_child(_gun)
-	var gun_mi := MeshInstance3D.new()
-	gun_mi.mesh = parts["gun"]
-	gun_mi.material_override = Materials.toon(0.015)
-	_gun.add_child(gun_mi)
+	_gun_mi = MeshInstance3D.new()
+	_gun_mi.mesh = parts["gun"]
+	_gun_mi.material_override = Materials.toon(0.015)
+	_gun.add_child(_gun_mi)
+	_recoil_len = float(parts.get("recoil", 0.06))
+	if parts.has("spin"):
+		_spin = MeshInstance3D.new()
+		_spin.mesh = parts["spin"]
+		_spin.material_override = Materials.toon(0.012)
+		_spin.position = parts["spin_at"]
+		_gun_mi.add_child(_spin)
+	# Brass stars on the head show the upgrade tier.
+	_stars = Node3D.new()
+	_stars.position = Vector3(0, 0.05, 0.28)
+	_head.add_child(_stars)
 	_muzzle = Node3D.new()
 	_muzzle.position = parts["muzzle"]
 	_gun.add_child(_muzzle)
@@ -228,11 +247,29 @@ func _aim_visual(delta: float) -> void:
 	var horizontal := Vector2(local.x, local.z).length()
 	var pitch := clampf(atan2(local.y, horizontal), -deg_to_rad(pitch_limit()), deg_to_rad(40.0))
 	var step := deg_to_rad(def.turn_speed) * delta
+	# Nothing to shoot for a while: scan the far cliff in slow sweeps.
+	_idle_t += delta
+	if _idle_t > 3.0:
+		yaw = sin((_idle_t + float(cell.y)) * 0.45) * 0.6
+		pitch = -0.08 + sin((_idle_t + float(cell.y)) * 0.3) * 0.06
+		step *= 0.25
 	_head.rotation.y = rotate_toward(_head.rotation.y, yaw, step)
 	_gun.rotation.x = rotate_toward(_gun.rotation.x, pitch, step)
+	# Recoil kick, spinning barrels winding down, tier stars.
+	_recoil = move_toward(_recoil, 0.0, delta * 6.0)
+	_gun_mi.position.z = _recoil_len * _recoil * _recoil
+	_spin_speed = move_toward(_spin_speed, 0.0, delta * 12.0)
+	if _spin != null:
+		_spin.rotate_z(_spin_speed * delta)
+	if tier != _shown_tier:
+		_shown_tier = tier
+		_show_tier()
 
 
 func _draw_shot() -> void:
+	_recoil = 1.0
+	_spin_speed = 28.0
+	_idle_t = 0.0
 	var from := _muzzle.global_position
 	var spread := deg_to_rad(def.spread_deg)
 	var to := aim_point + Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * from.distance_to(aim_point) * spread
@@ -295,3 +332,20 @@ func local_interact(_holding: bool) -> void:
 func _on_destroyed(_source: String, _source_cliff: int) -> void:
 	if multiplayer.is_server():
 		BuildManager.instance.on_structure_destroyed(self)
+
+
+## Brass stars on the head, one per upgrade tier.
+func _show_tier() -> void:
+	for c in _stars.get_children():
+		c.queue_free()
+	if tier <= 0:
+		return
+	var st := MeshKit.begin()
+	for i in tier:
+		var c := Vector3((float(i) - (tier - 1) * 0.5) * 0.11, 0.0, 0.0)
+		for k in 2:
+			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, k * PI / 3.0) * Basis(Vector3.RIGHT, PI * 0.5), c), 0.045, 0.045, 0.02, 3, Color("#E8C55A"), true, 0.3)
+	var mi := MeshInstance3D.new()
+	mi.mesh = MeshKit.finish(st)
+	mi.material_override = Materials.toon(0.006)
+	_stars.add_child(mi)

@@ -47,6 +47,13 @@ func setup(d: StructureDef, cid: int, c: Vector2i, pos: Vector3, owner_label: St
 	add_child(health)
 	health.died.connect(_on_destroyed)
 	if d.kind == StructureDef.Kind.LANTERN:
+		_swing = Node3D.new()
+		_swing.position = Vector3(0.5, 2.12, 0)
+		add_child(_swing)
+		var lamp := MeshInstance3D.new()
+		lamp.mesh = StructureBuilder.lantern()
+		lamp.material_override = Materials.toon(0.01)
+		_swing.add_child(lamp)
 		_light = OmniLight3D.new()
 		_light.position = Vector3(0.5, 1.8, 0)
 		_light.light_color = Palette.GLOW_YELLOW
@@ -72,7 +79,18 @@ func reveal_radius() -> float:
 	return def.radius
 
 
-func _process(_delta: float) -> void:
+var _swing: Node3D
+var _swing_t := randf() * 10.0
+
+
+func _process(delta: float) -> void:
+	if _swing != null:
+		# The lantern sways on its hook, more in the wind, with a flickering flame.
+		_swing_t += delta
+		var wind := 2.5 if GameState.weather == Weather.Kind.WINDY or GameState.weather == Weather.Kind.DUST_STORM else 1.0
+		_swing.rotation = Vector3(sin(_swing_t * 1.3) * 0.08 * wind, 0, sin(_swing_t * 1.7 + 1.0) * 0.12 * wind)
+		_light.position = _swing.position + _swing.basis * Vector3(0, -0.32, 0)
+		_light.omni_range = def.radius * (1.0 + sin(_swing_t * 13.0) * 0.03)
 	if _light != null:
 		var night := GameState.phase == GameState.Phase.WAVE or GameState.phase == GameState.Phase.WARNING
 		_light.light_energy = move_toward(_light.light_energy, 2.5 if night else 0.0, 0.05)

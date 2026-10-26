@@ -339,3 +339,43 @@ func _shot_lineup() -> void:
 	var back := 1.6 + ids.size() * 1.5 + biggest * 2.2
 	var side := 0.6 + biggest * 2.2
 	_keys = [[0.0, c + Vector3(-back, 1.2 + biggest * 0.6, side), c], [2.0, c + Vector3(-back, 1.2 + biggest * 0.6, side), c]]
+
+
+## Turret line-up: every turret in a row on the west plateau, tier 2 so stars show.
+func _shot_turrets() -> void:
+	_set_time(10.5)
+	var ids: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar", &"dynamite_lobber", &"lasso_harpoon"]
+	if GameState.flag_value("--lineup") != "":
+		ids.clear()
+		for x in GameState.flag_value("--lineup").split(","):
+			ids.append(StringName(x))
+	Economy.earn(0, {&"scrap": 2000})
+	for i in ids.size():
+		if Defs.is_house_turret(ids[i]):
+			# Shown on a free plot cell instead of the house, for a side-by-side look.
+			var t := Turret.new()
+			t.setup(Defs.turret(ids[i]), 0, Vector2i(3, 5 + i * 2), Buildable.cell_center(Bug.cliffs, 0, Vector2i(0, 5 + i * 2)), "showcase")
+			BuildManager.instance.add_child(t)
+			continue
+		var row := 0 if Buildable.zone_ok(ids[i], Vector2i(0, 5 + i * 2)) else 3
+		BuildManager.instance._do_build(1, ids[i], 0, Vector2i(row, 5 + i * 2))
+	_at(-0.5, func() -> void:
+		for t: Node in get_tree().get_nodes_in_group("turrets"):
+			(t as Turret).tier = 2)
+	var a := Buildable.cell_center(Bug.cliffs, 0, Vector2i(0, 5))
+	var b := Buildable.cell_center(Bug.cliffs, 0, Vector2i(0, 5 + (ids.size() - 1) * 2))
+	var c := (a + b) * 0.5 + Vector3(0, 1.0, 0)
+	_dur = 2.0
+	_keys = [[0.0, c + Vector3(-7.5, 2.6, 0), c], [2.0, c + Vector3(-7.5, 2.6, 0), c]]
+
+
+## Trap and structure line-up for model checks.
+func _shot_traps() -> void:
+	_set_time(10.5)
+	Economy.earn(0, {&"scrap": 2000})
+	var ids: Array[StringName] = [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post", &"rain_catcher"]
+	for i in ids.size():
+		BuildManager.instance._do_build(1, ids[i], 0, Vector2i(1, 4 + i * 2))
+	var c := Buildable.cell_center(Bug.cliffs, 0, Vector2i(1, 9)) + Vector3(0, 0.6, 0)
+	_dur = 2.0
+	_keys = [[0.0, c + Vector3(-7.0, 2.4, 0), c], [2.0, c + Vector3(-7.0, 2.4, 0), c]]
