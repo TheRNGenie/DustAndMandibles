@@ -1,0 +1,85 @@
+# Builds the Windows game and publishes it as a GitHub Release.
+# Runs when a version tag (v1.2.3) is pushed, or by hand from the Actions tab.
+# The release carries the game (one self-contained .exe) and the small setup
+# program that downloads, installs, updates and launches it.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag for the release (e.g. v0.2.0)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot and export templates
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: godot-dl
+          key: godot-${{ env.GODOT_VERSION }}-win
+
+      - name: Download Godot and export templates
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $v = $env:GODOT_VERSION
+          $base = "https://github.com/godotengine/godot-builds/releases/download/$v-stable"
+          New-Item -ItemType Directory -Force godot-dl | Out-Null
+          Invoke-WebRequest "$base/Godot_v$v-stable_win64.exe.zip" -OutFile godot-dl/godot.zip
+          Invoke-WebRequest "$base/Godot_v$v-stable_export_templates.tpz" -OutFile godot-dl/templates.tpz
+
+      - name: Install Godot and templates
+        shell: pwsh
+        run: |
+          $v = $env:GODOT_VERSION
+          Expand-Archive godot-dl/godot.zip -DestinationPath godot -Force
+          $dest = Join-Path $env:APPDATA "Godot/export_templates/$v.stable"
+          New-Item -ItemType Directory -Force $dest | Out-Null
+          Copy-Item godot-dl/templates.tpz godot-dl/templates.zip -Force
+          Expand-Archive godot-dl/templates.zip -DestinationPath tpl -Force
+          Copy-Item tpl/templates/* $dest -Recurse -Force
+
+      - name: Export the game
+        shell: pwsh
+        run: |
+          $godot = (Get-ChildItem godot -Filter "*_console.exe").FullName
+          New-Item -ItemType Directory -Force builds/windows | Out-Null
+          & $godot --headless --path . --import | Out-Null
+          & $godot --headless --path . --export-release "Windows Desktop" builds/windows/DustAndMandibles.exe
+          if (-not (Test-Path builds/windows/DustAndMandibles.exe)) { throw "export failed" }
+          Get-Item builds/windows/DustAndMandibles.exe | Select-Object Name, Length
+
+      - name: Build the setup program
+        shell: pwsh
+        run: |
+          & "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe" -nologo -target:exe `
+            "-out:builds/DustAndMandiblesSetup.exe" "-win32icon:tools/installer/icon.ico" tools/installer/Setup.cs
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: Dust & Mandibles ${{ github.event.inputs.tag || github.ref_name }}
+          body: |
+            **Easiest:** download **DustAndMandiblesSetup.exe** and run it. It downloads the game, adds Desktop and Start Menu shortcuts, and starts it. The shortcut checks for updates every time you play.
+
+            **Or** download **DustAndMandibles.exe** and run it directly. It is the whole game in one file; nothing else needs installing.
+
+            Windows may show a "Windows protected your PC" screen because the files are not code-signed. Click **More info**, then **Run anyway**.
+          files: |
+            builds/windows/DustAndMandibles.exe
+            builds/DustAndMandiblesSetup.exe

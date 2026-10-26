@@ -9,6 +9,8 @@ config/name="Dust & Mandibles"
 config/description="Two-player co-op cross-cliff tower defense against giant bugs."
 run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.5", "Forward Plus")
+config/icon="res://icon.png"
+config/windows_native_icon="res://icon.ico"
 
 [autoload]
 
