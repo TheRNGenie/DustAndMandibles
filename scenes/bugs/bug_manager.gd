@@ -6,6 +6,9 @@ extends Node3D
 
 signal bug_killed(bug_name: String, bug_cliff: int, source: String, source_cliff: int, loot: Dictionary)
 
+## Chance a bug spawns with a cigarette (twice as fast).
+const SMOKER_CHANCE := 0.01
+
 var vfx: VfxPool
 var _spawner: MultiplayerSpawner
 var _next_id := 0
@@ -50,13 +53,15 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 func spawn_at(bug_id: StringName, cliff: int, lane: int, z: float, y: float, st: int, pos: Vector3) -> void:
 	_next_id += 1
 	_spawner.spawn({"id": _next_id, "bug": bug_id, "cliff": cliff, "lane": lane,
-			"z": z, "y": y, "hp": Defs.WAVE_CONFIG.hp_scale(GameState.wave), "state": st, "pos": pos})
+			"z": z, "y": y, "hp": Defs.WAVE_CONFIG.hp_scale(GameState.wave), "state": st, "pos": pos,
+			"smoke": randf() < SMOKER_CHANCE or GameState.has_flag("--smokers")})
 
 
 func _spawn_bug(data: Variant) -> Node:
 	var d := data as Dictionary
 	var bug := Bug.new()
 	bug.name = "Bug%d" % int(d["id"])
+	bug.smoker = bool(d.get("smoke", false))
 	bug.setup(Defs.bug(StringName(d["bug"])), int(d["cliff"]), int(d["lane"]),
 			float(d["z"]), float(d["y"]), float(d["hp"]), int(d.get("state", Bug.State.CLIMBING)),
 			d.get("pos", Vector3.ZERO))

@@ -30,6 +30,9 @@ var speed_mult: float = 1.0:
 		if status != null:
 			status.frozen = v <= 0.0
 var brood_done := false
+## 1 in 100 bugs spawn smoking a cigarette and move twice as fast.
+var smoker := false
+var _face: BugFace
 
 # Replicated state.
 var state: int = State.CLIMBING
@@ -71,6 +74,11 @@ func setup(d: BugDef, cid: int, lane_index: int, start_z: float, start_y: float,
 	_legs = LegRig.new()
 	_legs.setup(spec)
 	add_child(_legs)
+	_face = BugFace.new()
+	_face.name = "Face"
+	add_child(_face)
+	_face.setup(self, spec, smoker)
+	health.changed.connect(func(_hp: float, _mx: float) -> void: _face.wince())
 	add_child(Hitbox.make(self, float(spec["body_radius"]), Vector3(0, float(spec["clearance"]) * 0.3, 0)))
 	add_child(WeakSpot.make(self, float(spec["weak_radius"]), spec["weak_spot"]))
 	add_child(_make_synchronizer())
@@ -124,7 +132,7 @@ func is_hidden() -> bool:
 
 ## Current movement multiplier (status effects).
 func speed() -> float:
-	return status.speed_multiplier()
+	return status.speed_multiplier() * (2.0 if smoker else 1.0)
 
 
 func _physics_process(delta: float) -> void:
@@ -155,6 +163,7 @@ func _update_visibility() -> void:
 	var hidden := is_hidden()
 	_body.visible = not hidden
 	_legs.visible = not hidden
+	_face.visible = not hidden
 	for c in get_children():
 		if c is Hitbox:
 			(c as Hitbox).collision_layer = 0 if hidden else WorldLayout.LAYER_BUG

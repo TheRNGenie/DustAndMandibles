@@ -507,6 +507,13 @@ func _showcase() -> void:
 		bm.spawn_group(&"spitter_scorpion", 1, WorldLayout.WEST, 1, 55.0)
 		bm.spawn_group(&"spitter_scorpion", 1, WorldLayout.EAST, 3, 55.0)
 		return
+	elif GameState.flag_value("--showcase") == "8":
+		# Face check: bugs standing on the west plateau, looking toward the house.
+		var cl := world.get("cliffs") as CliffBuilder
+		var zs := [-3.0, 0.0, 3.2]
+		var ids: Array[StringName] = [&"dust_mite", &"wolf_spider", &"rattler_beetle"]
+		for i in 3:
+			bm.spawn_at(ids[i], WorldLayout.WEST, 2, zs[i], 0.0, Bug.State.BREACHING, cl.plateau_point(WorldLayout.WEST, 6.0, zs[i]))
 	elif GameState.flag_value("--showcase") == "4":
 		# Turret reach test: frozen spitters on the east face at the old and new cling heights.
 		bm.spawn_group(&"spitter_scorpion", 1, WorldLayout.EAST, 1, 39.0)

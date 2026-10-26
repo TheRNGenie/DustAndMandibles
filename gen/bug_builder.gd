@@ -8,6 +8,7 @@ extends RefCounted
 ##   body_radius, clearance (height of the body above the surface).
 
 static func build(def: BugDef) -> Dictionary:
+	_last_eyes = {}
 	var spec: Dictionary
 	match def.id:
 		&"dust_mite":
@@ -32,6 +33,8 @@ static func build(def: BugDef) -> Dictionary:
 			spec = _boss(def.shell_color)
 		_:
 			spec = _mite(def.shell_color)
+	if not spec.has("eyes"):
+		spec["eyes"] = _last_eyes.duplicate()
 	return _scaled(spec, def.size)
 
 
@@ -44,6 +47,9 @@ static func _scaled(spec: Dictionary, s: float) -> Dictionary:
 	for key: String in ["upper", "lower", "thick", "weak_radius", "body_radius", "clearance"]:
 		spec[key] = float(spec[key]) * s
 	spec["weak_spot"] = (spec["weak_spot"] as Vector3) * s
+	var eyes: Dictionary = spec.get("eyes", {})
+	if not eyes.is_empty():
+		spec["eyes"] = {"center": (eyes["center"] as Vector3) * s, "spread": float(eyes["spread"]) * s, "r": float(eyes["r"]) * s}
 	spec["scale"] = s
 	return spec
 
@@ -64,7 +70,13 @@ static func _legs(pairs: int, z_front: float, z_back: float, hip_x: float, hip_y
 	return legs
 
 
+## Where the last body's eyes went (unscaled): build() turns it into spec["eyes"]
+## so the bug can wear eyebrows (and, rarely, a cigarette).
+static var _last_eyes: Dictionary = {}
+
+
 static func _eyes(st: SurfaceTool, center: Vector3, spread: float, r: float, count: int = 2) -> void:
+	_last_eyes = {"center": center, "spread": spread, "r": r}
 	for i in count:
 		var side := -1.0 if i % 2 == 0 else 1.0
 		var row := float(i / 2)
@@ -175,6 +187,7 @@ static func _tick(shell: Color) -> Dictionary:
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.1, 0.1)), Vector3(0.5, 0.25, 0.55), 6, 12, shell)
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.3, 0.15)), Vector3(0.25, 0.08, 0.28), 4, 8, shell.darkened(0.25))
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.05, -0.48)), Vector3(0.16, 0.1, 0.14), 4, 8, Palette.GLOW_YELLOW, 0.0, null, 0.6)
+	_eyes(st, Vector3(0, 0.24, -0.36), 0.12, 0.045)
 	return {
 		"body": MeshKit.finish(st), "legs": _legs(4, -0.25, 0.4, 0.35, 0.0, 0.3, -0.18),
 		"upper": 0.25, "lower": 0.25, "thick": 0.05, "leg_color": shell.darkened(0.4), "ik": false,
@@ -190,6 +203,7 @@ static func _dragonfly(shell: Color) -> Dictionary:
 		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0, 0.25 + i * 0.22)), Vector3(0.1 - i * 0.008, 0.1 - i * 0.008, 0.13), 4, 8, shell if i % 2 == 0 else shell.darkened(0.25))
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(-0.13, 0.05, -0.55)), Vector3(0.12, 0.12, 0.12), 4, 8, Palette.GLOW_YELLOW, 0.0, null, 0.7)
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.13, 0.05, -0.55)), Vector3(0.12, 0.12, 0.12), 4, 8, Palette.GLOW_YELLOW, 0.0, null, 0.7)
+	_last_eyes = {"center": Vector3(0, 0.05, -0.55), "spread": 0.13, "r": 0.12}
 	for side: float in [-1.0, 1.0]:
 		for k: float in [-0.25, 0.1]:
 			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, side * 0.1), Vector3(side * 0.75, 0.12, k)), Vector3(0.7, 0.02, 0.16), 3, 8, Palette.SKY_TOP.lightened(0.4))

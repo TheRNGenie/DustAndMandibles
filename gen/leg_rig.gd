@@ -1,72 +1,111 @@
 class_name LegRig
 extends Node3D
-## Procedural legs. With IK on, each foot stays planted on the surface until the
-## body moves too far, then steps (alternating groups) to a new spot found by a
-## raycast onto the cliff; knees come from analytic 2-bone IK. With IK off (tiny
-## bugs) legs just swing in a sine cycle, which is much cheaper.
+## Procedural bug legs, every one in one piece: a short coxa from inside the body
+## to the hip ball, a thigh, a knee ball, a shin and a pointed claw. Knees come
+## from analytic 2-bone IK. With IK on, each foot stays planted on the surface
+## until the body moves too far, then steps in alternating groups with an eased
+## arc to a spot found by a raycast. With IK off (small bugs) the feet trace a
+## smooth walking loop instead (no raycasts), still through the same IK knees.
 
-const STEP_TIME := 0.14
+const STEP_TIME := 0.2
 
 static var _segment_meshes: Dictionary = {}
+static var _ball_meshes: Dictionary = {}
+static var _claw_meshes: Dictionary = {}
 
 var spec: Dictionary
 var _feet: Array[Vector3] = []
 var _step_from: Array[Vector3] = []
 var _step_to: Array[Vector3] = []
 var _step_t: Array[float] = []
+var _coxa: Array[MeshInstance3D] = []
 var _upper: Array[MeshInstance3D] = []
 var _lower: Array[MeshInstance3D] = []
+var _hip_ball: Array[MeshInstance3D] = []
+var _knee_ball: Array[MeshInstance3D] = []
+var _claw: Array[MeshInstance3D] = []
 var _phase := 0.0
 var _initialized := false
 
 
 func setup(leg_spec: Dictionary) -> void:
 	spec = leg_spec
-	var mesh := _segment_mesh(spec["leg_color"])
+	var color: Color = spec["leg_color"]
+	var seg := _segment_mesh(color)
+	var ball := _ball_mesh(color.darkened(0.2))
+	var claw := _claw_mesh(color.darkened(0.45))
 	var mat := Materials.toon(0.015)
 	for i in (spec["legs"] as Array).size():
-		var u := MeshInstance3D.new()
-		u.mesh = mesh
-		u.material_override = mat
-		add_child(u)
-		_upper.append(u)
-		if spec["ik"]:
-			var l := MeshInstance3D.new()
-			l.mesh = mesh
-			l.material_override = mat
-			add_child(l)
-			_lower.append(l)
+		for arr: Array in [_coxa, _upper, _lower]:
+			arr.append(_mi(seg, mat))
+		for arr: Array in [_hip_ball, _knee_ball]:
+			arr.append(_mi(ball, mat))
+		_claw.append(_mi(claw, mat))
 		_feet.append(Vector3.ZERO)
 		_step_from.append(Vector3.ZERO)
 		_step_to.append(Vector3.ZERO)
 		_step_t.append(1.0)
 
 
-## Unit cylinder (radius 1, height 1, along Y) per leg colour, shared by all bugs.
+func _mi(mesh: Mesh, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	add_child(mi)
+	return mi
+
+
+## Unit tapered cylinder (radius 1 at the base, along Y), per leg colour.
 static func _segment_mesh(color: Color) -> ArrayMesh:
 	var key := color.to_html()
 	if not _segment_meshes.has(key):
 		var st := MeshKit.begin()
-		MeshKit.add_cylinder(st, Transform3D(), 1.0, 0.7, 1.0, 6, color)
+		MeshKit.add_cylinder(st, Transform3D(), 1.0, 0.8, 1.0, 8, color)
 		_segment_meshes[key] = MeshKit.finish(st)
 	return _segment_meshes[key]
+
+
+static func _ball_mesh(color: Color) -> ArrayMesh:
+	var key := color.to_html()
+	if not _ball_meshes.has(key):
+		var st := MeshKit.begin()
+		MeshKit.add_ellipsoid(st, Transform3D(), Vector3.ONE, 4, 8, color)
+		_ball_meshes[key] = MeshKit.finish(st)
+	return _ball_meshes[key]
+
+
+## A pointed claw along -Y (unit length).
+static func _claw_mesh(color: Color) -> ArrayMesh:
+	var key := color.to_html()
+	if not _claw_meshes.has(key):
+		var st := MeshKit.begin()
+		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, -0.5, 0)), 0.0, 1.0, 1.0, 6, color)
+		_claw_meshes[key] = MeshKit.finish(st)
+	return _claw_meshes[key]
 
 
 ## body: the bug's current global transform. project: Callable(point, up) -> surface point.
 func update(delta: float, body: Transform3D, speed: float, project: Callable) -> void:
 	var legs: Array = spec["legs"]
+	if legs.is_empty():
+		return
 	var up := body.basis.y.normalized()
+	var a := float(spec["upper"])
+	var b := float(spec["lower"])
+	var thick := float(spec["thick"])
 	if not spec["ik"]:
-		_phase += delta * (4.0 + speed * 6.0)
+		# Small bugs: feet trace a walking loop (lift, sweep forward, plant, push back).
+		_phase += delta * (5.0 + speed * 7.0)
+		var fwd := -body.basis.z.normalized()
 		for i in legs.size():
 			var leg: Dictionary = legs[i]
-			var hip := body * (leg["hip"] as Vector3)
-			var lift := maxf(sin(_phase + float(i) * PI), 0.0) * float(spec["upper"]) * 0.6
-			var swing := cos(_phase + float(i) * PI) * float(spec["upper"]) * 0.4
-			var foot := body * ((leg["rest"] as Vector3) + Vector3(0, 0, swing)) + up * lift
-			_place(_upper[i], hip, foot, float(spec["thick"]))
+			var p := _phase + float(_group(i)) * PI
+			var lift := maxf(sin(p), 0.0) * a * 0.5
+			var sweep := cos(p) * a * 0.45 * clampf(speed + 0.3, 0.3, 1.0)
+			_feet[i] = body * (leg["rest"] as Vector3) + fwd * sweep + up * lift
+			_pose(i, body, leg, a, b, thick, up)
 		return
-	var stride := (float(spec["upper"]) + float(spec["lower"])) * 0.45
+	var stride := (a + b) * 0.45
 	if not _initialized:
 		for i in legs.size():
 			_feet[i] = project.call(body * ((legs[i] as Dictionary)["rest"] as Vector3), up)
@@ -82,19 +121,38 @@ func update(delta: float, body: Transform3D, speed: float, project: Callable) ->
 		if _step_t[i] < 1.0:
 			_step_t[i] = minf(_step_t[i] + delta / STEP_TIME, 1.0)
 			var t := _step_t[i]
-			_feet[i] = _step_from[i].lerp(_step_to[i], t) + up * sin(t * PI) * stride * 0.35
+			var e := t * t * (3.0 - 2.0 * t) # ease in and out
+			_feet[i] = _step_from[i].lerp(_step_to[i], e) + up * sin(t * PI) * stride * 0.4
 		elif _feet[i].distance_to(desired) > stride and not group_stepping[1 - _group(i)]:
 			_step_from[i] = _feet[i]
 			_step_to[i] = _refine(desired, up) + (desired - _feet[i]).normalized() * stride * 0.3
 			_step_t[i] = 0.0
 			group_stepping[_group(i)] = true
-		elif _feet[i].distance_to(hip) > (float(spec["upper"]) + float(spec["lower"])) * 1.4:
+		elif _feet[i].distance_to(hip) > (a + b) * 1.4:
 			_feet[i] = desired # teleported or fell behind: snap
-		var rest_local: Vector3 = leg["rest"]
-		var hip_local: Vector3 = leg["hip"]
-		var knee := _knee(hip, _feet[i], float(spec["upper"]), float(spec["lower"]), up, body.basis * (rest_local - hip_local))
-		_place(_upper[i], hip, knee, float(spec["thick"]))
-		_place(_lower[i], knee, _feet[i], float(spec["thick"]) * 0.8)
+		_pose(i, body, leg, a, b, thick, up)
+
+
+## Places every piece of leg i so it's one continuous limb from body to claw.
+func _pose(i: int, body: Transform3D, leg: Dictionary, a: float, b: float, thick: float, up: Vector3) -> void:
+	var hip_local: Vector3 = leg["hip"]
+	var hip := body * hip_local
+	# The coxa starts inside the body (toward the centre line), so the leg is attached.
+	var inner := body * Vector3(hip_local.x * 0.35, hip_local.y + thick * 0.5, hip_local.z)
+	var rest_local: Vector3 = leg["rest"]
+	var foot := _feet[i]
+	# Keep the foot within reach so the leg never comes apart.
+	var to := foot - hip
+	if to.length() > (a + b) * 0.98:
+		foot = hip + to.normalized() * (a + b) * 0.98
+	var knee := _knee(hip, foot, a, b, up, body.basis * (rest_local - hip_local))
+	_place(_coxa[i], inner, hip, thick * 1.3)
+	_place(_upper[i], hip, knee, thick)
+	_place(_lower[i], knee, foot, thick * 0.8)
+	_ball(_hip_ball[i], hip, thick * 1.45)
+	_ball(_knee_ball[i], knee, thick * 1.15)
+	var dir := (foot - knee).normalized()
+	_claw[i].global_transform = Transform3D(MeshKit.basis_from_y(-dir) * Basis.from_scale(Vector3(thick * 0.8, thick * 2.2, thick * 0.8)), foot + dir * thick * 1.1)
 
 
 static func _group(i: int) -> int:
@@ -130,3 +188,7 @@ static func _place(mi: MeshInstance3D, a: Vector3, b: Vector3, radius: float) ->
 		return
 	var basis := MeshKit.basis_from_y(v / length) * Basis.from_scale(Vector3(radius, length, radius))
 	mi.global_transform = Transform3D(basis, (a + b) * 0.5)
+
+
+static func _ball(mi: MeshInstance3D, at: Vector3, radius: float) -> void:
+	mi.global_transform = Transform3D(Basis.from_scale(Vector3.ONE * radius), at)
