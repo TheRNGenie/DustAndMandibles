@@ -1,0 +1,32 @@
+{
+  "_readme": "The in-game Field Guide (J, or Pause > Field Guide). Edit the text here; numbers (HP, damage, prices...) are filled in from the game data automatically. Add an entry under a section using the thing's id. 'lore' is a short paragraph, 'tips' is a list of one-liners.",
+  "guns": {
+    "revolver": {"lore": "A trusty six-shooter. Accurate, quick to reload, and every rancher's first friend.", "tips": ["Aim (right mouse) for a tighter, zoomed shot.", "Glowing weak spots take double damage."]},
+    "lever_rifle": {"lore": "A long gun that punches clean through beetle shell. Slow to cycle, but nothing laughs it off.", "tips": ["Pierces armour: your answer to Rattler Beetles.", "Zooms 2.2x when aimed."]},
+    "coach_shotgun": {"lore": "Two barrels of buckshot for when the bugs are already on the porch.", "tips": ["Aiming tightens the spread.", "Useless at range, brutal up close."]}
+  },
+  "bugs": {
+    "dust_mite": {"lore": "Rust-red scuttlers that come in clouds. One shot each, but there are always more.", "tips": ["Gatling Posts and Chili Mortars eat swarms.", "Never let a pack reach the lip unchallenged."]},
+    "wolf_spider": {"lore": "Fast, long-legged hunters that leap up the rock in bounds.", "tips": ["Lasso Harpoons pin them mid-climb.", "Watch for sudden leaps near the top."]},
+    "rattler_beetle": {"lore": "Teal tanks with a front shell that shrugs off small arms.", "tips": ["Hit them from above or behind, where the shell is thin.", "Buffalo Rifles and the lever-action pierce the shell."]},
+    "spitter_scorpion": {"lore": "Clings halfway up and spits acid at your turrets.", "tips": ["Turrets on scaffolding can see further down.", "They give up and climb after a while."]},
+    "brood_mother": {"lore": "A bloated spider carrying a living cargo of spiderlings.", "tips": ["Kill her high up and the brood falls with her.", "Splash turrets clean up the spiderlings."]},
+    "spiderling": {"lore": "A brood mother's children. Tiny, quick and many.", "tips": ["Mortars and repeaters handle them fine."]},
+    "burrow_tick": {"lore": "Digs under the plateau and surfaces among your crops.", "tips": ["Keep a gun handy near the farm.", "House turrets cover the yard."]},
+    "dragonfly_bandit": {"lore": "Flies straight over the canyon and snatches what it can.", "tips": ["Shoot them down yourself or with plateau guards.", "They ignore cliff-face turrets."]},
+    "crop_weevil": {"lore": "Heads for your farm plots and chews them bare.", "tips": ["Plant behind a palisade.", "Bear traps on the approach help."]},
+    "iron_tumble": {"lore": "The boss: a boulder-rolling giant beetle that comes on the last wave.", "tips": ["Your partner's turrets hit its back as it climbs.", "Shoot its glowing belly from above."]}
+  },
+  "turrets": {
+    "gatling_post": {"lore": "A hand-cranked gatling on a post. Shreds swarms, scratches armour.", "tips": ["Build it for your partner's cliff: it can't shoot your own."]},
+    "buffalo_rifle": {"lore": "A heavy rifle nest that puts a hole through anything.", "tips": ["Pierces armour."]},
+    "water_cannon": {"lore": "Knocks climbers clean off the rock. Burns water as ammo.", "tips": ["The higher a bug is, the harder it falls."]},
+    "chili_mortar": {"lore": "Lobs flaming chili onto the cliff face. Burns chili as ammo.", "tips": ["Great against packs climbing together."]},
+    "dynamite_lobber": {"lore": "Arcs dynamite for a big splash.", "tips": ["Best on crowded lanes."]},
+    "lasso_harpoon": {"lore": "Pins one climber in place for a few seconds.", "tips": ["Pair it with a Buffalo Rifle."]},
+    "scattergun_post": {"lore": "Last line: a brutal blast at bugs that reach your plateau.", "tips": ["Never shoots cliff faces."]},
+    "sharpshooter_tower": {"lore": "Last line: a lookout with a long rifle over your yard.", "tips": ["Never shoots cliff faces."]},
+    "porch_repeater": {"lore": "House turret: a quick twin gun on the porch, balcony or roof deck.", "tips": ["Only shoots bugs near your house."]},
+    "rooftop_cannon": {"lore": "House turret: grapeshot that bursts over bugs at your door.", "tips": ["Only shoots bugs near your house."]}
+  }
+}

@@ -325,6 +325,11 @@ func _take_screenshot(path: String) -> void:
 				target = world.find_child("GunShop", true, false)
 			"ledger":
 				target = Homestead.of(0).get_node("Ledger")
+			"guide":
+				FieldGuide.open()
+				if GameState.flag_value("--menutab") != "":
+					MenuScreen.instance.tab = int(GameState.flag_value("--menutab"))
+					MenuScreen.instance.refresh()
 		if target != null:
 			Economy.earn(0, {&"corn": 6, &"chili": 3, &"chitin": 30, &"scrap": 200})
 			MenuScreen.instance.open(target)

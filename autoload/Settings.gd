@@ -24,6 +24,7 @@ const REMAPPABLE: Dictionary = {
 	"upgrade": "Upgrade turret (chitin)",
 	"cycle_option": "Change seed / shop item",
 	"drop_item": "Drop weapon",
+	"field_guide": "Field Guide (wiki)",
 	"ready_up": "Ready (skip build phase)",
 	"debug_overlay": "Debug overlay",
 }

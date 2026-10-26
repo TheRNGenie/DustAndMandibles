@@ -96,6 +96,11 @@ func _build() -> void:
 		footer.alignment = BoxContainer.ALIGNMENT_END
 		footer.add_theme_constant_override("separation", 10)
 		col.add_child(footer)
+		var guide := UiStyle.button("Field Guide (J)")
+		guide.pressed.connect(func() -> void:
+			close()
+			FieldGuide.open())
+		footer.add_child(guide)
 		var to_menu := UiStyle.button("Leave to main menu")
 		to_menu.pressed.connect(_leave_to_menu)
 		footer.add_child(to_menu)

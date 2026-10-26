@@ -88,6 +88,12 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	if not _root.visible and not GameState.menu_open and event.is_action_pressed("field_guide"):
+		FieldGuide.open()
+		get_viewport().set_input_as_handled()
+
+
 func _mark_dirty() -> void:
 	_dirty = true
 

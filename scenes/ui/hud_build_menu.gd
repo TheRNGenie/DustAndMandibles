@@ -13,7 +13,6 @@ var _panel: PanelContainer
 var _tabs: Array[Button] = []
 var _list: VBoxContainer
 var _title: Label
-static var _icons: Dictionary = {}
 
 
 func _ready() -> void:
@@ -155,56 +154,7 @@ func _item_row(i: int, id: StringName, payer: int) -> Control:
 
 ## A small picture of the item, rendered once from its real 3D model.
 func icon_for(id: StringName) -> Texture2D:
-	if _icons.has(id) and is_instance_valid(_icons[id]["vp"]):
-		return _icons[id]["tex"]
-	var vp := SubViewport.new()
-	vp.size = Vector2i(128, 128)
-	vp.own_world_3d = true
-	vp.transparent_bg = true
-	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
-	add_child(vp)
-	var root := Node3D.new()
-	vp.add_child(root)
-	var mat := Materials.toon(0.01)
 	var color := Palette.team_color(build_mode.player.cliff_id) if build_mode != null else Color.WHITE
-	var aabb := AABB()
 	if Defs.is_turret(id):
-		var parts := TurretBuilder.build(id, color)
-		var head_y: float = parts["head_y"]
-		var gun_y: float = parts["gun_y"]
-		for entry in [[parts["base"], 0.0], [parts["head"], head_y], [parts["gun"], head_y + gun_y]]:
-			var mi := MeshInstance3D.new()
-			mi.mesh = entry[0]
-			mi.material_override = mat
-			mi.position.y = entry[1]
-			root.add_child(mi)
-			var box: AABB = (entry[0] as Mesh).get_aabb()
-			box.position.y += float(entry[1])
-			aabb = box if aabb.size == Vector3.ZERO else aabb.merge(box)
-	else:
-		var mi := MeshInstance3D.new()
-		mi.mesh = StructureBuilder.build(Defs.structure(id).kind)
-		mi.material_override = mat
-		root.add_child(mi)
-		aabb = mi.mesh.get_aabb()
-	root.rotation.y = deg_to_rad(-35.0)
-	var center := aabb.get_center()
-	var radius := maxf(aabb.size.length() * 0.5, 0.3)
-	var cam := Camera3D.new()
-	cam.fov = 35.0
-	var dist := radius / sin(deg_to_rad(cam.fov * 0.5)) * 1.05
-	cam.position = center + Vector3(0, 0.45, 1.0).normalized() * dist
-	vp.add_child(cam)
-	cam.look_at(center)
-	var env := Environment.new()
-	env.background_mode = Environment.BG_CLEAR_COLOR
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color.WHITE
-	env.ambient_light_energy = 0.7
-	cam.environment = env
-	var sun := DirectionalLight3D.new()
-	sun.rotation = Vector3(deg_to_rad(-50), deg_to_rad(30), 0)
-	vp.add_child(sun)
-	var tex := vp.get_texture()
-	_icons[id] = {"vp": vp, "tex": tex}
-	return tex
+		return IconStudio.turret(self, id, color)
+	return IconStudio.structure(self, id)
