@@ -231,6 +231,34 @@ def build_place(rng):
     return knock(rng) + np.concatenate([np.zeros(int(SR * 0.09)), knock(rng)])[: int(SR * 0.3)] * 0.7
 
 
+def guitar_smash(rng):
+    """An acoustic guitar swung into something: wood crack, body boom, every
+    string twanging out of tune, and a sour ring that dies away."""
+    length = 2.2
+    n = int(SR * length)
+    t = t_axis(length)
+    out = np.zeros(n)
+    # Body boom and wood crack.
+    out += np.sin(2 * np.pi * 95 * t) * np.exp(-t / 0.12) * 1.2
+    out += np.sin(2 * np.pi * 180 * t) * np.exp(-t / 0.06) * 0.6
+    crack = bandpass(rng.standard_normal(n), 900, 6000) * env(n, 0.0005, 0.07)
+    out += crack * 1.4
+    splinter = highpass(rng.standard_normal(n), 3000) * env(n, 0.002, 0.25, 2.0)
+    out += splinter * 0.25
+    # Six strings, knocked out of tune, struck almost together.
+    for i, f in enumerate([82.4, 110.0, 146.8, 196.0, 246.9, 329.6]):
+        f *= 1.0 + rng.uniform(-0.04, 0.04)
+        delay = int(SR * rng.uniform(0.0, 0.03))
+        s = karplus(f, length - 0.05, rng, damp=0.9975)
+        seg = s[: n - delay]
+        out[delay:delay + len(seg)] += seg * (0.55 - i * 0.04)
+    # A loose string flapping (falling pitch buzz).
+    f = 330 * np.exp(-t * 1.6) + 60
+    buzz = signal.sawtooth(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.5) * 0.18
+    out += lowpass(buzz, 3000)
+    return out
+
+
 def main():
     rng = np.random.default_rng(1234)
     print(f"Writing sound effects to {OUT}")
@@ -252,6 +280,7 @@ def main():
     save("homestead_hit", homestead_hit(rng), 0.8)
     save("reload", reload_click(rng), 0.6)
     save("pluck", karplus(196.0, 1.2, rng), 0.7)
+    save("guitar_smash", guitar_smash(rng), 0.95)
 
 
 if __name__ == "__main__":

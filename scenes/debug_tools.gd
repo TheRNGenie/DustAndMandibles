@@ -355,6 +355,21 @@ func _take_screenshot(path: String) -> void:
 		player.gun.ammo = player.gun.def.mag_size - int(GameState.flag_value("--reload"))
 		player.gun.reload()
 		await get_tree().create_timer(GameState.flag_value("--reloadwait").to_float()).timeout
+	if GameState.has_flag("--falltest") and player != null:
+		# Drop off the west lip into the canyon and log the fall.
+		player.global_position = Vector3(-WorldLayout.HALF_GAP + 3.0, WorldLayout.CLIFF_HEIGHT - 2.0, 4.0)
+		player.velocity = Vector3(2, 0, 0)
+		var t0 := Time.get_ticks_msec()
+		var landed := false
+		player.fall_landed.connect(func() -> void:
+			landed = true
+			print("[fall] landed after %.2f s at y %.1f" % [(Time.get_ticks_msec() - t0) / 1000.0, player.global_position.y]))
+		var top_speed := 0.0
+		var wait := GameState.flag_value("--fallwait").to_float()
+		while (wait <= 0.0 and not landed and Time.get_ticks_msec() - t0 < 10000) or (wait > 0.0 and Time.get_ticks_msec() - t0 < wait * 1000.0):
+			await get_tree().physics_frame
+			top_speed = maxf(top_speed, -player.velocity.y)
+		print("[fall] top speed %.1f m/s, intensity %.2f" % [top_speed, player.fall_intensity])
 	if GameState.has_flag("--rocktest") and player != null:
 		# Throw a rock, then get bonked by one from the side; report the shove.
 		player.net.throw_rock(player.camera.global_position + Vector3(0, 0, -0.4), Vector3(0, 3, -18))

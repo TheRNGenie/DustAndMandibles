@@ -6,6 +6,7 @@ extends CanvasLayer
 var _ammo_label: Label
 var _center_label: Label
 var _debug_label: Label
+var _speed_lines: SpeedLines
 var _crosshair: Control
 var _phase_label: Label
 var _hint_label: Label
@@ -32,6 +33,10 @@ func _ready() -> void:
 	add_child(hotbar)
 	build_menu = HudBuildMenu.new()
 	add_child(build_menu)
+	_speed_lines = SpeedLines.new()
+	_speed_lines.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_speed_lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_speed_lines)
 	_crosshair = Crosshair.new()
 	_crosshair.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -112,7 +117,11 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 	player.gun.ammo_changed.connect(_on_ammo_changed)
 	player.gun.hit_confirmed.connect(func(weak: bool) -> void: (_crosshair as Crosshair).flash(weak))
 	player.gun.reload_started.connect(func(_d: float) -> void: _ammo_label.text = "Reloading")
-	player.fell_into_canyon.connect(func(delay: float) -> void: _show_message("Hauling you back up... (%.0f s)" % delay))
+	player.fell_into_canyon.connect(func(delay: float) -> void:
+		if delay > 0.0:
+			_show_message("SPLAT. Hauling you back up..."))
+	_speed_lines.player = player
+	player.fall_landed.connect(func() -> void: _speed_lines.flash())
 	player.respawned.connect(func() -> void: _center_label.text = "")
 	_on_ammo_changed(player.gun.ammo, player.gun.def.mag_size)
 
@@ -220,3 +229,48 @@ class Crosshair extends Control:
 	func _notification(what: int) -> void:
 		if what == NOTIFICATION_RESIZED:
 			queue_redraw()
+
+
+## Streaks rushing past the edges of the screen while you fall (and a white
+## flash on impact). Only the outer ring of the screen, so you can still see.
+class SpeedLines extends Control:
+	var player: Player
+	var _lines: Array = []
+	var _flash := 0.0
+
+	func _ready() -> void:
+		for i in 70:
+			_lines.append([randf() * TAU, randf(), randf_range(0.6, 1.4)])
+
+	func _process(delta: float) -> void:
+		if player == null:
+			return
+		if player.fall_intensity > 0.02 or _flash > 0.0:
+			for l: Array in _lines:
+				l[1] = fposmod(float(l[1]) + delta * (1.5 + player.fall_intensity * 5.0) * float(l[2]), 1.0)
+			queue_redraw()
+		_flash = maxf(_flash - delta * 2.5, 0.0)
+		if player.fall_intensity <= 0.02 and _flash <= 0.0:
+			queue_redraw()
+
+	func flash() -> void:
+		_flash = 1.0
+
+	func _draw() -> void:
+		if player == null:
+			return
+		var k := player.fall_intensity
+		if k > 0.02:
+			var c := size * 0.5
+			var r_max := c.length()
+			for l: Array in _lines:
+				var a := float(l[0])
+				var dir := Vector2(cos(a), sin(a))
+				# Lines start in the outer ring and race outward.
+				var t := float(l[1])
+				var r0 := lerpf(0.55, 1.0, t) * r_max
+				var len := r_max * (0.08 + 0.25 * k) * float(l[2])
+				var col := Color(1, 1, 1, 0.55 * k * (1.0 - t * 0.6))
+				draw_line(c + dir * r0, c + dir * (r0 + len), col, 2.0 + 3.0 * k)
+		if _flash > 0.0:
+			draw_rect(Rect2(Vector2.ZERO, size), Color(1, 1, 0.95, _flash * 0.85))

@@ -182,6 +182,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if not on_floor:
 		velocity.y -= _gravity * delta
+	if _fall_left >= 0.0:
+		input_dir = Vector2.ZERO # flat on the canyon floor
 
 	if not blocked and Input.is_action_just_pressed("jump"):
 		if on_floor:
@@ -302,19 +304,60 @@ func _try_mantle() -> bool:
 
 # ------------------------------------------------------------------ canyon fall
 
+## Off the lip: the fall plays out. Gravity keeps building (you just keep
+## speeding up), the view widens, speed lines rush past the edges of the
+## screen, and when you hit the canyon floor there's the crash of a guitar
+## smashed into something. A moment to take it in, then you're hauled back up.
+const FALL_GRAVITY_GROWTH := 2.2
+const FALL_MAX_SPEED := 85.0
+const SPLAT_HOLD := 1.6
+signal fall_landed
+
+## 0..1 how fast you're falling (HUD speed lines, FOV).
+var fall_intensity := 0.0
+var _falling := false
+var _fall_t := 0.0
+
+
 func _update_fall(delta: float) -> void:
-	if _fall_left < 0.0:
-		if global_position.y < WorldLayout.CANYON_FALL_Y:
-			_fall_left = RESPAWN_DELAY
-			fell_into_canyon.emit(RESPAWN_DELAY)
+	if _fall_left >= 0.0:
+		# Landed: lie there for a beat, then respawn.
+		_fall_left -= delta
+		fall_intensity = move_toward(fall_intensity, 0.0, delta * 4.0)
+		if _fall_left <= 0.0:
+			_fall_left = -1.0
+			respawn()
 		return
-	_fall_left -= delta
-	if _fall_left <= 0.0:
-		_fall_left = -1.0
-		respawn()
+	if not _falling:
+		if global_position.y < WorldLayout.CANYON_FALL_Y:
+			_falling = true
+			_fall_t = 0.0
+			fell_into_canyon.emit(0.0)
+		return
+	_fall_t += delta
+	# Extra gravity on top of the normal pull, growing the longer you fall.
+	velocity.y = maxf(velocity.y - _gravity * FALL_GRAVITY_GROWTH * _fall_t * delta, -FALL_MAX_SPEED)
+	fall_intensity = clampf(-velocity.y / 45.0, 0.0, 1.0)
+	var floor_y := Bug.cliffs.floor_height(global_position.x, global_position.z) if Bug.cliffs != null else 0.0
+	if is_on_floor() or global_position.y < floor_y + 0.6 or global_position.y < -20.0:
+		_land()
+
+
+func _land() -> void:
+	_falling = false
+	_fall_left = SPLAT_HOLD
+	velocity = Vector3.ZERO
+	Audio.play_at(&"guitar_smash", global_position + Vector3.UP, 4.0)
+	add_shake(1.0)
+	rig.knock(Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized(), 2.5)
+	_roll_vel += randf_range(-1.0, 1.0) * 14.0
+	fall_landed.emit()
+	fell_into_canyon.emit(SPLAT_HOLD)
 
 
 func respawn() -> void:
+	_falling = false
+	fall_intensity = 0.0
 	global_transform = spawn_transform
 	head.rotation = Vector3.ZERO
 	velocity = Vector3.ZERO
@@ -337,6 +380,7 @@ func _update_camera(delta: float, sprinting: bool) -> void:
 	elif sprinting:
 		target_fov += 7.0
 	target_fov /= gun.zoom_factor()
+	target_fov += fall_intensity * 28.0
 	camera.fov = lerpf(camera.fov, target_fov, clampf(delta * 8.0, 0.0, 1.0))
 	# Screen shake (gunfire, nearby explosions).
 	_shake = move_toward(_shake, 0.0, delta * 2.5)
