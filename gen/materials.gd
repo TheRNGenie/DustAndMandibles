@@ -17,6 +17,7 @@ static func toon(outline_thickness: float = 0.03) -> ShaderMaterial:
 		return _cache[key]
 	var mat := ShaderMaterial.new()
 	mat.shader = TOON_SHADER
+	mat.set_shader_parameter("spec_strength", 0.22)
 	if outline_thickness > 0.0:
 		mat.next_pass = outline(outline_thickness)
 	_cache[key] = mat
@@ -27,6 +28,7 @@ static func toon(outline_thickness: float = 0.03) -> ShaderMaterial:
 static func toon_unique(outline_thickness: float = 0.03) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = TOON_SHADER
+	mat.set_shader_parameter("spec_strength", 0.22)
 	if outline_thickness > 0.0:
 		mat.next_pass = outline(outline_thickness)
 	return mat

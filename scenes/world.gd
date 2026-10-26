@@ -191,14 +191,14 @@ func _build_environment() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#B08AB8")
-	env.ambient_light_energy = 0.85
+	env.ambient_light_energy = 0.95
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env.fog_enabled = true
 	env.fog_light_color = Palette.SKY_HORIZON
-	env.fog_density = 0.005
+	env.fog_density = 0.0032
 	env.fog_sky_affect = 0.0
 	env.glow_enabled = true
-	env.glow_intensity = 0.6
+	env.glow_intensity = 0.65
 	env.glow_hdr_threshold = 1.2
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
