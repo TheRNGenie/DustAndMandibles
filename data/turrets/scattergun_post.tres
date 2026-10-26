@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"scattergun_post"
+display_name = "Scattergun Post"
+description = "Last line: a slow, brutal shotgun blast at bugs that reach your plateau. Cannot shoot cliff faces."
+cost_scrap = 55
+max_hp = 180.0
+range = 14.0
+fire_interval = 2.4
+damage = 90.0
+armor_pierce = true
+pitch_limit_deg = 60.0
+turn_speed = 220.0
+spread_deg = 4.0
+hit_chance = 1.0
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+guards_plateau = true
+ammo_cost = {}

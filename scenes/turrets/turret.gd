@@ -135,6 +135,16 @@ func _pick_target() -> Bug:
 		return null
 	var best: Bug = null
 	var best_score := -INF
+	if def.guards_plateau:
+		for n: Node in bug_manager.get_children():
+			var g := n as Bug
+			if g == null or not _valid(g):
+				continue
+			var gscore := -g.global_position.distance_to(global_position)
+			if gscore > best_score:
+				best = g
+				best_score = gscore
+		return best
 	for b in bug_manager.climbers_on(WorldLayout.other_cliff(cliff_id)):
 		if not _valid(b):
 			continue
@@ -147,7 +157,13 @@ func _pick_target() -> Bug:
 
 ## The cross-defense rule plus pitch limit, range and line of sight.
 func _valid(b: Bug) -> bool:
-	if not b.is_alive() or not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing()):
+	if not b.is_alive() or b.is_hidden():
+		return false
+	if def.guards_plateau:
+		var on_plateau := b.state == Bug.State.BREACHING or b.state == Bug.State.FLYING
+		if not Targeting.guard_allows(cliff_id, b.cliff_id, on_plateau):
+			return false
+	elif not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing()):
 		return false
 	var muzzle := _head.global_position
 	if not Targeting.in_arc(muzzle, b.global_position, def.pitch_limit_deg, def.range * range_multiplier()):
@@ -204,8 +220,10 @@ func _draw_shot() -> void:
 		vfx.muzzle_flash(from, -_gun.global_basis.z)
 	var sound := StringName("gatling_%d" % (randi() % 3 + 1))
 	match def.id:
-		&"buffalo_rifle", &"lasso_harpoon":
+		&"buffalo_rifle", &"lasso_harpoon", &"sharpshooter_tower":
 			sound = &"buffalo"
+		&"scattergun_post":
+			sound = &"dynamite"
 		&"water_cannon":
 			sound = &"acid_spit"
 		&"chili_mortar", &"dynamite_lobber":

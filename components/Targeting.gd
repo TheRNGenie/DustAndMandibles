@@ -9,6 +9,12 @@ static func cliff_allows(turret_cliff: int, bug_cliff: int, bug_is_climbing: boo
 	return bug_is_climbing and bug_cliff != turret_cliff
 
 
+## Last-line (plateau guard) turrets: only bugs on the turret owner's OWN plateau,
+## never a climber on either cliff face.
+static func guard_allows(turret_cliff: int, bug_cliff: int, bug_on_plateau: bool) -> bool:
+	return bug_on_plateau and bug_cliff == turret_cliff
+
+
 ## Is `target` inside the turret's pitch limit (degrees below horizontal) and range?
 static func in_arc(muzzle: Vector3, target: Vector3, pitch_limit_deg: float, max_range: float) -> bool:
 	var to := target - muzzle

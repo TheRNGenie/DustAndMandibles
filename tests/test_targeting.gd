@@ -31,3 +31,13 @@ func test_range_limit() -> void:
 
 func test_priority_prefers_higher_bugs() -> void:
 	assert_true(Targeting.priority(50.0, 60.0) > Targeting.priority(30.0, 50.0))
+
+
+func test_plateau_guard_never_shoots_cliff_faces() -> void:
+	assert_false(Targeting.guard_allows(WorldLayout.WEST, WorldLayout.WEST, false))
+	assert_false(Targeting.guard_allows(WorldLayout.WEST, WorldLayout.EAST, false))
+
+
+func test_plateau_guard_only_shoots_own_plateau() -> void:
+	assert_true(Targeting.guard_allows(WorldLayout.WEST, WorldLayout.WEST, true))
+	assert_false(Targeting.guard_allows(WorldLayout.WEST, WorldLayout.EAST, true), "partner plateau is off limits")

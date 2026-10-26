@@ -27,5 +27,8 @@ enum Effect { HITSCAN, KNOCKBACK, BURN, SPLASH, PIN }
 @export var flight_time: float = 0.0
 ## Radius of splash / burning patch, or pin duration in seconds for PIN.
 @export var effect_size: float = 0.0
+## Last-line turret: shoots only bugs that made it onto YOUR plateau (breachers,
+## surfaced ticks, bandits overhead), never anything on a cliff face.
+@export var guards_plateau: bool = false
 ## Resources spent per shot from the owner's stockpile, e.g. {&"water": 2}.
 @export var ammo_cost: Dictionary = {}

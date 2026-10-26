@@ -32,6 +32,8 @@ static func is_structure_cell(cell: Vector2i) -> bool:
 
 
 static func cell_ok_for(id: StringName, cell: Vector2i) -> bool:
+	if Defs.is_turret(id) and Defs.turret(id).guards_plateau:
+		return is_turret_cell(cell) or is_structure_cell(cell)
 	return is_turret_cell(cell) if Defs.is_turret(id) else is_structure_cell(cell)
 
 

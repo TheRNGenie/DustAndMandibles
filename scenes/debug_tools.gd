@@ -237,7 +237,20 @@ func _farm() -> void:
 func _showcase() -> void:
 	var bm := world.get("bugs") as BugManager
 	var lane := 1
-	if GameState.flag_value("--showcase") == "4":
+	if GameState.flag_value("--showcase") == "5":
+		# Plateau-guard test: two last-line turrets on the west plateau, breachers on it,
+		# and climbers on both cliff faces that the guards must ignore.
+		var builds := world.get("builds") as BuildManager
+		var cl := world.get("cliffs") as CliffBuilder
+		Economy.earn(WorldLayout.WEST, {&"scrap": 500})
+		builds.build(&"scattergun_post", WorldLayout.WEST, Vector2i(4, 9))
+		builds.build(&"sharpshooter_tower", WorldLayout.WEST, Vector2i(6, 12))
+		for i in 3:
+			bm.spawn_at(&"rattler_beetle", WorldLayout.WEST, 2, 0.0, 0.0, Bug.State.BREACHING, cl.plateau_point(WorldLayout.WEST, 3.0, -4.0 + i * 4.0))
+		bm.spawn_group(&"spitter_scorpion", 1, WorldLayout.WEST, 1, 55.0)
+		bm.spawn_group(&"spitter_scorpion", 1, WorldLayout.EAST, 3, 55.0)
+		return
+	elif GameState.flag_value("--showcase") == "4":
 		# Turret reach test: frozen spitters on the east face at the old and new cling heights.
 		bm.spawn_group(&"spitter_scorpion", 1, WorldLayout.EAST, 1, 39.0)
 		bm.spawn_group(&"spitter_scorpion", 1, WorldLayout.EAST, 3, 47.0)

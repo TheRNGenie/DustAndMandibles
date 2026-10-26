@@ -16,6 +16,10 @@ static func build(id: StringName, team: Color) -> Dictionary:
 			return _mortar(team, Palette.WOOD_DARK, 0.3)
 		&"lasso_harpoon":
 			return _harpoon(team)
+		&"scattergun_post":
+			return _scattergun(team)
+		&"sharpshooter_tower":
+			return _sharpshooter(team)
 		_:
 			return _gatling(team)
 
@@ -133,3 +137,46 @@ static func _harpoon(team: Color) -> Dictionary:
 	MeshKit.add_cylinder(gun, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0.08, -0.6)), 0.025, 0.0, 0.3, 6, Palette.METAL)
 	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun),
 			"head_y": 1.3, "gun_y": 0.12, "muzzle": Vector3(0, 0.08, -0.75)}
+
+
+## Last-line shotgun turret: squat sandbagged post with a fat double barrel.
+static func _scattergun(team: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 61
+	var base := MeshKit.begin()
+	_platform(base, rng, 0.5)
+	for i in 6:
+		var a := TAU * float(i) / 6.0
+		MeshKit.add_ellipsoid(base, Transform3D(Basis(Vector3.UP, -a), Vector3(cos(a), 0.2, sin(a)) * 0.7), Vector3(0.16, 0.18, 0.28), 4, 8, Palette.SAND.darkened(0.2), 0.1, rng)
+	var head := MeshKit.begin()
+	MeshKit.add_cylinder(head, Transform3D(), 0.28, 0.28, 0.12, 10, Palette.METAL.darkened(0.2))
+	MeshKit.add_box(head, Transform3D(Basis(), Vector3(0, 0.2, 0.2)), Vector3(0.45, 0.25, 0.05), team)
+	var gun := MeshKit.begin()
+	var along := Basis(Vector3.RIGHT, PI * 0.5)
+	for side: float in [-1.0, 1.0]:
+		MeshKit.add_cylinder(gun, Transform3D(along, Vector3(side * 0.06, 0, -0.35)), 0.06, 0.06, 0.8, 8, Palette.METAL)
+	MeshKit.add_box(gun, Transform3D(Basis(), Vector3(0, -0.02, 0.15)), Vector3(0.2, 0.14, 0.35), Palette.WOOD)
+	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun),
+			"head_y": 1.0, "gun_y": 0.15, "muzzle": Vector3(0, 0, -0.78)}
+
+
+## Last-line sniper: a tall lookout tower with a long rifle on top.
+static func _sharpshooter(team: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 71
+	var base := MeshKit.begin()
+	for x: float in [-0.5, 0.5]:
+		for z: float in [-0.5, 0.5]:
+			MeshKit.add_limb(base, Vector3(x * 1.3, 0, z * 1.3), Vector3(x, 2.6, z), 0.07, Palette.WOOD, 5)
+	MeshKit.add_box(base, Transform3D(Basis(), Vector3(0, 2.65, 0)), Vector3(1.3, 0.12, 1.3), Palette.WOOD_DARK, 0.03, rng)
+	MeshKit.add_box(base, Transform3D(Basis(), Vector3(0, 1.3, 0.62)), Vector3(0.9, 0.08, 0.06), Palette.WOOD_DARK)
+	var head := MeshKit.begin()
+	MeshKit.add_box(head, Transform3D(), Vector3(0.3, 0.12, 0.3), Palette.WOOD_DARK)
+	MeshKit.add_box(head, Transform3D(Basis(), Vector3(0.2, 0.2, 0)), Vector3(0.04, 0.35, 0.3), team)
+	var gun := MeshKit.begin()
+	var along := Basis(Vector3.RIGHT, PI * 0.5)
+	MeshKit.add_cylinder(gun, Transform3D(along, Vector3(0, 0, -0.8)), 0.035, 0.03, 1.6, 8, Palette.METAL)
+	MeshKit.add_cylinder(gun, Transform3D(along, Vector3(0, 0.08, -0.2)), 0.04, 0.04, 0.4, 8, Palette.METAL.darkened(0.3))
+	MeshKit.add_box(gun, Transform3D(Basis(), Vector3(0, -0.02, 0.2)), Vector3(0.1, 0.14, 0.5), Palette.WOOD)
+	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun),
+			"head_y": 2.85, "gun_y": 0.12, "muzzle": Vector3(0, 0, -1.6)}
