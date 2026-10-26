@@ -35,6 +35,8 @@ var _capsule: CapsuleShape3D
 var _shake := 0.0
 ## Ladder volumes the player is inside (the airship's rope ladder): forward climbs.
 var ladder_count := 0
+## Local player only: T lights one up (see Cigarette).
+var cigarette: Cigarette
 ## World height of the ladder's top (the deck): you step off forward once above it.
 var ladder_top_y := 0.0
 const CLIMB_SPEED := 4.5
@@ -67,6 +69,10 @@ func _ready() -> void:
 	rig.build(Palette.team_color(cliff_id), is_multiplayer_authority() and not GameState.has_flag("--thirdperson"))
 	net.prime()
 	if is_multiplayer_authority():
+		cigarette = Cigarette.new()
+		cigarette.name = "Cigarette"
+		cigarette.player = self
+		camera.add_child(cigarette)
 		camera.current = true
 		if GameState.flag_value("--shot") == "": # automated screenshots ignore the mouse
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -114,6 +120,10 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if cigarette != null and event.is_action_pressed("smoke") and not GameState.menu_open and not vitals.downed:
+		cigarette.light()
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var motion := event as InputEventMouseMotion
 		var sens := Settings.mouse_sensitivity / gun.zoom_factor()
@@ -177,6 +187,8 @@ func _physics_process(delta: float) -> void:
 		_process_slide(delta)
 	else:
 		var target_speed := SPRINT_SPEED if sprinting else WALK_SPEED
+		if cigarette != null:
+			target_speed *= cigarette.speed_multiplier()
 		if gun.aiming:
 			target_speed *= 0.6
 		var accel := ACCEL_GROUND if on_floor else ACCEL_AIR

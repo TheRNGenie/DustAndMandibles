@@ -341,6 +341,8 @@ func _take_screenshot(path: String) -> void:
 			if GameState.flag_value("--menutab") != "":
 				MenuScreen.instance.tab = int(GameState.flag_value("--menutab"))
 				MenuScreen.instance.refresh()
+	if GameState.has_flag("--smoke") and player != null and player.cigarette != null:
+		player.cigarette.light()
 	if GameState.flag_value("--buildmenu") != "" and player != null:
 		player.build_mode.toggle()
 		player.build_mode.show_category(int(GameState.flag_value("--buildmenu")))

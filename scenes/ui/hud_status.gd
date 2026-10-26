@@ -6,6 +6,7 @@ extends Control
 
 var cliff_id: int = 0
 var _hp_bar: ProgressBar
+var _smoke: Label
 var _scrap: Label
 var _chitin: Label
 var _homes: Array[ProgressBar] = []
@@ -35,6 +36,11 @@ func _ready() -> void:
 	col.add_child(row)
 	_scrap = _counter(row, Palette.METAL.lightened(0.2), "SCRAP")
 	_chitin = _counter(row, Palette.BEETLE_TEAL.lightened(0.15), "CHITIN")
+	_smoke = UiStyle.label("", 13, Palette.BONE)
+	_smoke.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_smoke.add_theme_color_override("font_outline_color", Palette.OUTLINE)
+	_smoke.add_theme_constant_override("outline_size", 4)
+	col.add_child(_smoke)
 
 	for i in 2:
 		var box := VBoxContainer.new()
@@ -74,6 +80,9 @@ func bind_player(player: Player) -> void:
 	player.vitals.health_changed.connect(func(hp: float, mx: float) -> void:
 		_hp_bar.max_value = mx
 		_hp_bar.value = hp)
+	if player.cigarette != null:
+		player.cigarette.changed.connect(func(left: float) -> void:
+			_smoke.text = ("SMOKING  %ds   (faster, sharper eyes)" % int(ceilf(left))) if left > 0.0 else "")
 	player.vitals.downed_changed.connect(func(is_down: bool, secs: float) -> void:
 		_downed.text = "DOWNED - back on your feet in %d s" % int(ceilf(secs)) if is_down else "")
 	_refresh_homes()
