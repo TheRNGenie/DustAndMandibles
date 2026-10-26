@@ -126,6 +126,11 @@ func _process(delta: float) -> void:
 		return
 	_ghost.visible = true
 	_ghost.global_position = Buildable.cell_center(cliffs, _cliff, _cell)
+	var bm0 := BuildManager.instance
+	if Defs.is_turret(selected_id()) and Buildable.is_turret_cell(_cell):
+		_ghost.global_position.y += ScaffoldNode.LEVEL_HEIGHT * maxi(bm0.free_turret_level(_cliff, _cell), 0)
+	elif selected_id() == &"scaffold":
+		_ghost.global_position.y += ScaffoldNode.LEVEL_HEIGHT * bm0.scaffold_levels(_cliff, _cell)
 	_ghost.rotation.y = WorldLayout.facing_canyon_yaw(_cliff)
 	var bm := BuildManager.instance
 	var mine := bm.may_build(multiplayer.get_unique_id(), _cliff)
@@ -178,18 +183,17 @@ func _act_on_target(action: StringName) -> void:
 	var hit := _aim_hit()
 	if hit.is_empty():
 		return
-	var c: Object = hit["collider"]
+	var c := hit["collider"] as Node
 	if c == null or c.get("cell") == null or c.get("cliff_id") == null:
 		return
 	var cell: Vector2i = c.get("cell")
-	var cid := int(c.get("cliff_id"))
-	if cell.x < 0:
+	if cell.x < 0 or c.get_parent() != BuildManager.instance:
 		return
 	if action == &"upgrade":
 		if c is Turret:
-			BuildManager.instance.upgrade(cid, cell)
+			BuildManager.instance.upgrade_node(c)
 	else:
-		BuildManager.instance.demolish(cid, cell)
+		BuildManager.instance.demolish_node(c)
 
 
 func _refresh_ghost_mesh() -> void:

@@ -3,7 +3,7 @@ extends Resource
 ## A non-turret buildable: traps for breachers and survival structures.
 ## Placed on your own plateau behind the turret line.
 
-enum Kind { BARBED_WIRE, BEAR_TRAP, DYNAMITE_CRATE, PALISADE, LANTERN, RAIN_CATCHER, FARM_PLOT }
+enum Kind { BARBED_WIRE, BEAR_TRAP, DYNAMITE_CRATE, PALISADE, LANTERN, RAIN_CATCHER, FARM_PLOT, SCAFFOLD }
 
 @export var id: StringName = &""
 @export var display_name: String = ""

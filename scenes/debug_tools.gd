@@ -223,7 +223,7 @@ func _reinvest(builds: BuildManager) -> void:
 		for col in Buildable.COLS:
 			var t := builds.turret_at(cid, Vector2i(0, col))
 			if t != null and t.upgrade_cost() > 0 and Economy.amount(cid, &"chitin") >= t.upgrade_cost():
-				builds.upgrade(cid, Vector2i(0, col))
+				builds.upgrade_node(t)
 				break
 
 
@@ -240,7 +240,24 @@ func _farm() -> void:
 func _showcase() -> void:
 	var bm := world.get("bugs") as BugManager
 	var lane := 1
-	if GameState.flag_value("--showcase") == "6":
+	if GameState.flag_value("--showcase") == "7":
+		# Scaffold test: two levels + three turrets stacked on one west cell.
+		var b := world.get("builds") as BuildManager
+		Economy.earn(WorldLayout.WEST, {&"scrap": 1000})
+		var cell := Vector2i(0, 9)
+		b.build(&"scaffold", WorldLayout.WEST, cell)
+		await get_tree().process_frame
+		b.build(&"scaffold", WorldLayout.WEST, cell)
+		for i in 3:
+			b.build(&"gatling_post", WorldLayout.WEST, cell)
+			await get_tree().process_frame
+		b.build(&"buffalo_rifle", WorldLayout.WEST, Vector2i(0, 11))
+		await get_tree().process_frame
+		print("[scaffold] levels %d, turrets %d, a 4th fits: %s" % [b.scaffold_levels(WorldLayout.WEST, cell), b.turrets_on(WorldLayout.WEST, cell).size(), b.is_free_for(&"gatling_post", WorldLayout.WEST, cell)])
+		for t in b.turrets_on(WorldLayout.WEST, cell):
+			print("[scaffold]   level %d at y %.1f look-down %.0f deg" % [t.level, t.global_position.y, t.pitch_limit()])
+		return
+	elif GameState.flag_value("--showcase") == "6":
 		# Shop test: sell corn at the vendor, buy and fire the shotgun.
 		var dressing := world.get_node("Dressing")
 		var vendor := dressing.get_node("Vendor") as VendorCart

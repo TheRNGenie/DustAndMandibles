@@ -35,6 +35,8 @@ static func build(kind: StructureDef.Kind) -> ArrayMesh:
 			MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 1.1, 0)), 0.08, 0.07, 2.2, 6, Palette.WOOD)
 			MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.25, 2.15, 0)), Vector3(0.6, 0.06, 0.06), Palette.WOOD_DARK)
 			MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.5, 1.85, 0)), Vector3(0.2, 0.28, 0.2), Palette.GLOW_YELLOW, 0.0, null, 0.85)
+		StructureDef.Kind.SCAFFOLD:
+			return ScaffoldNode.mesh_for(1)
 		StructureDef.Kind.FARM_PLOT:
 			MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.08, 0)), Vector3(1.7, 0.18, 1.7), Palette.DIRT_DARK)
 		StructureDef.Kind.RAIN_CATCHER:

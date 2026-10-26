@@ -15,6 +15,9 @@ var def: TurretDef
 var cliff_id: int = 0
 var cell: Vector2i
 var owner_name: String = ""
+## Scaffold level this turret stands on (0 = ground): +5 degrees look-down per level.
+var level: int = 0
+const LOOK_DOWN_PER_LEVEL := 5.0
 var radius: float = 0.9
 var health: Health
 
@@ -35,10 +38,11 @@ var _cooldown := 0.0
 var _seen_shots := 0
 
 
-func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: String) -> void:
+func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: String, stack_level: int = 0) -> void:
 	def = d
 	cliff_id = cid
 	cell = c
+	level = stack_level
 	owner_name = owner_label
 	position = pos
 	rotation.y = WorldLayout.facing_canyon_yaw(cid)
@@ -166,10 +170,15 @@ func _valid(b: Bug) -> bool:
 	elif not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing()):
 		return false
 	var muzzle := _head.global_position
-	if not Targeting.in_arc(muzzle, b.global_position, def.pitch_limit_deg, def.range * range_multiplier()):
+	if not Targeting.in_arc(muzzle, b.global_position, pitch_limit(), def.range * range_multiplier()):
 		return false
 	var q := PhysicsRayQueryParameters3D.create(muzzle, b.global_position, WorldLayout.LAYER_WORLD)
 	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+
+## Look-down limit in degrees: the turret's own, plus 5 per scaffold level.
+func pitch_limit() -> float:
+	return def.pitch_limit_deg + LOOK_DOWN_PER_LEVEL * level
 
 
 func range_multiplier() -> float:
@@ -202,7 +211,7 @@ func _aim_visual(delta: float) -> void:
 	var local := to_local(aim_point) - _head.position
 	var yaw := atan2(-local.x, -local.z)
 	var horizontal := Vector2(local.x, local.z).length()
-	var pitch := clampf(atan2(local.y, horizontal), -deg_to_rad(def.pitch_limit_deg), deg_to_rad(40.0))
+	var pitch := clampf(atan2(local.y, horizontal), -deg_to_rad(pitch_limit()), deg_to_rad(40.0))
 	var step := deg_to_rad(def.turn_speed) * delta
 	_head.rotation.y = rotate_toward(_head.rotation.y, yaw, step)
 	_gun.rotation.x = rotate_toward(_gun.rotation.x, pitch, step)
@@ -249,6 +258,8 @@ func needs_repair() -> bool:
 
 func interact_prompt() -> String:
 	var text := "%s (tier %d)  %d/%d HP" % [def.display_name, tier, int(health.hp), int(health.max_hp)]
+	if level > 0:
+		text += "  - scaffold level %d (+%d deg look-down)" % [level, int(LOOK_DOWN_PER_LEVEL * level)]
 	if not has_ammo:
 		var needs: PackedStringArray = []
 		for k: Variant in def.ammo_cost.keys():
@@ -263,7 +274,7 @@ func interact_prompt() -> String:
 
 func local_interact(_holding: bool) -> void:
 	if needs_repair():
-		BuildManager.instance.repair(cliff_id, cell)
+		BuildManager.instance.repair_node(self)
 
 
 func _on_destroyed(_source: String, _source_cliff: int) -> void:

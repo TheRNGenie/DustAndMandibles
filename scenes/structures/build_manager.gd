@@ -1,21 +1,27 @@
 class_name BuildManager
 extends Node3D
-## Host-authoritative building: clients ask with request_* RPCs, the host checks
-## cliff ownership, the grid and cost, then spawns the turret, trap or rain catcher
-## (MultiplayerSpawner replicates it). Also handles demolish refunds, repairs and
-## turret upgrades.
+## Host-authoritative building: clients ask with request RPCs, the host checks
+## cliff ownership, the grid and cost, then spawns the turret, trap, plot or rain
+## catcher (MultiplayerSpawner replicates it). Turret-line cells can also hold a
+## scaffold of up to 3 levels: a turret can sit on the ground and on each level,
+## and every level up gives that turret 5 more degrees of look-down.
+## Demolish / repair / upgrade name the exact node you aimed at.
 
 signal structure_event(text: String)
 
 const REPAIR_HP_PER_SCRAP := 10.0
 const REPAIR_CHUNK := 20.0
 const DEMOLISH_REFUND := 0.5
+const MAX_SCAFFOLD := 3
 
 static var instance: BuildManager
 
 var cliffs: CliffBuilder
 var _spawner: MultiplayerSpawner
-var _occupied: Dictionary = {} # "cid:row:col" -> Node3D (Turret, StructureNode or WaterSource)
+## "cid:row:col:level" -> Node3D (level 0 for everything that isn't stacked).
+var _occupied: Dictionary = {}
+## "cid:row:col" -> ScaffoldNode
+var _scaffolds: Dictionary = {}
 var _next_id := 0
 
 
@@ -28,25 +34,58 @@ func _ready() -> void:
 	_spawner.spawn_function = _spawn_built
 
 
-static func _key(cid: int, cell: Vector2i) -> String:
+static func _key(cid: int, cell: Vector2i, level: int = 0) -> String:
+	return "%d:%d:%d:%d" % [cid, cell.x, cell.y, level]
+
+
+static func _cell_key(cid: int, cell: Vector2i) -> String:
 	return "%d:%d:%d" % [cid, cell.x, cell.y]
 
 
+func scaffold_levels(cid: int, cell: Vector2i) -> int:
+	var s := _scaffolds.get(_cell_key(cid, cell)) as ScaffoldNode
+	return s.levels if s != null and is_instance_valid(s) else 0
+
+
+## Lowest free turret slot on a cell (0 = ground), or -1 if every slot is taken.
+func free_turret_level(cid: int, cell: Vector2i) -> int:
+	for level in scaffold_levels(cid, cell) + 1:
+		if not _occupied.has(_key(cid, cell, level)):
+			return level
+	return -1
+
+
 func is_free_for(id: StringName, cid: int, cell: Vector2i) -> bool:
-	return Buildable.cell_ok_for(id, cell) and not _occupied.has(_key(cid, cell))
+	if not Buildable.cell_ok_for(id, cell):
+		return false
+	if id == &"scaffold":
+		return scaffold_levels(cid, cell) < MAX_SCAFFOLD
+	if Defs.is_turret(id) and Buildable.is_turret_cell(cell):
+		return free_turret_level(cid, cell) >= 0
+	return not _occupied.has(_key(cid, cell, 0)) and scaffold_levels(cid, cell) == 0
 
 
-## Kept for older callers: is a turret cell free?
+## Kept for older callers: is a turret slot free here?
 func is_free(cid: int, cell: Vector2i) -> bool:
 	return is_free_for(&"gatling_post", cid, cell)
 
 
-func built_at(cid: int, cell: Vector2i) -> Node3D:
-	return _occupied.get(_key(cid, cell)) as Node3D
+func built_at(cid: int, cell: Vector2i, level: int = 0) -> Node3D:
+	return _occupied.get(_key(cid, cell, level)) as Node3D
 
 
-func turret_at(cid: int, cell: Vector2i) -> Turret:
-	return built_at(cid, cell) as Turret
+func turret_at(cid: int, cell: Vector2i, level: int = 0) -> Turret:
+	return built_at(cid, cell, level) as Turret
+
+
+## Every turret standing on a cell (ground first).
+func turrets_on(cid: int, cell: Vector2i) -> Array[Turret]:
+	var out: Array[Turret] = []
+	for level in MAX_SCAFFOLD + 1:
+		var t := turret_at(cid, cell, level)
+		if t != null:
+			out.append(t)
+	return out
 
 
 ## Can this peer build on this cliff? Your own cliff only, unless playing solo.
@@ -62,16 +101,17 @@ func build(id: StringName, cid: int, cell: Vector2i) -> void:
 	_call(&"build", [id, cid, cell])
 
 
-func demolish(cid: int, cell: Vector2i) -> void:
-	_call(&"demolish", [cid, cell])
+## Demolish / repair / upgrade the given built node (a turret, structure or scaffold).
+func demolish_node(n: Node) -> void:
+	_call(&"demolish", [n.name])
 
 
-func repair(cid: int, cell: Vector2i) -> void:
-	_call(&"repair", [cid, cell])
+func repair_node(n: Node) -> void:
+	_call(&"repair", [n.name])
 
 
-func upgrade(cid: int, cell: Vector2i) -> void:
-	_call(&"upgrade", [cid, cell])
+func upgrade_node(n: Node) -> void:
+	_call(&"upgrade", [n.name])
 
 
 func _call(action: StringName, args: Array) -> void:
@@ -88,15 +128,19 @@ func _request(action: StringName, args: Array) -> void:
 
 
 func _handle(peer_id: int, action: StringName, args: Array) -> void:
+	if action == &"build":
+		_do_build(peer_id, StringName(args[0]), int(args[1]), args[2])
+		return
+	var n := get_node_or_null(NodePath(str(args[0]))) as Node3D
+	if n == null:
+		return
 	match action:
-		&"build":
-			_do_build(peer_id, StringName(args[0]), int(args[1]), args[2])
 		&"demolish":
-			_do_demolish(peer_id, int(args[0]), args[1])
+			_do_demolish(peer_id, n)
 		&"repair":
-			_do_repair(peer_id, int(args[0]), args[1])
+			_do_repair(peer_id, n)
 		&"upgrade":
-			_do_upgrade(peer_id, int(args[0]), args[1])
+			_do_upgrade(peer_id, n)
 
 
 # ------------------------------------------------------------------ host logic
@@ -110,8 +154,16 @@ func _do_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> void:
 	if not Economy.spend(cid, {&"scrap": cost}):
 		Economy.notify(peer_id, "Not enough scrap for a %s (%d)." % [Defs.name_of(id), cost])
 		return
+	if id == &"scaffold" and scaffold_levels(cid, cell) > 0:
+		(_scaffolds[_cell_key(cid, cell)] as ScaffoldNode).set_levels(scaffold_levels(cid, cell) + 1)
+		_built_fx.rpc(Buildable.cell_center(cliffs, cid, cell))
+		return
+	var level := 0
+	if Defs.is_turret(id) and Buildable.is_turret_cell(cell):
+		level = free_turret_level(cid, cell)
 	_next_id += 1
-	_spawner.spawn({"id": _next_id, "type": id, "cliff": cid, "row": cell.x, "col": cell.y, "owner": _name_of(peer_id)})
+	_spawner.spawn({"id": _next_id, "type": id, "cliff": cid, "row": cell.x, "col": cell.y,
+			"level": level, "owner": _name_of(peer_id)})
 
 
 func _spawn_built(data: Variant) -> Node:
@@ -119,12 +171,18 @@ func _spawn_built(data: Variant) -> Node:
 	var cid := int(d["cliff"])
 	var cell := Vector2i(int(d["row"]), int(d["col"]))
 	var id := StringName(d["type"])
+	var level := int(d.get("level", 0))
 	var pos := Buildable.cell_center(cliffs, cid, cell)
 	var node: Node3D
 	if Defs.is_turret(id):
 		var t := Turret.new()
-		t.setup(Defs.turret(id), cid, cell, pos, str(d["owner"]))
+		t.setup(Defs.turret(id), cid, cell, pos + Vector3.UP * ScaffoldNode.LEVEL_HEIGHT * level, str(d["owner"]), level)
 		node = t
+	elif id == &"scaffold":
+		var sc := ScaffoldNode.new()
+		sc.setup(cid, cell, pos)
+		_scaffolds[_cell_key(cid, cell)] = sc
+		node = sc
 	elif Defs.structure(id).kind == StructureDef.Kind.RAIN_CATCHER:
 		node = _make_rain_catcher(cid, cell, pos)
 	elif Defs.structure(id).kind == StructureDef.Kind.FARM_PLOT:
@@ -139,11 +197,17 @@ func _spawn_built(data: Variant) -> Node:
 		s.setup(Defs.structure(id), cid, cell, pos, str(d["owner"]))
 		node = s
 	node.name = "Built%d" % int(d["id"])
-	var key := _key(cid, cell)
-	_occupied[key] = node
-	node.tree_exiting.connect(func() -> void:
-		if _occupied.get(key) == node:
-			_occupied.erase(key))
+	if id != &"scaffold":
+		var key := _key(cid, cell, level)
+		_occupied[key] = node
+		node.tree_exiting.connect(func() -> void:
+			if _occupied.get(key) == node:
+				_occupied.erase(key))
+	else:
+		var ck := _cell_key(cid, cell)
+		node.tree_exiting.connect(func() -> void:
+			if _scaffolds.get(ck) == node:
+				_scaffolds.erase(ck))
 	Audio.play_at(&"build", pos)
 	return node
 
@@ -172,9 +236,21 @@ func _make_rain_catcher(cid: int, cell: Vector2i, pos: Vector3) -> WaterSource:
 	return w
 
 
-func _do_demolish(peer_id: int, cid: int, cell: Vector2i) -> void:
-	var n := built_at(cid, cell)
-	if n == null or not may_build(peer_id, cid):
+func _do_demolish(peer_id: int, n: Node3D) -> void:
+	var cid := int(n.get("cliff_id"))
+	if not may_build(peer_id, cid):
+		return
+	if n is ScaffoldNode:
+		# Take down the top level, but only if no turret is standing on it.
+		var sc := n as ScaffoldNode
+		if turret_at(cid, sc.cell, sc.levels) != null:
+			Economy.notify(peer_id, "Remove the turret on the top level first.")
+			return
+		Economy.earn(cid, {&"scrap": int(Defs.cost_of(&"scaffold") * DEMOLISH_REFUND)})
+		if sc.levels <= 1:
+			sc.queue_free()
+		else:
+			sc.set_levels(sc.levels - 1)
 		return
 	var id: StringName = n.get("build_id") if n.get("build_id") != null else (n as Object).get("def").get("id")
 	var fraction := 1.0
@@ -182,28 +258,34 @@ func _do_demolish(peer_id: int, cid: int, cell: Vector2i) -> void:
 	if h != null:
 		fraction = (h as Health).fraction()
 	Economy.earn(cid, {&"scrap": int(Defs.cost_of(id) * DEMOLISH_REFUND * fraction)})
-	_occupied.erase(_key(cid, cell))
 	n.queue_free()
 
 
-func _do_repair(peer_id: int, cid: int, cell: Vector2i) -> void:
-	var t := turret_at(cid, cell)
+func _do_repair(peer_id: int, n: Node3D) -> void:
+	var t := n as Turret
+	if n is ScaffoldNode:
+		# Repairing a scaffold patches up its most damaged turret.
+		var worst: Turret = null
+		for tt in turrets_on(int(n.get("cliff_id")), (n as ScaffoldNode).cell):
+			if tt.needs_repair() and (worst == null or tt.health.fraction() < worst.health.fraction()):
+				worst = tt
+		t = worst
 	if t == null or not t.needs_repair():
 		return
 	# Anyone can repair anything: helping your partner's turrets is the point.
-	var payer := Economy.payer_cliff(peer_id, cid)
+	var payer := Economy.payer_cliff(peer_id, t.cliff_id)
 	if not Economy.spend(payer, {&"scrap": int(ceil(REPAIR_CHUNK / REPAIR_HP_PER_SCRAP))}):
 		return
 	t.repair(REPAIR_CHUNK)
 
 
-func _do_upgrade(peer_id: int, cid: int, cell: Vector2i) -> void:
-	var t := turret_at(cid, cell)
+func _do_upgrade(peer_id: int, n: Node3D) -> void:
+	var t := n as Turret
 	if t == null or t.upgrade_cost() <= 0:
 		return
-	var payer := Economy.payer_cliff(peer_id, cid)
+	var payer := Economy.payer_cliff(peer_id, t.cliff_id)
 	if not Economy.spend(payer, {&"chitin": t.upgrade_cost()}):
-		Economy.notify(peer_id, "Upgrading needs %d chitin (armoured bugs drop it)." % t.upgrade_cost())
+		Economy.notify(peer_id, "Upgrading needs %d chitin (armoured bugs and the Oasis vendor give it)." % t.upgrade_cost())
 		return
 	t.upgrade()
 	_upgraded.rpc(t.global_position)
@@ -216,11 +298,13 @@ func _upgraded(pos: Vector3) -> void:
 		Turret.vfx.pop(pos + Vector3.UP * 1.5, Palette.GLOW_YELLOW, 1.0)
 
 
+@rpc("authority", "call_local", "reliable")
+func _built_fx(pos: Vector3) -> void:
+	Audio.play_at(&"build", pos)
+
+
 ## Host: a turret or structure's HP hit zero.
 func on_structure_destroyed(n: Node3D) -> void:
-	var cid := int(n.get("cliff_id"))
-	var cell: Vector2i = n.get("cell")
-	_occupied.erase(_key(cid, cell))
 	var label := "A structure"
 	if n is Turret:
 		label = "%s's %s" % [(n as Turret).owner_name, (n as Turret).def.display_name]

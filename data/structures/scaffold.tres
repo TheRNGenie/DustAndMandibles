@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StructureDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/structure_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"scaffold"
+display_name = "Scaffold"
+description = "Stack turrets: each level holds another turret, and each level up gives it 5 more degrees of look-down. Build again on the same spot to add a level (max 3)."
+kind = 7
+cost_scrap = 25
+max_hp = 200.0
+radius = 1.0
