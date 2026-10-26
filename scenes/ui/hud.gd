@@ -129,6 +129,8 @@ func _update_phase_label() -> void:
 	var secs := int(ceilf(GameState.time_left))
 	if GameState.phase == GameState.Phase.LOBBY:
 		_phase_label.text = title
+	elif GameState.phase == GameState.Phase.WAVE:
+		_phase_label.text = "Wave %d  -  %s  -  %d bugs left" % [GameState.wave, title, get_tree().get_nodes_in_group("bugs").size()]
 	else:
 		_phase_label.text = "Wave %d  -  %s  -  %d:%02d" % [GameState.wave, title, secs / 60, secs % 60]
 

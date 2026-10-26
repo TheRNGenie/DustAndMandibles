@@ -28,6 +28,10 @@ func open() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
+func select_tab(index: int) -> void:
+	_tabs.current_tab = clampi(index, 0, _tabs.get_tab_count() - 1)
+
+
 func close() -> void:
 	_root.visible = false
 	GameState.menu_open = false

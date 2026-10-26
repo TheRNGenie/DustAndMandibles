@@ -20,7 +20,7 @@ func _ready() -> void:
 
 
 ## Host only: spawns `count` bugs of a type at the bottom of a lane.
-func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int) -> void:
+func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y: float = 0.0) -> void:
 	if not multiplayer.is_server():
 		return
 	var cfg := Defs.WAVE_CONFIG
@@ -28,10 +28,10 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int) -> void:
 		if alive_count() >= cfg.max_active_bugs:
 			return
 		var z := WorldLayout.LANE_Z[lane] + randf_range(-1.6, 1.6)
-		var y := -float(i) * 0.9 # stagger groups so they climb in a column
+		var y := start_y - float(i) * 0.9 # stagger groups so they climb in a column
 		_next_id += 1
 		_spawner.spawn({"id": _next_id, "bug": bug_id, "cliff": cliff, "lane": lane,
-				"z": z, "y": y, "hp": cfg.hp_multiplier})
+				"z": z, "y": y, "hp": cfg.hp_scale(GameState.wave)})
 
 
 func _spawn_bug(data: Variant) -> Node:

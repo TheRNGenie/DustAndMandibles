@@ -120,7 +120,7 @@ func _spawn_player(data: Variant) -> Node:
 	player.name = str(peer_id)
 	player.cliff_id = cid
 	player.set_multiplayer_authority(peer_id)
-	player.position = cliffs.plateau_point(cid, 6.0, 0.0) + Vector3.UP * 0.5
+	player.position = cliffs.plateau_point(cid, 11.0, 0.0) + Vector3.UP * 0.5
 	player.rotation.y = WorldLayout.facing_canyon_yaw(cid)
 	print("[peer %d] spawned player %d on cliff %d" % [multiplayer.get_unique_id(), peer_id, cid])
 	player.ready.connect(func() -> void:
@@ -172,7 +172,7 @@ func _build_environment() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#B08AB8")
-	env.ambient_light_energy = 0.55
+	env.ambient_light_energy = 0.85
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env.fog_enabled = true
 	env.fog_light_color = Palette.SKY_HORIZON

@@ -54,6 +54,8 @@ func _process(delta: float) -> void:
 
 
 func _release(pulse: int) -> void:
+	if GameState.has_flag("--netlog"):
+		print("[wave] releasing pulse %d of %d, %d groups planned" % [pulse, int(_plan["pulses"]), (_plan["groups"] as Array).size()])
 	for g: Dictionary in _plan["groups"]:
 		if int(g["pulse"]) == pulse:
 			bug_manager.spawn_group(StringName(g["bug"]), int(g["count"]), int(g["cliff"]), int(g["lane"]))

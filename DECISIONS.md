@@ -34,3 +34,5 @@ Assumptions and changes from the design doc, newest last.
 30. **Building is allowed in any phase**, not only the build phase. Repairing is allowed for anyone on any turret (paid by the repairer), since helping your partner is the point.
 31. **Spitter Scorpions cling at 65% of the cliff height** (the doc says halfway) so turrets can actually reach them on the deeper canyon.
 32. **Players have 100 HP, are downed for 15 s at 0 and respawn at home.** Breachers attack players within 7 m first.
+33. **Balance pass from automated soak tests (no players shooting):** climb speeds are 1.5x the doc's (the 60 m cliff doubled exposure time), Gatling damage 3.5 at 65% hit chance, and bug HP grows 12% per wave (`hp_per_wave` in `wave_config.tres`). Starting values only; the M2 playtest decides.
+34. **Debug automation flags** for testing without a person: `--soak=N` (headless waves, auto-ready), `--autobuild [--light]`, `--showcase` (one of each bug frozen on the west face), `--cam=x,y,z,tx,ty,tz`, `--pause=tab`, `--seconds=N` with `--shot`.

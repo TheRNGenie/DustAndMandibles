@@ -15,6 +15,29 @@ func _ready() -> void:
 	var shot := GameState.flag_value("--shot")
 	if shot != "":
 		_take_screenshot(shot)
+	elif GameState.flag_value("--soak") != "":
+		_soak(GameState.flag_value("--soak").to_float())
+
+
+## --soak=N: runs N seconds (works headless), auto-readies every build phase,
+## logs each phase change, then quits. Combine with --autobuild and --fast.
+func _soak(seconds: float) -> void:
+	for i in 20:
+		await get_tree().process_frame
+	if GameState.has_flag("--autobuild") and multiplayer.is_server():
+		_autobuild()
+	var bugs := world.get("bugs") as BugManager
+	GameState.phase_changed.connect(func(p: GameState.Phase) -> void:
+		print("[soak %5.1fs] wave %d phase %d  homesteads %s  bugs %d  scrap W%d E%d" % [
+			Time.get_ticks_msec() / 1000.0, GameState.wave, p, str(GameState.homestead_hp),
+			bugs.alive_count(), Economy.amount(0, &"scrap"), Economy.amount(1, &"scrap")]))
+	var start := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start < int(seconds * 1000.0) and GameState.phase != GameState.Phase.GAME_OVER:
+		await get_tree().create_timer(1.0).timeout
+		if GameState.phase == GameState.Phase.BUILD:
+			GameState.vote_skip()
+	print("[soak] end: wave %d phase %d homesteads %s bugs %d" % [GameState.wave, GameState.phase, str(GameState.homestead_hp), bugs.alive_count()])
+	get_tree().quit()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -87,6 +110,8 @@ func _toggle_lanes() -> void:
 
 func _take_screenshot(path: String) -> void:
 	var frames := int(GameState.flag_value("--frames")) if GameState.flag_value("--frames") != "" else 90
+	# --seconds=N waits real time instead of a frame count (frame rate varies a lot).
+	var seconds := GameState.flag_value("--seconds").to_float()
 	for i in 20:
 		await get_tree().process_frame
 	var player := world.call("local_player") as Player
@@ -103,17 +128,35 @@ func _take_screenshot(path: String) -> void:
 		player.head.rotation.x = deg_to_rad(parts[1].to_float())
 	if GameState.has_flag("--autobuild") and multiplayer.is_server():
 		_autobuild()
-	for i in frames:
+	if GameState.has_flag("--showcase") and multiplayer.is_server():
+		_showcase()
+	if GameState.flag_value("--pause") != "":
+		var pm := world.get_node("PauseMenu") as PauseMenu
+		pm.open()
+		pm.select_tab(int(GameState.flag_value("--pause")))
+	var start := Time.get_ticks_msec()
+	var i := 0
+	while (seconds > 0.0 and Time.get_ticks_msec() - start < int(seconds * 1000.0)) or (seconds <= 0.0 and i < frames):
 		await get_tree().process_frame
+		i += 1
+		if player != null and look != "":
+			player.head.rotation.x = deg_to_rad(look.split(",")[1].to_float())
+		_apply_freecam(player)
 		if i == 30 and GameState.has_flag("--autoskip"):
 			GameState.vote_skip()
-		if player != null and GameState.has_flag("--autofire") and i % 40 == 0 and i < frames - 60:
+		if player != null and GameState.has_flag("--autofire") and i % 40 == 0:
 			if player.revolver.trigger(player.camera):
 				player.net.fire(player.camera.global_position, -player.camera.global_transform.basis.z)
 	var players_root := world.get("players_root") as Node3D
 	print("[peer %d] phase %d wave %d, players %d, bugs %d, homesteads %s" % [multiplayer.get_unique_id(),
 			GameState.phase, GameState.wave, players_root.get_child_count(),
 			(world.get("bugs") as BugManager).alive_count(), str(GameState.homestead_hp)])
+	var shown := 0
+	for b: Node in get_tree().get_nodes_in_group("bugs"):
+		if shown < 4:
+			var bug := b as Bug
+			print("  bug %s %s state %d y %.1f z %.1f at %s visible %s" % [bug.name, bug.def.id, bug.state, bug.climb_y, bug.lane_z, str(bug.global_position.snapped(Vector3.ONE * 0.1)), bug.is_visible_in_tree()])
+			shown += 1
 	for p: Node in players_root.get_children():
 		print("[peer %d]   player %s at %s" % [multiplayer.get_unique_id(), p.name, str((p as Node3D).global_position.snapped(Vector3.ONE * 0.1))])
 	get_viewport().get_texture().get_image().save_png(path)
@@ -121,9 +164,53 @@ func _take_screenshot(path: String) -> void:
 	get_tree().quit()
 
 
+## --cam=x,y,z,tx,ty,tz puts the camera at a fixed spot looking at a target.
+func _apply_freecam(player: Player) -> void:
+	var cam := GameState.flag_value("--cam")
+	if player == null or cam == "":
+		return
+	var v := cam.split(",")
+	var from := Vector3(v[0].to_float(), v[1].to_float(), v[2].to_float())
+	var to := Vector3(v[3].to_float(), v[4].to_float(), v[5].to_float())
+	player.camera.global_transform = Transform3D(Basis.looking_at(to - from, Vector3.UP), from)
+
+
+## Spends each cliff's scrap on the next free turret slot (Buffalo every third).
+func _reinvest(builds: BuildManager) -> void:
+	for cid in 2:
+		for col in Buildable.COLS:
+			var id := &"buffalo_rifle" if col % 3 == 0 else &"gatling_post"
+			var cost := Defs.turret(id).cost_scrap
+			if Economy.amount(cid, &"scrap") < cost:
+				break
+			if builds.is_free(cid, Vector2i(0, col)):
+				builds.build(id, cid, Vector2i(0, col))
+
+
+## Test helper: one of each bug, frozen on the west face (lanes 1-4, 25 m up) for portraits.
+func _showcase() -> void:
+	var bm := world.get("bugs") as BugManager
+	var lane := 1
+	for id: StringName in [&"dust_mite", &"wolf_spider", &"rattler_beetle", &"spitter_scorpion"]:
+		bm.spawn_group(id, 1, WorldLayout.WEST, lane, 25.0)
+		lane += 1
+	await get_tree().process_frame
+	for b: Node in get_tree().get_nodes_in_group("bugs"):
+		(b as Bug).speed_mult = 0.0
+
+
 ## Test helper: a row of turrets on both cliffs (free).
 func _autobuild() -> void:
 	var builds := world.get("builds") as BuildManager
+	if GameState.has_flag("--light"):
+		# Realistic start: what the starting scrap buys, then reinvest each build phase.
+		for cid in 2:
+			for col: int in [6, 13]:
+				builds.build(&"gatling_post", cid, Vector2i(0, col))
+		GameState.phase_changed.connect(func(p: GameState.Phase) -> void:
+			if p == GameState.Phase.BUILD:
+				_reinvest(builds))
+		return
 	for cid in 2:
 		Economy.earn(cid, {&"scrap": 1000})
 		for col: int in [3, 6, 9, 12, 15]:

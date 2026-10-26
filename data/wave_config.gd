@@ -19,6 +19,8 @@ extends Resource
 @export var warning_time: float = 10.0
 @export var last_wave: int = 10
 @export var hp_multiplier: float = 1.0
+## Extra bug HP per wave after the first (0.08 = +8% per wave).
+@export var hp_per_wave: float = 0.08
 @export var homestead_hp: float = 500.0
 @export var start_scrap: int = 150
 @export var max_active_bugs: int = 150
@@ -27,6 +29,11 @@ extends Resource
 ## Threat budget for wave w: 20 + 12w + 1.5w^2.
 func budget(w: int) -> float:
 	return budget_base + budget_linear * w + budget_quad * w * w
+
+
+## Bug HP multiplier for wave w.
+func hp_scale(w: int) -> float:
+	return hp_multiplier * (1.0 + hp_per_wave * float(maxi(w - 1, 0)))
 
 
 func build_time(w: int) -> float:

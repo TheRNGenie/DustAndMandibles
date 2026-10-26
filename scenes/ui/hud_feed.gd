@@ -17,12 +17,12 @@ var _build_mode: BuildMode
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_feed = VBoxContainer.new()
 	_feed.anchor_left = 1.0
 	_feed.anchor_right = 1.0
-	_feed.offset_left = -460
+	_feed.offset_left = -700
 	_feed.offset_right = -24
 	_feed.offset_top = 90
 	_feed.alignment = BoxContainer.ALIGNMENT_BEGIN
