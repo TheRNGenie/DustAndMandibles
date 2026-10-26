@@ -119,8 +119,8 @@ func _pull(peer_id: int, index: int) -> void:
 	if win > 0:
 		Economy.earn(cid, {&"scrap": win})
 	_show.rpc(reels, win)
-	Economy.notify(peer_id, ("Slots: %s %s %s. You win %d scrap!" if win > 0 else "Slots: %s %s %s. No luck.") % [
-		SYMBOLS[reels[0]][0], SYMBOLS[reels[1]][0], SYMBOLS[reels[2]][0], win])
+	var shown := "%s %s %s" % [SYMBOLS[reels[0]][0], SYMBOLS[reels[1]][0], SYMBOLS[reels[2]][0]]
+	Economy.notify(peer_id, ("Slots: %s. You win %d scrap!" % [shown, win]) if win > 0 else ("Slots: %s. No luck." % shown))
 
 
 @rpc("authority", "call_local", "reliable")

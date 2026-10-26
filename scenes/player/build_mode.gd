@@ -187,6 +187,13 @@ func _process(delta: float) -> void:
 		_aim_house_mount(pos)
 		return
 	_cell = Buildable.world_to_cell(cliffs, _cliff, pos)
+	# Aiming at a built turret or scaffold: use its own cell (so scaffolding can go
+	# over a turret, and turrets onto a scaffold, wherever on it you aim).
+	var hit_node := hit["collider"] as Node
+	if hit_node != null and hit_node.get_parent() == BuildManager.instance and hit_node.get("cell") != null:
+		var hc: Vector2i = hit_node.get("cell")
+		if hc.x >= 0 and int(hit_node.get("cliff_id")) == _cliff:
+			_cell = hc
 	if not Buildable.cell_ok_for(selected_id(), _cell):
 		return
 	_ghost.visible = true

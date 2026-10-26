@@ -16,10 +16,11 @@ func test_budget_formula() -> void:
 	assert_almost(cfg.budget(10), 290.0)
 
 
-func test_build_time_shrinks() -> void:
+func test_build_time_is_five_minutes() -> void:
+	# Logan's call: 5 minutes between waves (both players readying up skips it).
 	var cfg := Defs.WAVE_CONFIG
-	assert_almost(cfg.build_time(1), 150.0)
-	assert_almost(cfg.build_time(10), 90.0)
+	assert_almost(cfg.build_time(1), 300.0)
+	assert_almost(cfg.build_time(10), 300.0)
 
 
 func test_scripted_splits() -> void:

@@ -126,6 +126,14 @@ func _ready() -> void:
 	wheel.position = Vector3(AirshipBuilder.DECK_W * 0.5 - 1.0, 0, -1.0)
 	wheel.rotation.y = PI * 0.5
 	add_child(wheel)
+	# Card tables and the roulette wheel.
+	var tables: Array = [[BlackjackTable.new(), "Blackjack", Vector3(2.3, 0, 3.4)], [BaccaratTable.new(), "Baccarat", Vector3(-2.3, 0, 3.4)],
+		[RouletteTable.new(), "Roulette", Vector3(1.4, 0, -3.6)]]
+	for t: Array in tables:
+		var table := t[0] as CasinoTable
+		table.name = t[1]
+		table.position = t[2]
+		add_child(table)
 	var bar := MeshInstance3D.new()
 	bar.mesh = _bar_mesh()
 	bar.material_override = Materials.toon(0.02)
@@ -181,7 +189,7 @@ func _set_deck_active(on: bool) -> void:
 	_ladder_area.monitoring = on
 	_ladder_mi.visible = on
 	for c in get_children():
-		if c is SlotMachine or c is PrizeWheel:
+		if c is SlotMachine or c is PrizeWheel or c is CasinoTable:
 			(c as Node3D).process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
 	if not on:
 		for n: Node in get_tree().get_nodes_in_group("players"):

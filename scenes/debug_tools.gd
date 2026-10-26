@@ -19,6 +19,8 @@ func _ready() -> void:
 		_soak(GameState.flag_value("--soak").to_float())
 	elif GameState.has_flag("--laddertest"):
 		_ladder_test()
+	elif GameState.has_flag("--scaffoldtest"):
+		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
 	elif GameState.flag_value("--stairtest") != "":
@@ -111,10 +113,37 @@ func _ladder_test() -> void:
 	await get_tree().create_timer(PrizeWheel.SPIN_TIME + 0.5).timeout
 	wheel._spin(multiplayer.get_unique_id())
 	await get_tree().create_timer(PrizeWheel.SPIN_TIME + 0.5).timeout
+	var bj := ship.get_node("Blackjack") as BlackjackTable
+	bj._act(1, &"e", 0)
+	bj._act(1, &"stand", 0)
+	(ship.get_node("Baccarat") as BaccaratTable)._act(1, &"e", 1)
+	(ship.get_node("Roulette") as RouletteTable)._act(1, &"e", 0)
+	await get_tree().create_timer(RouletteTable.SPIN_TIME + 0.5).timeout
+	for tn: String in ["Blackjack", "Baccarat", "Roulette"]:
+		print("[ladder] %s sign: %s" % [tn, (ship.get_node(tn) as CasinoTable)._label.text.replace("
+", " | ")])
 	print("[ladder] after games: scrap %d chitin %d" % [Economy.amount(player.cliff_id, &"scrap"), Economy.amount(player.cliff_id, &"chitin")])
 	GameState.debug_skip()
 	await get_tree().create_timer(1.0).timeout
 	print("[ladder] ship leaving (state %d); player now at %s (oasis top y %.1f)" % [ship._state, str(player.global_position.snapped(Vector3.ONE * 0.1)), WorldLayout.CLIFF_HEIGHT])
+	get_tree().quit()
+
+
+## --scaffoldtest: turret first, then scaffolding over it, then a turret on top.
+func _scaffold_test() -> void:
+	for i in 20:
+		await get_tree().process_frame
+	var bm := BuildManager.instance
+	Economy.earn(0, {&"scrap": 500})
+	var cell := Vector2i(0, 3)
+	bm.build(&"gatling_post", 0, cell)
+	await get_tree().create_timer(0.3).timeout
+	print("[scaffold] scaffold allowed over the turret: %s" % bm.is_free_for(&"scaffold", 0, cell))
+	bm.build(&"scaffold", 0, cell)
+	await get_tree().create_timer(0.3).timeout
+	bm.build(&"buffalo_rifle", 0, cell)
+	await get_tree().create_timer(0.3).timeout
+	print("[scaffold] levels %d, turrets on the cell: %d" % [bm.scaffold_levels(0, cell), bm.turrets_on(0, cell).size()])
 	get_tree().quit()
 
 

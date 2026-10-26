@@ -14,8 +14,8 @@ extends Resource
 @export var split_max: float = 0.7
 ## Scripted share of the budget sent to the WEST cliff, waves 1..9 (design doc table).
 @export var west_share: PackedFloat32Array = PackedFloat32Array([0.5, 0.6, 0.4, 0.6, 0.5, 0.65, 0.35, 0.6, 0.7])
-@export var build_time_first: float = 150.0
-@export var build_time_last: float = 90.0
+@export var build_time_first: float = 300.0
+@export var build_time_last: float = 300.0
 @export var warning_time: float = 10.0
 @export var last_wave: int = 10
 @export var hp_multiplier: float = 1.0
