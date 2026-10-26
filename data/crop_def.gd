@@ -9,6 +9,6 @@ extends Resource
 @export var grow_time: float = 180.0
 ## Water used when watering.
 @export var water_cost: int = 1
-## What a harvest adds to the stockpile, e.g. {&"food": 2}.
+## What a harvest adds to the stockpile, e.g. {&"corn": 3}.
 @export var harvest: Dictionary = {}
 @export var color: Color = Color.WHITE

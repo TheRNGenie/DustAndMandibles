@@ -51,7 +51,8 @@ Regenerate sounds and music: `python tools/audio/make_sfx.py` and `python tools/
 | Interact / hold to repair | E |
 | Build mode | B (1-0 or mouse wheel to pick, click to place, X demolish, right-click exit) |
 | Upgrade the turret you look at | U (chitin) |
-| Eat / drink | F / Q (1 food / 1 water from your stockpile) |
+| Hotbar | 1 revolver, 2 lever rifle, 3 shotgun, 4 herbs (heal), 5 build tool |
+| Pick seed / shop item / vegetable to sell | F |
 | Ready / skip build phase | G |
 | Skip phase (with --debug) | F6 |
 | Pause menu (settings, remapping, invite) | Esc |

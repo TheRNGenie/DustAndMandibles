@@ -1,43 +1,59 @@
 class_name CropPlot
 extends StaticBody3D
-## One tilled plot in a Homestead's crop field. E plants, E again waters (1 water
-## from your stockpile), the crop grows while watered, then E harvests into the
-## stockpile. Host-authoritative; state changes are broadcast to everyone.
+## A tilled plot. Build more from the build menu (Farm plot). On an empty plot,
+## F picks the seed and E plants it; E again waters it (1 water from your
+## stockpile); the crop grows while watered, then E harvests into the stockpile.
+## Host-authoritative; state changes are broadcast to everyone.
 ## Crop Weevils eat whatever is growing here.
 
 const SYNC_INTERVAL := 2.0
+## Seed order for F (cycle) on an empty plot.
+const SEEDS: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs"]
+
+## The seed this player has picked for empty plots (local, shared by all plots).
+static var selected_seed := 0
 
 var cliff_id: int = 0
 var crop_def: CropDef
 var radius: float = 0.9
+var cell: Vector2i = Vector2i(-1, -1)
+var build_id: StringName = &"farm_plot"
 var growth := CropGrowth.new()
 var _plant_mi: MeshInstance3D
 var _fruit_mi: MeshInstance3D
+var _sign: MeshInstance3D
+var _sign_mat: StandardMaterial3D
 var _sync_t := 0.0
 
 
-func setup(cid: int, def: CropDef) -> void:
+func setup(cid: int) -> void:
 	cliff_id = cid
-	crop_def = def
 	collision_layer = WorldLayout.LAYER_WORLD
 	var soil := MeshInstance3D.new()
 	var st := MeshKit.begin()
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.08, 0)), Vector3(1.7, 0.18, 1.7), Palette.DIRT_DARK)
 	for i in 3:
 		MeshKit.add_box(st, Transform3D(Basis(), Vector3(-0.55 + i * 0.55, 0.19, 0)), Vector3(0.3, 0.06, 1.5), Palette.DIRT_DARK.darkened(0.2))
-	# Little sign in the crop's colour so you can tell the rows apart.
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.95, 0.45, 0.7)), Vector3(0.06, 0.7, 0.06), Palette.WOOD)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.95, 0.8, 0.7)), Vector3(0.05, 0.25, 0.4), def.color)
 	soil.mesh = MeshKit.finish(st)
 	soil.material_override = Materials.toon(0.02)
 	add_child(soil)
+	# Little sign showing what's planted (its colour changes with the crop).
+	_sign = MeshInstance3D.new()
+	var board := BoxMesh.new()
+	board.size = Vector3(0.05, 0.25, 0.4)
+	_sign.mesh = board
+	_sign_mat = StandardMaterial3D.new()
+	_sign_mat.albedo_color = Palette.BONE
+	_sign.material_override = _sign_mat
+	_sign.position = Vector3(0.95, 0.8, 0.7)
+	add_child(_sign)
 	_plant_mi = MeshInstance3D.new()
 	_plant_mi.mesh = _plant_mesh()
 	_plant_mi.material_override = Materials.toon(0.015)
 	_plant_mi.position.y = 0.2
 	add_child(_plant_mi)
 	_fruit_mi = MeshInstance3D.new()
-	_fruit_mi.mesh = _fruit_mesh(def.color)
 	_fruit_mi.material_override = Materials.toon(0.015)
 	_fruit_mi.position.y = 0.2
 	add_child(_fruit_mi)
@@ -66,11 +82,20 @@ func has_crop() -> bool:
 	return growth.stage != CropGrowth.Stage.EMPTY
 
 
+static func seed_def() -> CropDef:
+	return Defs.crop(SEEDS[selected_seed % SEEDS.size()])
+
+
+func cycle_option() -> void:
+	if growth.stage == CropGrowth.Stage.EMPTY:
+		selected_seed = (selected_seed + 1) % SEEDS.size()
+
+
 func interact_prompt() -> String:
+	if growth.stage == CropGrowth.Stage.EMPTY:
+		return "E: plant %s   (F: change seed)\nCorn and prickly pear sell well, chili is mortar ammo, herbs heal you" % seed_def().display_name
 	var n := crop_def.display_name
 	match growth.stage:
-		CropGrowth.Stage.EMPTY:
-			return "E: plant %s" % n
 		CropGrowth.Stage.PLANTED:
 			return "%s seedling - E: water it (%d water)" % [n, crop_def.water_cost]
 		CropGrowth.Stage.GROWING:
@@ -80,23 +105,27 @@ func interact_prompt() -> String:
 
 
 func local_interact(_holding: bool) -> void:
+	var seed_id := SEEDS[selected_seed % SEEDS.size()]
 	if multiplayer.is_server():
-		_use(multiplayer.get_unique_id())
+		_use(multiplayer.get_unique_id(), seed_id)
 	else:
-		_request_use.rpc_id(1)
+		_request_use.rpc_id(1, seed_id)
 
 
 @rpc("any_peer", "reliable")
-func _request_use() -> void:
+func _request_use(seed_id: StringName) -> void:
 	if multiplayer.is_server():
-		_use(multiplayer.get_remote_sender_id())
+		_use(multiplayer.get_remote_sender_id(), seed_id)
 
 
-func _use(peer_id: int) -> void:
+func _use(peer_id: int, seed_id: StringName) -> void:
 	var payer := Economy.payer_cliff(peer_id, cliff_id)
 	match growth.stage:
 		CropGrowth.Stage.EMPTY:
-			growth.plant(crop_def)
+			var def := Defs.crop(seed_id)
+			if def != null:
+				crop_def = def
+				growth.plant(def)
 		CropGrowth.Stage.PLANTED:
 			if Economy.spend(payer, {&"water": crop_def.water_cost}):
 				growth.water()
@@ -117,13 +146,16 @@ func eaten() -> void:
 
 
 func _broadcast() -> void:
-	_sync.rpc(growth.stage, growth.progress, growth.watered)
+	var cid: StringName = crop_def.id if crop_def != null else &""
+	_sync.rpc(cid, growth.stage, growth.progress, growth.watered)
 
 
 @rpc("authority", "call_local", "reliable")
-func _sync(stage: int, progress: float, watered: bool) -> void:
-	if growth.crop == null:
-		growth.crop = crop_def
+func _sync(crop_id: StringName, stage: int, progress: float, watered: bool) -> void:
+	if crop_id != &"" and (crop_def == null or crop_def.id != crop_id):
+		crop_def = Defs.crop(crop_id)
+		_fruit_mi.mesh = _fruit_mesh(crop_def.color)
+	growth.crop = crop_def
 	growth.stage = stage as CropGrowth.Stage
 	growth.progress = progress
 	growth.watered = watered
@@ -136,10 +168,12 @@ func _fx(sound: StringName) -> void:
 
 
 func _refresh_visual() -> void:
-	var f := growth.fraction() if growth.stage != CropGrowth.Stage.EMPTY else 0.0
-	_plant_mi.visible = growth.stage != CropGrowth.Stage.EMPTY
+	var empty := growth.stage == CropGrowth.Stage.EMPTY
+	var f := 0.0 if empty else growth.fraction()
+	_plant_mi.visible = not empty
 	_plant_mi.scale = Vector3.ONE * lerpf(0.25, 1.0, f)
 	_fruit_mi.visible = growth.stage == CropGrowth.Stage.RIPE
+	_sign_mat.albedo_color = Palette.BONE if empty or crop_def == null else crop_def.color
 
 
 static func _plant_mesh() -> ArrayMesh:

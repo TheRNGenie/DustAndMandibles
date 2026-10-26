@@ -125,7 +125,7 @@ func _spawn_player(data: Variant) -> Node:
 	player.rotation.y = WorldLayout.facing_canyon_yaw(cid)
 	print("[peer %d] spawned player %d on cliff %d" % [multiplayer.get_unique_id(), peer_id, cid])
 	player.ready.connect(func() -> void:
-		player.revolver.vfx = vfx
+		player.gun.vfx = vfx
 		if peer_id == multiplayer.get_unique_id():
 			var bm := BuildMode.new()
 			bm.name = "BuildMode"
@@ -133,6 +133,11 @@ func _spawn_player(data: Variant) -> Node:
 			bm.cliffs = cliffs
 			player.build_mode = bm
 			player.add_child(bm)
+			var hb := Hotbar.new()
+			hb.name = "Hotbar"
+			hb.player = player
+			player.add_child(hb)
+			hud.hotbar.bind(hb)
 			vfx.shake_requested.connect(func(pos: Vector3, strength: float) -> void:
 				var dist := pos.distance_to(player.global_position)
 				if dist < 40.0:

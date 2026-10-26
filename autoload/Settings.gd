@@ -21,8 +21,7 @@ const REMAPPABLE: Dictionary = {
 	"build_menu": "Build menu",
 	"demolish": "Demolish",
 	"upgrade": "Upgrade turret (chitin)",
-	"eat": "Eat (1 food)",
-	"drink": "Drink (1 water)",
+	"cycle_option": "Change seed / shop item",
 	"ready_up": "Ready (skip build phase)",
 	"debug_overlay": "Debug overlay",
 }

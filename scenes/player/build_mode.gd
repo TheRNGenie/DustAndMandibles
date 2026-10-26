@@ -20,6 +20,8 @@ var _ghost_mat: StandardMaterial3D
 var _cell := Vector2i(-1, -1)
 var _cliff := -1
 var _ok := false
+var _grid: MultiMeshInstance3D
+var _grid_t := 0.0
 
 
 func _ready() -> void:
@@ -32,6 +34,25 @@ func _ready() -> void:
 	_ghost.visible = false
 	add_child(_ghost)
 	_refresh_ghost_mesh()
+	# Build-spot overlay: a tile on every cell you can use for the selected item.
+	_grid = MultiMeshInstance3D.new()
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	var quad := PlaneMesh.new()
+	quad.size = Vector2(WorldLayout.CELL * 0.88, WorldLayout.CELL * 0.88)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.vertex_color_use_as_albedo = true
+	mat.no_depth_test = false
+	quad.material = mat
+	mm.mesh = quad
+	_grid.multimesh = mm
+	_grid.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_grid.top_level = true
+	_grid.visible = false
+	add_child(_grid)
 
 
 func selected_id() -> StringName:
@@ -57,27 +78,39 @@ func _unhandled_input(event: InputEvent) -> void:
 		_select((selected + 1) % Defs.BUILD_ORDER.size())
 	elif active and event.is_action_pressed("prev_item"):
 		_select((selected - 1 + Defs.BUILD_ORDER.size()) % Defs.BUILD_ORDER.size())
-	for i in mini(Defs.BUILD_ORDER.size(), 10):
-		if event.is_action_pressed("select_%d" % (i + 1)):
-			_select(i)
-			_set_active(true)
+	if active:
+		for i in mini(Defs.BUILD_ORDER.size(), 10):
+			if event.is_action_pressed("select_%d" % (i + 1)):
+				_select(i)
+				get_viewport().set_input_as_handled()
 
 
 func _select(i: int) -> void:
 	selected = i
+	_grid_t = 0.0
 	_refresh_ghost_mesh()
 	changed.emit()
+
+
+func toggle() -> void:
+	_set_active(not active)
 
 
 func _set_active(on: bool) -> void:
 	active = on
 	_ghost.visible = on
+	_grid.visible = on
+	_grid_t = 0.0
 	changed.emit()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not active:
 		return
+	_grid_t -= delta
+	if _grid_t <= 0.0:
+		_grid_t = 0.4
+		_rebuild_grid()
 	var hit := _aim_hit()
 	_cell = Vector2i(-1, -1)
 	_ok = false
@@ -165,3 +198,34 @@ func _refresh_ghost_mesh() -> void:
 		_ghost.mesh = TurretBuilder.build(id, Color.WHITE)["base"]
 	else:
 		_ghost.mesh = StructureBuilder.build(Defs.structure(id).kind)
+
+
+## Tiles every cell on your plateau that fits the selected item: green = free,
+## red = taken. Turret-line cells are the cliff edge, the rest is behind it.
+func _rebuild_grid() -> void:
+	var id := selected_id()
+	var cliffs_to_show: Array[int] = [player.cliff_id]
+	if GameState.is_solo():
+		cliffs_to_show = [WorldLayout.WEST, WorldLayout.EAST]
+	var cells: Array = []
+	var rows := int(WorldLayout.PLATEAU_DEPTH / WorldLayout.CELL)
+	for cid in cliffs_to_show:
+		for row in rows:
+			for col in Buildable.COLS:
+				var c := Vector2i(row, col)
+				if Buildable.cell_ok_for(id, c):
+					cells.append([cid, c])
+	var mm := _grid.multimesh
+	mm.instance_count = cells.size()
+	var bm := BuildManager.instance
+	for i in cells.size():
+		var cid: int = cells[i][0]
+		var c: Vector2i = cells[i][1]
+		var pos := Buildable.cell_center(cliffs, cid, c) + Vector3.UP * 0.12
+		mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, WorldLayout.facing_canyon_yaw(cid)), pos))
+		var free := bm.is_free_for(id, cid, c)
+		var highlight := cid == _cliff and c == _cell
+		var col := Color(0.2, 0.85, 0.25, 0.5) if free else Color(0.95, 0.25, 0.2, 0.5)
+		if highlight:
+			col.a = 0.85
+		mm.set_instance_color(i, col)

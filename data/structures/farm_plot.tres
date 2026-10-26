@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StructureDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/structure_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"farm_plot"
+display_name = "Farm plot"
+description = "Grow corn, prickly pear, chili or herbs. F picks the seed, E plants, waters and harvests."
+kind = 6
+cost_scrap = 10
+max_hp = 60.0
+radius = 0.9

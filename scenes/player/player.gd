@@ -1,6 +1,6 @@
 class_name Player
 extends CharacterBody3D
-## First-person controller: walk, sprint, jump, slide, mantle, revolver.
+## First-person controller: walk, sprint, jump, slide, mantle, guns.
 ## Falling into the canyon hauls you back home after a short delay.
 
 signal fell_into_canyon(delay: float)
@@ -37,7 +37,7 @@ var _shake := 0.0
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera
 @onready var collision: CollisionShape3D = $Collision
-@onready var revolver: Revolver = $Head/Camera/Revolver
+@onready var gun: Gun = $Head/Camera/Gun
 @onready var net: PlayerNet = $Net
 @onready var body: MeshInstance3D = $Body
 var rig: DummyRig
@@ -67,8 +67,8 @@ func _ready() -> void:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	else:
 		camera.current = false
-		revolver.visible = false
-		revolver.set_process(false)
+		gun.visible = false
+		gun.set_process(false)
 		set_physics_process(false)
 		set_process_unhandled_input(false)
 
@@ -143,7 +143,7 @@ func _physics_process(delta: float) -> void:
 		if _try_mantle():
 			return
 
-	var sprinting := not blocked and vitals.can_sprint() and Input.is_action_pressed("sprint") and input_dir.y < -0.1 and not _sliding
+	var sprinting := not blocked and Input.is_action_pressed("sprint") and input_dir.y < -0.1 and not _sliding
 	if not blocked and Input.is_action_just_pressed("slide") and on_floor and not _sliding:
 		var speed := Vector2(velocity.x, velocity.z).length()
 		if sprinting or speed > WALK_SPEED * 0.9:
@@ -168,10 +168,10 @@ func _handle_weapon() -> void:
 		return
 	if build_mode != null and build_mode.active:
 		return
-	if Input.is_action_just_pressed("fire") and revolver.trigger(camera):
+	if Input.is_action_just_pressed("fire") and gun.trigger(camera):
 		net.fire(camera.global_position, -camera.global_transform.basis.z)
 	if Input.is_action_just_pressed("reload"):
-		revolver.reload(vitals.reload_multiplier())
+		gun.reload()
 
 
 # ------------------------------------------------------------------ slide

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"lever_rifle"
+display_name = "Lever-action rifle"
+description = "Eight hard-hitting shots that punch through armour. Slower."
+damage = 48.0
+mag_size = 8
+fire_interval = 0.65
+reload_time = 2.2
+pellets = 1
+spread_deg = 0.0
+range = 300.0
+pierce_armor = true
+price_chitin = 15
+upgrade_costs = PackedInt32Array(10, 25)
+shake = 0.25
+sound = &"buffalo"

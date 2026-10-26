@@ -1,7 +1,7 @@
 [gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scenes/player/player.gd" id="1_player"]
-[ext_resource type="Script" path="res://scenes/player/revolver.gd" id="2_revolver"]
+[ext_resource type="Script" path="res://scenes/player/gun.gd" id="2_revolver"]
 [ext_resource type="Script" path="res://scenes/player/player_net.gd" id="3_net"]
 [ext_resource type="Script" path="res://scenes/player/player_vitals.gd" id="4_vitals"]
 
@@ -45,7 +45,7 @@ near = 0.03
 far = 600.0
 fov = 85.0
 
-[node name="Revolver" type="Node3D" parent="Head/Camera"]
+[node name="Gun" type="Node3D" parent="Head/Camera"]
 script = ExtResource("2_revolver")
 
 [node name="Net" type="Node" parent="."]

@@ -73,7 +73,7 @@ func _request_consume(kind: StringName) -> void:
 func _consume(peer_id: int, kind: StringName) -> void:
 	var payer := Economy.payer_cliff(peer_id, player.cliff_id)
 	if not Economy.spend(payer, {kind: 1}):
-		Economy.notify(peer_id, "No %s left in your stockpile." % ("food" if kind == &"food" else "water"))
+		Economy.notify(peer_id, "No %s left in your stockpile. Grow some!" % String(kind))
 		return
 	if peer_id == multiplayer.get_unique_id():
 		player.vitals.consumed(kind)
@@ -87,51 +87,82 @@ func _consumed(kind: StringName) -> void:
 		player.vitals.consumed(kind)
 
 
-## Called by the owning peer after the revolver fired.
-func fire(origin: Vector3, dir: Vector3) -> void:
-	var hit := player.revolver.raycast(origin, dir, [player.get_rid()])
-	player.revolver.show_impact(hit, dir, true) # client-side prediction
-	if multiplayer.is_server():
-		_server_fire(origin, dir, hit)
+## Host: hand a bought or upgraded weapon to this player's own Gun.
+func grant_weapon(id: StringName, level: int) -> void:
+	if player.is_multiplayer_authority():
+		_apply_grant(id, level)
 	else:
-		_request_fire.rpc_id(1, origin, dir)
+		_grant.rpc_id(player.get_multiplayer_authority(), id, level)
+
+
+@rpc("any_peer", "reliable")
+func _grant(id: StringName, level: int) -> void:
+	if multiplayer.get_remote_sender_id() == 1:
+		_apply_grant(id, level)
+
+
+func _apply_grant(id: StringName, level: int) -> void:
+	player.gun.grant(id, level)
+	if level == 0:
+		player.gun.equip(id)
+		Economy.notice.emit("You bought the %s! It's on your hotbar." % Gun.weapon(id).display_name)
+	else:
+		Economy.notice.emit("%s upgraded to level %d." % [Gun.weapon(id).display_name, level])
+
+
+## Called by the owning peer after the gun fired.
+func fire(origin: Vector3, dir: Vector3) -> void:
+	var gun := player.gun
+	var id := gun.def.id
+	var level := gun.level_of(id)
+	var seed_value := randi()
+	var dmg := Gun.damage_for(id, level)
+	for d in Gun.shot_dirs(id, dir, seed_value):
+		var hit := gun.raycast(origin, d, [player.get_rid()], gun.def.range)
+		gun.show_impact(hit, d, true, dmg) # client-side prediction
+	if multiplayer.is_server():
+		_server_fire(origin, dir, id, level, seed_value)
+	else:
+		_request_fire.rpc_id(1, origin, dir, id, level, seed_value)
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _request_fire(origin: Vector3, dir: Vector3) -> void:
-	if not multiplayer.is_server():
+func _request_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, seed_value: int) -> void:
+	if not multiplayer.is_server() or Gun.weapon(id) == null:
 		return
 	if multiplayer.get_remote_sender_id() != player.get_multiplayer_authority():
 		return
-	var hit := player.revolver.raycast(origin, dir.normalized(), [player.get_rid()])
 	if GameState.has_flag("--netlog"):
-		print("[host] confirmed shot from peer %d, hit: %s" % [multiplayer.get_remote_sender_id(),
-				str((hit["collider"] as Node).name) if not hit.is_empty() else "nothing"])
-	_show_remote_shot(origin, dir, hit)
-	_server_fire(origin, dir, hit)
+		print("[host] confirmed %s shot from peer %d" % [String(id), multiplayer.get_remote_sender_id()])
+	_show_remote_shot(origin, dir, id, seed_value)
+	_server_fire(origin, dir, id, clampi(level, 0, 2), seed_value)
 
 
-## Host: applies damage, then tells every other peer to draw the shot.
-func _server_fire(origin: Vector3, dir: Vector3, hit: Dictionary) -> void:
-	player.revolver.apply_hit_result(hit, dir, player.display_name(), player.cliff_id)
-	_fire_fx.rpc(origin, dir)
+## Host: applies damage for every pellet, then tells every other peer to draw the shot.
+func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, seed_value: int) -> void:
+	var def := Gun.weapon(id)
+	var dmg := Gun.damage_for(id, level)
+	for d in Gun.shot_dirs(id, dir.normalized(), seed_value):
+		var hit := player.gun.raycast(origin, d, [player.get_rid()], def.range)
+		Gun.apply_hit_result(hit, d, dmg, def.pierce_armor, player.display_name(), player.cliff_id)
+	_fire_fx.rpc(origin, dir, id, seed_value)
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _fire_fx(origin: Vector3, dir: Vector3) -> void:
+func _fire_fx(origin: Vector3, dir: Vector3, id: StringName, seed_value: int) -> void:
 	if multiplayer.get_remote_sender_id() != 1 or player.is_multiplayer_authority():
 		return # only the host sends this, and the shooter already predicted it
-	var hit := player.revolver.raycast(origin, dir, [player.get_rid()])
-	if GameState.has_flag("--netlog"):
-		print("[peer %d] drew shot from player %s" % [multiplayer.get_unique_id(), player.name])
-	_show_remote_shot(origin, dir, hit)
+	_show_remote_shot(origin, dir, id, seed_value)
 
 
-func _show_remote_shot(origin: Vector3, dir: Vector3, hit: Dictionary) -> void:
-	player.revolver.show_impact(hit, dir)
-	Audio.play_at(&"revolver", player.global_position + Vector3.UP * 1.4, -4.0)
-	var end: Vector3 = hit["position"] if not hit.is_empty() else origin + dir * Revolver.RANGE
+func _show_remote_shot(origin: Vector3, dir: Vector3, id: StringName, seed_value: int) -> void:
+	var def := Gun.weapon(id)
+	Audio.play_at(def.sound, player.global_position + Vector3.UP * 1.4, -4.0)
 	var muzzle := player.global_position + Vector3.UP * 1.3 + player.global_transform.basis.x * 0.3
-	if player.revolver.vfx != null:
-		player.revolver.vfx.tracer(muzzle, end)
+	for d in Gun.shot_dirs(id, dir.normalized(), seed_value):
+		var hit := player.gun.raycast(origin, d, [player.get_rid()], def.range)
+		player.gun.show_impact(hit, d)
+		var end: Vector3 = hit["position"] if not hit.is_empty() else origin + d * def.range
+		if player.gun.vfx != null:
+			player.gun.vfx.tracer(muzzle, end)
 	player.flash_body()

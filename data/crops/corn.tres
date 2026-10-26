@@ -8,5 +8,5 @@ id = &"corn"
 display_name = "Corn"
 grow_time = 180.0
 water_cost = 1
-harvest = {&"food": 3}
+harvest = {&"corn": 3}
 color = Color(0.96, 0.82, 0.25, 1)

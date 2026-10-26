@@ -33,18 +33,20 @@ const STRUCTURES: Dictionary = {
 	&"palisade": preload("res://data/structures/palisade.tres"),
 	&"lantern_post": preload("res://data/structures/lantern_post.tres"),
 	&"rain_catcher": preload("res://data/structures/rain_catcher.tres"),
+	&"farm_plot": preload("res://data/structures/farm_plot.tres"),
 }
 
 const CROPS: Dictionary = {
 	&"corn": preload("res://data/crops/corn.tres"),
 	&"prickly_pear": preload("res://data/crops/prickly_pear.tres"),
 	&"firecracker_chili": preload("res://data/crops/firecracker_chili.tres"),
+	&"herbs": preload("res://data/crops/herbs.tres"),
 }
 
 ## Build menu order: number keys 1-9 and 0, mouse wheel cycles through all.
 const BUILD_ORDER: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"water_cannon",
 	&"chili_mortar", &"dynamite_lobber", &"lasso_harpoon", &"scattergun_post", &"sharpshooter_tower", &"barbed_wire", &"bear_trap",
-	&"dynamite_crate", &"palisade", &"lantern_post", &"rain_catcher"]
+	&"dynamite_crate", &"palisade", &"lantern_post", &"rain_catcher", &"farm_plot"]
 
 ## Chitin cost of turret upgrade tiers 1, 2, 3.
 const UPGRADE_COSTS: Array[int] = [10, 25, 50]

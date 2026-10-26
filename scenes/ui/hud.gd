@@ -11,6 +11,7 @@ var _phase_label: Label
 var _hint_label: Label
 var status: HudStatus
 var feed: HudFeed
+var hotbar: HudHotbar
 
 const PHASE_NAMES := {
 	GameState.Phase.LOBBY: "Waiting for riders",
@@ -26,6 +27,8 @@ func _ready() -> void:
 	add_child(status)
 	feed = HudFeed.new()
 	add_child(feed)
+	hotbar = HudHotbar.new()
+	add_child(hotbar)
 	_crosshair = Crosshair.new()
 	_crosshair.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -102,12 +105,12 @@ func _ready() -> void:
 func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void:
 	status.bind_player(player)
 	feed.bind_player(player, bugs, builds)
-	player.revolver.ammo_changed.connect(_on_ammo_changed)
-	player.revolver.hit_confirmed.connect(func(weak: bool) -> void: (_crosshair as Crosshair).flash(weak))
-	player.revolver.reload_started.connect(func(_d: float) -> void: _ammo_label.text = "Reloading")
+	player.gun.ammo_changed.connect(_on_ammo_changed)
+	player.gun.hit_confirmed.connect(func(weak: bool) -> void: (_crosshair as Crosshair).flash(weak))
+	player.gun.reload_started.connect(func(_d: float) -> void: _ammo_label.text = "Reloading")
 	player.fell_into_canyon.connect(func(delay: float) -> void: _show_message("Hauling you back up... (%.0f s)" % delay))
 	player.respawned.connect(func() -> void: _center_label.text = "")
-	_on_ammo_changed(player.revolver.ammo, Revolver.MAX_AMMO)
+	_on_ammo_changed(player.gun.ammo, player.gun.def.mag_size)
 
 
 func _process(_delta: float) -> void:

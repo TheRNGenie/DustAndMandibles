@@ -145,6 +145,9 @@ func _take_screenshot(path: String) -> void:
 		_autobuild()
 	if (GameState.has_flag("--showcase") or GameState.flag_value("--showcase") != "") and multiplayer.is_server():
 		_showcase()
+	if GameState.flag_value("--buildmode") != "" and player != null:
+		player.build_mode.toggle()
+		player.build_mode._select(int(GameState.flag_value("--buildmode")))
 	if GameState.flag_value("--pause") != "":
 		var pm := world.get_node("PauseMenu") as PauseMenu
 		pm.open()
@@ -160,7 +163,7 @@ func _take_screenshot(path: String) -> void:
 		if i == 30 and GameState.has_flag("--autoskip"):
 			GameState.vote_skip()
 		if player != null and GameState.has_flag("--autofire") and i % 40 == 0:
-			if player.revolver.trigger(player.camera):
+			if player.gun.trigger(player.camera):
 				player.net.fire(player.camera.global_position, -player.camera.global_transform.basis.z)
 	var players_root := world.get("players_root") as Node3D
 	print("[peer %d] phase %d wave %d, players %d, bugs %d, homesteads %s" % [multiplayer.get_unique_id(),
@@ -237,7 +240,29 @@ func _farm() -> void:
 func _showcase() -> void:
 	var bm := world.get("bugs") as BugManager
 	var lane := 1
-	if GameState.flag_value("--showcase") == "5":
+	if GameState.flag_value("--showcase") == "6":
+		# Shop test: sell corn at the vendor, buy and fire the shotgun.
+		var dressing := world.get_node("Dressing")
+		var vendor := dressing.get_node("Vendor0") as VendorCart
+		var shop := dressing.get_node("GunShop0") as GunShop
+		Economy.earn(WorldLayout.WEST, {&"corn": 20, &"chitin": 5})
+		var before := Economy.amount(WorldLayout.WEST, &"chitin")
+		for i in 12:
+			vendor._sell(1, &"corn")
+		print("[shop] corn price now %.2f, chitin %d -> %d" % [vendor.market.price(&"corn"), before, Economy.amount(WorldLayout.WEST, &"chitin")])
+		Economy.earn(WorldLayout.WEST, {&"chitin": 40})
+		shop._buy(1, "buy", &"coach_shotgun")
+		shop._buy(1, "upgrade", &"coach_shotgun")
+		var p := world.call("local_player") as Player
+		print("[shop] owns shotgun: %s level %d, chitin left %d" % [p.gun.owns(&"coach_shotgun"), p.gun.level_of(&"coach_shotgun"), Economy.amount(WorldLayout.WEST, &"chitin")])
+		p.gun.equip(&"coach_shotgun")
+		var shots := 0
+		if p.gun.trigger(p.camera):
+			p.net.fire(p.camera.global_position, -p.camera.global_transform.basis.z)
+			shots += 1
+		print("[shop] fired shotgun: %d, ammo %d/%d, pellets %d" % [shots, p.gun.ammo, p.gun.def.mag_size, Gun.shot_dirs(&"coach_shotgun", Vector3.FORWARD, 7).size()])
+		return
+	elif GameState.flag_value("--showcase") == "5":
 		# Plateau-guard test: two last-line turrets on the west plateau, breachers on it,
 		# and climbers on both cliff faces that the guards must ignore.
 		var builds := world.get("builds") as BuildManager

@@ -45,3 +45,30 @@ static func dummy_hand() -> ArrayMesh:
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.0, -0.11, 0.13)), Vector3.ONE * 0.03, 4, 8, joint)
 	MeshKit.add_limb(st, Vector3(0.0, -0.11, 0.13), Vector3(0.04, -0.3, 0.45), 0.03, yellow, 8)
 	return MeshKit.finish(st)
+
+
+## Lever-action rifle viewmodel: long octagonal barrel, tube magazine, loop lever, wood stock.
+static func lever_rifle() -> ArrayMesh:
+	var st := MeshKit.begin()
+	var along_z := Basis(Vector3.RIGHT, PI * 0.5)
+	MeshKit.add_cylinder(st, Transform3D(along_z, Vector3(0, 0.025, -0.34)), 0.014, 0.014, 0.6, 8, Palette.METAL)
+	MeshKit.add_cylinder(st, Transform3D(along_z, Vector3(0, 0.0, -0.3)), 0.011, 0.011, 0.5, 8, Palette.METAL.darkened(0.25))
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.012, -0.02)), Vector3(0.036, 0.06, 0.13), Palette.GLOW_YELLOW.darkened(0.45))
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, -0.005, -0.2)), Vector3(0.03, 0.03, 0.22), Palette.WOOD)
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, 0.2), Vector3(0, -0.035, 0.03)), Vector3(0.008, 0.05, 0.07), Palette.METAL.darkened(0.3))
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3(0, -0.06, 0.14)), Vector3(0.034, 0.08, 0.16), Palette.WOOD)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.045, -0.62)), Vector3(0.006, 0.012, 0.01), Palette.METAL)
+	return MeshKit.finish(st)
+
+
+## Coach shotgun viewmodel: two short fat barrels side by side and a chunky stock.
+static func coach_shotgun() -> ArrayMesh:
+	var st := MeshKit.begin()
+	var along_z := Basis(Vector3.RIGHT, PI * 0.5)
+	for side: float in [-1.0, 1.0]:
+		MeshKit.add_cylinder(st, Transform3D(along_z, Vector3(side * 0.017, 0.02, -0.28)), 0.017, 0.017, 0.46, 10, Palette.METAL)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.01, -0.02)), Vector3(0.05, 0.05, 0.1), Palette.METAL.darkened(0.3))
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, -0.005, -0.17)), Vector3(0.045, 0.025, 0.18), Palette.WOOD)
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3(0, -0.06, 0.12)), Vector3(0.04, 0.09, 0.16), Palette.WOOD_DARK)
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.5), Vector3(0, 0.05, 0.04)), Vector3(0.01, 0.03, 0.015), Palette.METAL.darkened(0.3))
+	return MeshKit.finish(st)

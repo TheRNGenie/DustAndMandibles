@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"revolver"
+display_name = "Revolver"
+description = "Six shots, accurate. Every rancher starts with one."
+damage = 25.0
+mag_size = 6
+fire_interval = 0.3
+reload_time = 1.4
+pellets = 1
+spread_deg = 0.0
+range = 250.0
+pierce_armor = false
+price_chitin = 0
+upgrade_costs = PackedInt32Array(10, 25)
+shake = 0.15
+sound = &"revolver"

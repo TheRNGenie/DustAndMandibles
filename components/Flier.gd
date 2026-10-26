@@ -48,7 +48,7 @@ func _fly_to(goal: Vector3, delta: float) -> void:
 func _steal() -> void:
 	if _target is WaterSource:
 		(_target as WaterSource).steal(STEAL)
-	Economy.steal(bug.cliff_id, &"water" if _target is WaterSource else &"food", STEAL)
+	Economy.steal(bug.cliff_id, &"water" if _target is WaterSource else &"corn", STEAL)
 	Economy.notify_cliff(bug.cliff_id, "A Dragonfly Bandit is stealing from your %s!" % ("water" if _target is WaterSource else "crops"))
 	_start_escape()
 

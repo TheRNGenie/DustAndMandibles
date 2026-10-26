@@ -127,6 +127,13 @@ func _spawn_built(data: Variant) -> Node:
 		node = t
 	elif Defs.structure(id).kind == StructureDef.Kind.RAIN_CATCHER:
 		node = _make_rain_catcher(cid, cell, pos)
+	elif Defs.structure(id).kind == StructureDef.Kind.FARM_PLOT:
+		var plot := CropPlot.new()
+		plot.setup(cid)
+		plot.cell = cell
+		plot.position = pos
+		plot.rotation.y = WorldLayout.facing_canyon_yaw(cid)
+		node = plot
 	else:
 		var s := StructureNode.new()
 		s.setup(Defs.structure(id), cid, cell, pos, str(d["owner"]))
@@ -169,7 +176,7 @@ func _do_demolish(peer_id: int, cid: int, cell: Vector2i) -> void:
 	var n := built_at(cid, cell)
 	if n == null or not may_build(peer_id, cid):
 		return
-	var id: StringName = n.get("build_id") if n is WaterSource else (n as Object).get("def").get("id")
+	var id: StringName = n.get("build_id") if n.get("build_id") != null else (n as Object).get("def").get("id")
 	var fraction := 1.0
 	var h: Variant = n.get("health")
 	if h != null:

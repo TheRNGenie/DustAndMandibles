@@ -32,7 +32,7 @@ func test_harvest_yields_and_clears() -> void:
 	assert_true(g.harvest().is_empty(), "not ripe yet")
 	g.tick(10000.0)
 	var out := g.harvest()
-	assert_eq(int(out.get(&"food", 0)), 3)
+	assert_eq(int(out.get(&"corn", 0)), 3)
 	assert_eq(g.stage, CropGrowth.Stage.EMPTY)
 
 
@@ -44,13 +44,13 @@ func test_cannot_plant_twice_or_water_twice() -> void:
 	assert_false(g.water())
 
 
-func test_prickly_pear_gives_food_and_water() -> void:
+func test_prickly_pear_gives_pears_and_water() -> void:
 	var g := CropGrowth.new()
 	g.plant(Defs.crop(&"prickly_pear"))
 	g.water()
 	g.tick(10000.0)
 	var out := g.harvest()
-	assert_eq(int(out.get(&"food", 0)), 2)
+	assert_eq(int(out.get(&"prickly_pear", 0)), 2)
 	assert_eq(int(out.get(&"water", 0)), 1)
 
 

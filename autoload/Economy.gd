@@ -15,7 +15,7 @@ func _ready() -> void:
 
 ## Host (or offline): back to starting resources.
 func reset() -> void:
-	ledger.reset({&"scrap": Defs.WAVE_CONFIG.start_scrap, &"water": 4, &"food": 4})
+	ledger.reset({&"scrap": Defs.WAVE_CONFIG.start_scrap, &"water": 6, &"herbs": 1})
 	_push()
 
 

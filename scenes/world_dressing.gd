@@ -102,16 +102,28 @@ func _build_homestead_area(cid: int) -> void:
 	well.rotation.y = yaw
 	parent.add_child(well)
 
-	# Crop field: a row each of corn, prickly pear and firecracker chili.
-	var crop_ids: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili"]
-	for row in 3:
-		for col in 3:
-			var plot := CropPlot.new()
-			plot.name = "Plot%d_%d_%d" % [cid, row, col]
-			plot.setup(cid, Defs.crop(crop_ids[row]))
-			plot.position = ground(cid, 12.5 + float(col) * 2.4, 2.5 + float(row) * 2.4)
-			plot.rotation.y = yaw
-			parent.add_child(plot)
+	# Vendor cart (sell produce for chitin) and gunsmith (spend chitin on weapons).
+	var vendor := VendorCart.new()
+	vendor.name = "Vendor%d" % cid
+	vendor.setup(cid)
+	vendor.position = ground(cid, 27.0, -10.0)
+	vendor.rotation.y = yaw
+	parent.add_child(vendor)
+	var shop := GunShop.new()
+	shop.name = "GunShop%d" % cid
+	shop.setup(cid)
+	shop.position = ground(cid, 27.0, 10.0)
+	shop.rotation.y = yaw
+	parent.add_child(shop)
+
+	# Three starter farm plots; build more from the build menu.
+	for k in 3:
+		var plot := CropPlot.new()
+		plot.name = "Plot%d_%d" % [cid, k]
+		plot.setup(cid)
+		plot.position = ground(cid, 13.5 + float(k) * 2.4, 4.0)
+		plot.rotation.y = yaw
+		parent.add_child(plot)
 
 	# Salvage piles (scrap each build phase).
 	for i in 2:

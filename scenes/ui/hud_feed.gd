@@ -41,11 +41,11 @@ func _ready() -> void:
 	_build = _outlined("", 18, Palette.GLOW_YELLOW)
 	_build.anchor_left = 0.5
 	_build.anchor_right = 0.5
-	_build.anchor_top = 1.0
-	_build.anchor_bottom = 1.0
+	_build.anchor_top = 0.0
+	_build.anchor_bottom = 0.0
 	_build.offset_left = -420
 	_build.offset_right = 420
-	_build.offset_top = -150
+	_build.offset_top = 150
 	add_child(_build)
 
 	_over = PanelContainer.new()
