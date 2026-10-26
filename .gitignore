@@ -14,3 +14,7 @@ Thumbs.db
 
 # Engine binaries (download separately)
 Godot_*.exe
+
+trailer/raw/
+trailer/work/
+trailer/*.png

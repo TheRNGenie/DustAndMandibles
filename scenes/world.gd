@@ -92,6 +92,11 @@ func _ready() -> void:
 	tools.name = "DebugTools"
 	tools.world = self
 	add_child(tools)
+	if GameState.flag_value("--trailer") != "":
+		var director := TrailerDirector.new()
+		director.name = "TrailerDirector"
+		director.world = self
+		add_child(director)
 
 
 # ------------------------------------------------------------------ spawning (host decides)

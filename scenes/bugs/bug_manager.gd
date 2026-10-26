@@ -8,6 +8,8 @@ signal bug_killed(bug_name: String, bug_cliff: int, source: String, source_cliff
 
 ## Chance a bug spawns with a cigarette (twice as fast).
 const SMOKER_CHANCE := 0.01
+## Trailer/testing: -1 = roll as normal, 0 = never smoke, 1 = always smoke.
+static var smoke_override := -1
 
 var vfx: VfxPool
 var _spawner: MultiplayerSpawner
@@ -54,7 +56,7 @@ func spawn_at(bug_id: StringName, cliff: int, lane: int, z: float, y: float, st:
 	_next_id += 1
 	_spawner.spawn({"id": _next_id, "bug": bug_id, "cliff": cliff, "lane": lane,
 			"z": z, "y": y, "hp": Defs.WAVE_CONFIG.hp_scale(GameState.wave), "state": st, "pos": pos,
-			"smoke": randf() < SMOKER_CHANCE or GameState.has_flag("--smokers")})
+			"smoke": (randf() < SMOKER_CHANCE or GameState.has_flag("--smokers")) if smoke_override < 0 else smoke_override == 1})
 
 
 func _spawn_bug(data: Variant) -> Node:
