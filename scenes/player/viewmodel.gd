@@ -19,6 +19,7 @@ var left: Node3D
 var _right_mi: MeshInstance3D
 var _left_mi: MeshInstance3D
 var _round: MeshInstance3D
+var _flyer: MeshInstance3D
 var _mat: Material
 var _team: Color
 
@@ -53,6 +54,13 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 	_round = _mi(left, WeaponBuilder.shell() if id == &"coach_shotgun" else WeaponBuilder.cartridge())
 	_round.position = Vector3(0.012, 0.02, -0.02)
 	_round.visible = false
+	if id == &"lever_rifle":
+		_flyer = MeshInstance3D.new()
+		_flyer.mesh = WeaponBuilder.cartridge()
+		_flyer.material_override = _mat
+		_flyer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_flyer.visible = false
+		add_child(_flyer)
 	set_look(look)
 
 
@@ -77,7 +85,8 @@ static func _ease(t: float) -> float:
 
 ## open: 0 = held normally, 1 = in the reload posture. load_t: progress of the
 ## round going in (only while `loading`). cycle: lever stroke 0..1 (1 = closed).
-func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: float, round_index: int = 0) -> void:
+func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: float, round_index: int = 0,
+		catch_t: float = -1.0) -> void:
 	var e := _ease(open)
 	match id:
 		&"revolver":
@@ -110,8 +119,16 @@ func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: f
 			holding = load_t < 0.55
 		else:
 			p = gate.lerp(pouch, _ease((load_t - 0.6) / 0.4))
+	if catch_t >= 0.0 and lever != null:
+		var c := _catch(catch_t, rest, gate)
+		p = c[0]
+		holding = c[1]
 	left.position = p
 	left.rotation = Vector3(0.0, 0.0, 0.0) if open < 0.01 else Vector3(-0.3 * e, 0.4 * e, 0.0)
+	if catch_t >= 0.0 and lever != null:
+		# Tip the forearm down and out so it doesn't swing through the camera.
+		var k := clampf(sin(clampf(catch_t, 0.0, 1.0) * PI) * 1.4, 0.0, 1.0)
+		left.rotation = left.rotation.lerp(Vector3(1.1, -0.5, 0.6), k)
 	_round.visible = holding
 	if holding:
 		# The round points the way it goes in, pinched at the fingertips.
@@ -120,6 +137,40 @@ func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: f
 		var up := parent_basis * Vector3.UP
 		# A touch oversized so it reads on screen.
 		_round.global_transform = Transform3D(Basis.looking_at(dir, up).scaled(Vector3.ONE * 1.6), left.global_position + dir * 0.045 + up * 0.02)
+
+
+## The lever-rifle flourish (Hunt: Showdown style): the lever flicks, the
+## chambered round spins up out of the action, the support hand snaps up and
+## catches it in mid-air, then carries it to the loading gate to thumb it back in.
+## Returns [hand position, holding the round?] in parent space.
+const CATCH_LEVER := 0.32
+const CATCH_FLY := Vector2(0.12, 0.52)
+const CATCH_GRAB := 0.52
+
+
+func _catch(t: float, rest: Vector3, gate: Vector3) -> Array:
+	lever.rotation.x = 0.95 * sin(clampf(t / CATCH_LEVER, 0.0, 1.0) * PI)
+	var start := transform * Vector3(0.0, 0.04, -0.01)
+	var apex := start + Vector3(-0.07, 0.16, -0.03)
+	var grab := start + Vector3(-0.15, 0.06, -0.05)
+	# The flying round: a spinning arc from the ejection port to the catch point.
+	var ft := clampf((t - CATCH_FLY.x) / (CATCH_FLY.y - CATCH_FLY.x), 0.0, 1.0)
+	var flying := t >= CATCH_FLY.x and t < CATCH_GRAB
+	_flyer.visible = flying
+	if flying:
+		var q := start.lerp(apex, ft).lerp(apex.lerp(grab, ft), ft)
+		var parent_basis := (get_parent() as Node3D).global_transform.basis
+		_flyer.global_transform = Transform3D(parent_basis * Basis.from_euler(Vector3(ft * 9.0, ft * 4.0, 0.0)).scaled(Vector3.ONE * 1.3),
+				(get_parent() as Node3D).global_transform * q)
+	# The hand: waits low, then snaps up to meet the round, then takes it to the gate.
+	var ready := rest + Vector3(-0.08, -0.03, 0.04)
+	if t < 0.3:
+		return [rest.lerp(ready, _ease(t / 0.3)), false]
+	if t < CATCH_GRAB:
+		return [ready.lerp(grab - Vector3(0, 0.03, 0), _ease((t - 0.3) / (CATCH_GRAB - 0.3))), false]
+	if t < 0.7:
+		return [grab - Vector3(0, 0.03, 0) + Vector3(0, -0.02, 0) * sin((t - CATCH_GRAB) / 0.18 * PI), true]
+	return [(grab - Vector3(0, 0.03, 0)).lerp(gate - _push_dir() * 0.05, _ease((t - 0.7) / 0.3)), true]
 
 
 ## Where the round goes, in this node's parent space (the gun's resting frame).

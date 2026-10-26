@@ -51,6 +51,9 @@ var _stage_t := 0.0
 var _stage_len := 0.0
 var _open := 0.0
 var _loaded_this_reload := 0
+## Lever rifle: the chambered round is flicked out and caught at the start of a reload.
+var _catching := false
+const CATCH_TIME := 0.85
 ## Lever stroke after a rifle shot (1 = closed), cylinder angle, last pose values.
 var _cycle := 1.0
 var _drum_angle := 0.0
@@ -228,7 +231,8 @@ func _process(delta: float) -> void:
 	var vm := _models.get(def.id) as ViewModel if def != null else null
 	if vm != null:
 		var load_t := clampf(_stage_t / maxf(_stage_len, 0.001), 0.0, 1.0)
-		vm.pose(_open, load_t, _stage == Reload.LOAD, _cycle, _drum_angle, _loaded_this_reload)
+		var catch_t := load_t if (_stage == Reload.OPEN and _catching) else -1.0
+		vm.pose(_open, load_t, _stage == Reload.LOAD, _cycle, _drum_angle, _loaded_this_reload, catch_t)
 	aim = move_toward(aim, 1.0 if aiming else 0.0, delta * 7.0)
 	var aim_pos: Vector3 = AIM_POS.get(def.id, REST_POS) if def != null else REST_POS
 	position = REST_POS.lerp(aim_pos, aim) + Vector3(0, 0, _kick * 0.06 * (1.0 - aim * 0.5))
@@ -255,6 +259,7 @@ func _advance_reload(delta: float) -> void:
 	var times := _times()
 	match _stage:
 		Reload.OPEN:
+			_catching = false
 			if def.id == &"coach_shotgun":
 				(_models[def.id] as ViewModel).eject_shells()
 				ammo = 0
@@ -343,7 +348,10 @@ func reload() -> void:
 		return
 	var times := _times()
 	_loaded_this_reload = 0
-	_begin(Reload.OPEN, times.x)
+	_catching = def.id == &"lever_rifle" and ammo > 0
+	_begin(Reload.OPEN, CATCH_TIME if _catching else times.x)
+	if _catching:
+		Audio.play_at(&"reload", global_position, -4.0)
 	var rounds := def.mag_size if def.id == &"coach_shotgun" else def.mag_size - ammo
 	reload_started.emit(times.x + times.y * rounds + times.z)
 	Audio.play_at(&"reload", global_position, -6.0)
