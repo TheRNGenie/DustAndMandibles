@@ -23,7 +23,52 @@ func build() -> void:
 		_scatter_props(cid)
 		_build_boundary(cid)
 	_build_nests()
+	_build_webs()
 	OasisBuilder.build(parent, 4242)
+
+
+## A heavy spider infestation: orb webs all over both canyon walls (thicker low
+## down), sheet webs and egg sacs on the floor, and silk strung across the gap.
+func _build_webs() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7171
+	var st := MeshKit.begin()
+	for cid in 2:
+		for i in 200:
+			var far := i >= 160
+			var z := rng.randf_range(-88.0, 88.0) if not far else rng.randf_range(92.0, 260.0) * (1.0 if rng.randf() < 0.5 else -1.0)
+			var y := 2.5 + pow(rng.randf(), 1.7) * 50.0
+			var n := cliffs.face_normal(cid, y, z)
+			var c := cliffs.face_point(cid, y, z) + n * 0.12
+			WebBuilder.orb(st, rng, c, n, rng.randf_range(1.2, 4.5), rng.randf_range(0.1, 0.5))
+	var floor_h := func(x: float, z: float) -> float: return cliffs.floor_height(x, z)
+	for i in 130:
+		var x := rng.randf_range(-17.0, 17.0)
+		var z := rng.randf_range(-88.0, 88.0)
+		WebBuilder.sheet(st, rng, Vector3(x, 0.0, z), rng.randf_range(1.5, 4.0), floor_h)
+		if rng.randf() < 0.35:
+			WebBuilder.egg_sacs(st, rng, Vector3(x, cliffs.floor_height(x, z), z))
+	# Long strands slung across the canyon, sagging in the middle.
+	for i in 30:
+		var y := rng.randf_range(3.0, 18.0)
+		var z1 := rng.randf_range(-85.0, 85.0)
+		var z2 := z1 + rng.randf_range(-6.0, 6.0)
+		var a := cliffs.face_point(WorldLayout.WEST, y, z1)
+		var b := cliffs.face_point(WorldLayout.EAST, y + rng.randf_range(-2.0, 2.0), z2)
+		var sag := rng.randf_range(2.0, 5.0)
+		var prev := a
+		for k in range(1, 9):
+			var t := float(k) / 8.0
+			var p := a.lerp(b, t) + Vector3.DOWN * sag * sin(t * PI)
+			WebBuilder.strand(st, prev, p, Vector3(0, 0, 1), 0.05, Color(1, 1, 1, 0.55))
+			WebBuilder.strand(st, prev, p, Vector3(0, 1, 0), 0.05, Color(1, 1, 1, 0.55))
+			prev = p
+	var mi := MeshInstance3D.new()
+	mi.name = "SpiderWebs"
+	mi.mesh = MeshKit.finish(st)
+	mi.material_override = WebBuilder.material()
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
 
 
 ## Ground position on a plateau.
