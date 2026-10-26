@@ -11,6 +11,19 @@ const MAX_MULT := 1.5
 const DROP_PER_SALE := 0.05
 ## Recovery per second while not selling (0.5 -> 1.5 in about four minutes).
 const RECOVERY_PER_SEC := 0.0042
+## Seeds cost scrap, harvests sell for chitin; this rate converts between them.
+const SCRAP_PER_CHITIN := 10.0
+## A seed costs this fraction of what its harvest returns at the base price.
+const SEED_FRACTION := 1.0 / 3.0
+
+
+## Scrap price of one seed: a third of the crop's average return (harvest yield x
+## base price), converted to scrap. Corn: 3 corn x 1.0 chitin = 3 -> 30 scrap -> 10.
+static func seed_price(crop: CropDef) -> int:
+	var value := 0.0
+	for item: StringName in crop.harvest:
+		value += float(BASE.get(item, 0.0)) * int(crop.harvest[item])
+	return maxi(int(roundf(value * SCRAP_PER_CHITIN * SEED_FRACTION)), 1)
 
 var mult: Dictionary = {}
 

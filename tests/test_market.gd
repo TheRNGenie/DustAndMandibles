@@ -35,3 +35,10 @@ func test_prices_recover_up_to_one_and_a_half() -> void:
 func test_unknown_items_are_worthless() -> void:
 	var m := MarketPrices.new()
 	assert_almost(m.sell(&"scrap", 3), 0.0)
+
+
+func test_seed_costs_a_third_of_the_harvest_value() -> void:
+	# Corn: 3 corn x 1.0 chitin = 3 chitin = 30 scrap; a third is 10.
+	assert_eq(MarketPrices.seed_price(Defs.crop(&"corn")), 10)
+	# Chili: 4 x 1.2 = 4.8 chitin = 48 scrap; a third is 16.
+	assert_eq(MarketPrices.seed_price(Defs.crop(&"firecracker_chili")), 16)
