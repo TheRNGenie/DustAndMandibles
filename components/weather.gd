@@ -67,6 +67,6 @@ static func lightning_interval(k: int) -> Vector2:
 
 
 ## Chance a strike picks a turret instead of open ground.
-const LIGHTNING_TURRET_CHANCE := 0.2
+const LIGHTNING_TURRET_CHANCE := 0.1
 ## Wind push on players and rocks (m/s), along +Z or -Z.
 const WIND_PUSH := 1.6
