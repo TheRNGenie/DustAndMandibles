@@ -20,9 +20,29 @@ static func cactus(seed_value: int) -> ArrayMesh:
 		MeshKit.add_limb(st, Vector3(0, ay, 0), out, ar, Palette.CACTUS_DARK, 8)
 		var up_len := rng.randf_range(0.8, 1.6)
 		MeshKit.add_limb(st, out, out + Vector3(0, up_len, 0), ar, Palette.CACTUS_DARK, 8)
-	# A few flowers.
-	if rng.randf() < 0.6:
-		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.1, h + r * 0.7, 0)), Vector3.ONE * 0.12, 3, 6, Palette.TEAM_WEST.lightened(0.2))
+	# Ribs: darker vertical ridges, and pale spine tufts along them.
+	for k in 8:
+		var a := TAU * k / 8.0
+		var n := Vector3(cos(a), 0, sin(a))
+		MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, -a), Vector3(0, h * 0.5, 0) + n * r * 0.93), Vector3(0.05, h * 0.95, 0.06), Palette.CACTUS_DARK)
+		var y := 0.4 + rng.randf() * 0.3
+		while y < h - 0.2:
+			var p := Vector3(0, y, 0) + n * (r * 0.99)
+			MeshKit.add_limb(st, p, p + n * 0.12 + Vector3(0, 0.04, 0), 0.008, Palette.BONE, 3)
+			MeshKit.add_limb(st, p, p + n * 0.1 + Vector3(0, -0.05, 0), 0.008, Palette.BONE, 3)
+			y += rng.randf_range(0.45, 0.7)
+	# A crown of flowers, sometimes.
+	if rng.randf() < 0.7:
+		var petal: Color = [Color("#E0483C"), Color("#FFD23F"), Color("#F28AB0")][rng.randi() % 3]
+		for f in rng.randi_range(1, 3):
+			var a := rng.randf() * TAU
+			var c := Vector3(cos(a) * r * 0.45, h + r * 0.62, sin(a) * r * 0.45)
+			for k in 5:
+				var pa := TAU * k / 5.0
+				MeshKit.add_ellipsoid(st, Transform3D(Basis(), c + Vector3(cos(pa), 0.02, sin(pa)) * 0.08), Vector3(0.07, 0.03, 0.07), 3, 6, petal)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), c + Vector3(0, 0.04, 0)), Vector3.ONE * 0.04, 3, 6, Color("#FFD23F").darkened(0.2))
+	# A little dry dirt mound at the base.
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.02, 0)), Vector3(r * 1.6, 0.12, r * 1.6), 3, 10, Palette.DIRT_DARK)
 	return MeshKit.finish(st)
 
 

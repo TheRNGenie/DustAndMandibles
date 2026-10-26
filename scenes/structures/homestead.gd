@@ -29,6 +29,11 @@ var _hit_cooldown := 0.0
 var _mi: MeshInstance3D
 var _col: CollisionShape3D
 var _lights: Array[OmniLight3D] = []
+var _flag: MeshInstance3D
+var _flag_t := 0.0
+var _chair: MeshInstance3D
+var _smoke_at := Vector3.ZERO
+var _smoke_t := 0.0
 
 
 static func of(cid: int) -> Homestead:
@@ -56,12 +61,93 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_hit_cooldown = maxf(_hit_cooldown - delta, 0.0)
+	_animate_flag(delta)
+	if _chair != null:
+		# Rocks gently on its own, harder in the wind.
+		var w := 2.0 if GameState.weather == Weather.Kind.WINDY else 1.0
+		_chair.rotation.x = sin(_flag_t * 1.6) * 0.09 * w
+	_smoke_t -= delta
+	if _smoke_t <= 0.0:
+		_smoke_t = 0.7
+		_puff()
+
+
+## A team flag made of strips so it can ripple.
+const FLAG_STRIPS := 8
+
+
+func _make_flag() -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.material_override = Materials.toon(0.0)
+	mi.position = HouseBuilder.flag_anchor()
+	return mi
+
+
+func _animate_flag(delta: float) -> void:
+	if _flag == null:
+		return
+	_flag_t += delta
+	var wind := 2.2 if GameState.weather == Weather.Kind.WINDY or GameState.weather == Weather.Kind.DUST_STORM else 1.0
+	var st := MeshKit.begin()
+	var team := Palette.team_color(cliff_id)
+	var w := 1.4
+	var h := 0.85
+	var prev_top := Vector3.ZERO
+	var prev_bot := Vector3(0, -h, 0)
+	for i in FLAG_STRIPS:
+		var t := float(i + 1) / FLAG_STRIPS
+		var wave := sin(_flag_t * 5.0 * wind - t * 5.0) * 0.16 * t * wind
+		var droop := -0.15 * t * (1.0 / wind)
+		var top := Vector3(t * w, droop, wave)
+		var bot := Vector3(t * w, -h + droop, wave + 0.03 * t)
+		var c := team if i % 4 != 3 else team.lightened(0.25)
+		MeshKit.quad(st, prev_top, top, bot, prev_bot, Vector3.FORWARD, MeshKit.vcol(c))
+		MeshKit.quad(st, prev_top, prev_bot, bot, top, Vector3.BACK, MeshKit.vcol(c))
+		prev_top = top
+		prev_bot = bot
+	_flag.mesh = MeshKit.finish(st)
+
+
+## Chimney smoke: soft grey puffs that drift up and away with the wind.
+func _puff() -> void:
+	var p := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.25
+	sphere.height = 0.5
+	sphere.radial_segments = 8
+	sphere.rings = 4
+	p.mesh = sphere
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.85, 0.83, 0.82, 0.55)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	p.material_override = mat
+	add_child(p)
+	p.position = _smoke_at
+	var drift := Vector3(randf_range(-0.3, 0.3), 3.0, randf_range(-0.3, 0.3))
+	if GameState.weather == Weather.Kind.WINDY:
+		drift += Vector3(0, -1.5, WeatherFx.wind_sign() * 3.0)
+	var tw := p.create_tween().set_parallel(true)
+	tw.tween_property(p, "position", p.position + drift, 3.5)
+	tw.tween_property(p, "scale", Vector3.ONE * 3.0, 3.5)
+	tw.tween_property(mat, "albedo_color:a", 0.0, 3.5)
+	tw.chain().tween_callback(p.queue_free)
 
 
 func _rebuild() -> void:
 	var mesh := HouseBuilder.build(100 + cliff_id, Palette.team_color(cliff_id), floors, boarded, reinforced)
 	_mi.mesh = mesh
 	_col.shape = HouseBuilder.build(100 + cliff_id, Color.WHITE, floors, boarded, reinforced, true).create_trimesh_shape()
+	if _flag == null:
+		_flag = _make_flag()
+		add_child(_flag)
+		_chair = MeshInstance3D.new()
+		_chair.mesh = HouseBuilder.rocking_chair()
+		_chair.material_override = Materials.toon(0.02)
+		_chair.position = HouseBuilder.chair_spot()
+		_chair.rotation.y = 0.5
+		add_child(_chair)
+	_smoke_at = HouseBuilder.chimney_top(floors)
 	while _lights.size() < floors:
 		var l := OmniLight3D.new()
 		l.light_color = Color("#FFC27A")

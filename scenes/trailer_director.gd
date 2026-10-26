@@ -406,3 +406,16 @@ func _shot_posse() -> void:
 	var c := base + Vector3(0, 1.0, 0)
 	_dur = 2.0
 	_keys = [[0.0, c + Vector3(-5.2, 0.4, 0.2), c], [2.0, c + Vector3(-5.2, 0.4, 0.2), c]]
+
+
+## Close look at a one-storey homestead's porch (flag, rocking chair, flower boxes).
+func _shot_porch() -> void:
+	_set_time(9.0)
+	var home := Homestead.of(WorldLayout.WEST)
+	var front := home.to_global(Vector3(-1.0, 2.4, -D_FRONT))
+	var look := home.to_global(Vector3(-1.5, 1.6, -2.5))
+	_dur = 3.0
+	_keys = [[0.0, front, look], [3.0, front + home.global_basis.x * 1.5, look]]
+
+
+const D_FRONT := 11.0

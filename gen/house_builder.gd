@@ -98,8 +98,89 @@ static func build(seed_value: int, team: Color, floors: int, boarded: bool, rein
 	_furniture(st, rng, floors)
 	# Flag pole with team colour.
 	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(-hw - 0.8, 3.0, -hd - 1.8)), 0.06, 0.05, 6.0, 6, Palette.METAL)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(-hw - 0.15, 5.4, -hd - 1.8)), Vector3(1.3, 0.8, 0.04), team)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(-hw - 0.8, 6.05, -hd - 1.8)), Vector3.ONE * 0.09, 3, 8, Color("#D6A74A"))
+	if not collision_only:
+		_window_dressing(st, rng, floors, boarded)
+		_yard_details(st, rng)
 	return MeshKit.finish(st)
+
+
+## Where the flag cloth hangs from (house space), and the chimney top (smoke).
+static func flag_anchor() -> Vector3:
+	return Vector3(-W * 0.5 - 0.8, 5.75, -D * 0.5 - 1.8)
+
+
+## Rocking chair on the porch: origin at the rocker's contact point.
+static func chair_spot() -> Vector3:
+	return Vector3(-W * 0.5 + 1.0, 0.3, -D * 0.5 - 1.0)
+
+
+static func rocking_chair() -> ArrayMesh:
+	var st := MeshKit.begin()
+	var wood := Palette.WOOD
+	for s: float in [-1.0, 1.0]:
+		# Curved rocker made of short limbs.
+		var prev := Vector3(s * 0.26, 0.12, -0.45)
+		for i in 9:
+			var t := float(i + 1) / 9.0
+			var z := lerpf(-0.45, 0.5, t)
+			var p := Vector3(s * 0.26, 0.04 + pow(z * 1.6, 2.0) * 0.12, z)
+			MeshKit.add_limb(st, prev, p, 0.03, Palette.WOOD_DARK, 5)
+			prev = p
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(s * 0.26, 0.28, -0.15)), Vector3(0.05, 0.4, 0.05), wood)
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(s * 0.26, 0.28, 0.2)), Vector3(0.05, 0.4, 0.05), wood)
+		MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.25), Vector3(s * 0.26, 0.85, 0.3)), Vector3(0.05, 0.9, 0.05), wood)
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(s * 0.26, 0.68, 0.0)), Vector3(0.07, 0.04, 0.55), Palette.WOOD_DARK)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.48, 0.02)), Vector3(0.6, 0.06, 0.55), wood)
+	for i in 5:
+		MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.25), Vector3(-0.2 + i * 0.1, 0.85, 0.3)), Vector3(0.05, 0.7, 0.03), wood.lightened(0.08))
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.25), Vector3(0, 1.25, 0.4)), Vector3(0.6, 0.07, 0.05), Palette.WOOD_DARK)
+	# A folded red blanket over the arm, and a cushion.
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.52, 0.02)), Vector3(0.5, 0.04, 0.45), Color("#B8352A"))
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.28, 0.6, -0.05)), Vector3(0.1, 0.22, 0.3), Color("#E0C890"))
+	return MeshKit.finish(st)
+
+
+static func chimney_top(floors: int) -> Vector3:
+	return Vector3(W * 0.3, H * clampi(floors, 1, 3) + 2.95, D * 0.15)
+
+
+## Shutters beside the front windows and a flower box under each.
+static func _window_dressing(st: SurfaceTool, rng: RandomNumberGenerator, floors: int, boarded: bool) -> void:
+	var hd := D * 0.5
+	for f in mini(floors, 2):
+		var y0 := H * f
+		for wx: float in [-2.2, 2.2]:
+			for s: float in [-1.0, 1.0]:
+				var x := wx + s * 0.68
+				MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, s * 0.25), Vector3(x, y0 + 1.8, -hd - 0.2)), Vector3(0.36, 1.25, 0.05), Color("#3E6A5A") if f == 0 else Color("#5A4A7A"))
+				for k in 4:
+					MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, s * 0.25), Vector3(x, y0 + 1.35 + k * 0.3, -hd - 0.23)), Vector3(0.3, 0.04, 0.02), Color("#2E5246"))
+			if f == 0 and not boarded:
+				MeshKit.add_box(st, Transform3D(Basis(), Vector3(wx, y0 + 1.12, -hd - 0.3)), Vector3(1.0, 0.18, 0.22), Palette.WOOD_DARK)
+				for k in 5:
+					var c: Color = [Color("#E0483C"), Color("#FFD23F"), Color("#F2E3C2"), Color("#C97ABF")][rng.randi() % 4]
+					MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(wx - 0.4 + k * 0.2, y0 + 1.27, -hd - 0.3)), Vector3(0.08, 0.06, 0.08), 3, 6, Palette.CACTUS)
+					MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(wx - 0.4 + k * 0.2, y0 + 1.33, -hd - 0.33)), Vector3.ONE * 0.04, 3, 6, c)
+
+
+## A horseshoe over the door, a welcome mat, a washtub and a woodpile.
+static func _yard_details(st: SurfaceTool, rng: RandomNumberGenerator) -> void:
+	var hd := D * 0.5
+	for k in 7:
+		var a := PI * (0.15 + 0.7 * k / 6.0)
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(cos(a) * 0.14, 2.62 + sin(a) * 0.14 - 0.14, -hd - 0.2)), Vector3.ONE * 0.035, 3, 6, Palette.METAL.lightened(0.15))
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.31, -hd - 0.7)), Vector3(1.0, 0.02, 0.55), Color("#B8352A"))
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.32, -hd - 0.7)), Vector3(0.8, 0.02, 0.06), Color("#F2E3C2"))
+	# Washtub by the porch steps.
+	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(W * 0.5 + 0.7, 0.25, -hd + 0.6)), 0.4, 0.32, 0.5, 14, Palette.METAL.lightened(0.1))
+	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(W * 0.5 + 0.7, 0.46, -hd + 0.6)), 0.36, 0.36, 0.02, 14, Palette.SKY_TOP, false, 0.3)
+	# Woodpile against the side wall.
+	for r in 3:
+		for k in 5 - r:
+			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(-W * 0.5 - 0.35, 0.15 + r * 0.26, -1.2 + k * 0.28 + r * 0.14)), 0.13, 0.13, 0.9, 7,
+					Palette.WOOD.lightened(rng.randf() * 0.1))
+			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(-W * 0.5 - 0.35, 0.15 + r * 0.26, -1.2 + k * 0.28 + r * 0.14 - 0.0) + Vector3(0, 0, 0)), 0.1, 0.1, 0.92, 7, Color("#D9B27A"), false)
 
 
 ## One log wall. `along` is the wall direction (RIGHT for front/back, BACK for the
@@ -214,7 +295,14 @@ static func _pitched_roof(st: SurfaceTool, rng: RandomNumberGenerator, h: float)
 	for side: float in [-1.0, 1.0]:
 		var b := Basis(Vector3.BACK, -side * roof_angle)
 		var center := Vector3(side * half_span * 0.5, h + tan(roof_angle) * half_span * 0.5 + 0.1, 0)
-		MeshKit.add_box(st, Transform3D(b, center), Vector3(slab_len, 0.25, D + 1.6), Palette.ROOF, 0.04, rng)
+		MeshKit.add_box(st, Transform3D(b, center), Vector3(slab_len, 0.2, D + 1.6), Palette.ROOF.darkened(0.15), 0.02, rng)
+		var rows := 7
+		for r in rows:
+			var t := (float(r) + 0.5) / rows
+			var along := Vector3(side * half_span * (1.0 - t), h + tan(roof_angle) * half_span * t + 0.22, 0)
+			var shade := Palette.ROOF.darkened(0.05 * (r % 2)).lerp(Palette.ROOF.lightened(0.08), rng.randf() * 0.4)
+			MeshKit.add_box(st, Transform3D(b * Basis(Vector3.BACK, side * 0.05), along), Vector3(slab_len / rows * 1.2, 0.06, D + 1.6), shade, 0.02, rng)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, h + tan(roof_angle) * half_span + 0.15, 0)), Vector3(0.3, 0.16, D + 1.7), Palette.WOOD_DARK)
 	for gz: float in [-D * 0.5, D * 0.5]:
 		var peak := Vector3(0, h + tan(roof_angle) * (W * 0.5), gz)
 		var n := Vector3(0, 0, signf(gz))
