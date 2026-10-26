@@ -14,6 +14,9 @@ var _build: Label
 var _over: PanelContainer
 var _over_label: Label
 var _build_mode: BuildMode
+var _boss_box: VBoxContainer
+var _boss_bar: ProgressBar
+var _boss_label: Label
 
 
 func _ready() -> void:
@@ -66,6 +69,26 @@ func _ready() -> void:
 		get_tree().change_scene_to_file(NetworkManager.MENU_SCENE))
 	col.add_child(back)
 
+	_boss_box = VBoxContainer.new()
+	_boss_box.anchor_left = 0.5
+	_boss_box.anchor_right = 0.5
+	_boss_box.offset_left = -320
+	_boss_box.offset_right = 320
+	_boss_box.offset_top = 110
+	_boss_box.visible = false
+	add_child(_boss_box)
+	_boss_label = _outlined("", 20, Palette.TEAM_WEST.lightened(0.2))
+	_boss_box.add_child(_boss_label)
+	_boss_bar = ProgressBar.new()
+	_boss_bar.custom_minimum_size = Vector2(640, 22)
+	_boss_bar.show_percentage = false
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Palette.OUTLINE
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = Palette.TEAM_WEST
+	_boss_bar.add_theme_stylebox_override("background", bg)
+	_boss_bar.add_theme_stylebox_override("fill", fill)
+	_boss_box.add_child(_boss_bar)
 	WaveDirector.wave_announced.connect(_on_wave_announced)
 	Economy.notice.connect(func(t: String) -> void: add_line(t, Palette.GLOW_YELLOW))
 	GameState.game_over.connect(_on_game_over)
@@ -86,6 +109,24 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 
 func _process(_delta: float) -> void:
 	_build.text = _build_mode.status_text() if _build_mode != null else ""
+	_update_boss_bar()
+
+
+func _update_boss_bar() -> void:
+	var boss: Bug = null
+	for n: Node in get_tree().get_nodes_in_group("bugs"):
+		var b := n as Bug
+		if b.def.behavior == BugDef.Behavior.BOSS and b.is_alive():
+			boss = b
+	if boss == null:
+		_boss_box.visible = false
+		return
+	if not _boss_box.visible:
+		_boss_box.visible = true
+		add_line("THE IRON TUMBLE IS CLIMBING! Partner's turrets hit its back, shoot its glowing belly from above.", Palette.TEAM_WEST)
+	_boss_bar.max_value = boss.health.max_hp
+	_boss_bar.value = boss.health.hp
+	_boss_label.text = "THE IRON TUMBLE  -  %s cliff" % ("west" if boss.cliff_id == WorldLayout.WEST else "east")
 
 
 func add_line(text: String, color: Color = Palette.BONE) -> void:

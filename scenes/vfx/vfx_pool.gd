@@ -47,8 +47,14 @@ func muzzle_flash(pos: Vector3, dir: Vector3) -> void:
 	_fire(_next(_flashes, "flash"), pos, dir)
 
 
+## Emitted for big blasts so the local camera can shake (strength fades with distance).
+signal shake_requested(pos: Vector3, strength: float)
+
+
 ## A bug dies: it "pops" into chunks of its shell colour with a big star burst.
 func pop(pos: Vector3, color: Color, size: float) -> void:
+	if size >= 1.5:
+		shake_requested.emit(pos, size * 0.2)
 	var chunks := _next(_pops, "pop")
 	var pm := chunks.process_material as ParticleProcessMaterial
 	pm.color = color
@@ -111,6 +117,26 @@ func lob(from: Vector3, to: Vector3, flight: float, color: Color) -> void:
 	tw.tween_callback(func() -> void:
 		spark(to, Vector3.UP, color)
 		mi.queue_free())
+
+
+## Floating comic damage number where your shot landed (bigger and yellow on weak spots).
+func damage_number(pos: Vector3, amount: float, weak: bool) -> void:
+	var l := Label3D.new()
+	l.text = str(int(amount)) + ("!" if weak else "")
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.no_depth_test = true
+	l.fixed_size = true
+	l.pixel_size = 0.0012 if weak else 0.0009
+	l.font_size = 48
+	l.outline_size = 14
+	l.modulate = Palette.GLOW_YELLOW if weak else Palette.BONE
+	l.outline_modulate = Palette.OUTLINE
+	add_child(l)
+	l.global_position = pos + Vector3.UP * 0.4
+	var tw := l.create_tween().set_parallel(true)
+	tw.tween_property(l, "global_position", l.global_position + Vector3.UP * 1.2, 0.7)
+	tw.tween_property(l, "modulate:a", 0.0, 0.7).set_delay(0.2)
+	tw.chain().tween_callback(l.queue_free)
 
 
 ## A burning chili patch on the cliff face: looping flame stars for a few seconds.

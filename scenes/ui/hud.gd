@@ -103,6 +103,7 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 	status.bind_player(player)
 	feed.bind_player(player, bugs, builds)
 	player.revolver.ammo_changed.connect(_on_ammo_changed)
+	player.revolver.hit_confirmed.connect(func(weak: bool) -> void: (_crosshair as Crosshair).flash(weak))
 	player.revolver.reload_started.connect(func(_d: float) -> void: _ammo_label.text = "Reloading")
 	player.fell_into_canyon.connect(func(delay: float) -> void: _show_message("Hauling you back up... (%.0f s)" % delay))
 	player.respawned.connect(func() -> void: _center_label.text = "")
@@ -179,8 +180,26 @@ static func wood_sign_style() -> StyleBoxFlat:
 
 ## A small cross with a dark outline, drawn in code.
 class Crosshair extends Control:
+	var marker := 0.0
+	var marker_weak := false
+
+	func flash(weak: bool) -> void:
+		marker = 1.0
+		marker_weak = weak
+		queue_redraw()
+
+	func _process(delta: float) -> void:
+		if marker > 0.0:
+			marker = maxf(marker - delta * 5.0, 0.0)
+			queue_redraw()
+
 	func _draw() -> void:
 		var c := size * 0.5
+		if marker > 0.0:
+			# Hit marker: an X that pops when your shot lands.
+			var mc := (Palette.GLOW_YELLOW if marker_weak else Color.WHITE) * Color(1, 1, 1, marker)
+			for d: Vector2 in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+				draw_line(c + d * 7.0, c + d * 15.0, mc, 3.0)
 		for pass_i in 2:
 			var col := Palette.OUTLINE if pass_i == 0 else Palette.BONE
 			var w := 4.0 if pass_i == 0 else 2.0

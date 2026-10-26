@@ -97,7 +97,7 @@ func _ready() -> void:
 
 func _make_synchronizer() -> MultiplayerSynchronizer:
 	var cfg := SceneReplicationConfig.new()
-	for p: String in [".:state", ".:climb_y", ".:lane_z", ".:ground_pos", ".:crest_t", "Health:hp"]:
+	for p: String in [".:state", ".:climb_y", ".:lane_z", ".:ground_pos", ".:crest_t", ".:cliff_id", "Health:hp"]:
 		var path := NodePath(p)
 		cfg.add_property(path)
 		cfg.property_set_spawn(path, true)
@@ -178,6 +178,9 @@ func _think(delta: float) -> void:
 func begin_crest() -> void:
 	state = State.CRESTING
 	crest_t = 0.0
+	# The boss's boulder rolls over the lip straight into the Homestead.
+	if def.behavior == BugDef.Behavior.BOSS:
+		GameState.damage_homestead(cliff_id, 150.0)
 
 
 ## Host: a Dragonfly Bandit got away with its loot.
@@ -279,6 +282,14 @@ func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, mul
 
 
 func _check_brood() -> void:
+	# The Iron Tumble drops off at half health and re-climbs the other cliff.
+	if def.behavior == BugDef.Behavior.BOSS and not brood_done and health.fraction() <= 0.5 and state == State.CLIMBING:
+		brood_done = true
+		cliff_id = WorldLayout.other_cliff(cliff_id)
+		climb_y = 0.0
+		if brood_burst.is_valid():
+			brood_burst.call(self)
+		return
 	if def.behavior == BugDef.Behavior.BROOD and not brood_done and health.fraction() <= 0.5:
 		brood_done = true
 		if brood_burst.is_valid():

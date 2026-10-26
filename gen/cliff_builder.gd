@@ -108,16 +108,40 @@ func floor_height(x: float, z: float) -> float:
 
 # ---------------------------------------------------------------- mesh building
 
-## Builds all canyon meshes and collisions under `parent`.
+## How far the canyon continues past the playable stretch (visual only, fades into fog).
+const FAR_Z := 700.0
+const FAR_STEP := 4.0
+
+
+## Builds all canyon meshes and collisions under `parent`. The playable stretch
+## (|z| <= WORLD_HALF_Z) is detailed and collidable; the canyon then keeps going
+## into the distance in both directions at low detail, without collision.
 func build(parent: Node3D) -> void:
 	var rock := Materials.strata(Palette.SAND)
 	var floor_mat := Materials.strata(Color("#D9A35E"))
+	var near := Vector2(-WorldLayout.WORLD_HALF_Z, WorldLayout.WORLD_HALF_Z)
 	for cid in 2:
-		_add_static(parent, "Plateau%d" % cid, _build_plateau(cid), rock)
-		_add_static(parent, "CliffFace%d" % cid, _build_face(cid), rock)
-	_add_static(parent, "CanyonFloor", _build_floor(), floor_mat)
-	for end_sign: float in [-1.0, 1.0]:
-		_add_static(parent, "EndWall%d" % int(end_sign), _build_end_wall(end_sign), rock)
+		_add_static(parent, "Plateau%d" % cid, _build_plateau(cid, near, PLATEAU_Z_STEP, PLATEAU_D_STEP, WorldLayout.TERRAIN_DEPTH), rock)
+		_add_static(parent, "CliffFace%d" % cid, _build_face(cid, near, FACE_Z_STEP, FACE_Y_STEP), rock)
+	_add_static(parent, "CanyonFloor", _build_floor(near, FLOOR_STEP), floor_mat)
+	# Distant canyon, both directions (a little overlap hides the seam).
+	for side: float in [-1.0, 1.0]:
+		var a := side * (WorldLayout.WORLD_HALF_Z - 2.0)
+		var b := side * FAR_Z
+		var span := Vector2(minf(a, b), maxf(a, b))
+		var tag := "N" if side > 0.0 else "S"
+		for cid in 2:
+			_add_visual(parent, "FarPlateau%d%s" % [cid, tag], _build_plateau(cid, span, FAR_STEP, FAR_STEP, 140.0), rock)
+			_add_visual(parent, "FarFace%d%s" % [cid, tag], _build_face(cid, span, FAR_STEP, 2.0), rock)
+		_add_visual(parent, "FarFloor%s" % tag, _build_floor(span, FAR_STEP), floor_mat)
+
+
+func _add_visual(parent: Node3D, node_name: String, mesh: ArrayMesh, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	mi.name = node_name
+	mi.mesh = mesh
+	mi.material_override = mat
+	parent.add_child(mi)
 
 
 func _add_static(parent: Node3D, node_name: String, mesh: ArrayMesh, mat: Material) -> void:
@@ -135,26 +159,31 @@ func _add_static(parent: Node3D, node_name: String, mesh: ArrayMesh, mat: Materi
 	body.add_child(col)
 
 
-func _face_rows() -> Array[float]:
+func _face_rows(y_step: float) -> Array[float]:
 	var rows: Array[float] = []
 	var h := WorldLayout.CLIFF_HEIGHT
 	var y := -2.0
 	while y < h - 3.0:
 		rows.append(y)
-		y += FACE_Y_STEP
+		y += y_step
 	rows.append_array([h - 3.0, h - 2.6, h - 2.2, h - 1.8, h - 1.4, h - 0.7, h])
 	return rows
 
 
-func _build_face(cid: int) -> ArrayMesh:
-	var rows := _face_rows()
-	var grid: Array = []
-	var z := -WorldLayout.WORLD_HALF_Z
+static func _zs(span: Vector2, step: float) -> Array[float]:
 	var zs: Array[float] = []
-	while z <= WorldLayout.WORLD_HALF_Z + 0.001:
+	var z := span.x
+	while z < span.y - 0.001:
 		zs.append(z)
-		z += FACE_Z_STEP
-	for y in rows:
+		z += step
+	zs.append(span.y)
+	return zs
+
+
+func _build_face(cid: int, span: Vector2, z_step: float, y_step: float) -> ArrayMesh:
+	var grid: Array = []
+	var zs := _zs(span, z_step)
+	for y in _face_rows(y_step):
 		var row: Array[Vector3] = []
 		for zz in zs:
 			row.append(face_point(cid, y, zz))
@@ -163,50 +192,30 @@ func _build_face(cid: int) -> ArrayMesh:
 	return _grid_mesh(grid, outward)
 
 
-func _build_plateau(cid: int) -> ArrayMesh:
+func _build_plateau(cid: int, span: Vector2, z_step: float, d_step: float, depth: float) -> ArrayMesh:
 	var grid: Array = []
+	var zs := _zs(span, z_step)
 	var d := 0.0
-	while d <= WorldLayout.TERRAIN_DEPTH + 0.001:
+	while d <= depth + 0.001:
 		var row: Array[Vector3] = []
-		var z := -WorldLayout.WORLD_HALF_Z
-		while z <= WorldLayout.WORLD_HALF_Z + 0.001:
+		for z in zs:
 			row.append(plateau_point(cid, d, z))
-			z += PLATEAU_Z_STEP
 		grid.append(row)
-		d += PLATEAU_D_STEP
+		d += d_step
 	return _grid_mesh(grid, Vector3.UP)
 
 
-func _build_floor() -> ArrayMesh:
+func _build_floor(span: Vector2, step: float) -> ArrayMesh:
 	var grid: Array = []
+	var zs := _zs(span, step)
 	var x := -FLOOR_HALF_X
 	while x <= FLOOR_HALF_X + 0.001:
 		var row: Array[Vector3] = []
-		var z := -WorldLayout.WORLD_HALF_Z
-		while z <= WorldLayout.WORLD_HALF_Z + 0.001:
+		for z in zs:
 			row.append(Vector3(x, floor_height(x, z), z))
-			z += FLOOR_STEP
 		grid.append(row)
-		x += FLOOR_STEP
+		x += step
 	return _grid_mesh(grid, Vector3.UP)
-
-
-## A rock wall closing each end of the canyon, rising above the plateaus like a mesa.
-func _build_end_wall(end_sign: float) -> ArrayMesh:
-	var n := _noise[0]
-	var grid: Array = []
-	var y := -2.0
-	while y <= WorldLayout.CLIFF_HEIGHT + 10.0 + 0.001:
-		var row: Array[Vector3] = []
-		var x := -45.0
-		while x <= 45.0 + 0.001:
-			var bulge := n.get_noise_2d(x * 0.1, y * 0.1 + 300.0 * end_sign) * 2.5
-			var z := end_sign * (WorldLayout.WORLD_HALF_Z - 2.0 + bulge)
-			row.append(Vector3(x, y, z))
-			x += 1.5
-		grid.append(row)
-		y += 1.0
-	return _grid_mesh(grid, Vector3(0.0, 0.0, -end_sign))
 
 
 ## Turns a 2D grid of positions (Array of Array[Vector3]) into a smooth-shaded mesh

@@ -28,6 +28,8 @@ static func build(def: BugDef) -> Dictionary:
 			spec = _dragonfly(def.shell_color)
 		&"crop_weevil":
 			spec = _weevil(def.shell_color)
+		&"iron_tumble":
+			spec = _boss(def.shell_color)
 		_:
 			spec = _mite(def.shell_color)
 	return _scaled(spec, def.size)
@@ -210,4 +212,30 @@ static func _weevil(shell: Color) -> Dictionary:
 		"body": MeshKit.finish(st), "legs": _legs(3, -0.15, 0.4, 0.25, 0.0, 0.3, -0.2),
 		"upper": 0.25, "lower": 0.28, "thick": 0.04, "leg_color": shell.darkened(0.4), "ik": false,
 		"weak_spot": Vector3(0, 0.36, 0.2), "weak_radius": 0.16, "body_radius": 0.45, "clearance": 0.22,
+	}
+
+
+## The Iron Tumble: a huge armoured dung beetle pushing a boulder up the cliff.
+## Its back plate shrugs off shots from across the canyon; the glowing belly seam
+## near its rear is exposed to the cliff's owner shooting down from the lip.
+static func _boss(shell: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1010
+	var st := MeshKit.begin()
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.2, 0.2)), Vector3(0.75, 0.5, 0.85), 8, 16, shell)
+	for i in 4:
+		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0.35, -0.35 + i * 0.3)), 0.74, 0.74, 0.06, 16, shell.lightened(0.25), false)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.72, 0.2)), Vector3(0.1, 0.06, 1.5), Palette.METAL.darkened(0.4))
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.1, -0.75)), Vector3(0.38, 0.28, 0.3), 6, 12, shell.darkened(0.3))
+	for side: float in [-1.0, 1.0]:
+		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, -1.2) * Basis(Vector3.BACK, side * 0.3), Vector3(side * 0.18, 0.2, -1.0)), 0.07, 0.0, 0.5, 6, Palette.BONE)
+	_eyes(st, Vector3(0, 0.2, -1.0), 0.16, 0.06)
+	# Glowing belly seam at the rear: the weak spot.
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, -0.05, 0.95)), Vector3(0.35, 0.12, 0.18), 5, 10, Palette.GLOW_YELLOW, 0.0, null, 0.75)
+	# The boulder it rolls ahead of itself (up the cliff).
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.45, -1.75)), Vector3.ONE * 0.6, 6, 10, Palette.ROCK_B, 0.15, rng)
+	return {
+		"body": MeshKit.finish(st), "legs": _legs(3, -0.45, 0.6, 0.6, 0.0, 0.7, -0.35),
+		"upper": 0.6, "lower": 0.65, "thick": 0.09, "leg_color": shell.darkened(0.5), "ik": true,
+		"weak_spot": Vector3(0, -0.05, 0.95), "weak_radius": 0.3, "body_radius": 0.9, "clearance": 0.45,
 	}

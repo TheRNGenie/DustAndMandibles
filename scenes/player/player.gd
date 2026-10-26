@@ -32,6 +32,7 @@ var _mantling := false
 var _fall_left := -1.0
 var _bob_t := 0.0
 var _capsule: CapsuleShape3D
+var _shake := 0.0
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera
@@ -269,3 +270,12 @@ func _update_camera(delta: float, sprinting: bool) -> void:
 	elif sprinting:
 		target_fov += 7.0
 	camera.fov = lerpf(camera.fov, target_fov, clampf(delta * 8.0, 0.0, 1.0))
+	# Screen shake (gunfire, nearby explosions).
+	_shake = move_toward(_shake, 0.0, delta * 2.5)
+	camera.h_offset = randf_range(-1.0, 1.0) * _shake * 0.08
+	camera.v_offset = randf_range(-1.0, 1.0) * _shake * 0.08
+
+
+## Local player: shake the camera (0..1).
+func add_shake(amount: float) -> void:
+	_shake = clampf(_shake + amount, 0.0, 1.0)

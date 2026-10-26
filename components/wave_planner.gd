@@ -35,6 +35,11 @@ func plan(w: int) -> Dictionary:
 	var groups: Array = []
 	var options := unlocked(w)
 	# Make sure every bug introduced this wave shows up on both cliffs.
+	# The boss wave: the Iron Tumble climbs the heavier cliff's centre lane in the first pulse.
+	for d in options:
+		if d.behavior == BugDef.Behavior.BOSS and d.first_wave == w:
+			var boss_cliff := WorldLayout.WEST if west_share >= 0.5 else WorldLayout.EAST
+			groups.append({"bug": d.id, "count": 1, "cliff": boss_cliff, "lane": 2, "pulse": 0})
 	for newest in _newest(options, w):
 		for cid in 2:
 			var c := float(newest.cost * newest.group_size)
@@ -46,7 +51,7 @@ func plan(w: int) -> Dictionary:
 		while guard < 500:
 			guard += 1
 			var left: float = pools[cid] - spent[cid]
-			var affordable := options.filter(func(d: BugDef) -> bool: return d.cost * d.group_size <= left)
+			var affordable := options.filter(func(d: BugDef) -> bool: return d.cost > 0 and d.cost * d.group_size <= left)
 			if affordable.is_empty():
 				break
 			var pick := affordable[rng.randi_range(0, affordable.size() - 1)] as BugDef
@@ -68,7 +73,7 @@ func _group(d: BugDef, cliff: int, pulses: int) -> Dictionary:
 func _newest(options: Array[BugDef], w: int) -> Array[BugDef]:
 	var out: Array[BugDef] = []
 	for d in options:
-		if d.first_wave == w:
+		if d.first_wave == w and d.cost > 0:
 			out.append(d)
 	return out
 

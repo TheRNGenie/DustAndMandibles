@@ -232,7 +232,9 @@ func _farm() -> void:
 func _showcase() -> void:
 	var bm := world.get("bugs") as BugManager
 	var lane := 1
-	if GameState.flag_value("--showcase") == "2":
+	if GameState.flag_value("--showcase") == "3":
+		bm.spawn_group(&"iron_tumble", 1, WorldLayout.WEST, 2, 25.0)
+	elif GameState.flag_value("--showcase") == "2":
 		for id: StringName in [&"brood_mother", &"spiderling", &"crop_weevil"]:
 			bm.spawn_group(id, 1, WorldLayout.WEST, lane, 25.0)
 			lane += 1

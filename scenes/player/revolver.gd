@@ -6,6 +6,8 @@ extends Node3D
 signal fired(origin: Vector3, direction: Vector3)
 signal ammo_changed(current: int, max_ammo: int)
 signal reload_started(duration: float)
+## Your own shot hit a bug (weak = the glowing weak spot). For hit markers.
+signal hit_confirmed(weak: bool)
 
 const MAX_AMMO := 6
 const FIRE_INTERVAL := 0.3
@@ -96,6 +98,9 @@ func trigger(camera: Camera3D) -> bool:
 	_flash_left = 0.05
 	ammo_changed.emit(ammo, MAX_AMMO)
 	Audio.play_at(&"revolver", global_position, -2.0)
+	var p := get_parent().get_parent().get_parent() as Player
+	if p != null:
+		p.add_shake(0.15)
 	var origin := camera.global_position
 	var dir := -camera.global_transform.basis.z
 	fired.emit(origin, dir)
@@ -126,7 +131,7 @@ func raycast(origin: Vector3, dir: Vector3, exclude: Array[RID]) -> Dictionary:
 
 ## Cosmetic: spark at the hit point and a nudge for loose physics props (tin cans).
 ## Runs on every peer that sees the shot; props are not synced.
-func show_impact(hit: Dictionary, dir: Vector3) -> void:
+func show_impact(hit: Dictionary, dir: Vector3, mine: bool = false) -> void:
 	if hit.is_empty():
 		return
 	var pos: Vector3 = hit["position"]
@@ -136,6 +141,10 @@ func show_impact(hit: Dictionary, dir: Vector3) -> void:
 		if collider is Hitbox:
 			vfx.spark(pos, normal, Palette.ACID_GREEN)
 			Audio.play_at(&"hit_tick", pos)
+			if mine:
+				var weak := (collider as Hitbox).multiplier > 1.0
+				vfx.damage_number(pos, DAMAGE * (collider as Hitbox).multiplier, weak)
+				hit_confirmed.emit(weak)
 		else:
 			vfx.spark(pos, normal)
 	if collider is RigidBody3D:

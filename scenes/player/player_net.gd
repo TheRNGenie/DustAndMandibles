@@ -90,7 +90,7 @@ func _consumed(kind: StringName) -> void:
 ## Called by the owning peer after the revolver fired.
 func fire(origin: Vector3, dir: Vector3) -> void:
 	var hit := player.revolver.raycast(origin, dir, [player.get_rid()])
-	player.revolver.show_impact(hit, dir) # client-side prediction
+	player.revolver.show_impact(hit, dir, true) # client-side prediction
 	if multiplayer.is_server():
 		_server_fire(origin, dir, hit)
 	else:

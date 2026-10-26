@@ -12,6 +12,7 @@ const BUGS: Dictionary = {
 	&"burrow_tick": preload("res://data/bugs/burrow_tick.tres"),
 	&"dragonfly_bandit": preload("res://data/bugs/dragonfly_bandit.tres"),
 	&"crop_weevil": preload("res://data/bugs/crop_weevil.tres"),
+	&"iron_tumble": preload("res://data/bugs/iron_tumble.tres"),
 }
 
 const TURRETS: Dictionary = {
