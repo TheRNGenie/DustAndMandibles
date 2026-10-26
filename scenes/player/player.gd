@@ -56,6 +56,8 @@ const CLIMB_SPEED := 4.5
 var rig: DummyRig
 var _remote_sliding := false
 var _last_pos := Vector3.ZERO
+var _last_y := 0.0
+var _vy_smooth := 0.0
 @onready var vitals: PlayerVitals = $Vitals
 ## Set by the world for the local player.
 var build_mode: BuildMode
@@ -123,7 +125,10 @@ func _process(delta: float) -> void:
 	moved.y = 0.0
 	var speed := moved.length() / maxf(delta, 0.0001)
 	var sliding := _sliding if is_multiplayer_authority() else _remote_sliding
-	rig.animate(delta, minf(speed, 12.0), sliding, head.rotation.x)
+	var vy := (global_position.y - _last_y) / maxf(delta, 0.0001)
+	_last_y = global_position.y
+	_vy_smooth = lerpf(_vy_smooth, vy, clampf(delta * 10.0, 0.0, 1.0))
+	rig.animate(delta, minf(speed, 12.0), sliding, head.rotation.x, _vy_smooth if not is_on_floor() or not is_multiplayer_authority() else 0.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:

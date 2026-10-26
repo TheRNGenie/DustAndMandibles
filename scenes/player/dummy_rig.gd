@@ -48,6 +48,12 @@ var _slide := 0.0
 var _tail_swing := 0.0
 ## Ragdoll-ish wobble from being hit (rocks): a tilt that springs back.
 var _wobble := Vector3.ZERO
+var _life := randf() * 10.0
+var _air := 0.0
+var _two := 0.0
+var _look_t := 3.0
+var _look_yaw := 0.0
+var _head_yaw := 0.0
 var _wobble_vel := Vector3.ZERO
 
 
@@ -125,29 +131,55 @@ func knock(dir: Vector3, strength: float) -> void:
 	_wobble_vel += Vector3(local.z, 0.0, -local.x).normalized() * strength * 9.0 + Vector3(0, randf_range(-1, 1), 0) * strength * 4.0
 
 
-## Called every frame. speed = horizontal speed (m/s); pitch = aim pitch (radians).
-func animate(delta: float, speed: float, sliding: bool, pitch: float) -> void:
+## Called every frame. speed = horizontal speed (m/s); pitch = aim pitch (radians);
+## vy = vertical speed (m/s), for jump and fall poses.
+func animate(delta: float, speed: float, sliding: bool, pitch: float, vy: float = 0.0) -> void:
 	if _hips == null:
 		return
+	_life += delta
 	_slide = move_toward(_slide, 1.0 if sliding else 0.0, delta * 6.0)
-	var k := clampf(speed / 6.0, 0.0, 1.6)
+	var air_target := clampf(absf(vy) / 4.0, 0.0, 1.0) if absf(vy) > 1.5 else 0.0
+	_air = move_toward(_air, air_target, delta * 5.0)
+	var k := clampf(speed / 6.0, 0.0, 1.6) * (1.0 - _air)
 	if speed > 0.3:
 		_phase += delta * (4.0 + speed * 0.9)
 	else:
 		_phase = lerpf(_phase, roundf(_phase / PI) * PI, clampf(delta * 6.0, 0.0, 1.0))
+	# Idle: breathing, a slow weight shift, now and then a look around.
+	var idle := clampf(1.0 - speed / 1.5, 0.0, 1.0) * (1.0 - _slide) * (1.0 - _air)
+	var breathe := sin(_life * 1.9) * 0.012 * idle
+	var shift := sin(_life * 0.5) * 0.04 * idle
+	_look_t -= delta
+	if _look_t <= 0.0:
+		_look_t = randf_range(3.0, 7.0)
+		_look_yaw = randf_range(-0.6, 0.6) if randf() < 0.6 else 0.0
+	_head_yaw = lerpf(_head_yaw, _look_yaw * idle, clampf(delta * 3.0, 0.0, 1.0))
 	for i in 2:
 		var s := sin(_phase + float(i) * PI)
-		_thighs[i].rotation.x = lerpf(s * 0.55 * k, -1.35, _slide)
-		_shins[i].rotation.x = lerpf(maxf(-cos(_phase + float(i) * PI), 0.0) * 0.9 * k, 0.1, _slide)
-	# Right arm (index 1) aims the gun; the left arm swings.
+		var thigh := s * 0.6 * k
+		var shin := maxf(-cos(_phase + float(i) * PI), 0.0) * 1.0 * k
+		# Airborne: knees up (rising) or legs dangling and kicking (falling).
+		var air_thigh := -0.9 if vy > 0.0 else -0.3 + sin(_life * 9.0 + i * PI) * 0.35
+		var air_shin := 1.3 if vy > 0.0 else 0.4 + cos(_life * 9.0 + i * PI) * 0.3
+		_thighs[i].rotation.x = lerpf(lerpf(thigh, air_thigh, _air), -1.35, _slide)
+		_shins[i].rotation.x = lerpf(lerpf(shin, air_shin, _air), 0.1, _slide)
+		_thighs[i].rotation.z = (shift if i == 1 else -shift) * 0.5
+	# Right arm (index 1) aims the gun. A long gun pulls the left hand onto the forend.
 	_shoulders[1].rotation.x = -1.35 - pitch * 0.9
 	_elbows[1].rotation.x = -0.15
-	_shoulders[0].rotation.x = lerpf(-sin(_phase) * 0.45 * k, -0.6, _slide)
-	_elbows[0].rotation.x = -0.35
-	_hips.position.y = lerpf(0.95 + absf(sin(_phase)) * 0.03 * k, 0.48, _slide)
-	_torso.rotation.x = lerpf(-0.06 * k, 0.45, _slide)
-	_head.rotation.x = clampf(pitch, -0.7, 0.7) - _torso.rotation.x
-	var want := 0.25 * k + sin(_phase * 2.0) * 0.06 * k
+	var two_hands := 1.0 if (_weapon == &"lever_rifle" or _weapon == &"coach_shotgun") else 0.0
+	_two = move_toward(_two, two_hands, delta * 4.0)
+	var swing := -sin(_phase) * 0.55 * k
+	var flail := sin(_life * 11.0) * 0.6 * _air * (1.0 if vy < 0.0 else 0.3)
+	_shoulders[0].rotation.x = lerpf(lerpf(swing - 0.1 + flail, -1.45 - pitch * 0.9, _two), -0.6, _slide)
+	_elbows[0].rotation.x = lerpf(-0.35 - k * 0.25, -0.5, _two)
+	_shoulders[0].rotation.y = lerpf(0.0, -0.55, _two)
+	# Hips bob and sway with the stride; the torso twists against the legs.
+	_hips.position = Vector3(shift + sin(_phase) * 0.025 * k, lerpf(0.95 + absf(sin(_phase)) * 0.035 * k + breathe * 0.5, 0.48, _slide), 0)
+	_torso.rotation = Vector3(lerpf(-0.08 * k + breathe, 0.45, _slide), sin(_phase) * 0.12 * k, -shift * 0.6)
+	_torso.scale = Vector3(1.0 + breathe, 1.0 + breathe * 0.6, 1.0 + breathe)
+	_head.rotation = Vector3(clampf(pitch, -0.7, 0.7) - _torso.rotation.x, _head_yaw - _torso.rotation.y, 0.0)
+	var want := 0.25 * k + sin(_phase * 2.0) * 0.06 * k + 0.5 * _air * (1.0 if vy < 0.0 else 0.2)
 	_tail_swing = lerpf(_tail_swing, want, clampf(delta * 6.0, 0.0, 1.0))
 	_tails.rotation.x = lerpf(_tail_swing, 0.9, _slide)
 	# Wobble spring (damped): floppy dummy reaction to hits.
@@ -155,7 +187,7 @@ func animate(delta: float, speed: float, sliding: bool, pitch: float) -> void:
 	_wobble += _wobble_vel * delta
 	_hips.rotation = Vector3(_wobble.x, _wobble.y, _wobble.z)
 	_head.rotation.z = -_wobble.z * 1.4
-	_shoulders[0].rotation.z = -absf(_wobble.z) * 2.0 - 0.05
+	_shoulders[0].rotation.z = -absf(_wobble.z) * 2.0 - 0.05 - _air * 0.6
 	_shoulders[1].rotation.z = absf(_wobble.x) * 1.5
 
 

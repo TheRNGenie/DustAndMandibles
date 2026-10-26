@@ -17,6 +17,7 @@ var _dur := 4.0
 var _t := -WARM
 var _events: Array = [] # [time, Callable]
 var _player: Player
+var _rigs: Array = [] # [DummyRig, speed, sliding, vy]
 
 
 func _ready() -> void:
@@ -44,6 +45,8 @@ func _process(delta: float) -> void:
 		if _t >= float(e[0]):
 			_events.erase(e)
 			(e[1] as Callable).call()
+	for r: Array in _rigs:
+		(r[0] as DummyRig).animate(delta, float(r[1]), bool(r[2]), 0.0, float(r[3]))
 	if not _keys.is_empty():
 		_place_camera(maxf(_t, 0.0))
 	if _t >= _dur and GameState.flag_value("--shot") == "":
@@ -379,3 +382,27 @@ func _shot_traps() -> void:
 	var c := Buildable.cell_center(Bug.cliffs, 0, Vector2i(1, 9)) + Vector3(0, 0.6, 0)
 	_dur = 2.0
 	_keys = [[0.0, c + Vector3(-7.0, 2.4, 0), c], [2.0, c + Vector3(-7.0, 2.4, 0), c]]
+
+
+## Dummy line-up: four outfits in four poses (idle, running, rifle, jumping).
+func _shot_posse() -> void:
+	_set_time(16.0)
+	var looks := [
+		{"hat": "cattleman", "facial": "handlebar", "outfit": "vest", "neck": "bandana", "extra": "spurs"},
+		{"hat": "ten_gallon", "facial": "beard", "hair": "long", "hair_color": "ginger", "outfit": "duster", "extra": "both", "paint": "orange"},
+		{"hat": "gambler", "facial": "pencil", "outfit": "lawman", "neck": "bolo", "paint": "white"},
+		{"hat": "sombrero", "facial": "walrus", "outfit": "poncho", "neck": "mask", "hair": "ponytail", "hair_color": "black"},
+	]
+	var poses := [[0.0, false, 0.0, &"revolver"], [6.0, false, 0.0, &"revolver"], [0.0, false, 0.0, &"lever_rifle"], [0.0, false, 3.0, &"coach_shotgun"]]
+	var base := Bug.cliffs.plateau_point(WorldLayout.WEST, 14.0, -6.0)
+	for i in 4:
+		var rig := DummyRig.new()
+		world.add_child(rig)
+		rig.build(Palette.team_color(i % 2), false, looks[i])
+		rig.set_weapon(poses[i][3])
+		rig.global_position = base + Vector3(0, 0.3 if i == 3 else 0.0, -2.4 + i * 1.6)
+		rig.rotation.y = PI * 0.5 + (i - 1.5) * 0.12
+		_rigs.append([rig, poses[i][0], poses[i][1], poses[i][2]])
+	var c := base + Vector3(0, 1.0, 0)
+	_dur = 2.0
+	_keys = [[0.0, c + Vector3(-5.2, 0.4, 0.2), c], [2.0, c + Vector3(-5.2, 0.4, 0.2), c]]
