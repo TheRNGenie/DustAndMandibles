@@ -58,6 +58,9 @@ func free_turret_level(cid: int, cell: Vector2i) -> int:
 func is_free_for(id: StringName, cid: int, cell: Vector2i) -> bool:
 	if not Buildable.cell_ok_for(id, cell):
 		return false
+	if Defs.is_house_turret(id):
+		var home := Homestead.of(cid)
+		return home != null and cell.y < home.mount_count() and not _occupied.has(_key(cid, cell, 0))
 	if id == &"scaffold":
 		return scaffold_levels(cid, cell) < MAX_SCAFFOLD
 	if Defs.is_turret(id) and Buildable.is_turret_cell(cell):
@@ -172,7 +175,7 @@ func _spawn_built(data: Variant) -> Node:
 	var cell := Vector2i(int(d["row"]), int(d["col"]))
 	var id := StringName(d["type"])
 	var level := int(d.get("level", 0))
-	var pos := Buildable.cell_center(cliffs, cid, cell)
+	var pos := Buildable.cell_center(cliffs, cid, cell) if cell.x >= 0 else Homestead.of(cid).mount_global(cell.y)
 	var node: Node3D
 	if Defs.is_turret(id):
 		var t := Turret.new()

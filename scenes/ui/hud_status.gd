@@ -86,7 +86,7 @@ func _refresh_homes() -> void:
 	for i in 2:
 		var cid := order[i]
 		_captions[i].text = "Yours" if i == 0 else "Theirs"
-		_homes[i].max_value = Defs.WAVE_CONFIG.homestead_hp
+		_homes[i].max_value = maxf(GameState.homestead_max[cid], 1.0)
 		_homes[i].value = GameState.homestead_hp[cid]
 		_homes[i].add_theme_stylebox_override("fill", _fill(Palette.team_color(cid)))
 

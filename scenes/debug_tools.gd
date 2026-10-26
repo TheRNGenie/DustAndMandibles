@@ -17,6 +17,84 @@ func _ready() -> void:
 		_take_screenshot(shot)
 	elif GameState.flag_value("--soak") != "":
 		_soak(GameState.flag_value("--soak").to_float())
+	elif GameState.has_flag("--ledgertest"):
+		_ledger_test()
+	elif GameState.flag_value("--stairtest") != "":
+		_stair_test(int(GameState.flag_value("--stairtest")))
+
+
+## --stairtest=N: builds an N-storey house, walks the local player up every flight
+## of stairs (held forward key), and prints the heights reached. Works headless.
+func _stair_test(floors: int) -> void:
+	for i in 20:
+		await get_tree().process_frame
+	var player := world.call("local_player") as Player
+	var home := Homestead.of(player.cliff_id)
+	home._set_state(floors, true, true)
+	await get_tree().physics_frame
+	var base_y := home.global_position.y
+	# Walk in the front door first.
+	player.global_position = home.global_transform * Vector3(0, 0.5, -HouseBuilder.D * 0.5 - 1.5)
+	await _walk(player, home, Vector3(0, 0, 1), 1.2)
+	print("[stairs] through the door: local %s" % str((home.global_transform.affine_inverse() * player.global_position).snapped(Vector3.ONE * 0.1)))
+	for f in floors:
+		player.global_position = home.global_transform * Vector3(2.95, HouseBuilder.H * f + 0.4, 2.0)
+		await get_tree().physics_frame
+		await _walk(player, home, Vector3(-1, 0, 0), 3.0)
+		print("[stairs]   after the climb: local %s, on floor %s" % [str((home.global_transform.affine_inverse() * player.global_position).snapped(Vector3.ONE * 0.05)), player.is_on_floor()])
+		var c := player.get_last_slide_collision()
+		if c != null:
+			print("[stairs]   blocked by %s at local %s normal %s" % [c.get_collider(), str((home.global_transform.affine_inverse() * c.get_position()).snapped(Vector3.ONE * 0.05)), str((home.global_transform.basis.inverse() * c.get_normal()).snapped(Vector3.ONE * 0.05))])
+		await _walk(player, home, Vector3(0, 0, -1), 0.8)
+		print("[stairs] flight %d: ended %.2f m up (storey floor at %.2f), local %s" % [f + 1, player.global_position.y - base_y, HouseBuilder.H * (f + 1), str((home.global_transform.affine_inverse() * player.global_position).snapped(Vector3.ONE * 0.1))])
+	get_tree().quit()
+
+
+## --houseturrets: 3-storey houses on both cliffs with a house turret on every mount.
+func _house_turrets() -> void:
+	for cid in 2:
+		var home := Homestead.of(cid)
+		home._set_state.rpc(3, true, true)
+		Economy.earn(cid, {&"scrap": 600})
+		for i in home.mount_count():
+			BuildManager.instance._do_build(1, &"porch_repeater" if i % 2 == 0 else &"rooftop_cannon", cid, Vector2i(-1, i))
+
+
+## --ledgertest: buys every house upgrade in turn and prints the result.
+func _ledger_test() -> void:
+	for i in 20:
+		await get_tree().process_frame
+	GameState.start_run()
+	var home := Homestead.of(0)
+	Economy.earn(0, {&"scrap": 1000, &"chitin": 100})
+	GameState.damage_homestead(0, 150.0)
+	for i in [4, 0, 1, 2, 3, 4, 1]:
+		home.buy(1, i)
+		await get_tree().process_frame
+		print("[ledger] bought %s -> floors %d boarded %s reinforced %s hp %.0f/%.0f mounts %d scrap %d chitin %d" % [
+			Homestead.UPGRADES[i]["id"], home.floors, home.boarded, home.reinforced, GameState.homestead_hp[0],
+			GameState.homestead_max[0], home.mount_count(), Economy.amount(0, &"scrap"), Economy.amount(0, &"chitin")])
+	get_tree().quit()
+
+
+## Holds forward with the player turned to face local direction `dir`.
+func _walk(player: Player, home: Homestead, dir: Vector3, seconds: float) -> void:
+	var world_dir := home.global_transform.basis * dir
+	player.rotation.y = atan2(-world_dir.x, -world_dir.z)
+	player.head.rotation.x = 0.0
+	Input.action_press("move_forward")
+	var t := 0.0
+	var next_log := 0.0
+	while t < seconds:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		if GameState.has_flag("--stairlog") and t >= next_log:
+			next_log += 0.2
+			print("    t %.1f local %s vel %s floor %s wall %s" % [t, str((home.global_transform.affine_inverse() * player.global_position).snapped(Vector3.ONE * 0.05)), str(player.velocity.snapped(Vector3.ONE * 0.1)), player.is_on_floor(), player.is_on_wall()])
+			for k in player.get_slide_collision_count():
+				var sc := player.get_slide_collision(k)
+				print("      hit local %s normal %s" % [str((home.global_transform.affine_inverse() * sc.get_position()).snapped(Vector3.ONE * 0.05)), str((home.global_transform.basis.inverse() * sc.get_normal()).snapped(Vector3.ONE * 0.05))])
+	Input.action_release("move_forward")
 
 
 ## --soak=N: runs N seconds (works headless), auto-readies every build phase,
@@ -29,6 +107,12 @@ func _soak(seconds: float) -> void:
 	if GameState.flag_value("--showcase") != "":
 		_showcase()
 	var bugs := world.get("bugs") as BugManager
+	var kills_by: Dictionary = {}
+	if GameState.has_flag("--houseturrets"):
+		_house_turrets()
+		bugs.bug_killed.connect(func(_name: String, _bc: int, source: String, _sc: int, _loot: Dictionary) -> void:
+			var key := source.get_slice("'s ", 1) if source.contains("'s ") else source
+			kills_by[key] = int(kills_by.get(key, 0)) + 1)
 	GameState.phase_changed.connect(func(p: GameState.Phase) -> void:
 		print("[soak %5.1fs] wave %d phase %d  homesteads %s  bugs %d  scrap W%d E%d" % [
 			Time.get_ticks_msec() / 1000.0, GameState.wave, p, str(GameState.homestead_hp),
@@ -49,6 +133,8 @@ func _soak(seconds: float) -> void:
 				_farm()
 			GameState.vote_skip()
 	print("[soak] end: wave %d phase %d homesteads %s bugs %d" % [GameState.wave, GameState.phase, str(GameState.homestead_hp), bugs.alive_count()])
+	if not kills_by.is_empty():
+		print("[soak] kills by source: %s" % str(kills_by))
 	for n: Node in get_tree().get_nodes_in_group("bugs"):
 		var b := n as Bug
 		print("  left: %s state %d cliff %d y %.1f pos %s hp %.0f" % [b.def.id, b.state, b.cliff_id, b.climb_y, str(b.global_position.snapped(Vector3.ONE * 0.1)), b.health.hp])
@@ -148,6 +234,14 @@ func _take_screenshot(path: String) -> void:
 	if GameState.flag_value("--buildmode") != "" and player != null:
 		player.build_mode.toggle()
 		player.build_mode._select(int(GameState.flag_value("--buildmode")))
+	if GameState.flag_value("--house") != "":
+		var f := int(GameState.flag_value("--house"))
+		for n: Node in world.get_tree().get_nodes_in_group("homesteads"):
+			var h := n as Homestead
+			h._set_state(clampi(f, 1, 3), f >= 2, f >= 3)
+			print("[house] cliff %d at %s, floors %d" % [h.cliff_id, str(h.global_position), h.floors])
+	if GameState.has_flag("--houseturrets") and multiplayer.is_server():
+		_house_turrets()
 	if GameState.flag_value("--buildmenu") != "" and player != null:
 		player.build_mode.toggle()
 		player.build_mode.show_category(int(GameState.flag_value("--buildmenu")))

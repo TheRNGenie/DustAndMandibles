@@ -30,5 +30,8 @@ enum Effect { HITSCAN, KNOCKBACK, BURN, SPLASH, PIN }
 ## Last-line turret: shoots only bugs that made it onto YOUR plateau (breachers,
 ## surfaced ticks, bandits overhead), never anything on a cliff face.
 @export var guards_plateau: bool = false
+## House turret: mounts on the Homestead (porch, balcony, roof deck) and only shoots
+## bugs on your plateau within Homestead.GUARD_RADIUS of the house.
+@export var guards_house: bool = false
 ## Resources spent per shot from the owner's stockpile, e.g. {&"water": 2}.
 @export var ammo_cost: Dictionary = {}

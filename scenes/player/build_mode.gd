@@ -183,6 +183,9 @@ func _process(delta: float) -> void:
 	_cliff = Buildable.cliff_at(pos)
 	if _cliff < 0:
 		return
+	if Defs.is_house_turret(selected_id()):
+		_aim_house_mount(pos)
+		return
 	_cell = Buildable.world_to_cell(cliffs, _cliff, pos)
 	if not Buildable.cell_ok_for(selected_id(), _cell):
 		return
@@ -202,6 +205,30 @@ func _process(delta: float) -> void:
 	_ghost_mat.albedo_color = Color(0.4, 1.0, 0.4, 0.45) if _ok else Color(1.0, 0.3, 0.25, 0.45)
 
 
+## House turrets: snap to the nearest mount on the house you're aiming at.
+func _aim_house_mount(pos: Vector3) -> void:
+	var home := Homestead.of(_cliff)
+	if home == null:
+		return
+	var best := -1
+	var best_d := 6.0
+	for i in home.mount_count():
+		var d := home.mount_global(i).distance_to(pos)
+		if d < best_d:
+			best_d = d
+			best = i
+	if best < 0:
+		return
+	_cell = Vector2i(-1, best)
+	_ghost.visible = true
+	_ghost.global_position = home.mount_global(best)
+	_ghost.rotation.y = WorldLayout.facing_canyon_yaw(_cliff)
+	var bm := BuildManager.instance
+	var payer := _cliff if GameState.is_solo() else player.cliff_id
+	_ok = bm.may_build(multiplayer.get_unique_id(), _cliff) and bm.is_free_for(selected_id(), _cliff, _cell) 			and Economy.can_afford(payer, {&"scrap": Defs.cost_of(selected_id())})
+	_ghost_mat.albedo_color = Color(0.4, 1.0, 0.4, 0.45) if _ok else Color(1.0, 0.3, 0.25, 0.45)
+
+
 ## The build bar text for the HUD: the selected item, its neighbours and why the ghost is red.
 func status_text() -> String:
 	if not active:
@@ -212,10 +239,12 @@ func status_text() -> String:
 	var where := "behind the turret line"
 	if id == &"scaffold" or (Defs.is_turret(id) and not Defs.turret(id).guards_plateau):
 		where = "cliff edge"
+	elif Defs.is_house_turret(id):
+		where = "house mounts (porch, balcony, roof deck)"
 	elif Defs.is_turret(id):
 		where = "plateau"
 	var line := "BUILDING  %s - %d scrap  (B: menu, wheel: next, right click: done)" % [Defs.name_of(id), Defs.cost_of(id)]
-	if _cell.x >= 0 and not _ok and Buildable.cell_ok_for(id, _cell):
+	if _cell != Vector2i(-1, -1) and not _ok and Buildable.cell_ok_for(id, _cell):
 		if not BuildManager.instance.may_build(multiplayer.get_unique_id(), _cliff):
 			line += "\nYou can only build on your own plateau. Your turrets cover your partner."
 		elif not BuildManager.instance.is_free_for(id, _cliff, _cell):
@@ -250,7 +279,7 @@ func _act_on_target(action: StringName) -> void:
 	if c == null or c.get("cell") == null or c.get("cliff_id") == null:
 		return
 	var cell: Vector2i = c.get("cell")
-	if cell.x < 0 or c.get_parent() != BuildManager.instance:
+	if c.get_parent() != BuildManager.instance:
 		return
 	if action == &"upgrade":
 		if c is Turret:
@@ -277,6 +306,11 @@ func _rebuild_grid() -> void:
 	var cells: Array = []
 	var rows := int(WorldLayout.PLATEAU_DEPTH / WorldLayout.CELL)
 	for cid in cliffs_to_show:
+		if Defs.is_house_turret(id):
+			var home := Homestead.of(cid)
+			for i in (home.mount_count() if home != null else 0):
+				cells.append([cid, Vector2i(-1, i)])
+			continue
 		for row in rows:
 			for col in Buildable.COLS:
 				var c := Vector2i(row, col)
@@ -288,7 +322,7 @@ func _rebuild_grid() -> void:
 	for i in cells.size():
 		var cid: int = cells[i][0]
 		var c: Vector2i = cells[i][1]
-		var pos := Buildable.cell_center(cliffs, cid, c) + Vector3.UP * 0.12
+		var pos := (Buildable.cell_center(cliffs, cid, c) if c.x >= 0 else Homestead.of(cid).mount_global(c.y)) + Vector3.UP * 0.12
 		mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, WorldLayout.facing_canyon_yaw(cid)), pos))
 		var free := bm.is_free_for(id, cid, c)
 		var highlight := cid == _cliff and c == _cell

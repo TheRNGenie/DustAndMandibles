@@ -57,21 +57,13 @@ func add_mesh(mesh: ArrayMesh, pos: Vector3, yaw: float, node_name: String = "",
 func _build_homestead_area(cid: int) -> void:
 	var yaw := WorldLayout.facing_canyon_yaw(cid)
 	var team := Palette.team_color(cid)
-	# Homestead: its own trimesh collision so players can walk on the porch.
-	var home_mesh := BuildingBuilder.homestead(100 + cid, team)
+	# Homestead: an enterable cabin (HouseBuilder) that builds its own mesh and collision.
 	var home := Homestead.new()
 	home.cliff_id = cid
 	home.name = "Homestead%d" % cid
 	home.position = ground(cid, 23.0, 0.0)
 	home.rotation.y = yaw
 	parent.add_child(home)
-	var home_mi := MeshInstance3D.new()
-	home_mi.mesh = home_mesh
-	home_mi.material_override = Materials.toon()
-	home.add_child(home_mi)
-	var home_col := CollisionShape3D.new()
-	home_col.shape = home_mesh.create_trimesh_shape()
-	home.add_child(home_col)
 
 	add_mesh(BuildingBuilder.water_tower(200 + cid), ground(cid, 26.0, 13.5), yaw, "WaterTower%d" % cid, true)
 	var tower_pos := ground(cid, 20.0, -13.0)

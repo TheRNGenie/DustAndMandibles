@@ -54,7 +54,7 @@ Regenerate sounds and music: `python tools/audio/make_sfx.py` and `python tools/
 | Upgrade the turret you look at | U (chitin) |
 | Hotbar | 1-3 any weapons, 4-6 carried harvest, 7 medicine (herbs, heal), 8 water bucket |
 | Q | Drop the weapon in your hand (E picks a dropped weapon up) |
-| Pick seed / shop item / vegetable to sell | F |
+| Pick seed / shop item / vegetable to sell / house upgrade | F |
 | Ready / skip build phase | G |
 | Skip phase (with --debug) | F6 |
 | Pause menu (settings, remapping, invite) | Esc |

@@ -31,7 +31,12 @@ static func is_structure_cell(cell: Vector2i) -> bool:
 	return cell.x >= TURRET_ROWS and cell.x < rows and cell.y >= 0 and cell.y < COLS
 
 
+## House turrets use cell (-1, mount index) instead of a grid cell.
 static func cell_ok_for(id: StringName, cell: Vector2i) -> bool:
+	if Defs.is_house_turret(id):
+		return cell.x == -1 and cell.y >= 0 and cell.y < HouseBuilder.MOUNTS.size()
+	if cell.x == -1:
+		return false
 	if id == &"scaffold":
 		return is_turret_cell(cell)
 	if Defs.is_turret(id) and Defs.turret(id).guards_plateau:

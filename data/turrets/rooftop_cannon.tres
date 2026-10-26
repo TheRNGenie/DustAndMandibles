@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"rooftop_cannon"
+display_name = "Rooftop Cannon"
+description = "House turret: a stubby cannon whose grapeshot bursts over bugs at your door. Slow but splashes."
+cost_scrap = 70
+max_hp = 200.0
+range = 22.0
+fire_interval = 2.6
+damage = 60.0
+armor_pierce = true
+pitch_limit_deg = 75.0
+turn_speed = 160.0
+spread_deg = 1.0
+hit_chance = 1.0
+effect = 3
+flight_time = 0.1
+effect_size = 3.5
+guards_plateau = true
+guards_house = true
+ammo_cost = {}

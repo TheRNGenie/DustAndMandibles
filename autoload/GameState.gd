@@ -15,6 +15,8 @@ var wave: int = 0
 var time_left: float = 0.0
 var skip_votes: int = 0
 var homestead_hp: Array[float] = [0.0, 0.0]
+## Max HP per Homestead (reinforcing the house raises it).
+var homestead_max: Array[float] = [0.0, 0.0]
 ## This build phase is a storm: rain catchers fill fast.
 var storm := false
 var won := false
@@ -64,6 +66,7 @@ func reset() -> void:
 	god_mode = false
 	var hp := config().homestead_hp
 	homestead_hp = [hp, hp]
+	homestead_max = [hp, hp]
 
 
 func is_solo() -> bool:
@@ -87,7 +90,7 @@ func start_run() -> void:
 	reset()
 	Economy.reset()
 	GunShop.reset_loadouts()
-	_sync_homesteads.rpc(homestead_hp[0], homestead_hp[1])
+	_sync_homesteads.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
 	wave = 1
 	if has_flag("--debug") and flag_value("--startwave") != "":
 		wave = clampi(int(flag_value("--startwave")), 1, config().last_wave)
@@ -154,17 +157,35 @@ func damage_homestead(cliff_id: int, amount: float) -> void:
 	if not multiplayer.is_server() or phase == Phase.GAME_OVER or god_mode:
 		return
 	homestead_hp[cliff_id] = maxf(homestead_hp[cliff_id] - amount, 0.0)
-	_sync_homesteads.rpc(homestead_hp[0], homestead_hp[1])
+	_sync_homesteads.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
 	if homestead_hp[cliff_id] <= 0.0:
 		var side := "west" if cliff_id == WorldLayout.WEST else "east"
 		_finish.rpc(false, "The %s Homestead fell on wave %d." % [side, wave])
 
 
 @rpc("authority", "call_local", "unreliable_ordered")
-func _sync_homesteads(west: float, east: float) -> void:
+func _sync_homesteads(west: float, east: float, west_max: float, east_max: float) -> void:
 	homestead_hp = [west, east]
+	homestead_max = [west_max, east_max]
 	for cid in 2:
-		homestead_changed.emit(cid, homestead_hp[cid], config().homestead_hp)
+		homestead_changed.emit(cid, homestead_hp[cid], homestead_max[cid])
+
+
+## Host: raise a Homestead's max HP (the extra is added to its current HP too).
+func raise_homestead_max(cliff_id: int, extra: float) -> void:
+	if not multiplayer.is_server():
+		return
+	homestead_max[cliff_id] += extra
+	homestead_hp[cliff_id] += extra
+	_sync_homesteads.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
+
+
+## Host: patch a Homestead up (never past its max).
+func heal_homestead(cliff_id: int, amount: float) -> void:
+	if not multiplayer.is_server() or phase == Phase.GAME_OVER:
+		return
+	homestead_hp[cliff_id] = minf(homestead_hp[cliff_id] + amount, homestead_max[cliff_id])
+	_sync_homesteads.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
 
 
 @rpc("authority", "call_local", "reliable")

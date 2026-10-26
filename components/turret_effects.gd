@@ -16,6 +16,17 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 		TurretDef.Effect.PIN:
 			target.receive_hit(damage, aim, dir, false, 1.0, source, t.cliff_id)
 			target.status.root(t.def.effect_size)
+		TurretDef.Effect.SPLASH when t.def.guards_plateau:
+			# Plateau / house guards: burst over the bugs on your own ground.
+			var radius := t.def.effect_size * t.range_multiplier()
+			for n: Node in t.get_tree().get_nodes_in_group("bugs"):
+				var b := n as Bug
+				if b == null or not b.is_alive() or b.cliff_id != target.cliff_id or b.is_climbing():
+					continue
+				var d := b.global_position.distance_to(aim)
+				if d <= radius:
+					b.receive_hit(damage * lerpf(1.0, 0.4, d / radius), aim, (b.global_position - aim).normalized(), true, 1.0, source, t.cliff_id)
+			Turret.bug_manager._explode.rpc(aim, radius)
 		TurretDef.Effect.BURN, TurretDef.Effect.SPLASH:
 			# Capture plain values: the turret may be destroyed while the shot is in the air.
 			var bugs := Turret.bug_manager

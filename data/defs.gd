@@ -24,6 +24,8 @@ const TURRETS: Dictionary = {
 	&"lasso_harpoon": preload("res://data/turrets/lasso_harpoon.tres"),
 	&"scattergun_post": preload("res://data/turrets/scattergun_post.tres"),
 	&"sharpshooter_tower": preload("res://data/turrets/sharpshooter_tower.tres"),
+	&"porch_repeater": preload("res://data/turrets/porch_repeater.tres"),
+	&"rooftop_cannon": preload("res://data/turrets/rooftop_cannon.tres"),
 }
 
 const STRUCTURES: Dictionary = {
@@ -47,7 +49,7 @@ const CROPS: Dictionary = {
 ## Build menu order: number keys 1-9 and 0, mouse wheel cycles through all.
 const BUILD_ORDER: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"water_cannon",
 	&"chili_mortar", &"dynamite_lobber", &"lasso_harpoon", &"scaffold", &"scattergun_post", &"sharpshooter_tower", &"barbed_wire", &"bear_trap",
-	&"dynamite_crate", &"palisade", &"lantern_post", &"rain_catcher", &"farm_plot"]
+	&"dynamite_crate", &"palisade", &"lantern_post", &"rain_catcher", &"farm_plot", &"porch_repeater", &"rooftop_cannon"]
 
 ## Build menu (B) categories, in tab order.
 const BUILD_CATEGORIES: Array[Dictionary] = [
@@ -55,7 +57,7 @@ const BUILD_CATEGORIES: Array[Dictionary] = [
 	{"name": "Cliff Turrets", "items": [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar",
 		&"dynamite_lobber", &"lasso_harpoon", &"scaffold"]},
 	{"name": "Tactical", "items": [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post"]},
-	{"name": "Last Resorts", "items": [&"scattergun_post", &"sharpshooter_tower"]},
+	{"name": "Last Resorts", "items": [&"scattergun_post", &"sharpshooter_tower", &"porch_repeater", &"rooftop_cannon"]},
 ]
 
 ## Chitin cost of turret upgrade tiers 1, 2, 3.
@@ -82,6 +84,11 @@ static func crop(id: StringName) -> CropDef:
 
 static func is_turret(id: StringName) -> bool:
 	return TURRETS.has(id)
+
+
+## Mounted on the house rather than placed on the grid.
+static func is_house_turret(id: StringName) -> bool:
+	return TURRETS.has(id) and turret(id).guards_house
 
 
 static func cost_of(id: StringName) -> int:

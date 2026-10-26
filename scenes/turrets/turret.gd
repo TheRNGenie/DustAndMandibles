@@ -167,6 +167,10 @@ func _valid(b: Bug) -> bool:
 		var on_plateau := b.state == Bug.State.BREACHING or b.state == Bug.State.FLYING
 		if not Targeting.guard_allows(cliff_id, b.cliff_id, on_plateau):
 			return false
+		if def.guards_house:
+			var home := Homestead.of(cliff_id)
+			if home == null or b.global_position.distance_to(home.global_position) > Homestead.GUARD_RADIUS:
+				return false
 	elif not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing()):
 		return false
 	var muzzle := _head.global_position

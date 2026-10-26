@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"porch_repeater"
+display_name = "Porch Repeater"
+description = "House turret: a quick twin repeater on the porch, balcony or lookout. Only shoots bugs near your house."
+cost_scrap = 45
+max_hp = 160.0
+range = 20.0
+fire_interval = 0.35
+damage = 9.0
+armor_pierce = false
+pitch_limit_deg = 70.0
+turn_speed = 260.0
+spread_deg = 2.5
+hit_chance = 0.9
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+guards_plateau = true
+guards_house = true
+ammo_cost = {}
