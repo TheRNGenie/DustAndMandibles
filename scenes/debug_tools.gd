@@ -17,6 +17,8 @@ func _ready() -> void:
 		_take_screenshot(shot)
 	elif GameState.flag_value("--soak") != "":
 		_soak(GameState.flag_value("--soak").to_float())
+	elif GameState.has_flag("--laddertest"):
+		_ladder_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
 	elif GameState.flag_value("--stairtest") != "":
@@ -74,6 +76,45 @@ func _ledger_test() -> void:
 		print("[ledger] bought %s -> floors %d boarded %s reinforced %s hp %.0f/%.0f mounts %d scrap %d chitin %d" % [
 			Homestead.UPGRADES[i]["id"], home.floors, home.boarded, home.reinforced, GameState.homestead_hp[0],
 			GameState.homestead_max[0], home.mount_count(), Economy.amount(0, &"scrap"), Economy.amount(0, &"chitin")])
+	get_tree().quit()
+
+
+## --laddertest (with --airship): waits for the casino ship, climbs its ladder,
+## plays the slots and the wheel, then skips the phase so the ship leaves.
+func _ladder_test() -> void:
+	var ship := world.get_node("Airship") as Airship
+	var player := world.call("local_player") as Player
+	var t0 := Time.get_ticks_msec()
+	while not ship._ladder_area.monitoring and Time.get_ticks_msec() - t0 < 30000:
+		await get_tree().create_timer(0.5).timeout
+	await get_tree().create_timer(4.0).timeout
+	print("[ladder] ship hovering at %s, ladder out %s" % [str(ship.global_position.snapped(Vector3.ONE * 0.1)), ship._ladder_mi.visible])
+	player.global_position = Vector3(Airship.LADDER_FOOT.x, WorldLayout.CLIFF_HEIGHT + 0.3, Airship.LADDER_FOOT.z + 0.6)
+	player.velocity = Vector3.ZERO
+	player.rotation.y = 0.0 # facing -Z, toward the deck
+	await get_tree().physics_frame
+	Input.action_press("move_forward")
+	var t := 0.0
+	while t < 7.0:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+	Input.action_release("move_forward")
+	await get_tree().create_timer(0.5).timeout
+	var local := ship.global_transform.affine_inverse() * player.global_position
+	print("[ladder] after climbing: ship-local %s, on ladder %d, on floor %s" % [str(local.snapped(Vector3.ONE * 0.1)), player.ladder_count, player.is_on_floor()])
+	Economy.earn(player.cliff_id, {&"scrap": 200, &"chitin": 20})
+	var slots := ship.get_node("Slots0") as SlotMachine
+	for i in 6:
+		slots._pull(multiplayer.get_unique_id(), 0)
+	var wheel := ship.get_node("Wheel") as PrizeWheel
+	wheel._spin(multiplayer.get_unique_id())
+	await get_tree().create_timer(PrizeWheel.SPIN_TIME + 0.5).timeout
+	wheel._spin(multiplayer.get_unique_id())
+	await get_tree().create_timer(PrizeWheel.SPIN_TIME + 0.5).timeout
+	print("[ladder] after games: scrap %d chitin %d" % [Economy.amount(player.cliff_id, &"scrap"), Economy.amount(player.cliff_id, &"chitin")])
+	GameState.debug_skip()
+	await get_tree().create_timer(1.0).timeout
+	print("[ladder] ship leaving (state %d); player now at %s (oasis top y %.1f)" % [ship._state, str(player.global_position.snapped(Vector3.ONE * 0.1)), WorldLayout.CLIFF_HEIGHT])
 	get_tree().quit()
 
 

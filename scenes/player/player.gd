@@ -33,6 +33,11 @@ var _fall_left := -1.0
 var _bob_t := 0.0
 var _capsule: CapsuleShape3D
 var _shake := 0.0
+## Ladder volumes the player is inside (the airship's rope ladder): forward climbs.
+var ladder_count := 0
+## World height of the ladder's top (the deck): you step off forward once above it.
+var ladder_top_y := 0.0
+const CLIMB_SPEED := 4.5
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera
@@ -130,6 +135,24 @@ func _physics_process(delta: float) -> void:
 	var input_dir := Vector2.ZERO if blocked else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var wish := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 	var on_floor := is_on_floor()
+	if ladder_count > 0 and not blocked:
+		# On a ladder: forward/back climbs, sideways shuffles, no gravity.
+		velocity.y = -input_dir.y * CLIMB_SPEED
+		if global_position.y > ladder_top_y + 1.0:
+			velocity.y = minf(velocity.y, 0.0)
+		var side := transform.basis.x * input_dir.x * 2.0
+		var push := Vector3.ZERO
+		if global_position.y > ladder_top_y + 0.05:
+			push = -transform.basis.z * maxf(-input_dir.y, 0.0) * 3.0
+		velocity.x = side.x + push.x
+		velocity.z = side.z + push.z
+		if Input.is_action_just_pressed("jump"):
+			velocity += transform.basis.z * 3.0 + Vector3.UP * 2.0
+			ladder_count = 0
+		move_and_slide()
+		_update_camera(delta, false)
+		_handle_weapon()
+		return
 	if not on_floor:
 		velocity.y -= _gravity * delta
 

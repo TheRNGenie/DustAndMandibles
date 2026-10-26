@@ -44,6 +44,9 @@ func _ready() -> void:
 	bugs.name = "Bugs"
 	bugs.vfx = vfx
 	add_child(bugs)
+	var airship := Airship.new()
+	airship.name = "Airship"
+	add_child(airship)
 	var pickups := PickupManager.new()
 	pickups.name = "Pickups"
 	add_child(pickups)

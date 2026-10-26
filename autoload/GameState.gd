@@ -132,6 +132,8 @@ func _enter(p: Phase) -> void:
 	match p:
 		Phase.BUILD:
 			duration = config().build_time(wave) * _time_scale()
+			if Airship.visits(wave):
+				duration += 60.0 * _time_scale() # the casino ship's reprieve
 		Phase.WARNING:
 			duration = config().warning_time * maxf(_time_scale(), 0.5)
 	_voters.clear()
