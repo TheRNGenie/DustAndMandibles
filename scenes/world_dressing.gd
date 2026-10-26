@@ -73,7 +73,7 @@ func _build_homestead_area(cid: int) -> void:
 	home_col.shape = home_mesh.create_trimesh_shape()
 	home.add_child(home_col)
 
-	add_mesh(BuildingBuilder.water_tower(200 + cid), ground(cid, 20.0, 13.0), yaw, "WaterTower%d" % cid, true)
+	add_mesh(BuildingBuilder.water_tower(200 + cid), ground(cid, 26.0, 13.5), yaw, "WaterTower%d" % cid, true)
 	var tower_pos := ground(cid, 20.0, -13.0)
 	add_mesh(BuildingBuilder.windmill_tower(300 + cid), tower_pos, yaw, "Windmill%d" % cid, true)
 	var fan := Spinner.new()
@@ -106,28 +106,31 @@ func _build_homestead_area(cid: int) -> void:
 	well.rotation.y = yaw
 	parent.add_child(well)
 
-	# Three starter farm plots; build more from the build menu.
-	for k in 3:
-		var plot := CropPlot.new()
-		plot.name = "Plot%d_%d" % [cid, k]
-		plot.setup(cid)
-		plot.position = ground(cid, 13.5 + float(k) * 2.4, 4.0)
-		plot.rotation.y = yaw
-		parent.add_child(plot)
+	# Starter farm field beside the house: 3 plots along the line of the house front,
+	# 4 rows toward the canyon, with walking room between them.
+	var pitch := CropPlot.SIZE + 1.0
+	for row in 4:
+		for col in 3:
+			var plot := CropPlot.new()
+			plot.name = "Plot%d_%d_%d" % [cid, row, col]
+			plot.setup(cid)
+			plot.position = ground(cid, 18.95 - float(row) * pitch, 6.8 + float(col) * pitch)
+			plot.rotation.y = yaw
+			parent.add_child(plot)
 
 	# Salvage piles (scrap each build phase).
 	for i in 2:
 		var pile := SalvagePile.new()
 		pile.name = "Salvage%d_%d" % [cid, i]
 		pile.setup(cid, 800 + cid * 10 + i)
-		pile.position = ground(cid, 14.0 + float(i) * 6.0, -9.0 + float(i) * 18.0)
+		pile.position = ground(cid, 14.0 + float(i) * 12.0, -9.0 + float(i) * 17.0)
 		parent.add_child(pile)
 
 	# Barrels and crates around the homestead, plus tin cans on a crate for target practice.
 	for i in 4:
 		var p := ground(cid, 19.0 + _rng.randf_range(-1.0, 1.0), -5.0 - float(i) * 0.9)
 		add_mesh(PropBuilder.barrel(400 + i + cid * 10), p, _rng.randf() * TAU, "", true)
-	var crate_pos := ground(cid, 10.0, 6.0)
+	var crate_pos := ground(cid, 11.0, -4.0)
 	add_mesh(PropBuilder.crate(500 + cid), crate_pos, yaw + 0.2, "TargetCrate%d" % cid, true)
 	for i in 3:
 		var can := TinCan.new()

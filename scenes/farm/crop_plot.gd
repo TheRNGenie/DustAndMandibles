@@ -7,6 +7,9 @@ extends StaticBody3D
 ## Crop Weevils eat whatever is growing here.
 
 const SYNC_INTERVAL := 2.0
+## Plot size in metres (plants scale with it).
+const SIZE := 2.6
+const PLANT_SCALE := 1.45
 ## Seed order for F (cycle) on an empty plot.
 const SEEDS: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs"]
 
@@ -31,10 +34,14 @@ func setup(cid: int) -> void:
 	collision_layer = WorldLayout.LAYER_WORLD
 	var soil := MeshInstance3D.new()
 	var st := MeshKit.begin()
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.08, 0)), Vector3(1.7, 0.18, 1.7), Palette.DIRT_DARK)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.08, 0)), Vector3(SIZE, 0.18, SIZE), Palette.DIRT_DARK)
 	for i in 3:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(-0.55 + i * 0.55, 0.19, 0)), Vector3(0.3, 0.06, 1.5), Palette.DIRT_DARK.darkened(0.2))
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.95, 0.45, 0.7)), Vector3(0.06, 0.7, 0.06), Palette.WOOD)
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(-0.8 + i * 0.8, 0.19, 0)), Vector3(0.45, 0.07, SIZE - 0.3), Palette.DIRT_DARK.darkened(0.2))
+	# Low wooden border.
+	for side: float in [-1.0, 1.0]:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(side * SIZE * 0.5, 0.12, 0)), Vector3(0.08, 0.24, SIZE), Palette.WOOD)
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.12, side * SIZE * 0.5)), Vector3(SIZE, 0.24, 0.08), Palette.WOOD)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(SIZE * 0.5 + 0.1, 0.45, SIZE * 0.5 - 0.2)), Vector3(0.06, 0.7, 0.06), Palette.WOOD)
 	soil.mesh = MeshKit.finish(st)
 	soil.material_override = Materials.toon(0.02)
 	add_child(soil)
@@ -46,20 +53,22 @@ func setup(cid: int) -> void:
 	_sign_mat = StandardMaterial3D.new()
 	_sign_mat.albedo_color = Palette.BONE
 	_sign.material_override = _sign_mat
-	_sign.position = Vector3(0.95, 0.8, 0.7)
+	_sign.position = Vector3(SIZE * 0.5 + 0.1, 0.8, SIZE * 0.5 - 0.2)
 	add_child(_sign)
 	_plant_mi = MeshInstance3D.new()
 	_plant_mi.mesh = _plant_mesh()
 	_plant_mi.material_override = Materials.toon(0.015)
 	_plant_mi.position.y = 0.2
+	_plant_mi.set_meta("base_scale", PLANT_SCALE)
 	add_child(_plant_mi)
 	_fruit_mi = MeshInstance3D.new()
 	_fruit_mi.material_override = Materials.toon(0.015)
 	_fruit_mi.position.y = 0.2
+	_fruit_mi.scale = Vector3.ONE * PLANT_SCALE
 	add_child(_fruit_mi)
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(1.7, 0.3, 1.7)
+	shape.size = Vector3(SIZE, 0.3, SIZE)
 	col.shape = shape
 	col.position.y = 0.15
 	add_child(col)
@@ -171,7 +180,7 @@ func _refresh_visual() -> void:
 	var empty := growth.stage == CropGrowth.Stage.EMPTY
 	var f := 0.0 if empty else growth.fraction()
 	_plant_mi.visible = not empty
-	_plant_mi.scale = Vector3.ONE * lerpf(0.25, 1.0, f)
+	_plant_mi.scale = Vector3.ONE * lerpf(0.25, 1.0, f) * PLANT_SCALE
 	_fruit_mi.visible = growth.stage == CropGrowth.Stage.RIPE
 	_sign_mat.albedo_color = Palette.BONE if empty or crop_def == null else crop_def.color
 
