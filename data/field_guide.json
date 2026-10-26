@@ -15,7 +15,7 @@
     "burrow_tick": {"lore": "Digs under the plateau and surfaces among your crops.", "tips": ["Keep a gun handy near the farm.", "House turrets cover the yard."]},
     "dragonfly_bandit": {"lore": "Flies straight over the canyon and snatches what it can.", "tips": ["Shoot them down yourself or with plateau guards.", "They ignore cliff-face turrets."]},
     "crop_weevil": {"lore": "Heads for your farm plots and chews them bare.", "tips": ["Plant behind a palisade.", "Bear traps on the approach help."]},
-    "iron_tumble": {"lore": "The boss: a boulder-rolling giant beetle that comes on the last wave.", "tips": ["Your partner's turrets hit its back as it climbs.", "Shoot its glowing belly from above."]}
+    "iron_tumble": {"lore": "The boss: a giant silver rhinoceros beetle with a horn like a church steeple and a tumbleweed stuck on its back. It comes on the last wave and rams the house when it reaches the top.", "tips": ["Your partner's turrets hit its back as it climbs.", "Shoot its glowing belly from above."]}
   },
   "turrets": {
     "gatling_post": {"lore": "A hand-cranked gatling on a post. Shreds swarms, scratches armour.", "tips": ["Build it for your partner's cliff: it can't shoot your own."]},

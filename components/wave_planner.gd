@@ -35,7 +35,7 @@ func plan(w: int) -> Dictionary:
 	var groups: Array = []
 	var options := unlocked(w)
 	# Make sure every bug introduced this wave shows up on both cliffs.
-	# The boss wave: the Iron Tumble climbs the heavier cliff's centre lane in the first pulse.
+	# The boss wave: the Iron Tumbleweed climbs the heavier cliff's centre lane in the first pulse.
 	for d in options:
 		if d.behavior == BugDef.Behavior.BOSS and d.first_wave == w:
 			var boss_cliff := WorldLayout.WEST if west_share >= 0.5 else WorldLayout.EAST

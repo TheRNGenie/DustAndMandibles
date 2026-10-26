@@ -354,41 +354,63 @@ static func _weevil(shell: Color) -> Dictionary:
 	}
 
 
-## The Iron Tumble: a huge armoured dung beetle pushing a boulder up the cliff.
-## Its back plate shrugs off shots from across the canyon; the glowing belly seam
-## near its rear is exposed to the cliff's owner shooting down from the lip.
-static func _boss(shell: Color) -> Dictionary:
+## The Iron Tumbleweed: a giant silver rhinoceros beetle. A towering curved horn
+## on its head, a second horn jutting off its thorax, a polished domed back that
+## shrugs off shots from across the canyon, and a glowing seam under its rear
+## exposed to the cliff's owner shooting down from the lip.
+static func _boss(_shell: Color) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1010
 	var st := MeshKit.begin()
-	_segmented(st, Vector3(0, 0.22, 0.2), Vector3(0.78, 0.52, 0.88), 5, shell, shell.lightened(0.22))
-	# Riveted iron plates and a spine ridge.
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.75, 0.2)), Vector3(0.12, 0.07, 1.55), Palette.METAL.darkened(0.35))
-	for i in 9:
-		var t := lerpf(-0.6, 0.85, float(i) / 8.0)
-		for s: float in [-1.0, 1.0]:
-			var p := Vector3(s * 0.42, 0.22 + 0.52 * sqrt(maxf(1.0 - t * t - 0.3, 0.0)), 0.2 + t * 0.88)
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(), p), Vector3.ONE * 0.035, 3, 6, Palette.METAL.lightened(0.2))
-	for i in 5:
-		var z := -0.35 + i * 0.3
-		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, 0), Vector3(0, 0.82, z)), 0.04, 0.0, 0.16, 5, Palette.METAL.lightened(0.1))
-	# Big scowling head with twin horns.
-	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.14, -0.76)), Vector3(0.42, 0.3, 0.32), 6, 12, shell.darkened(0.3))
-	for side: float in [-1.0, 1.0]:
-		var prev := Vector3(side * 0.2, 0.26, -0.96)
-		for i in 3:
-			var t := float(i + 1) / 3.0
-			var p := Vector3(side * (0.2 + t * 0.14), 0.26 + t * 0.34, -0.96 - t * 0.26)
-			MeshKit.add_limb(st, prev, p, 0.085 * (1.0 - t * 0.7), Palette.BONE.darkened(t * 0.12), 6)
-			prev = p
-	_eyes(st, Vector3(0, 0.22, -1.02), 0.17, 0.085)
-	_weak(st, Vector3(0, -0.05, 0.98), Vector3(0.35, 0.12, 0.18))
-	# The boulder it rolls ahead of itself, with dung-ball lumps.
-	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.45, -1.8)), Vector3.ONE * 0.62, 7, 12, Palette.ROCK_B, 0.18, rng)
-	_spots(st, rng, Vector3(0, 0.45, -1.8), Vector3.ONE * 0.62, 10, 0.1, Palette.ROCK_B.darkened(0.25))
+	var silver := Color("#AEB6BF")
+	var shine := Color("#EEF3F8")
+	var dark := Color("#5E6874")
+	# Wing cases: two polished domes split down the middle, with a bright rim.
+	for s: float in [-1.0, 1.0]:
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, s * 0.06), Vector3(s * 0.25, 0.3, 0.38)), Vector3(0.42, 0.42, 0.82), 8, 14, silver, 0.0, rng)
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(s * 0.3, 0.62, 0.25)), Vector3(0.14, 0.08, 0.4), 4, 8, shine)
+		# Engraved stripes down each case.
+		for k in 3:
+			MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, 0.0), Vector3(s * (0.12 + k * 0.12), 0.78 - k * 0.06, 0.4)), Vector3(0.03, 0.03, 1.1 - k * 0.15), dark)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.82, 0.38)), Vector3(0.05, 0.04, 1.5), dark)
+	# Belly plates under the domes.
+	_segmented(st, Vector3(0, 0.12, 0.38), Vector3(0.6, 0.28, 0.85), 5, dark, dark.lightened(0.2))
+	# Pronotum: the shield behind the head, with the thoracic horn jutting forward.
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.38, -0.5)), Vector3(0.62, 0.48, 0.42), 8, 14, silver.lightened(0.05), 0.0, rng)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.18, 0.66, -0.55)), Vector3(0.16, 0.08, 0.14), 4, 8, shine)
+	var prev := Vector3(0, 0.7, -0.62)
+	for i in 4:
+		var t := float(i + 1) / 4.0
+		var p := Vector3(0, 0.7 + t * 0.12 - t * t * 0.08, -0.62 - t * 0.55)
+		MeshKit.add_limb(st, prev, p, 0.11 * (1.0 - t * 0.75), silver.darkened(0.1 + t * 0.15), 7)
+		prev = p
+	# Rivets around the shield rim (it is the IRON Tumbleweed).
+	for k in 11:
+		var a := lerpf(-1.3, 1.3, float(k) / 10.0)
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(sin(a) * 0.6, 0.28 + cos(a) * 0.12, -0.5 - cos(a) * 0.3)), Vector3.ONE * 0.03, 3, 6, shine)
+	# Head, low and wide, with the big rhino horn sweeping up and back.
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.12, -0.92)), Vector3(0.34, 0.24, 0.26), 6, 12, dark)
+	prev = Vector3(0, 0.18, -1.12)
+	for i in 7:
+		var t := float(i + 1) / 7.0
+		var p := Vector3(0, 0.12 + t * t * 0.85, -1.12 - t * 0.85 + t * t * t * 0.45)
+		MeshKit.add_limb(st, prev, p, 0.19 * (1.0 - t * 0.8), silver.darkened(t * 0.25), 8)
+		prev = p
+	# A notched fork at the horn tip.
+	for s: float in [-1.0, 1.0]:
+		MeshKit.add_limb(st, prev, prev + Vector3(s * 0.09, 0.1, 0.05), 0.025, dark, 5)
+	_eyes(st, Vector3(0, 0.2, -1.12), 0.24, 0.08)
+	# A scuffed tumbleweed snagged on its back, for the name.
+	var tw := Vector3(-0.25, 0.86, 0.75)
+	for k in 26:
+		var d := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.6, 1), rng.randf_range(-1, 1)).normalized()
+		var e := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
+		MeshKit.add_limb(st, tw + d * 0.18, tw + e * 0.2, 0.012, Color("#B08A4E"), 3)
+	_weak(st, Vector3(0, -0.05, 1.12), Vector3(0.35, 0.12, 0.18))
 	return {
-		"body": MeshKit.finish(st), "legs": _legs(3, -0.45, 0.6, 0.6, 0.0, 0.7, -0.35),
-		"upper": 0.6, "lower": 0.65, "thick": 0.1, "leg_color": shell.darkened(0.5), "ik": true,
-		"weak_spot": Vector3(0, -0.05, 0.98), "weak_radius": 0.3, "body_radius": 0.9, "clearance": 0.45,
-		"face": {"mouth": Vector3(0, 0.0, -1.06), "mandible": 0.2, "antenna": 0.0, "color": shell.darkened(0.6)},
+		"body": MeshKit.finish(st), "legs": _legs(3, -0.45, 0.75, 0.55, 0.0, 0.75, -0.35),
+		"upper": 0.62, "lower": 0.7, "thick": 0.1, "leg_color": dark, "ik": true,
+		"weak_spot": Vector3(0, -0.05, 1.12), "weak_radius": 0.3, "body_radius": 0.95, "clearance": 0.45,
+		"face": {"mouth": Vector3(0, -0.02, -1.12), "mandible": 0.18, "antenna": 0.14, "color": dark,
+			"antenna_at": Vector3(0, 0.2, -1.05)},
 	}

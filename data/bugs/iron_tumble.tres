@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"iron_tumble"
-display_name = "The Iron Tumble"
+display_name = "The Iron Tumbleweed"
 behavior = 8
 max_hp = 3000.0
 climb_speed = 0.8
@@ -17,5 +17,5 @@ scrap_drop = 150
 chitin_drop = 40
 breach_dps = 40.0
 size = 3.0
-shell_color = Color(0.27, 0.36, 0.42, 1)
+shell_color = Color(0.73, 0.76, 0.8, 1)
 first_wave = 10

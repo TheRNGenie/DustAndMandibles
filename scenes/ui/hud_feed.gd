@@ -125,10 +125,10 @@ func _update_boss_bar() -> void:
 		return
 	if not _boss_box.visible:
 		_boss_box.visible = true
-		add_line("THE IRON TUMBLE IS CLIMBING! Partner's turrets hit its back, shoot its glowing belly from above.", Palette.TEAM_WEST)
+		add_line("THE IRON TUMBLEWEED IS CLIMBING! Partner's turrets hit its back, shoot its glowing belly from above.", Palette.TEAM_WEST)
 	_boss_bar.max_value = boss.health.max_hp
 	_boss_bar.value = boss.health.hp
-	_boss_label.text = "THE IRON TUMBLE  -  %s cliff" % ("west" if boss.cliff_id == WorldLayout.WEST else "east")
+	_boss_label.text = "THE IRON TUMBLEWEED  -  %s cliff" % ("west" if boss.cliff_id == WorldLayout.WEST else "east")
 
 
 func add_line(text: String, color: Color = Palette.BONE) -> void:

@@ -203,7 +203,7 @@ func _think(delta: float) -> void:
 func begin_crest() -> void:
 	state = State.CRESTING
 	crest_t = 0.0
-	# The boss's boulder rolls over the lip straight into the Homestead.
+	# The boss crests the lip and rams the Homestead with its horn.
 	if def.behavior == BugDef.Behavior.BOSS:
 		GameState.damage_homestead(cliff_id, 150.0)
 
@@ -307,7 +307,7 @@ func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, mul
 
 
 func _check_brood() -> void:
-	# The Iron Tumble drops off at half health and re-climbs the other cliff.
+	# The Iron Tumbleweed drops off at half health and re-climbs the other cliff.
 	if def.behavior == BugDef.Behavior.BOSS and not brood_done and health.fraction() <= 0.5 and state == State.CLIMBING:
 		brood_done = true
 		cliff_id = WorldLayout.other_cliff(cliff_id)
