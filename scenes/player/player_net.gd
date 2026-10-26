@@ -110,6 +110,32 @@ func _apply_grant(id: StringName, level: int) -> void:
 		Economy.notice.emit("%s upgraded to level %d." % [Gun.weapon(id).display_name, level])
 
 
+## Owner: drop a weapon at your feet (anyone can pick it up again).
+func drop_weapon(id: StringName) -> void:
+	var level := player.gun.level_of(id)
+	player.gun.remove_weapon(id)
+	var pos := player.global_position + -player.global_transform.basis.z * 1.2 + Vector3.UP * 0.6
+	if multiplayer.is_server():
+		_host_drop(multiplayer.get_unique_id(), id, level, pos)
+	else:
+		_request_drop.rpc_id(1, id, level, pos)
+
+
+@rpc("any_peer", "reliable")
+func _request_drop(id: StringName, level: int, pos: Vector3) -> void:
+	if multiplayer.is_server() and multiplayer.get_remote_sender_id() == player.get_multiplayer_authority():
+		_host_drop(multiplayer.get_remote_sender_id(), id, level, pos)
+
+
+func _host_drop(peer_id: int, id: StringName, level: int, pos: Vector3) -> void:
+	var owned: Dictionary = GunShop.loadouts.get(peer_id, {&"revolver": 0})
+	if not owned.has(id):
+		return
+	owned.erase(id)
+	GunShop.loadouts[peer_id] = owned
+	PickupManager.instance.spawn_weapon(id, level, pos)
+
+
 ## Called by the owning peer after the gun fired.
 func fire(origin: Vector3, dir: Vector3) -> void:
 	var gun := player.gun

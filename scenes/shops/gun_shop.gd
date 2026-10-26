@@ -109,6 +109,9 @@ func _buy(peer_id: int, kind: String, id: StringName) -> void:
 	if kind == "buy":
 		if owned.has(id):
 			return
+		if owned.size() >= Gun.MAX_WEAPONS:
+			Economy.notify(peer_id, "Your three weapon slots are full. Drop one first (Q).")
+			return
 		cost = w.price_chitin
 	else:
 		if not owned.has(id) or int(owned[id]) >= w.upgrade_costs.size():

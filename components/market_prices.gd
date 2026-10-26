@@ -4,7 +4,9 @@ extends RefCounted
 ## 0.5 to 1.5: selling pushes it down, and it drifts back up (to +50%) while you
 ## don't sell that vegetable. Pure logic so it can be unit-tested.
 
-const BASE: Dictionary = {&"corn": 1.0, &"prickly_pear": 1.6, &"chili": 1.2, &"herbs": 2.2}
+const BASE: Dictionary = {&"corn": 1.0, &"prickly_pear": 1.6, &"chili": 5.0, &"herbs": 2.2}
+## Fixed seed prices (scrap) that override the one-third rule.
+const SEED_OVERRIDE: Dictionary = {&"firecracker_chili": 20}
 const MIN_MULT := 0.5
 const MAX_MULT := 1.5
 ## Each unit sold lowers that vegetable's price by this much (fraction of base).
@@ -20,6 +22,8 @@ const SEED_FRACTION := 1.0 / 3.0
 ## Scrap price of one seed: a third of the crop's average return (harvest yield x
 ## base price), converted to scrap. Corn: 3 corn x 1.0 chitin = 3 -> 30 scrap -> 10.
 static func seed_price(crop: CropDef) -> int:
+	if SEED_OVERRIDE.has(crop.id):
+		return int(SEED_OVERRIDE[crop.id])
 	var value := 0.0
 	for item: StringName in crop.harvest:
 		value += float(BASE.get(item, 0.0)) * int(crop.harvest[item])

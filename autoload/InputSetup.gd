@@ -15,6 +15,7 @@ const KEY_BINDINGS: Dictionary = {
 	"build_menu": [KEY_B],
 	"demolish": [KEY_X],
 	"cycle_option": [KEY_F],
+	"drop_item": [KEY_Q],
 	"upgrade": [KEY_U],
 	"pause_menu": [KEY_ESCAPE],
 	"debug_overlay": [KEY_F3],

@@ -27,6 +27,9 @@ var vfx: VfxPool
 var def: WeaponDef
 ## id -> upgrade level (0-2) for every weapon you own.
 var owned: Dictionary = {&"revolver": 0}
+## The three weapon hotbar slots, filled in the order you get weapons ("" = empty).
+var slots: Array[StringName] = [&"revolver", &"", &""]
+const MAX_WEAPONS := 3
 var ammo: int = 6
 var _ammo_by_weapon: Dictionary = {}
 var _cooldown := 0.0
@@ -109,7 +112,7 @@ func owns(id: StringName) -> bool:
 func equip(id: StringName) -> void:
 	if not owns(id):
 		return
-	if def != null:
+	if def != null and owned.has(def.id):
 		_ammo_by_weapon[def.id] = ammo
 	def = weapon(id)
 	holding = &""
@@ -125,19 +128,40 @@ func equip(id: StringName) -> void:
 	loadout_changed.emit()
 
 
+## Removes a weapon (dropped). Switches to another weapon, or empty hands.
+func remove_weapon(id: StringName) -> void:
+	owned.erase(id)
+	var i := slots.find(id)
+	if i >= 0:
+		slots[i] = &""
+	_ammo_by_weapon.erase(id)
+	if def != null and def.id == id:
+		def = null
+		for w in slots:
+			if w != &"":
+				equip(w)
+				return
+		hold_item(&"none")
+	loadout_changed.emit()
+
+
 ## Puts the gun away and holds the water bucket or a vegetable instead.
 func hold_item(id: StringName) -> void:
 	holding = id
 	for k: StringName in _models:
 		(_models[k] as Node3D).visible = false
-	_item_mi.mesh = WeaponBuilder.held_item(id)
-	_item_mi.visible = true
+	_item_mi.mesh = WeaponBuilder.held_item(id) if id != &"none" else null
+	_item_mi.visible = id != &"none"
 	loadout_changed.emit()
 
 
 ## Owner: the host confirmed a purchase or upgrade.
 func grant(id: StringName, level: int) -> void:
 	owned[id] = level
+	if not slots.has(id):
+		var free := slots.find(&"")
+		if free >= 0:
+			slots[free] = id
 	loadout_changed.emit()
 
 
@@ -190,7 +214,7 @@ func _process(delta: float) -> void:
 
 ## Fires if possible (ammo, cooldown, effects). Hit resolution is done by PlayerNet.
 func trigger(camera: Camera3D) -> bool:
-	if holding != &"":
+	if holding != &"" or def == null:
 		return false
 	if _cooldown > 0.0 or _reload_left > 0.0:
 		return false
@@ -216,7 +240,7 @@ func trigger(camera: Camera3D) -> bool:
 
 
 func reload() -> void:
-	if holding != &"" or _reload_left > 0.0 or ammo == def.mag_size:
+	if holding != &"" or def == null or _reload_left > 0.0 or ammo == def.mag_size:
 		return
 	_reload_time = def.reload_time * pow(0.85, level_of(def.id))
 	_reload_left = _reload_time

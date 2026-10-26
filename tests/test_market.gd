@@ -20,7 +20,7 @@ func test_selling_lowers_the_price_but_not_below_half() -> void:
 func test_selling_one_item_leaves_others_alone() -> void:
 	var m := MarketPrices.new()
 	m.sell(&"corn", 5)
-	assert_almost(m.price(&"chili"), 1.2)
+	assert_almost(m.price(&"chili"), 5.0)
 
 
 func test_prices_recover_up_to_one_and_a_half() -> void:
@@ -40,5 +40,5 @@ func test_unknown_items_are_worthless() -> void:
 func test_seed_costs_a_third_of_the_harvest_value() -> void:
 	# Corn: 3 corn x 1.0 chitin = 3 chitin = 30 scrap; a third is 10.
 	assert_eq(MarketPrices.seed_price(Defs.crop(&"corn")), 10)
-	# Chili: 4 x 1.2 = 4.8 chitin = 48 scrap; a third is 16.
-	assert_eq(MarketPrices.seed_price(Defs.crop(&"firecracker_chili")), 16)
+	# Chili is a fixed 20 scrap per seed (Logan's call).
+	assert_eq(MarketPrices.seed_price(Defs.crop(&"firecracker_chili")), 20)

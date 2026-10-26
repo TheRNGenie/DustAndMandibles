@@ -44,6 +44,9 @@ func _ready() -> void:
 	bugs.name = "Bugs"
 	bugs.vfx = vfx
 	add_child(bugs)
+	var pickups := PickupManager.new()
+	pickups.name = "Pickups"
+	add_child(pickups)
 	builds = BuildManager.new()
 	builds.name = "Builds"
 	builds.cliffs = cliffs
