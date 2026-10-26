@@ -17,8 +17,11 @@ var skip_votes: int = 0
 var homestead_hp: Array[float] = [0.0, 0.0]
 ## Max HP per Homestead (reinforcing the house raises it).
 var homestead_max: Array[float] = [0.0, 0.0]
-## This build phase is a storm: rain catchers fill fast.
+## Raining right now (rain catchers fill fast). Follows the weather.
 var storm := false
+## This wave's weather (Weather.Kind). Rolled at the warning bell, cleared after the wave.
+var weather: int = Weather.Kind.CLEAR
+signal weather_changed(kind: int)
 var won := false
 var end_reason := ""
 ## True while the pause menu (or another full-screen menu) is open: the local player stops.
@@ -62,6 +65,7 @@ func reset() -> void:
 	skip_votes = 0
 	won = false
 	storm = false
+	weather = Weather.Kind.CLEAR
 	end_reason = ""
 	god_mode = false
 	var hp := config().homestead_hp
@@ -137,16 +141,26 @@ func _enter(p: Phase) -> void:
 		Phase.WARNING:
 			duration = config().warning_time * maxf(_time_scale(), 0.5)
 	_voters.clear()
-	var is_storm := p == Phase.BUILD and wave >= 2 and randf() < 0.3
-	if p != Phase.BUILD:
-		is_storm = storm
-	_sync_phase.rpc(p, duration, wave, is_storm)
+	var w := weather
+	if p == Phase.WARNING:
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		w = Weather.roll(rng)
+		if flag_value("--weather") != "":
+			w = clampi(int(flag_value("--weather")), 0, Weather.Kind.SNOW)
+	elif p == Phase.BUILD or p == Phase.LOBBY:
+		w = Weather.Kind.CLEAR
+	_sync_phase.rpc(p, duration, wave, w)
 
 
 @rpc("authority", "call_local", "reliable")
-func _sync_phase(p: int, duration: float, w: int, is_storm: bool) -> void:
+func _sync_phase(p: int, duration: float, w: int, kind: int) -> void:
 	wave = w
-	storm = is_storm
+	var changed := kind != weather
+	weather = kind
+	storm = Weather.is_rain(kind)
+	if changed:
+		weather_changed.emit(kind)
 	time_left = duration
 	phase = p as Phase
 	skip_votes = 0

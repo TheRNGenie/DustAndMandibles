@@ -84,7 +84,8 @@ func _process(delta: float) -> void:
 	if not multiplayer.is_server():
 		return
 	var before := growth.stage
-	growth.tick(delta * GameState.growth_scale())
+	var w := GameState.weather
+	growth.tick(delta * GameState.growth_scale(), Weather.crop_rate(w) if Weather.is_rain(w) else 0.0, Weather.frost_rate(w))
 	_sync_t -= delta
 	if growth.stage != before or (growth.stage == CropGrowth.Stage.GROWING and _sync_t <= 0.0):
 		_sync_t = SYNC_INTERVAL

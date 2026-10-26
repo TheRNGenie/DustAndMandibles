@@ -76,9 +76,7 @@ func _apply_clarity() -> void:
 	if DayCycle.instance == null or DayCycle.instance.env == null:
 		return
 	var env := DayCycle.instance.env
-	if _base_fog < 0.0:
-		_base_fog = env.fog_density
-	env.fog_density = _base_fog * lerpf(1.0, CLARITY_FOG, _clarity)
+	DayCycle.instance.clarity_fog = lerpf(1.0, CLARITY_FOG, _clarity)
 	env.adjustment_enabled = true
 	env.adjustment_contrast = lerpf(1.0, 1.05, _clarity)
 	env.adjustment_saturation = lerpf(1.0, 1.1, _clarity)

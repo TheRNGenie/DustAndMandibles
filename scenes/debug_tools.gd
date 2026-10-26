@@ -370,6 +370,9 @@ func _take_screenshot(path: String) -> void:
 			await get_tree().physics_frame
 			top_speed = maxf(top_speed, -player.velocity.y)
 		print("[fall] top speed %.1f m/s, intensity %.2f" % [top_speed, player.fall_intensity])
+	if GameState.flag_value("--weathernow") != "":
+		GameState._sync_phase(GameState.phase, GameState.time_left, GameState.wave, int(GameState.flag_value("--weathernow")))
+		await get_tree().create_timer(5.5).timeout
 	if GameState.has_flag("--rocktest") and player != null:
 		# Throw a rock, then get bonked by one from the side; report the shove.
 		player.net.throw_rock(player.camera.global_position + Vector3(0, 0, -0.4), Vector3(0, 3, -18))

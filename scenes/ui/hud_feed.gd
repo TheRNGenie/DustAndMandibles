@@ -95,8 +95,10 @@ func _ready() -> void:
 	GameState.phase_changed.connect(func(p: GameState.Phase) -> void:
 		if p == GameState.Phase.WARNING:
 			Audio.play_ui(&"bell")
-		elif p == GameState.Phase.BUILD and GameState.storm:
-			add_line("A storm rolls in: rain catchers fill fast this daybreak.", Palette.SKY_TOP))
+		)
+	GameState.weather_changed.connect(func(k: int) -> void:
+		if k != Weather.Kind.CLEAR or GameState.phase == GameState.Phase.WARNING:
+			add_line(Weather.BLURBS[k], Palette.SKY_TOP if k != Weather.Kind.SNOW else Palette.BONE))
 
 
 func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void:

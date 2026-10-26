@@ -34,6 +34,9 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 			var radius := t.def.effect_size * t.range_multiplier()
 			var splash := t.def.effect == TurretDef.Effect.SPLASH
 			var owner_cliff := t.cliff_id
+			if GameState.weather == Weather.Kind.WINDY:
+				# Lobbed shots drift with the wind.
+				aim += Vector3(0, 0, WeatherFx.wind_sign() * randf_range(1.0, 3.0))
 			t.get_tree().create_timer(t.def.flight_time).timeout.connect(func() -> void:
 				if not is_instance_valid(bugs):
 					return

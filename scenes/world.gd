@@ -44,6 +44,9 @@ func _ready() -> void:
 	bugs.name = "Bugs"
 	bugs.vfx = vfx
 	add_child(bugs)
+	var weather := WeatherFx.new()
+	weather.name = "WeatherFx"
+	add_child(weather)
 	var menu := MenuScreen.new()
 	menu.name = "MenuScreen"
 	add_child(menu)

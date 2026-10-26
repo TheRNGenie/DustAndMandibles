@@ -25,6 +25,12 @@ var clock := START_HOUR
 var _target := START_HOUR
 var _rate := 0.0
 var _storm := 0.0
+var _snow := 0.0
+var _base_fog := -1.0
+## Lightning: a brief flash added on top of everything.
+var flash := 0.0
+## Haze multiplier from smoking (Cigarette).
+var clarity_fog := 1.0
 
 ## Hour, sun colour, sun energy, ambient, sky top, sky horizon.
 const KEYS: Array = [
@@ -102,8 +108,14 @@ func _on_phase(p: GameState.Phase) -> void:
 func _process(delta: float) -> void:
 	if clock < _target:
 		clock = minf(clock + _rate * delta, _target)
-	var want_storm := 1.0 if (GameState.storm and GameState.phase == GameState.Phase.BUILD) else 0.0
+	var want_storm: float = [0.0, 0.25, 0.6, 0.95, 0.7][clampi(GameState.weather, 0, 4)]
 	_storm = move_toward(_storm, want_storm, delta / 5.0)
+	var snow := 1.0 if GameState.weather == Weather.Kind.SNOW else 0.0
+	_snow = move_toward(_snow, snow, delta / 5.0)
+	if env != null:
+		if _base_fog < 0.0:
+			_base_fog = env.fog_density
+		env.fog_density = _base_fog * (1.0 + _storm * 1.6) * clarity_fog
 	_apply_now()
 
 
@@ -125,10 +137,16 @@ func _apply_now() -> void:
 	var top: Color = (a[4] as Color).lerp(b[4], t)
 	var horizon: Color = (a[5] as Color).lerp(b[5], t)
 	if _storm > 0.0:
-		sun_color = sun_color.lerp(Color("#C9C3BA"), _storm * 0.7)
-		energy = lerpf(energy, energy * 0.6, _storm)
-		top = top.lerp(Color("#6F7C8A"), _storm * 0.8)
-		horizon = horizon.lerp(Color("#B9AE9E"), _storm * 0.8)
+		var grey := Color("#C9C3BA").lerp(Color("#E8EEF4"), _snow)
+		sun_color = sun_color.lerp(grey, _storm * 0.7)
+		energy = lerpf(energy, energy * 0.45, _storm)
+		top = top.lerp(Color("#5F6C7A").lerp(Color("#B8C4D0"), _snow), _storm * 0.85)
+		horizon = horizon.lerp(Color("#A9A29A").lerp(Color("#E4E8EC"), _snow), _storm * 0.85)
+		ambient = ambient.lerp(Color("#8A90A8").lerp(Color("#C8D0E0"), _snow), _storm * 0.6)
+	if flash > 0.0:
+		flash = maxf(flash - get_process_delta_time() * 4.0, 0.0)
+		ambient = ambient.lerp(Color("#E8F0FF"), flash)
+		energy += flash * 2.0
 	# The sun arcs east to west between 6:00 and 18:00; at night a moon takes over.
 	var day_t := (h - 6.0) / 12.0
 	if day_t >= 0.0 and day_t <= 1.0:

@@ -132,7 +132,7 @@ func is_hidden() -> bool:
 
 ## Current movement multiplier (status effects).
 func speed() -> float:
-	return status.speed_multiplier() * (2.0 if smoker else 1.0)
+	return status.speed_multiplier() * (2.0 if smoker else 1.0) * Weather.bug_speed(GameState.weather)
 
 
 func _physics_process(delta: float) -> void:

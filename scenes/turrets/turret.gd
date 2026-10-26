@@ -130,7 +130,7 @@ func _think(delta: float) -> void:
 			return
 	_cooldown = def.fire_interval * (1.0 - 0.08 * tier)
 	shots += 1
-	if randf() <= def.hit_chance:
+	if randf() <= def.hit_chance * Weather.turret_accuracy(GameState.weather):
 		TurretEffects.apply(self, _target, aim_point, def.damage * (1.0 + 0.25 * tier))
 
 

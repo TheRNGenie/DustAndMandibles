@@ -259,6 +259,17 @@ def guitar_smash(rng):
     return out
 
 
+def thunder(rng):
+    """A close lightning strike: a sharp crack, then a long rolling rumble."""
+    length = 3.5
+    n = int(SR * length)
+    t = t_axis(length)
+    crack = highpass(rng.standard_normal(n), 1200) * env(n, 0.0005, 0.12)
+    rumble = lowpass(brown_noise(rng, n), 180) * (np.exp(-t / 1.4) * (1.0 - np.exp(-t / 0.05)))
+    wobble = 1.0 + 0.4 * np.sin(2 * np.pi * 3.0 * t) * np.exp(-t)
+    return crack * 1.2 + rumble * 3.0 * wobble
+
+
 def main():
     rng = np.random.default_rng(1234)
     print(f"Writing sound effects to {OUT}")
@@ -281,6 +292,7 @@ def main():
     save("reload", reload_click(rng), 0.6)
     save("pluck", karplus(196.0, 1.2, rng), 0.7)
     save("guitar_smash", guitar_smash(rng), 0.95)
+    save("thunder", thunder(rng), 0.95)
 
 
 if __name__ == "__main__":

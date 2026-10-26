@@ -30,11 +30,18 @@ func water() -> bool:
 	return true
 
 
-## Advances growth by `seconds` (only while watered).
-func tick(seconds: float) -> void:
+## Advances growth by `seconds` (only while watered). `rain` waters the crop and
+## multiplies growth; `frost` (per second) eats progress off growing crops.
+func tick(seconds: float, rain: float = 0.0, frost: float = 0.0) -> void:
+	if rain > 0.0 and stage == Stage.PLANTED:
+		watered = true
+		stage = Stage.GROWING
 	if stage != Stage.GROWING or not watered:
 		return
-	progress += seconds
+	if frost > 0.0:
+		progress = maxf(progress - frost * seconds, 0.0)
+		return
+	progress += seconds * (rain if rain > 0.0 else 1.0)
 	if progress >= crop.grow_time:
 		progress = crop.grow_time
 		stage = Stage.RIPE
