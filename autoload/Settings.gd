@@ -47,6 +47,8 @@ var render_scale: float = 1.0
 var master_volume: float = 0.8
 var sfx_volume: float = 1.0
 var music_volume: float = 0.6
+## Debug cheats (F6-F10, god mode) without the --debug launch flag.
+var debug_mode: bool = false
 ## Your dummy's outfit (see DummyLook), as {slot: option}.
 var look: Dictionary = DummyLook.default_look()
 signal look_changed
@@ -166,7 +168,7 @@ func _deserialize(data: String) -> InputEvent:
 # ------------------------------------------------------------------ persistence
 
 const SAVED_KEYS: Array[String] = ["mouse_sensitivity", "invert_y", "fov", "brightness", "fps_cap",
-	"vsync", "fullscreen", "shadows", "msaa", "render_scale", "master_volume", "sfx_volume", "music_volume"]
+	"vsync", "fullscreen", "shadows", "msaa", "render_scale", "master_volume", "sfx_volume", "music_volume", "debug_mode"]
 
 
 func save_settings() -> void:

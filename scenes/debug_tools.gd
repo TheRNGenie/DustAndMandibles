@@ -1,10 +1,12 @@
 class_name DebugTools
 extends Node
-## Debug cheats (only with --debug): F6 skip phase, F7 +500 scrap, F8 spawn the next
+## Debug cheats (with --debug or Settings > Debug mode): F6 skip phase, F7 +500 scrap, F8 spawn the next
 ## bug type on a random lane of your partner's cliff, F9 god mode, F10 show lanes.
 ## Also the automation flags used for testing:
 ##   --shot=<png> [--frames=N] [--pos=d,z] [--look=yaw,pitch] [--autofire] [--autoskip]
 ##   [--autobuild] (places turrets on both cliffs) saves a screenshot and quits.
+
+static var instance: DebugTools
 
 var world: Node3D
 var _bug_index := 0
@@ -12,6 +14,7 @@ var _lanes: MeshInstance3D
 
 
 func _ready() -> void:
+	instance = self
 	var shot := GameState.flag_value("--shot")
 	if shot != "":
 		_take_screenshot(shot)
@@ -220,7 +223,7 @@ func _soak(seconds: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not GameState.has_flag("--debug") or GameState.menu_open:
+	if not GameState.debug_enabled() or GameState.menu_open:
 		return
 	if event.is_action_pressed("debug_skip_phase"):
 		GameState.debug_skip()
@@ -236,7 +239,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func _cheat(kind: String) -> void:
-	if not multiplayer.is_server() or not GameState.has_flag("--debug"):
+	if not multiplayer.is_server() or not GameState.debug_enabled():
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender == 0:
@@ -254,6 +257,17 @@ func _cheat(kind: String) -> void:
 		"god":
 			GameState.god_mode = not GameState.god_mode
 			print("God mode: ", GameState.god_mode)
+
+
+## Debug tab buttons: "skip", "scrap", "spawn", "god", "lanes".
+func run(kind: String) -> void:
+	match kind:
+		"skip":
+			GameState.debug_skip()
+		"lanes":
+			_toggle_lanes()
+		_:
+			_cheat.rpc_id(1, kind)
 
 
 func _local_cliff() -> int:

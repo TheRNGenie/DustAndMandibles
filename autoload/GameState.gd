@@ -45,6 +45,12 @@ func has_flag(flag: String) -> bool:
 	return flags.has(flag)
 
 
+## Debug cheats are on: launched with --debug, or Debug mode ticked in Settings.
+## In multiplayer the host's setting decides, since cheats run on the host.
+func debug_enabled() -> bool:
+	return flags.has("--debug") or Settings.debug_mode
+
+
 ## Value of a `--name=value` flag, or "" if absent.
 func flag_value(flag: String) -> String:
 	for f: String in flags:
@@ -245,7 +251,7 @@ func _request_vote() -> void:
 
 @rpc("any_peer", "reliable")
 func _request_debug_skip() -> void:
-	if multiplayer.is_server() and has_flag("--debug"):
+	if multiplayer.is_server() and debug_enabled():
 		_advance()
 
 

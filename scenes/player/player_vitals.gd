@@ -63,7 +63,7 @@ func consumed(_kind: StringName) -> void:
 
 ## Runs on the owning peer.
 func apply_damage(amount: float) -> void:
-	if downed or (GameState.god_mode and GameState.has_flag("--debug")):
+	if downed or (GameState.god_mode and GameState.debug_enabled()):
 		return
 	hp = maxf(hp - amount, 0.0)
 	_since_hit = 0.0

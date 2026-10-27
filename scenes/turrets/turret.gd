@@ -250,7 +250,7 @@ func _aim_visual(delta: float) -> void:
 	# Nothing to shoot for a while: scan the far cliff in slow sweeps.
 	_idle_t += delta
 	if _idle_t > 3.0:
-		yaw = sin((_idle_t + float(cell.y)) * 0.45) * 0.6
+		yaw = sin((_idle_t + float(cell.y)) * 0.45) * 0.95
 		pitch = -0.08 + sin((_idle_t + float(cell.y)) * 0.3) * 0.06
 		step *= 0.25
 	_head.rotation.y = rotate_toward(_head.rotation.y, yaw, step)

@@ -88,6 +88,7 @@ func _build() -> void:
 	_add_tab("Controls", ControlsTab.new())
 	_add_tab("Graphics", GraphicsTab.new())
 	_add_tab("Audio", AudioTab.new())
+	_add_tab("Debug", DebugTab.new())
 	if not in_main_menu:
 		_add_tab("Social", SocialTab.new())
 
