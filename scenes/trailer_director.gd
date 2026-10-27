@@ -435,3 +435,14 @@ func _shot_market() -> void:
 	_player.global_position = v.to_global(Vector3(1.8, 0.2, -3.0))
 	_dur = 3.0
 	_keys = [[0.0, front, look], [3.0, front + Vector3(0.5, 0, 0), look]]
+
+
+## The scrap heap beside the west house.
+func _shot_scrap() -> void:
+	_set_time(10.0)
+	var pile := get_tree().root.find_child("Salvage0", true, false) as Node3D
+	var cl := Bug.cliffs
+	var eye := cl.plateau_point(WorldLayout.WEST, Buildable.SALVAGE.x - 7.0, Buildable.SALVAGE.y - 5.0) + Vector3(0, 3.0, 0)
+	var look := pile.global_position + Vector3(0, 1.0, 0)
+	_dur = 3.0
+	_keys = [[0.0, eye, look], [3.0, eye, look]]

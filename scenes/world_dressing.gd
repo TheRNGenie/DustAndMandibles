@@ -156,7 +156,7 @@ func _build_homestead_area(cid: int) -> void:
 			plot.rotation.y = yaw
 			parent.add_child(plot)
 
-	# One big salvage heap against the back of the house (scrap each build phase).
+	# One big scrap heap beside the house (scrap each build phase).
 	var pile := SalvagePile.new()
 	pile.name = "Salvage%d" % cid
 	pile.setup(cid, 800 + cid * 10, true)
