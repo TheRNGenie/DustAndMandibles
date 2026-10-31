@@ -153,15 +153,16 @@ func _use(peer_id: int, seed_id: StringName) -> void:
 				return
 			crop_def = def
 			growth.plant(def)
+			_fx.rpc(&"rustle")
 		CropGrowth.Stage.PLANTED:
 			if Economy.spend(payer, {&"water": crop_def.water_cost}):
 				growth.water()
-				_fx.rpc(&"pluck")
+				_fx.rpc(&"water_pour")
 			else:
 				Economy.notify(peer_id, "No water left. Fix the well or build a rain catcher.")
 		CropGrowth.Stage.RIPE:
 			Economy.earn(payer, growth.harvest())
-			_fx.rpc(&"coin")
+			_fx.rpc(&"rustle")
 	_broadcast()
 
 
@@ -198,7 +199,7 @@ func _sync(crop_id: StringName, stage: int, progress: float, watered: bool) -> v
 
 @rpc("authority", "call_local", "unreliable")
 func _fx(sound: StringName) -> void:
-	Audio.play_at(sound, global_position)
+	Audio.play_at(sound, global_position, -4.0)
 
 
 func _refresh_visual() -> void:

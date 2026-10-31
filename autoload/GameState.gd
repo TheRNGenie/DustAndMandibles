@@ -152,6 +152,8 @@ func _enter(p: Phase) -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.randomize()
 		w = Weather.roll(rng, Weather.is_night(12.0 + 6.0 * float(maxi(wave - 1, 0))))
+		if wave <= 1:
+			w = Weather.Kind.CLEAR # the first wave is always plain weather
 		if flag_value("--weather") != "":
 			w = clampi(int(flag_value("--weather")), 0, Weather.Kind.BLOOD_MOON)
 	elif p == Phase.BUILD or p == Phase.LOBBY:

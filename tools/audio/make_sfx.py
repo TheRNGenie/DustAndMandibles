@@ -392,6 +392,43 @@ def cannon(rng):
     return boom * 1.5 + crack + sub
 
 
+def rustle(rng, length=0.55, grabs=3):
+    """A hand grabbing leaves and stalks: soft crunchy crackles in a couple of
+    quick handfuls, with a faint papery swish under them."""
+    n = int(SR * length)
+    t = t_axis(length)
+    out = np.zeros(n)
+    starts = sorted(rng.uniform(0.0, length * 0.55, grabs))
+    for s0 in starts:
+        dur = rng.uniform(0.12, 0.2)
+        ln = int(SR * dur)
+        # Dense tiny crackles: leaf crunch.
+        crackle = np.zeros(ln)
+        for _ in range(int(dur * 400)):
+            i = rng.integers(0, ln - 40)
+            crackle[i:i + 30] += rng.standard_normal(30) * np.exp(-np.arange(30) / 6.0) * rng.uniform(0.2, 1.0)
+        crackle = bandpass(crackle, 1800, 7500)
+        swish = bandpass(rng.standard_normal(ln), 600, 3000) * 0.35
+        shape = np.sin(np.linspace(0, np.pi, ln)) ** 1.5
+        place(out, (crackle + swish) * shape, s0)
+    return out * env(n, 0.005, length, 1.5)
+
+
+def water_pour(rng):
+    """Watering a plant: a short gurgling pour into soil."""
+    length = 0.8
+    n = int(SR * length)
+    t = t_axis(length)
+    stream = bandpass(rng.standard_normal(n), 400, 2500) * (np.sin(np.pi * t / length) ** 0.7)
+    out = stream * 0.5
+    for _ in range(18):
+        s0 = rng.uniform(0.05, length - 0.1)
+        ts = np.clip(t - s0, 0, None)
+        f = rng.uniform(500, 1100) * (1 + ts * 6)
+        out += np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-ts / 0.025) * (t >= s0) * 0.25
+    return lowpass(out, 4000)
+
+
 def thunder(rng):
     """A close lightning strike: a sharp crack, then a long rolling rumble."""
     length = 3.5
@@ -438,6 +475,9 @@ def main():
     save("mortar", mortar(rng), 0.9)
     save("lobber", mortar(rng, True), 0.9)
     save("cannon", cannon(rng), 0.95)
+    # Farming.
+    save("rustle", rustle(rng), 0.7)
+    save("water_pour", water_pour(rng), 0.6)
 
 
 if __name__ == "__main__":
