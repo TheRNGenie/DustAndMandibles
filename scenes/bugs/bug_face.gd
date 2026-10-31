@@ -203,7 +203,21 @@ func wince() -> void:
 	_blink = 0.6
 
 
-func _process(delta: float) -> void:
+var _skip := 0
+var _acc := 0.0
+
+
+func _process(frame_delta: float) -> void:
+	# Follows the bug's level of detail: every frame close up, every third
+	# frame far away, paused off-screen.
+	_acc += frame_delta
+	_skip += 1
+	var lod: int = (_bug as Bug).detail if _bug is Bug else 0
+	if lod == 2 or (lod == 1 and _skip < 3):
+		return
+	_skip = 0
+	var delta := _acc
+	_acc = 0.0
 	_t += delta
 	_wince = maxf(_wince - delta * 2.5, 0.0)
 	# Who's the nearest player, and how close?

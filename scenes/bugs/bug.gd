@@ -155,9 +155,46 @@ func _physics_process(delta: float) -> void:
 	var spd := global_position.distance_to(_last_pos) / maxf(delta, 0.0001)
 	_last_pos = global_position
 	_update_visibility()
-	if not is_hidden():
-		_legs.update(delta, global_transform, spd, _project)
-		_animate_body(delta, spd)
+	if is_hidden():
+		return
+	# Level of detail: legs and body animation run every tick up close, every
+	# other tick far away, and not at all off-screen (they catch up on return).
+	_lod_t -= delta
+	if _lod_t <= 0.0:
+		_lod_t = 0.25 + randf() * 0.05
+		detail = _detail_level()
+	_anim_acc += delta
+	_anim_skip += 1
+	var every := 1 if detail == 0 else (2 if detail == 1 else 0)
+	if every == 0 or _anim_skip < every:
+		return
+	_anim_skip = 0
+	_legs.update(_anim_acc, global_transform, spd, _project)
+	_animate_body(_anim_acc, spd)
+	_anim_acc = 0.0
+
+
+## 0 = close and on screen, 1 = far but on screen, 2 = off screen (no camera: full).
+var detail := 0
+var _lod_t := 0.0
+var _anim_acc := 0.0
+var _anim_skip := 0
+const LOD_FAR := 45.0
+
+
+func _detail_level() -> int:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null:
+		return 0
+	var r := float(spec["body_radius"]) + float(spec["upper"]) + float(spec["lower"])
+	var p := global_position
+	var dist := cam.global_position.distance_to(p)
+	if dist < r * 2.0 + 3.0:
+		return 0
+	for plane: Plane in cam.get_frustum():
+		if plane.distance_to(p) > r:
+			return 2
+	return 0 if dist < LOD_FAR else 1
 
 
 ## Breathing, a bob in the stride, and a little lean into the walk.
@@ -175,8 +212,14 @@ func _animate_body(delta: float, spd: float) -> void:
 	_face.transform = _body.transform.scaled_local(Vector3.ONE / s) if s > 0.0 else Transform3D()
 
 
+var _was_hidden := -1
+
+
 func _update_visibility() -> void:
 	var hidden := is_hidden()
+	if int(hidden) == _was_hidden:
+		return
+	_was_hidden = int(hidden)
 	_body.visible = not hidden
 	_legs.visible = not hidden
 	_face.visible = not hidden

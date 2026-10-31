@@ -133,8 +133,11 @@ func _physics_process(delta: float) -> void:
 func _think(delta: float) -> void:
 	_cooldown -= delta
 	_retarget -= delta
-	if _retarget <= 0.0 or _target == null or not is_instance_valid(_target) or not _valid(_target):
-		_retarget = RETARGET_TIME
+	# Re-pick on a timer (not every tick when there's nothing to shoot), or at once
+	# when the current target dies or leaves the arc.
+	var lost := _target != null and (not is_instance_valid(_target) or not _target.is_alive())
+	if _retarget <= 0.0 or lost:
+		_retarget = RETARGET_TIME + randf() * 0.1
 		_target = _pick_target()
 	if _target == null:
 		return

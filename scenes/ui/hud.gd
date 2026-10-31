@@ -5,6 +5,7 @@ extends CanvasLayer
 
 var _ammo_label: Label
 var _center_label: Label
+var _blackout: ColorRect
 var _debug_label: Label
 var _speed_lines: SpeedLines
 var _crosshair: Control
@@ -59,6 +60,12 @@ func _ready() -> void:
 	_ammo_label.add_theme_color_override("font_color", Palette.BONE)
 	ammo_sign.add_child(_ammo_label)
 
+	_blackout = ColorRect.new()
+	_blackout.color = Color.BLACK
+	_blackout.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_blackout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_blackout.visible = false
+	add_child(_blackout)
 	_center_label = Label.new()
 	_center_label.set_anchors_preset(Control.PRESET_CENTER)
 	_center_label.offset_left = -300
@@ -117,12 +124,17 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 	player.gun.ammo_changed.connect(_on_ammo_changed)
 	player.gun.hit_confirmed.connect(func(weak: bool) -> void: (_crosshair as Crosshair).flash(weak))
 	player.gun.reload_started.connect(func(_d: float) -> void: _ammo_label.text = "Reloading")
-	player.fell_into_canyon.connect(func(delay: float) -> void:
-		if delay > 0.0:
-			_show_message("SPLAT. Hauling you back up..."))
 	_speed_lines.player = player
-	player.fall_landed.connect(func() -> void: _speed_lines.flash())
-	player.respawned.connect(func() -> void: _center_label.text = "")
+	# Hitting the canyon floor: hard cut to black over the guitar smash, then
+	# fade back in on the porch.
+	player.fall_landed.connect(func() -> void:
+		_blackout.modulate.a = 1.0
+		_blackout.visible = true)
+	player.respawned.connect(func() -> void:
+		_center_label.text = ""
+		var tw := _blackout.create_tween()
+		tw.tween_property(_blackout, "modulate:a", 0.0, 0.4)
+		tw.tween_callback(func() -> void: _blackout.visible = false))
 	_on_ammo_changed(player.gun.ammo, player.gun.def.mag_size)
 
 

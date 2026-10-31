@@ -161,7 +161,10 @@ func add_fire(cliff: int, center: Vector3, radius: float, dps: float, seconds: f
 
 
 func _physics_process(delta: float) -> void:
-	if not multiplayer.is_server() or _fires.is_empty():
+	if not multiplayer.is_server():
+		return
+	separate()
+	if _fires.is_empty():
 		return
 	for f in _fires:
 		f["left"] = float(f["left"]) - delta
@@ -211,3 +214,45 @@ func _draw_spit(from: Vector3, to: Vector3, flight: float) -> void:
 	Audio.play_at(&"acid_spit", from)
 	if vfx != null:
 		vfx.acid_blob(from, to, flight)
+
+
+## Host: no two bugs overlap; heavier bugs shove lighter ones aside (BugCrowd).
+func separate() -> void:
+	var groups: Dictionary = {} # surface key -> Array[Bug]
+	for c in get_children():
+		var b := c as Bug
+		if b == null or not b.is_alive() or b.is_hidden():
+			continue
+		var key := -1
+		match b.state:
+			Bug.State.CLIMBING:
+				key = b.cliff_id
+			Bug.State.BREACHING, Bug.State.FLYING:
+				key = 10 + b.cliff_id
+			_:
+				continue
+		if not groups.has(key):
+			groups[key] = []
+		(groups[key] as Array).append(b)
+	for key: int in groups:
+		var bugs: Array = groups[key]
+		if bugs.size() < 2:
+			continue
+		var pos: Array[Vector2] = []
+		var rad: Array[float] = []
+		var wt: Array[float] = []
+		for b: Bug in bugs:
+			pos.append(Vector2(b.lane_z, b.climb_y) if key < 10 else Vector2(b.ground_pos.x, b.ground_pos.z))
+			rad.append(float(b.spec["body_radius"]) * 0.85)
+			wt.append(BugCrowd.weight(b.def.size, b.def.behavior == BugDef.Behavior.BOSS))
+		var push := BugCrowd.pushes(pos, rad, wt)
+		for i in bugs.size():
+			if push[i] == Vector2.ZERO:
+				continue
+			var b: Bug = bugs[i]
+			if key < 10:
+				b.lane_z = clampf(b.lane_z + push[i].x, -WorldLayout.PLATEAU_WIDTH * 0.5 + 1.0, WorldLayout.PLATEAU_WIDTH * 0.5 - 1.0)
+				# Shoved down or up the face, but never back below the bottom or over the lip.
+				b.climb_y = clampf(b.climb_y + push[i].y, 0.0, WorldLayout.CLIFF_HEIGHT - 0.05)
+			else:
+				b.ground_pos += Vector3(push[i].x, 0.0, push[i].y)

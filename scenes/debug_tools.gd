@@ -26,6 +26,8 @@ func _ready() -> void:
 		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
+	elif GameState.flag_value("--stress") != "":
+		_stress(int(GameState.flag_value("--stress")))
 	elif GameState.flag_value("--stairtest") != "":
 		_stair_test(int(GameState.flag_value("--stairtest")))
 
@@ -600,3 +602,36 @@ func _autobuild() -> void:
 			builds.build(&"gatling_post", cid, Vector2i(0, col))
 		for col: int in [5, 11]:
 			builds.build(&"buffalo_rifle", cid, Vector2i(0, col))
+
+
+
+## --stress=N: N bugs of every kind climbing both cliffs (plus --autobuild
+## turrets if given); prints frame timings and render counts every 2 s for 12 s.
+func _stress(count: int) -> void:
+	for i in 30:
+		await get_tree().process_frame
+	if GameState.has_flag("--autobuild") and multiplayer.is_server():
+		_autobuild()
+	var bm := world.get("bugs") as BugManager
+	var ids: Array = Defs.BUGS.keys()
+	ids.erase(&"iron_tumble")
+	for i in count:
+		bm.spawn_group(ids[i % ids.size()], 1, i % 2, i % 5, float(i % 7) * 4.0)
+	await get_tree().create_timer(1.0).timeout
+	for s in 6:
+		var t0 := Time.get_ticks_msec()
+		var frames := Engine.get_frames_drawn()
+		var proc := 0.0
+		var phys := 0.0
+		var n := 0
+		while Time.get_ticks_msec() - t0 < 2000:
+			await get_tree().process_frame
+			proc += Performance.get_monitor(Performance.TIME_PROCESS)
+			phys += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
+			n += 1
+		var fps := float(Engine.get_frames_drawn() - frames) / 2.0
+		print("[stress] bugs %d  fps %.0f  process %.2f ms  physics %.2f ms  draw calls %d  objects %d  nodes %d" % [
+			get_tree().get_nodes_in_group("bugs").size(), fps if fps > 0 else float(n) / 2.0, proc / n * 1000.0, phys / n * 1000.0,
+			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
+			Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
+	get_tree().quit()
