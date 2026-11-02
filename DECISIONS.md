@@ -168,3 +168,7 @@ Assumptions and changes from the design doc, newest last.
    - **Sounds:** three whip-crack variants, each a rising whoosh, then a supersonic N-wave crack and slap-back (`whip_crack_1-3`). Everyone hears them.
    - **Hits:** at the snap, the host hits every bug within 6.5 m (plus its size) in a 38-degree cone with a clear line of sight, for 22 damage and a 0.5 s stun. The cooldown is 0.7 s.
    `--whiptest` lashes a beetle three times; `--lashing` keeps lashing for screenshots.
+122. **Whip upgrades (Logan's request):** the gunsmith now works on the whip too, using the same code scheme as the guns (WeaponMods `&"whip"`, host record `GunShop.whips`).
+   - **Upgrades tab:** two levels (10 and 25 chitin), each +25% lash damage.
+   - **Workshop mods tab:** long lash (40% more reach, and the lash looks longer), barbed popper (+50% damage), snakeskin grip (lash 40% sooner, stuns last twice as long).
+   The host applies the whip's damage, reach and stun from its own record. Level 2 plus the barbed popper takes a lash from 22 to about 50 damage (`--whiptest`).

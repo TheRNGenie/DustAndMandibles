@@ -1047,4 +1047,15 @@ func _whip_test() -> void:
 			await get_tree().physics_frame
 		print("[whip] lash %d (swing %d): hp %.0f -> %.0f, stunned %s" % [k + 1, moves[k], hp, bug.health.hp, bug.status.is_rooted()])
 		await get_tree().create_timer(0.4).timeout
+	# Upgrades: two levels and the barbed popper at the gunsmith, then lash again.
+	var shop := get_tree().root.find_child("GunShop*", true, false) as GunShop
+	Economy.earn(player.cliff_id, {&"chitin": 200})
+	shop._buy(multiplayer.get_unique_id(), "upgrade", &"whip")
+	shop._buy(multiplayer.get_unique_id(), "upgrade", &"whip")
+	shop._buy(multiplayer.get_unique_id(), "mod", &"whip", 1)
+	await get_tree().create_timer(0.8).timeout
+	var hp2 := bug.health.hp
+	player.whip.lash()
+	await get_tree().create_timer(0.5).timeout
+	print("[whip] upgraded (code %d, %s): hp %.0f -> %.0f" % [player.whip.code, WeaponMods.names(&"whip", player.whip.code), hp2, bug.health.hp])
 	get_tree().quit()

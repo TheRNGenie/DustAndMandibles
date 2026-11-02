@@ -6,8 +6,12 @@ extends RefCounted
 ## level (0-2), bits 2-4 the mods it carries, so a dropped, stored or picked-up
 ## gun keeps everything done to it, and the host can check every shot from it.
 ##
-## fx keys: damage, fire_interval, reload, spread, range, spin_up, zoom (all
-## multipliers), mag, pellets (added), pierce (bool).
+## fx keys: damage, fire_interval, reload, spread, range, spin_up, zoom, reach,
+## stun (all multipliers), mag, pellets (added), pierce (bool). The whip uses
+## the same scheme: every player carries one, with its own level and mods.
+
+## Chitin per whip level.
+const WHIP_LEVEL_COSTS: Array[int] = [10, 25]
 
 const MODS: Dictionary = {
 	&"revolver": [
@@ -29,6 +33,11 @@ const MODS: Dictionary = {
 		{"name": "Nail charge", "desc": "Six more pieces of scrap in every load.", "cost": 20, "fx": {"pellets": 6}},
 		{"name": "Flared bell", "desc": "+20% damage, wider blast.", "cost": 20, "fx": {"damage": 1.2, "spread": 1.25}},
 		{"name": "Paper cartridges", "desc": "Pre-measured charges: reloads 40% faster.", "cost": 25, "fx": {"reload": 0.6}},
+	],
+	&"whip": [
+		{"name": "Long lash", "desc": "Four more feet of plaited hide: reaches 40% further.", "cost": 15, "fx": {"reach": 1.4}},
+		{"name": "Barbed popper", "desc": "A wire-wrapped tip: +50% damage.", "cost": 20, "fx": {"damage": 1.5}},
+		{"name": "Snakeskin grip", "desc": "Lash again 40% sooner, and stuns last twice as long.", "cost": 20, "fx": {"fire_interval": 0.6, "stun": 2.0}},
 	],
 	&"crank_gatling": [
 		{"name": "Greased gears", "desc": "Winds up in less than half the time.", "cost": 20, "fx": {"spin_up": 0.4}},

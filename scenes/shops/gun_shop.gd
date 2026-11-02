@@ -24,6 +24,8 @@ const SHELF: Array[Dictionary] = [
 
 ## Host: what every peer owns, peer_id -> {weapon id: level}.
 static var loadouts: Dictionary = {}
+## Host: each peer's whip (WeaponMods code); everyone always has one.
+static var whips: Dictionary = {}
 
 var cliff_id: int = 0
 var _label: Label3D
@@ -63,6 +65,7 @@ func setup(cid: int) -> void:
 
 static func reset_loadouts() -> void:
 	loadouts.clear()
+	whips.clear()
 
 
 signal menu_changed
@@ -134,6 +137,24 @@ func menu_items(tab: int) -> Array:
 						"desc": str(m["desc"]), "price": "" if fitted else "%d chitin" % int(m["cost"]),
 						"price_ok": chitin >= int(m["cost"]), "disabled": "Fitted." if fitted else "",
 						"buttons": [[&"buy", "Fit it"]]})
+	var p := _player_of(multiplayer.get_unique_id())
+	if p != null and p.whip != null:
+		var wc := p.whip.code
+		if tab == 1:
+			var lvl := WeaponMods.level(wc)
+			var maxed := lvl >= WeaponMods.WHIP_LEVEL_COSTS.size()
+			var cost: int = 0 if maxed else WeaponMods.WHIP_LEVEL_COSTS[lvl]
+			out.append({"id": "upgrade:whip", "name": "Bullwhip  (level %d)" % lvl, "icon": &"planks",
+					"desc": "+25% lash damage per level.", "price": "" if maxed else "%d chitin" % cost,
+					"price_ok": chitin >= cost, "disabled": "Fully upgraded." if maxed else "", "buttons": [[&"buy", "Upgrade"]]})
+		elif tab == 2:
+			var mods := WeaponMods.list(&"whip")
+			for i in mods.size():
+				var m: Dictionary = mods[i]
+				var fitted := WeaponMods.has_mod(wc, i)
+				out.append({"id": "mod:whip:%d" % i, "name": "Bullwhip: %s" % m["name"], "icon": &"planks",
+						"desc": str(m["desc"]), "price": "" if fitted else "%d chitin" % int(m["cost"]),
+						"price_ok": chitin >= int(m["cost"]), "disabled": "Fitted." if fitted else "", "buttons": [[&"buy", "Fit it"]]})
 	if tab == 2 and out.is_empty():
 		out.append({"id": "", "name": "Nothing to work on", "icon": &"hammer", "desc": "Mods are fitted to the guns you carry.",
 				"price": "", "price_ok": true, "disabled": "Buy a gun first.", "buttons": []})
@@ -158,6 +179,9 @@ func _request_buy(kind: String, id: StringName, slot: int = -1) -> void:
 
 
 func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
+	if id == &"whip":
+		_buy_whip(peer_id, kind, slot)
+		return
 	var w := Gun.weapon(id)
 	if w == null:
 		return
@@ -212,3 +236,41 @@ func _player_of(peer_id: int) -> Player:
 func _local_gun() -> Gun:
 	var p := _player_of(multiplayer.get_unique_id())
 	return p.gun if p != null else null
+
+
+## Host: a whip level or mod.
+func _buy_whip(peer_id: int, kind: String, slot: int) -> void:
+	var c := int(whips.get(peer_id, 0))
+	var cost := 0
+	var next := c
+	if kind == "mod":
+		var mods := WeaponMods.list(&"whip")
+		if slot < 0 or slot >= mods.size() or WeaponMods.has_mod(c, slot):
+			return
+		cost = int(mods[slot]["cost"])
+		next = WeaponMods.with_mod(c, slot)
+	else:
+		var lvl := WeaponMods.level(c)
+		if lvl >= WeaponMods.WHIP_LEVEL_COSTS.size():
+			return
+		cost = WeaponMods.WHIP_LEVEL_COSTS[lvl]
+		next = c + 1
+	var payer := Economy.payer_cliff(peer_id, cliff_id)
+	if not Economy.spend(payer, {&"chitin": cost}):
+		Economy.notify(peer_id, "That costs %d chitin." % cost)
+		return
+	whips[peer_id] = next
+	if peer_id == multiplayer.get_unique_id():
+		_set_whip(next)
+	else:
+		_set_whip.rpc_id(peer_id, next)
+	Economy.notify(peer_id, "Bullwhip: %s." % ("level %d" % WeaponMods.level(next) if kind != "mod" else WeaponMods.names(&"whip", next & ~c)))
+	_sold.rpc()
+
+
+@rpc("authority", "reliable")
+func _set_whip(c: int) -> void:
+	var p := _player_of(multiplayer.get_unique_id())
+	if p != null and p.whip != null:
+		p.whip.code = c
+	menu_changed.emit()

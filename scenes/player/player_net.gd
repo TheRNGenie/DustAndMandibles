@@ -245,10 +245,12 @@ func _request_melee(origin: Vector3, dir: Vector3) -> void:
 
 
 func _server_melee(origin: Vector3, dir: Vector3) -> void:
-	for b in Whip.targets(player.get_tree(), origin, dir, [player.get_rid()]):
-		b.receive_hit(Whip.DAMAGE, b.global_position, dir, false, 1.0, player.display_name(), player.cliff_id)
+	# The host's own record of this player's whip.
+	var c := int(GunShop.whips.get(player.get_multiplayer_authority(), 0))
+	for b in Whip.targets(player.get_tree(), origin, dir, [player.get_rid()], Whip.reach_for(c)):
+		b.receive_hit(Whip.damage_for(c), b.global_position, dir, false, 1.0, player.display_name(), player.cliff_id)
 		if b.is_alive():
-			b.status.root(Whip.STUN)
+			b.status.root(Whip.stun_for(c))
 
 
 @rpc("any_peer", "call_local", "unreliable")

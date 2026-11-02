@@ -18,6 +18,8 @@ const SEGMENTS := 14
 const SEG_LEN := 0.32
 
 var player: Player
+## Level and mods (WeaponMods code); set by the gunsmith.
+var code := 0
 var _cd := 0.0
 var _t := -1.0
 var _move := 0
@@ -71,7 +73,7 @@ func can_lash() -> bool:
 func lash() -> void:
 	if not can_lash():
 		return
-	_cd = COOLDOWN
+	_cd = COOLDOWN * WeaponMods.mult(&"whip", code, "fire_interval")
 	_t = 0.0
 	_hit_done = false
 	var pick := randi() % 3
@@ -140,13 +142,26 @@ func _pose(k: float) -> void:
 		var ang := _handle_angle(ki) * (1.0 + float(i) * 0.04)
 		var dir_local := (Basis(axis, ang) * Vector3(0, 0, -1)).normalized()
 		var dir := (cam_xf.basis * dir_local).normalized()
-		var next := p + dir * SEG_LEN
+		var next := p + dir * SEG_LEN * WeaponMods.mult(&"whip", code, "reach")
 		_segs[i].global_transform = Transform3D(MeshKit.basis_from_y(dir), (p + next) * 0.5)
 		p = next
 
 
+## Lash stats for a whip code (level and mods).
+static func damage_for(c: int) -> float:
+	return DAMAGE * (1.0 + 0.25 * WeaponMods.level(c)) * WeaponMods.mult(&"whip", c, "damage")
+
+
+static func reach_for(c: int) -> float:
+	return REACH * WeaponMods.mult(&"whip", c, "reach")
+
+
+static func stun_for(c: int) -> float:
+	return STUN * WeaponMods.mult(&"whip", c, "stun")
+
+
 ## Host: who did this lash catch? Bugs in front within reach, with a clear line.
-static func targets(tree: SceneTree, origin: Vector3, dir: Vector3, exclude: Array[RID]) -> Array[Bug]:
+static func targets(tree: SceneTree, origin: Vector3, dir: Vector3, exclude: Array[RID], reach_m: float = REACH) -> Array[Bug]:
 	var out: Array[Bug] = []
 	var cos_max := cos(deg_to_rad(CONE_DEG))
 	for n: Node in tree.get_nodes_in_group("bugs"):
@@ -154,7 +169,7 @@ static func targets(tree: SceneTree, origin: Vector3, dir: Vector3, exclude: Arr
 		if b == null or not b.is_alive() or b.is_hidden():
 			continue
 		var to := b.global_position - origin
-		var reach := REACH + float(b.spec["body_radius"])
+		var reach := reach_m + float(b.spec["body_radius"])
 		if to.length() > reach or to.normalized().dot(dir.normalized()) < cos_max:
 			continue
 		var q := PhysicsRayQueryParameters3D.create(origin, b.global_position, WorldLayout.LAYER_WORLD, exclude)
