@@ -83,6 +83,24 @@ func _ready() -> void:
 		_grapple_test()
 	elif GameState.flag_value("--stress") != "":
 		_stress(int(GameState.flag_value("--stress")))
+	elif GameState.flag_value("--exportdummy") != "":
+		# A bareheaded dummy in an A-pose as a GLB (a stand-in for testing tools/rig/autorig.py).
+		var r := DummyRig.new()
+		add_child(r)
+		r.build(Color.RED, false, {"hat": "none", "outfit": "vest", "facial": "none"})
+		for i in 3:
+			await get_tree().process_frame
+		r.set_process(false)
+		r._shoulders[0].rotation = Vector3(0, 0, -0.8)
+		r._shoulders[1].rotation = Vector3(0, 0, 0.8)
+		r._elbows[0].rotation = Vector3.ZERO
+		r._elbows[1].rotation = Vector3.ZERO
+		r._gun_mi.get_parent().remove_child(r._gun_mi)
+		var doc := GLTFDocument.new()
+		var st := GLTFState.new()
+		doc.append_from_scene(r, st)
+		print("[export] ", doc.write_to_filesystem(st, GameState.flag_value("--exportdummy")))
+		get_tree().quit()
 	elif GameState.has_flag("--steptest"):
 		for i in 20:
 			await get_tree().process_frame
