@@ -158,7 +158,10 @@ func _wear_model(outfit: StringName) -> void:
 	_model.name = "Model"
 	add_child(_model)
 	_model.setup(self, outfit, first_person)
-	if str(look.get("hat")) != "none":
+	var meshy_hat := ModelBody.hat(StringName(str(look.get("hat"))), first_person)
+	if meshy_hat != null:
+		_head.add_child(meshy_hat)
+	elif str(look.get("hat")) != "none":
 		var hat := MeshInstance3D.new()
 		hat.mesh = DummyBuilder.hat_mesh(_team, look)
 		hat.material_override = _mat

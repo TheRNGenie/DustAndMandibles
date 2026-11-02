@@ -11,6 +11,13 @@ const MODELS := {
 	&"vest": "res://assets/rigged/dummy_vest.glb",
 	&"duster": "res://assets/rigged/dummy_duster.glb",
 	&"poncho": "res://assets/rigged/dummy_poncho.glb",
+	&"lawman": "res://assets/rigged/dummy_lawman.glb",
+}
+## Meshy hats (tools/rig/prep_prop.py: centred, lowest point at 0): [file, height on the head pivot].
+const HATS := {
+	&"cattleman": ["res://assets/rigged/hat_cattleman.glb", 0.15],
+	&"ten_gallon": ["res://assets/rigged/hat_ten_gallon.glb", 0.15],
+	&"gambler": ["res://assets/rigged/hat_gambler.glb", 0.16],
 }
 const TOON_TEX := preload("res://shaders/toon_tex.gdshader")
 ## The procedural rig's hip height at rest; the model's hips follow changes to it.
@@ -107,6 +114,29 @@ func apply() -> void:
 			var off := _rig._hips.position - Vector3(0, RIG_HIP_Y, 0)
 			origin = _hips_rest + sk_from_rig * off
 		skel.set_bone_global_pose(b, Transform3D(target.orthonormalized(), origin))
+
+
+## A Meshy hat as a node with the toon look, or null when there's no model for it.
+static func hat(id: StringName, first_person: bool) -> Node3D:
+	if not HATS.has(id) or not ResourceLoader.exists(HATS[id][0]):
+		return null
+	var packed: PackedScene = _cache.get("hat_" + String(id))
+	if packed == null:
+		packed = load(HATS[id][0])
+		_cache["hat_" + String(id)] = packed
+	var n := packed.instantiate() as Node3D
+	n.position.y = float(HATS[id][1])
+	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+		var src := mi.get_active_material(0) as BaseMaterial3D
+		var m := ShaderMaterial.new()
+		m.shader = TOON_TEX
+		if src != null and src.albedo_texture != null:
+			m.set_shader_parameter("albedo_tex", src.albedo_texture)
+		m.next_pass = Materials.outline(0.01)
+		mi.material_override = m
+		if first_person:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	return n
 
 
 func set_flash(color: Color, amount: float) -> void:
