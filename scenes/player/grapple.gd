@@ -4,7 +4,8 @@ extends Node3D
 ##   Hold left:   fire the hook at what you're aiming at and get reeled in fast;
 ##                let go of the button and the rope lets go at once.
 ##   Hold right:  hook on and swing from that point on a fixed-length rope;
-##                let go of the button to drop off with your momentum.
+##                let go of the button to drop off with your momentum. Hold
+##                left as well to reel in: the rope shortens and pulls you up it.
 ## Jump also lets go. Runs on the owning peer; other peers see the rope through
 ## a small RPC. Doesn't work while you're already plummeting into the canyon.
 
@@ -17,6 +18,10 @@ const ARRIVE_DIST := 2.2
 const MIN_ROPE := 2.0
 const COOLDOWN := 0.35
 const SWING_EXTRA_GRAVITY := 1.2
+## Reeling in while swinging (hold left click): metres of rope per second, and
+## the extra pull toward the hook.
+const REEL_SPEED := 9.0
+const REEL_PULL := 22.0
 const MASK := WorldLayout.LAYER_WORLD | WorldLayout.LAYER_STRUCTURE
 
 enum Mode { NONE, PULL, SWING }
@@ -24,6 +29,8 @@ enum Mode { NONE, PULL, SWING }
 var player: Player
 ## Automated tests drive the grapple without a captured mouse.
 var test_mode := false
+## Tests: reel in as if left click were held.
+var reel_test := false
 var mode: Mode = Mode.NONE
 var anchor := Vector3.ZERO
 var _rope_len := 0.0
@@ -155,9 +162,16 @@ func _swing(delta: float) -> bool:
 			player.velocity.y += 3.0
 		_release()
 		return false
-	# Snappier, game-feel swings: extra pull downward while on the rope, so long
-	# ropes don't swing in slow motion.
-	player.velocity.y -= 9.8 * SWING_EXTRA_GRAVITY * delta
+	# Holding left click as well reels you in: a shorter rope and a tug up it.
+	var reeling := Input.is_action_pressed("fire") or reel_test
+	if reeling:
+		_rope_len = maxf(_rope_len - REEL_SPEED * delta, MIN_ROPE)
+		var up_rope := (anchor - (player.global_position + Vector3.UP * 0.9)).normalized()
+		player.velocity += up_rope * REEL_PULL * delta
+	else:
+		# Snappier, game-feel swings: extra pull downward while on the rope, so
+		# long ropes don't swing in slow motion.
+		player.velocity.y -= 9.8 * SWING_EXTRA_GRAVITY * delta
 	# Gravity and air control already ran; now keep the rope taut.
 	var pos := player.global_position + Vector3.UP * 0.9
 	var off := pos - anchor

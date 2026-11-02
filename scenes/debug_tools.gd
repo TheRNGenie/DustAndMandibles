@@ -932,6 +932,19 @@ func _grapple_test() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	print("[grapple] swing: rope %.1f m, worst stretch %.2f m, lowest point %.1f m below the anchor, released: %s" % [rope, max_err, anchor.y - lowest, not g.is_active()])
+	# Reel in: swing and hold left click too.
+	await get_tree().create_timer(1.0).timeout
+	var anchor2 := player.global_position + Vector3.UP * 16.0 + fwd * 3.0
+	Input.action_press("alt_fire")
+	g.attach(Grapple.Mode.SWING, anchor2)
+	var d0 := (player.global_position + Vector3.UP * 0.9).distance_to(anchor2)
+	g.reel_test = true
+	for i in 90:
+		await get_tree().physics_frame
+	var d1 := (player.global_position + Vector3.UP * 0.9).distance_to(anchor2)
+	g.reel_test = false
+	Input.action_release("alt_fire")
+	print("[grapple] reel in: %.1f m from the hook -> %.1f m after 1.5 s holding left click" % [d0, d1])
 	get_tree().quit()
 
 
