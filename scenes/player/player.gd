@@ -14,6 +14,12 @@ const ACCEL_AIR := 14.0
 const SLIDE_BOOST := 4.5
 const SLIDE_TIME := 0.75
 const SLIDE_FRICTION := 7.0
+## Slide-hop: jumping out of a slide kicks you forward and raises your top
+## speed for a few seconds. Chain slide-jumps to stack it (up to SLIDE_HOP_MAX).
+const SLIDE_HOP_KICK := 2.2
+const SLIDE_HOP_SPEED := 1.3
+const SLIDE_HOP_TIME := 3.0
+const SLIDE_HOP_MAX := 3
 const MANTLE_REACH := 0.9
 const MANTLE_MAX_HEIGHT := 1.9
 const STAND_HEIGHT := 1.8
@@ -204,9 +210,14 @@ func _physics_process(delta: float) -> void:
 	if _fall_left >= 0.0:
 		input_dir = Vector2.ZERO # flat on the canyon floor
 
+	_hop_left = maxf(_hop_left - delta, 0.0)
+	if _hop_left <= 0.0:
+		hop_stacks = 0
 	if not blocked and Input.is_action_just_pressed("jump"):
 		if on_floor:
 			velocity.y = JUMP_VELOCITY
+			if _sliding:
+				_slide_hop()
 			_end_slide()
 		elif _try_mantle():
 			return
@@ -228,6 +239,7 @@ func _physics_process(delta: float) -> void:
 		_process_slide(delta)
 	else:
 		var target_speed := SPRINT_SPEED if sprinting else WALK_SPEED
+		target_speed += SLIDE_HOP_SPEED * hop_stacks
 		if cigarette != null:
 			target_speed *= cigarette.speed_multiplier()
 		if gun.aiming:
@@ -296,6 +308,20 @@ func _step_up(delta: float) -> void:
 
 
 # ------------------------------------------------------------------ slide
+
+## Slide-hop chain: how many stacks of bonus speed are active, and for how long.
+var hop_stacks := 0
+var _hop_left := 0.0
+
+
+func _slide_hop() -> void:
+	hop_stacks = mini(hop_stacks + 1, SLIDE_HOP_MAX)
+	_hop_left = SLIDE_HOP_TIME
+	var horiz := Vector3(velocity.x, 0.0, velocity.z)
+	var dir := horiz.normalized() if horiz.length() > 0.1 else -transform.basis.z
+	velocity += dir * SLIDE_HOP_KICK
+	add_shake(0.08 * hop_stacks)
+
 
 func _start_slide() -> void:
 	_sliding = true
@@ -508,6 +534,7 @@ func _update_camera(delta: float, sprinting: bool) -> void:
 		target_fov += 12.0
 	elif sprinting:
 		target_fov += 7.0
+	target_fov += 2.5 * hop_stacks # slide-hop momentum widens the view a touch
 	target_fov /= gun.zoom_factor()
 	target_fov += fall_intensity * 28.0
 	camera.fov = lerpf(camera.fov, target_fov, clampf(delta * 8.0, 0.0, 1.0))

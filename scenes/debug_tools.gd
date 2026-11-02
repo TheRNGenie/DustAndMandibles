@@ -26,6 +26,8 @@ func _ready() -> void:
 		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
+	elif GameState.has_flag("--slidetest"):
+		_slide_test()
 	elif GameState.has_flag("--guntest"):
 		_gun_test()
 	elif GameState.has_flag("--chesttest"):
@@ -892,4 +894,50 @@ func _gun_test() -> void:
 	await get_tree().physics_frame
 	print("[guns] revolver mods: code %d, level %d, hair trigger %s, interval %.3f -> %.3f, shop found %s" % [gun.code_of(&"revolver"),
 			gun.level_of(&"revolver"), WeaponMods.has_mod(gun.code_of(&"revolver"), 0), before, gun.fire_interval(), shop != null])
+	get_tree().quit()
+
+
+## --slidetest: sprints along the plateau, then does three slide-jumps in a row,
+## logging horizontal speed and hop stacks; then waits for the boost to fade.
+func _slide_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	player.global_position = Bug.cliffs.plateau_point(player.cliff_id, 8.0, -19.0) + Vector3.UP * 0.5
+	player.look_at(Bug.cliffs.plateau_point(player.cliff_id, 8.0, 30.0) + Vector3.UP * 0.5, Vector3.UP)
+	player.rotation.x = 0.0
+	player.rotation.z = 0.0
+	Input.action_press("move_forward")
+	Input.action_press("sprint")
+	var speed := func() -> float: return Vector2(player.velocity.x, player.velocity.z).length()
+	for i in 25:
+		await get_tree().physics_frame
+	print("[slide] sprinting: %.1f m/s" % speed.call())
+	for hop in 3:
+		while not player.is_on_floor():
+			await get_tree().physics_frame
+		await get_tree().physics_frame
+		Input.action_press("slide")
+		await get_tree().physics_frame
+		Input.action_release("slide")
+		for i in 5:
+			await get_tree().physics_frame
+		var sliding: bool = player.get("_sliding")
+		Input.action_press("jump")
+		await get_tree().physics_frame
+		Input.action_release("jump")
+		var top := 0.0
+		for i in 6:
+			await get_tree().physics_frame
+			top = maxf(top, speed.call())
+		while not player.is_on_floor():
+			await get_tree().physics_frame
+			top = maxf(top, speed.call())
+		print("[slide] hop %d: was sliding %s, stacks %d, top speed %.1f m/s" % [hop + 1, sliding, player.hop_stacks, top])
+	Input.action_release("move_forward")
+	Input.action_release("sprint")
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 3500:
+		await get_tree().physics_frame
+	print("[slide] after 3.5 s: stacks %d" % player.hop_stacks)
 	get_tree().quit()
