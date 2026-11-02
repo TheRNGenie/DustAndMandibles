@@ -25,6 +25,7 @@ var _cell := Vector2i(-1, -1)
 var _cliff := -1
 var _ok := false
 var _grid: MultiMeshInstance3D
+var _coverage: CoveragePreview
 var _grid_t := 0.0
 
 
@@ -37,6 +38,10 @@ func _ready() -> void:
 	_ghost.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ghost.visible = false
 	add_child(_ghost)
+	_coverage = CoveragePreview.new()
+	_coverage.cliffs = cliffs
+	# Lives in the world, not under the player (it spans the whole canyon).
+	get_tree().current_scene.add_child.call_deferred(_coverage)
 	_refresh_ghost_mesh()
 	# Build-spot overlay: a tile on every cell you can use for the selected item.
 	_grid = MultiMeshInstance3D.new()
@@ -155,6 +160,8 @@ func toggle() -> void:
 
 
 func _set_active(on: bool) -> void:
+	if not on and _coverage != null:
+		_coverage.hide_preview()
 	active = on
 	if not on and menu_open:
 		close_menu()
@@ -171,6 +178,7 @@ func _process(delta: float) -> void:
 	if _grid_t <= 0.0:
 		_grid_t = 0.1
 		_rebuild_grid()
+	_update_coverage.call_deferred()
 	var hit := _aim_hit()
 	_cell = Vector2i(-1, -1)
 	_ok = false
@@ -212,6 +220,22 @@ func _process(delta: float) -> void:
 	var affordable := Economy.can_afford(payer, {&"scrap": Defs.cost_of(selected_id())})
 	_ok = mine and bm.is_free_for(selected_id(), _cliff, _cell) and affordable
 	_ghost_mat.albedo_color = Color(0.4, 1.0, 0.4, 0.45) if _ok else Color(1.0, 0.3, 0.25, 0.45)
+
+
+## The coverage cone for the turret under the ghost (after the ghost is placed).
+func _update_coverage() -> void:
+	if not _coverage.is_inside_tree():
+		return
+	if _coverage.cliffs == null:
+		_coverage.cliffs = cliffs
+	var id := selected_id()
+	if not active or not _ghost.visible or not Defs.is_turret(id):
+		_coverage.hide_preview()
+		return
+	var level := 0
+	if Buildable.is_turret_cell(_cell) and _cell.x >= 0:
+		level = maxi(BuildManager.instance.free_turret_level(_cliff, _cell), 0)
+	_coverage.show_for(id, _cliff, _ghost.global_position, level, _ok)
 
 
 ## House turrets: snap to the nearest mount on the house you're aiming at.

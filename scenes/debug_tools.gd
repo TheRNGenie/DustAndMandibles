@@ -26,6 +26,24 @@ func _ready() -> void:
 		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
+	elif GameState.has_flag("--covertest"):
+		var cp := CoveragePreview.new()
+		cp.cliffs = Bug.cliffs
+		add_child(cp)
+		var base := Buildable.cell_center(Bug.cliffs, 0, Vector2i(0, 12))
+		cp.show_for(&"gatling_post", 0, base, 0, true)
+		var pm: Mesh = cp.get_child(0).mesh
+		var cm: Mesh = cp.get_child(1).mesh
+		print("[cover] base %s, patch aabb %s, cone aabb %s" % [str(base.snapped(Vector3.ONE * 0.1)), str(pm.get_aabb() if pm else null), str(cm.get_aabb() if cm else null)])
+		print("[cover] preview global %s, top_level %s" % [str(cp.global_position), cp.top_level])
+		var pl := world.call("local_player") as Player
+		await get_tree().create_timer(0.5).timeout
+		pl.build_mode.toggle()
+		pl.build_mode._select(0)
+		await get_tree().create_timer(0.5).timeout
+		var bcp: CoveragePreview = pl.build_mode.get("_coverage")
+		print("[cover] build mode preview visible %s in tree %s, ghost visible %s, cell %s" % [bcp.visible, bcp.is_visible_in_tree(), pl.build_mode.get("_ghost").visible, str(pl.build_mode.get("_cell"))])
+		get_tree().quit()
 	elif GameState.has_flag("--whiptest"):
 		_whip_test()
 	elif GameState.has_flag("--loottest"):
@@ -407,6 +425,11 @@ func _take_screenshot(path: String) -> void:
 		player.rotation.x = 0.0
 		player.head.rotation.x = -0.45
 		(home.get_node("Chest") as StorageChest).set("_peek", 30.0)
+	if GameState.has_flag("--cover") and player != null:
+		var cp := CoveragePreview.new()
+		cp.cliffs = Bug.cliffs
+		world.add_child(cp)
+		cp.show_for(&"gatling_post", 0, Buildable.cell_center(Bug.cliffs, 0, Vector2i(0, 12)), 0, true)
 	if GameState.has_flag("--goldwhip") and player != null:
 		player.whip.code = 2 | 4 | 8 | 16 | WeaponMods.GOLDEN_BIT
 	if GameState.has_flag("--lashing") and player != null:
