@@ -16,6 +16,11 @@ const BUGS: Dictionary = {
 }
 
 const TURRETS: Dictionary = {
+	&"duck_gun": preload("res://data/turrets/duck_gun.tres"),
+	&"sky_sweeper": preload("res://data/turrets/sky_sweeper.tres"),
+	&"powder_flak": preload("res://data/turrets/powder_flak.tres"),
+	&"net_thrower": preload("res://data/turrets/net_thrower.tres"),
+	&"firework_battery": preload("res://data/turrets/firework_battery.tres"),
 	&"gatling_post": preload("res://data/turrets/gatling_post.tres"),
 	&"buffalo_rifle": preload("res://data/turrets/buffalo_rifle.tres"),
 	&"water_cannon": preload("res://data/turrets/water_cannon.tres"),
@@ -49,7 +54,8 @@ const CROPS: Dictionary = {
 ## Build menu order: number keys 1-9 and 0, mouse wheel cycles through all.
 const BUILD_ORDER: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"water_cannon",
 	&"chili_mortar", &"dynamite_lobber", &"lasso_harpoon", &"scaffold", &"scattergun_post", &"sharpshooter_tower", &"barbed_wire", &"bear_trap",
-	&"dynamite_crate", &"palisade", &"lantern_post", &"rain_catcher", &"farm_plot", &"porch_repeater", &"rooftop_cannon"]
+	&"dynamite_crate", &"palisade", &"lantern_post", &"rain_catcher", &"farm_plot", &"porch_repeater", &"rooftop_cannon",
+	&"duck_gun", &"sky_sweeper", &"net_thrower", &"powder_flak", &"firework_battery"]
 
 ## Build menu (B) categories, in tab order.
 const BUILD_CATEGORIES: Array[Dictionary] = [
@@ -57,6 +63,7 @@ const BUILD_CATEGORIES: Array[Dictionary] = [
 	{"name": "Cliff Turrets", "items": [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar",
 		&"dynamite_lobber", &"lasso_harpoon", &"scaffold"]},
 	{"name": "Tactical", "items": [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post"]},
+	{"name": "Air Defense", "items": [&"duck_gun", &"sky_sweeper", &"net_thrower", &"powder_flak", &"firework_battery"]},
 	{"name": "Last Resorts", "items": [&"scattergun_post", &"sharpshooter_tower", &"porch_repeater", &"rooftop_cannon"]},
 ]
 

@@ -26,6 +26,8 @@ func _ready() -> void:
 		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
+	elif GameState.has_flag("--aatest"):
+		_aa_test()
 	elif GameState.has_flag("--ziptest"):
 		_zip_test()
 	elif GameState.has_flag("--grappletest"):
@@ -724,4 +726,33 @@ func _zip_test() -> void:
 		t += get_physics_process_delta_time()
 		lowest = minf(lowest, player.global_position.y)
 	print("[zip] ride took %.1f s, lowest %.1f m, landed %.1f m from the far platform" % [t, lowest, player.global_position.distance_to(other.zip_arrival_global())])
+	get_tree().quit()
+
+
+## --aatest: one of each air-defence turret on the west cliff's second row, six
+## dragonfly bandits flying over the west plateau; logs what's left after 20 s.
+func _aa_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	Economy.earn(0, {&"scrap": 2000})
+	var ids := [&"duck_gun", &"sky_sweeper", &"powder_flak", &"net_thrower", &"firework_battery"]
+	for i in ids.size():
+		BuildManager.instance._do_build(1, ids[i], 0, Vector2i(1, 4 + i * 3))
+	await get_tree().physics_frame
+	var built := 0
+	for t: Node in get_tree().get_nodes_in_group("turrets"):
+		if (t as Turret).def.anti_air:
+			built += 1
+	var bm := world.get("bugs") as BugManager
+	for i in 6:
+		var pos := Bug.cliffs.plateau_point(WorldLayout.WEST, 14.0 + i * 2.0, -12.0 + i * 4.0) + Vector3.UP * 7.0
+		bm.spawn_at(&"dragonfly_bandit", WorldLayout.WEST, i % 5, pos.z, 0.0, Bug.State.FLYING, pos)
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 20000:
+		await get_tree().physics_frame
+	var left := 0
+	for n: Node in get_tree().get_nodes_in_group("bugs"):
+		if (n as Bug).is_alive():
+			left += 1
+	print("[aa] built %d air-defence turrets; dragonflies left after 20 s: %d of 6" % [built, left])
 	get_tree().quit()

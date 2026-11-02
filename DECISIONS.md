@@ -124,3 +124,10 @@ Assumptions and changes from the design doc, newest last.
    - **Upgrades fixed:** buying an upgrade changed the host's state before the rebuild message, so the host never redrew the house. The new state is now worked out first and applied everywhere.
    - **Two house styles:** West is the log cabin (shingles, stone chimney, shutters and flower boxes; upgrades are timber planks, iron bands and a stone skirt). East is a painted clapboard shack with white corner boards, a false front with a sign, a corrugated tin roof and porch roof, a stovepipe, striped awnings and tin-can cacti. Its upgrades are riveted tin sheets over the windows, steel corner plates and sandbags.
    - **Zip-line tower (new top upgrade, 220 scrap + 40 chitin, needs the lookout floor):** a lookout tower on the roof deck with a ladder up the front, a railed platform and a peaked roof (timber West, steel East). When both houses have one, a sagging cable joins them (scenes/structures/zip_line.gd). E on the trolley handle slides you across about 91 m in under 5 s, and jump lets go mid-way. `--ziptest` climbs the ladder and rides it. `--trailer=houses --side=0|1 [--plain=1]` frames the houses.
+111. **Air defence (Logan's request):** five turrets that only shoot flying bugs (dragonfly bandits), over either plateau or the canyon. They go in the second row from the lip (`TurretDef.anti_air`, `Buildable.zone_ok`) and have their own "Air Defense" build tab and Field Guide entries. They aim up to 80 degrees and point skyward when idle.
+   - **Duck Gun** (45 scrap): a punt gun, one slow 30-damage blast.
+   - **Sky Sweeper** (70): twin spinning gatlings, a fast stream of 4-damage rounds.
+   - **Net Thrower** (55): nets pin a flier in the air for 3.5 s, with a visible net.
+   - **Powder Flak** (90): air-burst shells that hit every flier within 4.5 m of a led aim point.
+   - **Firework Battery** (120): long-range armour-piercing skyrockets with 3.2 m bursts.
+   `--aatest` places all five and spawns six bandits overhead; all six were downed within 20 s.

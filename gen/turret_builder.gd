@@ -28,6 +28,16 @@ static func build(id: StringName, team: Color) -> Dictionary:
 			return _porch_repeater(team)
 		&"rooftop_cannon":
 			return _rooftop_cannon(team)
+		&"duck_gun":
+			return _duck_gun(team)
+		&"sky_sweeper":
+			return _sky_sweeper(team)
+		&"powder_flak":
+			return _powder_flak(team)
+		&"net_thrower":
+			return _net_thrower(team)
+		&"firework_battery":
+			return _firework_battery(team)
 		_:
 			return _gatling(team)
 
@@ -374,3 +384,142 @@ static func _rooftop_cannon(team: Color) -> Dictionary:
 	MeshKit.add_ellipsoid(gun, Transform3D(Basis(), Vector3(0, 0, 0.44)), Vector3.ONE * 0.05, 3, 8, IRON)
 	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun),
 			"recoil": 0.14, "head_y": 0.4, "gun_y": 0.35, "muzzle": Vector3(0, 0, -0.8)}
+
+
+# ------------------------------------------------------------------ air defence
+
+## A low swivel post on a round plank deck, shared by the air-defence guns.
+static func _aa_base(st: SurfaceTool, rng: RandomNumberGenerator, team: Color, post_h: float) -> void:
+	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.08, 0)), 0.78, 0.82, 0.16, 14, Palette.WOOD_DARK)
+	for i in 7:
+		var a := TAU * float(i) / 7.0
+		MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, -a), Vector3(cos(a), 0.17, sin(a)) * 0.45 + Vector3(0, 0.17, 0) * 0.0 + Vector3(0, 0.17, 0)),
+				Vector3(0.7, 0.03, 0.14), Palette.WOOD.darkened(rng.randf() * 0.12))
+	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.17 + post_h * 0.5, 0)), 0.14, 0.18, post_h, 10, IRON)
+	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.2 + post_h, 0)), 0.22, 0.22, 0.06, 12, BRASS)
+	_pennant(st, Vector3(-0.62, 0.16, 0.5), 1.5, team)
+
+
+## Duck Gun: a punt gun nearly three metres long, flared muzzle, on a swivel yoke.
+static func _duck_gun(team: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 501
+	var base := MeshKit.begin()
+	_aa_base(base, rng, team, 0.75)
+	_crate(base, rng, Vector3(0.5, 0.17, -0.45), Vector3(0.35, 0.24, 0.26), 0.3, Color("#B8352A"))
+	var head := MeshKit.begin()
+	for s: float in [-1.0, 1.0]:
+		MeshKit.add_box(head, Transform3D(Basis(), Vector3(s * 0.16, 0.16, 0)), Vector3(0.05, 0.32, 0.12), IRON)
+	var gun := MeshKit.begin()
+	MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(0, 0, -0.55)), 0.07, 0.08, 2.2, 12, Palette.METAL.darkened(0.2))
+	MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(0, 0, -1.7)), 0.13, 0.08, 0.14, 12, Palette.METAL.darkened(0.1))
+	for z: float in [-0.2, -0.8, -1.4]:
+		MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(0, 0, z)), 0.095, 0.095, 0.05, 12, BRASS)
+	MeshKit.add_box(gun, Transform3D(Basis(), Vector3(0, -0.04, 0.75)), Vector3(0.16, 0.18, 0.6), Palette.WOOD, 0.02, rng)
+	MeshKit.add_cylinder(gun, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0, 0, 0)), 0.04, 0.04, 0.36, 8, IRON)
+	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun), "recoil": 0.12,
+			"head_y": 0.95, "gun_y": 0.2, "muzzle": Vector3(0, 0, -1.8)}
+
+
+## Sky Sweeper: two crank gatlings side by side on a tall swivel, ammo belts hanging.
+static func _sky_sweeper(team: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 502
+	var base := MeshKit.begin()
+	_aa_base(base, rng, team, 1.0)
+	for i in 2:
+		_crate(base, rng, Vector3(0.45 - i * 0.9, 0.17, 0.5), Vector3(0.32, 0.24, 0.24), 0.2 * i, BRASS)
+	var head := MeshKit.begin()
+	MeshKit.add_box(head, Transform3D(Basis(), Vector3(0, 0.1, 0)), Vector3(0.75, 0.12, 0.3), IRON)
+	MeshKit.add_box(head, Transform3D(Basis(), Vector3(0, 0.2, 0.25)), Vector3(0.55, 0.06, 0.25), Palette.WOOD)
+	var gun := MeshKit.begin()
+	for s: float in [-1.0, 1.0]:
+		MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(s * 0.24, 0, 0.1)), 0.11, 0.11, 0.32, 10, Palette.METAL.darkened(0.1))
+		MeshKit.add_cylinder(gun, Transform3D(Basis(), Vector3(s * 0.24, 0.16, 0.08)), 0.1, 0.1, 0.08, 12, BRASS.darkened(0.1))
+		for k in 5:
+			MeshKit.add_box(gun, Transform3D(Basis(), Vector3(s * 0.36, -0.08 - k * 0.07, 0.1)), Vector3(0.05, 0.05, 0.08), BRASS)
+	var spin := MeshKit.begin()
+	for s: float in [-1.0, 1.0]:
+		for i in 5:
+			var a := TAU * float(i) / 5.0
+			MeshKit.add_cylinder(spin, Transform3D(ALONG, Vector3(s * 0.24 + cos(a) * 0.06, sin(a) * 0.06, -0.3)), 0.02, 0.02, 0.7, 6, Palette.METAL.lightened(0.1))
+		MeshKit.add_cylinder(spin, Transform3D(ALONG, Vector3(s * 0.24, 0, -0.55)), 0.09, 0.09, 0.03, 10, BRASS)
+	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun),
+			"spin": MeshKit.finish(spin), "spin_at": Vector3(0, 0, -0.05), "recoil": 0.02,
+			"head_y": 1.25, "gun_y": 0.25, "muzzle": Vector3(0, 0, -0.75)}
+
+
+## Powder Flak: a stubby wide-mouthed cannon on a ring mount, shells stacked in a rack.
+static func _powder_flak(team: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 503
+	var base := MeshKit.begin()
+	_aa_base(base, rng, team, 0.6)
+	for i in 6:
+		var p := Vector3(0.55, 0.3 + (i / 3) * 0.16, -0.35 + (i % 3) * 0.16)
+		MeshKit.add_cylinder(base, Transform3D(Basis(Vector3.BACK, PI * 0.5), p), 0.07, 0.07, 0.3, 8, BRASS.darkened(0.1))
+	MeshKit.add_box(base, Transform3D(Basis(), Vector3(0.55, 0.22, -0.19)), Vector3(0.36, 0.06, 0.5), Palette.WOOD_DARK)
+	var head := MeshKit.begin()
+	MeshKit.add_cylinder(head, Transform3D(), 0.42, 0.42, 0.1, 16, IRON)
+	for s: float in [-1.0, 1.0]:
+		MeshKit.add_box(head, Transform3D(Basis(), Vector3(s * 0.3, 0.22, 0)), Vector3(0.08, 0.4, 0.3), Palette.METAL.darkened(0.2))
+	_rivets(head, Vector3(0, 0.06, -0.4), Vector3.RIGHT, 5, 0.15)
+	var gun := MeshKit.begin()
+	MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(0, 0, -0.35)), 0.2, 0.16, 1.0, 14, Palette.METAL.darkened(0.3))
+	MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(0, 0, -0.88)), 0.24, 0.24, 0.1, 14, BRASS)
+	MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(0, 0, 0.2)), 0.19, 0.19, 0.2, 14, IRON)
+	MeshKit.add_cylinder(gun, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0, 0, 0)), 0.06, 0.06, 0.66, 8, IRON)
+	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun), "recoil": 0.15,
+			"head_y": 0.8, "gun_y": 0.25, "muzzle": Vector3(0, 0, -0.95)}
+
+
+## Net Thrower: a spring-arm catapult with a folded net in its cup.
+static func _net_thrower(team: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 504
+	var base := MeshKit.begin()
+	_aa_base(base, rng, team, 0.55)
+	# A coil of spare net and rope beside it.
+	for k in 4:
+		MeshKit.add_cylinder(base, Transform3D(Basis(), Vector3(-0.45, 0.2 + k * 0.05, -0.4)), 0.24 - k * 0.02, 0.24 - k * 0.02, 0.04, 12, Color("#B8955A"))
+	var head := MeshKit.begin()
+	MeshKit.add_box(head, Transform3D(Basis(), Vector3(0, 0.08, 0.05)), Vector3(0.6, 0.12, 0.7), Palette.WOOD, 0.02, rng)
+	for s: float in [-1.0, 1.0]:
+		MeshKit.add_box(head, Transform3D(Basis(), Vector3(s * 0.24, 0.3, 0.1)), Vector3(0.08, 0.4, 0.08), Palette.WOOD_DARK)
+		for k in 6:
+			MeshKit.add_cylinder(head, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(s * 0.24, 0.18 + k * 0.05, 0.2)), 0.06, 0.06, 0.04, 8, IRON)
+	var gun := MeshKit.begin()
+	MeshKit.add_box(gun, Transform3D(Basis(), Vector3(0, 0, -0.35)), Vector3(0.08, 0.08, 0.8), Palette.WOOD_DARK)
+	MeshKit.add_cylinder(gun, Transform3D(Basis(), Vector3(0, 0.04, -0.78)), 0.2, 0.14, 0.12, 12, IRON)
+	MeshKit.add_ellipsoid(gun, Transform3D(Basis(), Vector3(0, 0.12, -0.78)), Vector3(0.17, 0.08, 0.17), 4, 10, Color("#C8A878"))
+	for k in 4:
+		var a := TAU * float(k) / 4.0 + 0.4
+		MeshKit.add_ellipsoid(gun, Transform3D(Basis(), Vector3(cos(a) * 0.15, 0.1, -0.78 + sin(a) * 0.15)), Vector3.ONE * 0.04, 3, 6, IRON)
+	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun), "recoil": 0.2,
+			"head_y": 0.75, "gun_y": 0.35, "muzzle": Vector3(0, 0.1, -0.8)}
+
+
+## Firework Battery: a slanted rack of striped skyrockets with fuses, on a cart bed.
+static func _firework_battery(team: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 505
+	var base := MeshKit.begin()
+	_aa_base(base, rng, team, 0.5)
+	_crate(base, rng, Vector3(-0.45, 0.17, -0.45), Vector3(0.36, 0.26, 0.28), 0.5, Color("#E0483C"))
+	var head := MeshKit.begin()
+	MeshKit.add_box(head, Transform3D(Basis(), Vector3(0, 0.08, 0)), Vector3(0.7, 0.1, 0.5), Palette.WOOD_DARK)
+	for s: float in [-1.0, 1.0]:
+		MeshKit.add_box(head, Transform3D(Basis(), Vector3(s * 0.32, 0.25, 0)), Vector3(0.06, 0.34, 0.4), Palette.WOOD)
+	var gun := MeshKit.begin()
+	MeshKit.add_box(gun, Transform3D(Basis(), Vector3(0, 0, 0.05)), Vector3(0.6, 0.06, 0.5), Palette.WOOD, 0.02, rng)
+	var colors := [Color("#E0483C"), Color("#FFD23F"), Color("#3E8CE0"), Palette.BONE]
+	for row in 2:
+		for col in 4:
+			var p := Vector3(-0.21 + col * 0.14, 0.09 + row * 0.13, -0.15)
+			var c: Color = colors[(row * 4 + col) % 4]
+			MeshKit.add_cylinder(gun, Transform3D(ALONG, p), 0.05, 0.05, 0.55, 8, c)
+			MeshKit.add_cylinder(gun, Transform3D(ALONG, p + Vector3(0, 0, -0.33)), 0.0, 0.055, 0.12, 8, c.darkened(0.2))
+			MeshKit.add_cylinder(gun, Transform3D(ALONG, p + Vector3(0, 0, -0.1)), 0.052, 0.052, 0.04, 8, Palette.BONE if c != Palette.BONE else Color("#B8352A"))
+			MeshKit.add_limb(gun, p + Vector3(0, 0, 0.27), p + Vector3(0.02, 0.05, 0.36), 0.007, Palette.WOOD_DARK, 3)
+	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun), "recoil": 0.05,
+			"head_y": 0.7, "gun_y": 0.35, "muzzle": Vector3(0, 0.1, -0.6)}

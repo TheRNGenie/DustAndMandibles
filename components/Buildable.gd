@@ -124,6 +124,8 @@ static func footprint_center(cliffs: CliffBuilder, cliff_id: int, id: StringName
 ## Is this one cell the right kind of ground for the item?
 static func zone_ok(id: StringName, cell: Vector2i) -> bool:
 	var z := zone(cell)
+	if Defs.is_turret(id) and Defs.turret(id).anti_air:
+		return z == Zone.TACTICAL # air defence: the second row from the lip
 	if id == &"scaffold" or (Defs.is_turret(id) and not Defs.turret(id).guards_plateau):
 		return z == Zone.TURRET
 	if TACTICAL.has(id):

@@ -365,7 +365,7 @@ func _shot_turrets() -> void:
 			t.setup(Defs.turret(ids[i]), 0, Vector2i(3, 5 + i * 2), Buildable.cell_center(Bug.cliffs, 0, Vector2i(0, 5 + i * 2)), "showcase")
 			BuildManager.instance.add_child(t)
 			continue
-		var row := 0 if Buildable.zone_ok(ids[i], Vector2i(0, 5 + i * 2)) else 3
+		var row := 0 if Buildable.zone_ok(ids[i], Vector2i(0, 5 + i * 2)) else (1 if Buildable.zone_ok(ids[i], Vector2i(1, 5 + i * 2)) else 3)
 		BuildManager.instance._do_build(1, ids[i], 0, Vector2i(row, 5 + i * 2))
 	_at(-0.5, func() -> void:
 		for t: Node in get_tree().get_nodes_in_group("turrets"):

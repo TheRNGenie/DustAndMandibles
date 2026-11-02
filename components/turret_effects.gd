@@ -16,6 +16,26 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 		TurretDef.Effect.PIN:
 			target.receive_hit(damage, aim, dir, false, 1.0, source, t.cliff_id)
 			target.status.root(t.def.effect_size)
+			if t.def.anti_air:
+				target.show_net.rpc(t.def.effect_size)
+		TurretDef.Effect.SPLASH when t.def.anti_air:
+			# Air bursts: after the shell's flight, everything flying in the cloud is hit.
+			var bugs := Turret.bug_manager
+			var radius := t.def.effect_size * t.range_multiplier()
+			var owner_cliff := t.cliff_id
+			var tree := t.get_tree()
+			var lead := aim + target.velocity_hint() * t.def.flight_time
+			tree.create_timer(t.def.flight_time).timeout.connect(func() -> void:
+				if not is_instance_valid(bugs):
+					return
+				for n: Node in tree.get_nodes_in_group("bugs"):
+					var b := n as Bug
+					if b == null or not b.is_alive() or b.state != Bug.State.FLYING:
+						continue
+					var d := b.global_position.distance_to(lead)
+					if d <= radius:
+						b.receive_hit(damage * lerpf(1.0, 0.5, d / radius), lead, (b.global_position - lead).normalized(), true, 1.0, source, owner_cliff)
+				bugs._explode.rpc(lead, radius))
 		TurretDef.Effect.SPLASH when t.def.guards_plateau:
 			# Plateau / house guards: burst over the bugs on your own ground.
 			var radius := t.def.effect_size * t.range_multiplier()

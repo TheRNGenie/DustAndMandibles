@@ -335,6 +335,40 @@ func _project(point: Vector3, up: Vector3) -> Vector3:
 	return point - up * (point - base).dot(up)
 
 
+## Rough world velocity of the bug (for leading shots).
+func velocity_hint() -> Vector3:
+	return (global_position - _last_pos) * float(Engine.physics_ticks_per_second)
+
+
+## Every peer: a net wrapped round the bug for `seconds` (Net Thrower).
+@rpc("authority", "call_local", "reliable")
+func show_net(seconds: float) -> void:
+	var net := MeshInstance3D.new()
+	var st := MeshKit.begin()
+	var r := float(spec["body_radius"]) * 1.25
+	for i in 6:
+		var a := PI * float(i) / 6.0
+		var prev := Vector3(cos(a) * r, 0, sin(a) * r)
+		for k in 8:
+			var b := TAU * float(k + 1) / 8.0
+			var p := Basis(Vector3.UP, a) * Vector3(cos(b) * r, sin(b) * r, 0)
+			MeshKit.add_limb(st, Basis(Vector3.UP, a) * Vector3(cos(TAU * float(k) / 8.0) * r, sin(TAU * float(k) / 8.0) * r, 0), p, 0.02, Color("#C8A878"), 3)
+	for k in 4:
+		var y := -r + (k + 0.5) * r * 0.5
+		var rr := sqrt(maxf(r * r - y * y, 0.01))
+		var prev := Vector3(rr, y, 0)
+		for j in 10:
+			var a := TAU * float(j + 1) / 10.0
+			var p := Vector3(cos(a) * rr, y, sin(a) * rr)
+			MeshKit.add_limb(st, prev, p, 0.02, Color("#B8955A"), 3)
+			prev = p
+	net.mesh = MeshKit.finish(st)
+	net.material_override = Materials.toon(0.0)
+	net.position = Vector3(0, float(spec["clearance"]) * 0.3, 0)
+	add_child(net)
+	get_tree().create_timer(seconds).timeout.connect(net.queue_free)
+
+
 ## Host only: a hit from a player, turret or blast, via a Hitbox.
 func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, multiplier: float,
 		source: String, source_cliff: int) -> void:

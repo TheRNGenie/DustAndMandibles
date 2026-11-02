@@ -161,7 +161,7 @@ func _pick_target() -> Bug:
 		return null
 	var best: Bug = null
 	var best_score := -INF
-	if def.guards_plateau:
+	if def.guards_plateau or def.anti_air:
 		for n: Node in bug_manager.get_children():
 			var g := n as Bug
 			if g == null or not _valid(g):
@@ -185,7 +185,10 @@ func _pick_target() -> Bug:
 func _valid(b: Bug) -> bool:
 	if not b.is_alive() or b.is_hidden():
 		return false
-	if def.guards_plateau:
+	if def.anti_air:
+		if b.state != Bug.State.FLYING:
+			return false
+	elif def.guards_plateau:
 		var on_plateau := b.state == Bug.State.BREACHING or b.state == Bug.State.FLYING
 		if not Targeting.guard_allows(cliff_id, b.cliff_id, on_plateau):
 			return false
@@ -260,13 +263,13 @@ func _aim_visual(delta: float) -> void:
 	var local := to_local(aim_point) - _head.position
 	var yaw := atan2(-local.x, -local.z)
 	var horizontal := Vector2(local.x, local.z).length()
-	var pitch := clampf(atan2(local.y, horizontal), -deg_to_rad(pitch_limit()), deg_to_rad(40.0))
+	var pitch := clampf(atan2(local.y, horizontal), -deg_to_rad(pitch_limit()), deg_to_rad(80.0 if def.anti_air else 40.0))
 	var step := deg_to_rad(def.turn_speed) * delta
 	# Nothing to shoot for a while: scan the far cliff in slow sweeps.
 	_idle_t += delta
 	if _idle_t > 3.0:
 		yaw = sin((_idle_t + float(cell.y)) * 0.45) * 0.95
-		pitch = -0.08 + sin((_idle_t + float(cell.y)) * 0.3) * 0.06
+		pitch = (0.65 if def.anti_air else -0.08) + sin((_idle_t + float(cell.y)) * 0.3) * 0.06
 		step *= 0.25
 	_head.rotation.y = rotate_toward(_head.rotation.y, yaw, step)
 	_gun.rotation.x = rotate_toward(_gun.rotation.x, pitch, step)
