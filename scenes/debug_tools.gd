@@ -128,6 +128,32 @@ func _ready() -> void:
 			print("[foot] %s lowest boot point %.3f m (0 = ground); hips bone %.3f" % [outfit, low, (r.global_transform.affine_inverse() * (m.skel.global_transform * m.skel.get_bone_global_pose(m.skel.find_bone("Hips")).origin)).y])
 			r.queue_free()
 		get_tree().quit()
+	elif GameState.has_flag("--hotbartest"):
+		for i in 30:
+			await get_tree().process_frame
+		var pl := world.call("local_player") as Player
+		var hb := pl.get_node("Hotbar") as Hotbar
+		Economy.earn(pl.cliff_id, {&"corn": 3})
+		await get_tree().process_frame
+		hb.use_slot(0)
+		print("[hotbar] slot 1: holding '%s' gun %s" % [pl.gun.holding, pl.gun.def.id if pl.gun.def else "-"])
+		hb.use_slot(0)
+		print("[hotbar] slot 1 again: holding '%s' (none = empty hands)" % pl.gun.holding)
+		hb._scroll(1)
+		print("[hotbar] scroll down: slot %d holding '%s'" % [hb.selected, pl.gun.holding])
+		hb._scroll(1)
+		print("[hotbar] scroll down: slot %d holding '%s'" % [hb.selected, pl.gun.holding])
+		hb._scroll(-1)
+		print("[hotbar] scroll up: slot %d holding '%s'" % [hb.selected, pl.gun.holding])
+		var before := Economy.amount(pl.cliff_id, &"corn")
+		hb._drop()
+		await get_tree().create_timer(0.3).timeout
+		var picks := PickupManager.instance.get_children().filter(func(n: Node) -> bool: return n is WeaponPickup)
+		print("[hotbar] dropped corn: %d -> %d, pickups on the ground %d" % [before, Economy.amount(pl.cliff_id, &"corn"), picks.size()])
+		if picks.size() > 0:
+			PickupManager.instance.try_pick_up(multiplayer.get_unique_id(), picks[-1])
+			print("[hotbar] picked it up: corn %d" % Economy.amount(pl.cliff_id, &"corn"))
+		get_tree().quit()
 	elif GameState.has_flag("--steptest"):
 		for i in 20:
 			await get_tree().process_frame

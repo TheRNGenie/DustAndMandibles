@@ -26,17 +26,37 @@ func spawn_weapon(id: StringName, level: int, pos: Vector3) -> void:
 	_spawner.spawn({"id": _next_id, "weapon": id, "level": level, "pos": pos})
 
 
+## Host only: one crop, medicine or bucket of water on the ground.
+func spawn_item(item: StringName, pos: Vector3) -> void:
+	if not multiplayer.is_server():
+		return
+	_next_id += 1
+	_spawner.spawn({"id": _next_id, "item": item, "pos": pos})
+
+
 func _spawn_pickup(data: Variant) -> Node:
 	var d := data as Dictionary
 	var p := WeaponPickup.new()
 	p.name = "Pickup%d" % int(d["id"])
-	p.setup(StringName(d["weapon"]), int(d["level"]), d["pos"])
+	if d.has("item"):
+		p.setup_item(StringName(d["item"]), d["pos"])
+	else:
+		p.setup(StringName(d["weapon"]), int(d["level"]), d["pos"])
 	return p
 
 
 ## Host: someone pressed E on a pickup.
 func try_pick_up(peer_id: int, pickup: WeaponPickup) -> void:
 	if not is_instance_valid(pickup) or pickup.is_queued_for_deletion():
+		return
+	if pickup.item_id != &"":
+		# A dropped crop, medicine or water: back into the picker's stock.
+		var cliff := 0
+		for n: Node in get_tree().get_nodes_in_group("players"):
+			if n.get_multiplayer_authority() == peer_id:
+				cliff = (n as Player).cliff_id
+		Economy.earn(cliff, {pickup.item_id: 1})
+		pickup.queue_free()
 		return
 	if not GunShop.loadouts.has(peer_id):
 		GunShop.loadouts[peer_id] = {&"revolver": 0}

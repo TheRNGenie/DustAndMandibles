@@ -140,6 +140,29 @@ func drop_weapon(id: StringName) -> void:
 		_request_drop.rpc_id(1, id, level, pos)
 
 
+## Owner: drop one of the crop / medicine / water you're holding.
+func drop_item(item: StringName) -> void:
+	var pos := player.global_position + -player.global_transform.basis.z * 1.2 + Vector3.UP * 0.6
+	if multiplayer.is_server():
+		_host_drop_item(multiplayer.get_unique_id(), item, pos)
+	else:
+		_request_drop_item.rpc_id(1, item, pos)
+
+
+@rpc("any_peer", "reliable")
+func _request_drop_item(item: StringName, pos: Vector3) -> void:
+	if multiplayer.is_server() and multiplayer.get_remote_sender_id() == player.get_multiplayer_authority():
+		_host_drop_item(multiplayer.get_remote_sender_id(), item, pos)
+
+
+func _host_drop_item(peer_id: int, item: StringName, pos: Vector3) -> void:
+	if not Hotbar.NAMES.has(item) or item == &"grapple" or item == &"lighter":
+		return
+	if not Economy.spend(Economy.payer_cliff(peer_id, player.cliff_id), {item: 1}):
+		return
+	PickupManager.instance.spawn_item(item, pos)
+
+
 @rpc("any_peer", "reliable")
 func _request_drop(id: StringName, level: int, pos: Vector3) -> void:
 	if multiplayer.is_server() and multiplayer.get_remote_sender_id() == player.get_multiplayer_authority():

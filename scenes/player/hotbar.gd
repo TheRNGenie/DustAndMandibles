@@ -7,7 +7,11 @@ extends Node
 ##   8    water bucket
 ##   9    grappling hook launcher (always carried)
 ##   0    Zippo lighter (always carried)
-## Q drops the weapon in your hand (it lands at your feet for anyone to pick up).
+## Mouse wheel steps through the slots that hold something (left click with the
+## medicine out takes a dose). Pressing the number
+## of what you're already holding puts it away (empty hands).
+## Q drops what's in your hand: a weapon, or one of the crop, medicine or water
+## you're holding (it lands at your feet for anyone to pick up).
 ## While the build tool (B) is open, number keys pick what to build instead.
 
 signal changed
@@ -35,6 +39,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if player.build_mode.active:
 		return
+	if event.is_action_pressed("fire") and player.gun.holding == &"herbs":
+		player.vitals.use_medicine()
+	if event.is_action_pressed("next_item") or event.is_action_pressed("prev_item"):
+		_scroll(1 if event.is_action_pressed("next_item") else -1)
+		get_viewport().set_input_as_handled()
+		return
 	for i in SLOTS:
 		if event.is_action_pressed("select_%d" % (i + 1)):
 			use_slot(i)
@@ -59,14 +69,31 @@ func slot_item(i: int) -> StringName:
 	return &"herbs" if i == 6 else &"water"
 
 
-func use_slot(i: int) -> void:
+## The next slot (either way) that holds something, wrapping round.
+func _scroll(step: int) -> void:
+	var start := selected if selected >= 0 else (0 if step > 0 else SLOTS - 1)
+	for k in range(1, SLOTS + 1):
+		var i := posmod(start + step * k, SLOTS)
+		if slot_item(i) != &"":
+			use_slot(i, false)
+			return
+
+
+func use_slot(i: int, toggle: bool = true) -> void:
 	var id := slot_item(i)
 	if id == &"":
+		return
+	# Pressing the slot you're already holding puts it away.
+	if toggle and bool(slot_info(i)["selected"]):
+		player.gun.hold_item(&"none")
+		selected = -1
+		changed.emit()
 		return
 	if i < 3:
 		player.gun.equip(id)
 	else:
-		if id == &"herbs":
+		# Pressing 7 takes a dose; scrolling past the medicine doesn't.
+		if id == &"herbs" and toggle:
 			player.vitals.use_medicine()
 		player.gun.hold_item(id)
 	selected = i
@@ -75,10 +102,17 @@ func use_slot(i: int) -> void:
 
 func _drop() -> void:
 	var gun := player.gun
-	if gun.holding != &"" or gun.def == null:
-		Economy.notice.emit("Only weapons can be dropped. Switch to one first.")
+	var held := gun.holding
+	if held == &"none" or (held == &"" and gun.def == null):
+		Economy.notice.emit("Your hands are empty.")
 		return
-	player.net.drop_weapon(gun.def.id)
+	if held == &"grapple" or held == &"lighter":
+		Economy.notice.emit("You always keep the %s." % NAMES[held].to_lower())
+		return
+	if held == &"":
+		player.net.drop_weapon(gun.def.id)
+	else:
+		player.net.drop_item(held)
 	changed.emit()
 
 
