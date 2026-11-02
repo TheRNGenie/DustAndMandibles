@@ -243,7 +243,7 @@ func turn_crank(amount: float, delta: float) -> void:
 func _load_point(round_index: int) -> Vector3:
 	if id == &"coach_shotgun" and barrels != null:
 		var side := 1.0 if round_index % 2 == 0 else -1.0
-		var chamber := barrels.transform * (Vector3(side * 0.0172, 0.022, -0.059) - WeaponBuilder.HINGE)
+		var chamber := barrels.transform * (Vector3(side * 0.017, 0.012, -0.092) - barrels.position)
 		return transform * chamber
 	return transform * (WeaponBuilder.LOAD_POINT[id] as Vector3)
 

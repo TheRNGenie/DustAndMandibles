@@ -201,17 +201,22 @@ const LEVER_PIVOT := Vector3(0, -0.02, -0.03)
 ## Where the shotgun's barrels hinge when it breaks open (gun space).
 const HINGE := Vector3(0, -0.004, -0.055)
 ## Where each gun's left (support) hand rests, and where rounds go in.
-const LEFT_FIST: Dictionary = {&"revolver": Vector3(-0.022, -0.075, 0.07), &"lever_rifle": Vector3(-0.004, -0.016, -0.2),
-	&"coach_shotgun": Vector3(-0.004, -0.024, -0.15), &"blunderbuss": Vector3(-0.004, -0.03, -0.17),
-	&"crank_gatling": Vector3(-0.062, 0.006, -0.22)}
+## Measured on the Meshy guns (tools/rig: gridded side views): the forend each
+## support hand holds, and the wrist or grip the trigger hand wraps [centre, grip axis].
+const LEFT_FIST: Dictionary = {&"revolver": Vector3(-0.022, -0.075, 0.07), &"lever_rifle": Vector3(-0.004, -0.022, -0.194),
+	&"coach_shotgun": Vector3(-0.004, -0.03, -0.25), &"blunderbuss": Vector3(-0.004, -0.068, -0.215),
+	&"crank_gatling": Vector3(-0.066, 0.03, -0.12)}
+const RIGHT_GRIP: Dictionary = {&"lever_rifle": [Vector3(0.004, -0.046, 0.114), Vector3(0, 0.55, -0.83)],
+	&"coach_shotgun": [Vector3(0.004, -0.075, 0.112), Vector3(0, 0.75, -0.66)],
+	&"blunderbuss": [Vector3(0.004, -0.064, 0.12), Vector3(0, 0.6, -0.8)]}
 const LOAD_POINT: Dictionary = {&"revolver": Vector3(0.022, 0.03, 0.03), &"lever_rifle": Vector3(0.026, -0.004, -0.04),
-	&"coach_shotgun": Vector3(0.0, 0.03, -0.045), &"blunderbuss": Vector3(0.0, 0.05, -0.44),
+	&"coach_shotgun": Vector3(0.0, 0.02, -0.09), &"blunderbuss": Vector3(0.0, 0.05, -0.44),
 	&"crank_gatling": Vector3(0.0, 0.1, 0.03)}
 ## Crank Gatling: barrel spin axis origin and the crank's pivot (gun space).
 const GATLING_AXIS := Vector3(0, 0.0, -0.05)
 const GATLING_CRANK := Vector3(0.06, 0.0, 0.04)
 ## The crank handle on the Meshy Gatling, where the right hand holds it.
-const GATLING_KNOB := Vector3(0.125, -0.078, -0.19)
+const GATLING_KNOB := Vector3(0.125, -0.095, -0.2)
 
 
 static func lever_rifle() -> ArrayMesh:
@@ -446,14 +451,11 @@ static func arm_right(id: StringName, look: Dictionary = {}) -> ArrayMesh:
 	var paint := DummyLook.paint(look)
 	var st := MeshKit.begin()
 	match id:
-		&"lever_rifle":
-			fist(st, Vector3(0.004, -0.02, 0.1), Vector3(0, 0.6, -0.8), Vector3(1, 0.2, 0.1), paint)
-			sleeve(st, Vector3(0.03, -0.065, 0.14), Vector3(0.12, -0.32, 0.5), look)
-		&"coach_shotgun", &"blunderbuss":
-			fist(st, Vector3(0.004, -0.035, 0.085), Vector3(0, 0.8, -0.6), Vector3(1, 0.2, 0.1), paint)
-			sleeve(st, Vector3(0.03, -0.08, 0.12), Vector3(0.12, -0.33, 0.48), look)
+		&"lever_rifle", &"coach_shotgun", &"blunderbuss":
+			var g: Vector3 = RIGHT_GRIP[id][0]
+			fist(st, g, RIGHT_GRIP[id][1], Vector3(1, 0.2, 0.1), paint)
+			sleeve(st, g + Vector3(0.026, -0.045, 0.04), g + Vector3(0.116, -0.3, 0.4), look)
 		&"crank_gatling":
-			# Right hand on the crank knob.
 			# On the crank handle at the side of the gear housing.
 			fist(st, GATLING_KNOB, Vector3(1, 0, 0), Vector3(0, -0.3, 1), paint)
 			sleeve(st, GATLING_KNOB + Vector3(0.025, -0.04, 0.04), Vector3(0.18, -0.35, 0.32), look)
@@ -471,15 +473,11 @@ static func arm_left(id: StringName, look: Dictionary = {}, local: bool = false)
 	var o: Vector3 = Vector3.ZERO if not local else -(LEFT_FIST[id] as Vector3)
 	var st := MeshKit.begin()
 	match id:
-		&"lever_rifle":
-			fist(st, o + Vector3(-0.004, -0.016, -0.2), Vector3(0, 0, -1), Vector3(-0.7, -1, 0), paint)
-			sleeve(st, o + Vector3(-0.035, -0.065, -0.16), o + Vector3(-0.2, -0.3, 0.08), look)
-		&"coach_shotgun":
-			fist(st, o + Vector3(-0.004, -0.024, -0.15), Vector3(0, 0, -1), Vector3(-0.7, -1, 0), paint)
-			sleeve(st, o + Vector3(-0.035, -0.07, -0.11), o + Vector3(-0.2, -0.3, 0.1), look)
-		&"blunderbuss":
-			fist(st, o + Vector3(-0.004, -0.03, -0.17), Vector3(0, 0, -1), Vector3(-0.7, -1, 0), paint)
-			sleeve(st, o + Vector3(-0.035, -0.075, -0.13), o + Vector3(-0.2, -0.3, 0.1), look)
+		&"lever_rifle", &"coach_shotgun", &"blunderbuss":
+			# Cupping the forend from below.
+			var lf: Vector3 = LEFT_FIST[id]
+			fist(st, o + lf, Vector3(0, 0, -1), Vector3(-0.7, -1, 0), paint)
+			sleeve(st, o + lf + Vector3(-0.031, -0.049, 0.04), o + lf + Vector3(-0.196, -0.284, 0.28), look)
 		&"crank_gatling":
 			# Left hand over the barrel housing, steadying it.
 			var lf: Vector3 = LEFT_FIST[id]
