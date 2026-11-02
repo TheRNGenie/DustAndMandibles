@@ -69,11 +69,18 @@ func _process(delta: float) -> void:
 	_update_interact(delta)
 
 
+## Hunger and thirst are switched off for now (owner's call, 2026-11-02): food
+## and water stay full, so nothing slows, sways or shows. Flip to bring them back.
+const NEEDS_ENABLED := false
+
+
 func _tick_needs(delta: float) -> void:
+	if not NEEDS_ENABLED:
+		return
 	if GameState.phase == GameState.Phase.LOBBY or GameState.phase == GameState.Phase.GAME_OVER:
 		return
 	var per_sec := delta / 60.0 * GameState.growth_scale()
-	per_sec *= Perks.local_less(&"trail_rations") # Perk: Trail Rations
+
 	food = maxf(food - per_sec / HUNGER_MINUTES, 0.0)
 	water = maxf(water - per_sec / THIRST_MINUTES * Weather.thirst_rate(GameState.temperature()), 0.0)
 	_needs_t -= delta
@@ -99,7 +106,7 @@ static func need_strain(v: float) -> float:
 
 ## Health regen (your "wind") multiplier: hunger and thirst each take up to 30%.
 func regen_mult() -> float:
-	return 1.0 - 0.3 * need_strain(food) - 0.3 * need_strain(water)
+	return (1.0 - 0.3 * need_strain(food) - 0.3 * need_strain(water)) * Perks.local_more(&"trail_rations") # Perk: Second Wind
 
 
 ## Sprint speed multiplier: up to 8% slower when both run dry.
@@ -117,6 +124,8 @@ func eat_or_drink(kind: StringName) -> void:
 	if downed or not FEEDS.has(kind):
 		return
 	var f: Array = FEEDS[kind]
+	if not NEEDS_ENABLED and float(f[2]) <= 0.0:
+		return # nothing to gain from eating or drinking while needs are off
 	if food > 0.97 and water > 0.97 and float(f[2]) <= 0.0:
 		Economy.notice.emit("You're not hungry or thirsty.")
 		return

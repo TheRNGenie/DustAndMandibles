@@ -61,8 +61,9 @@ const PERKS: Array[Dictionary] = [
 		"desc": "Homestead upgrades cost {v} less.", "per_rank": 0.10, "fmt": "pct", "costs": [20, 40], "owner": "host"},
 	{"id": &"stout_timbers", "tree": &"home", "name": "Stout Timbers", "glyph": "shield",
 		"desc": "Your Homestead starts with {v} more HP.", "per_rank": 0.08, "fmt": "pct", "costs": [25, 45], "owner": "host"},
-	{"id": &"trail_rations", "tree": &"home", "name": "Trail Rations", "glyph": "canteen",
-		"desc": "Hunger and thirst creep up {v} slower.", "per_rank": 0.10, "fmt": "pct", "costs": [10, 25], "owner": "local"},
+	# Was Trail Rations (hunger/thirst are off); the id stays so saved profiles keep their ranks.
+	{"id": &"trail_rations", "tree": &"home", "name": "Second Wind", "glyph": "heart",
+		"desc": "Health regenerates {v} faster.", "per_rank": 0.15, "fmt": "pct", "costs": [10, 25], "owner": "local"},
 	{"id": &"herbalist", "tree": &"home", "name": "Herbalist", "glyph": "item:herbs",
 		"desc": "Medicine heals {v} more.", "per_rank": 0.25, "fmt": "pct", "costs": [10, 25], "owner": "local"},
 	{"id": &"tough_hide", "tree": &"home", "name": "Tough Hide", "glyph": "heart",
