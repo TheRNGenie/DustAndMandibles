@@ -49,7 +49,9 @@ func scaffold_levels(cid: int, cell: Vector2i) -> int:
 
 ## Lowest free turret slot on a cell (0 = ground), or -1 if every slot is taken.
 func free_turret_level(cid: int, cell: Vector2i) -> int:
-	for level in scaffold_levels(cid, cell) + 1:
+	# Under a scaffold, the ground spot is the scaffold's own legs: start a level up.
+	var first := 1 if scaffold_levels(cid, cell) > 0 else 0
+	for level in range(first, scaffold_levels(cid, cell) + 1):
 		if not _occupied.has(_key(cid, cell, level)):
 			return level
 	return -1
@@ -170,8 +172,15 @@ func _do_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> void:
 		_built_fx.rpc(Buildable.cell_center(cliffs, cid, cell))
 		return
 	var level := 0
+	# Turrets come up on a free scaffold (one level, so they see further down).
+	if Defs.gets_scaffold(id) and scaffold_levels(cid, cell) == 0 and not _occupied.has(_key(cid, cell, 0)):
+		_next_id += 1
+		_spawner.spawn({"id": _next_id, "type": &"scaffold", "cliff": cid, "row": cell.x, "col": cell.y,
+				"level": 0, "owner": _name_of(peer_id)})
 	if Defs.is_turret(id) and Buildable.is_turret_cell(cell):
 		level = free_turret_level(cid, cell)
+		if Defs.gets_scaffold(id) and level == 0 and scaffold_levels(cid, cell) > 0:
+			level = 1
 	_next_id += 1
 	_spawner.spawn({"id": _next_id, "type": id, "cliff": cid, "row": cell.x, "col": cell.y,
 			"level": level, "owner": _name_of(peer_id)})

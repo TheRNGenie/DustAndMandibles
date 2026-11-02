@@ -122,15 +122,11 @@ static func footprint_center(cliffs: CliffBuilder, cliff_id: int, id: StringName
 
 
 ## Is this one cell the right kind of ground for the item?
-static func zone_ok(id: StringName, cell: Vector2i) -> bool:
+## Anything can go on any open grid cell (Logan's call): only the house, the
+## landmarks (windmill, water tower, scrap heap, starter fields) and off-grid are out.
+static func zone_ok(_id: StringName, cell: Vector2i) -> bool:
 	var z := zone(cell)
-	if Defs.is_turret(id) and Defs.turret(id).anti_air:
-		return z == Zone.TACTICAL # air defence: the second row from the lip
-	if id == &"scaffold" or (Defs.is_turret(id) and not Defs.turret(id).guards_plateau):
-		return z == Zone.TURRET
-	if TACTICAL.has(id):
-		return z == Zone.TACTICAL or z == Zone.PLOT
-	return z == Zone.PLOT
+	return z == Zone.TURRET or z == Zone.TACTICAL or z == Zone.PLOT or z == Zone.PATH
 
 
 ## House turrets use cell (-1, mount index) instead of a grid cell.
@@ -145,13 +141,13 @@ static func cell_ok_for(id: StringName, cell: Vector2i) -> bool:
 	return true
 
 
+## Turrets stack on scaffolds anywhere on the grid now.
 static func is_turret_cell(cell: Vector2i) -> bool:
-	return zone(cell) == Zone.TURRET
+	return zone_ok(&"", cell)
 
 
 static func is_structure_cell(cell: Vector2i) -> bool:
-	var z := zone(cell)
-	return z == Zone.TACTICAL or z == Zone.PLOT
+	return zone_ok(&"", cell)
 
 
 ## Which cliff a world position is on (by side of the canyon), or -1 over the gap.

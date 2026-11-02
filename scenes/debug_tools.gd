@@ -255,6 +255,22 @@ func _ready() -> void:
 				spread = maxf(spread, absf(b.lane_z))
 		print("[crawl] beetle climbed %.1f -> %.1f m; mites ducked up to %.2f, beetle rode up to %.2f m, mites edged aside up to %.1f m" % [beetle_y0, beetle.climb_y, max_crouch, max_ride, spread])
 		get_tree().quit()
+	elif GameState.has_flag("--placetest"):
+		for i in 20:
+			await get_tree().process_frame
+		var b := BuildManager.instance
+		Economy.earn(WorldLayout.WEST, {&"scrap": 5000})
+		var tries := [[&"gatling_post", Vector2i(8, 6)], [&"duck_gun", Vector2i(0, 3)], [&"farm_plot", Vector2i(0, 8)], [&"barbed_wire", Vector2i(0, 12)],
+			[&"scattergun_post", Vector2i(9, 3)], [&"buffalo_rifle", Vector2i(1, 14)]]
+		for tr: Array in tries:
+			b._do_build(1, tr[0], WorldLayout.WEST, tr[1])
+			await get_tree().process_frame
+			var lv := b.scaffold_levels(WorldLayout.WEST, tr[1])
+			var placed := b.cell_taken(WorldLayout.WEST, tr[1])
+			print("[place] %s at %s (zone %s): placed %s, scaffold levels %d" % [tr[0], str(tr[1]), Buildable.Zone.keys()[Buildable.zone(tr[1])], placed, lv])
+		for t in b.turrets_on(WorldLayout.WEST, Vector2i(8, 6)):
+			print("[place]   gatling stands at level %d" % t.level)
+		get_tree().quit()
 	elif GameState.has_flag("--steptest"):
 		for i in 20:
 			await get_tree().process_frame

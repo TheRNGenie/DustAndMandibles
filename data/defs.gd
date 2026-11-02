@@ -76,6 +76,17 @@ const BUILD_CATEGORIES: Array[Dictionary] = [
 	{"name": "Last Resorts", "items": [&"scattergun_post", &"sharpshooter_tower", &"porch_repeater", &"rooftop_cannon"]},
 ]
 
+## Turrets that come standing on a free scaffold (every turret except the last
+## resorts and the house turrets).
+static func gets_scaffold(id: StringName) -> bool:
+	if not is_turret(id) or is_house_turret(id):
+		return false
+	for cat: Dictionary in BUILD_CATEGORIES:
+		if cat["name"] == "Last Resorts" and (cat["items"] as Array).has(id):
+			return false
+	return true
+
+
 ## Chitin cost of turret upgrade tiers 1, 2, 3.
 const UPGRADE_COSTS: Array[int] = [10, 25, 50]
 
