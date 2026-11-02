@@ -164,9 +164,12 @@ func fire(origin: Vector3, dir: Vector3) -> void:
 	if gun.aim > 0.6:
 		seed_value |= 1 # aimed shots spread less (see Gun.shot_dirs)
 	var dmg := Gun.damage_for(id, level)
+	var muzzle := gun.muzzle_global()
 	for d in Gun.shot_dirs(id, dir, seed_value, level):
 		var hit := gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, level))
 		gun.show_impact(hit, d, true, dmg) # client-side prediction
+		var end: Vector3 = hit["position"] if not hit.is_empty() else origin + d * Gun.range_for(id, level)
+		gun.draw_tracer(id, muzzle, end)
 	if multiplayer.is_server():
 		_server_fire(origin, dir, id, level, seed_value)
 	else:
@@ -212,8 +215,7 @@ func _show_remote_shot(origin: Vector3, dir: Vector3, id: StringName, seed_value
 		var hit := player.gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, code))
 		player.gun.show_impact(hit, d)
 		var end: Vector3 = hit["position"] if not hit.is_empty() else origin + d * Gun.range_for(id, code)
-		if player.gun.vfx != null:
-			player.gun.vfx.tracer(muzzle, end)
+		player.gun.draw_tracer(id, muzzle, end)
 	player.flash_body()
 
 

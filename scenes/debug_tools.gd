@@ -378,6 +378,19 @@ func _take_screenshot(path: String) -> void:
 		var wid := StringName(GameState.flag_value("--weapon"))
 		player.gun.grant(wid, 0)
 		player.gun.equip(wid)
+		if GameState.has_flag("--shooting"):
+			# Keep firing (and reloading) so screenshots catch tracers mid-flight.
+			var timer := Timer.new()
+			timer.wait_time = 0.07
+			timer.autostart = true
+			add_child(timer)
+			timer.timeout.connect(func() -> void:
+				player.gun.trigger_held = true
+				player.gun.spin = 1.0
+				if player.gun.trigger(player.camera):
+					player.net.fire(player.camera.global_position, -player.camera.global_transform.basis.z)
+				elif player.gun.ammo <= 0:
+					player.gun.ammo = player.gun.mag_size())
 	if GameState.has_flag("--chestview") and player != null:
 		# Stand inside the house looking at the storage chest, with it open.
 		var home := Homestead.of(player.cliff_id)

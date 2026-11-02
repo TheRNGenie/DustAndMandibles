@@ -94,6 +94,64 @@ func tracer(from: Vector3, to: Vector3, color: Color = Palette.GLOW_YELLOW, widt
 	tw.tween_callback(mi.queue_free)
 
 
+## A stylized bullet for player shots: a white-hot core inside a coloured glow
+## that zips from the muzzle to the hit, leaving a fading streak behind it.
+var _streak_mats: Dictionary = {}
+
+
+func _streak_mat(color: Color, alpha: float) -> StandardMaterial3D:
+	var key := "%s_%.2f" % [color.to_html(), alpha]
+	if not _streak_mats.has(key):
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		m.albedo_color = Color(color.r, color.g, color.b, alpha)
+		_streak_mats[key] = m
+	return _streak_mats[key]
+
+
+func bullet_streak(from: Vector3, to: Vector3, color: Color, width: float, speed: float) -> void:
+	var length := from.distance_to(to)
+	if length < 0.3:
+		return
+	var dir := (to - from) / length
+	var up := Vector3.UP if absf(dir.dot(Vector3.UP)) < 0.95 else Vector3.RIGHT
+	var basis := Basis.looking_at(dir, up)
+	# The fading trail along the whole path.
+	var trail := MeshInstance3D.new()
+	var tb := BoxMesh.new()
+	tb.size = Vector3(width * 0.6, width * 0.6, length)
+	tb.material = _streak_mat(color, 0.55)
+	trail.mesh = tb
+	trail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(trail)
+	trail.global_transform = Transform3D(basis, (from + to) * 0.5)
+	var tt := trail.create_tween()
+	tt.tween_property(trail, "scale", Vector3(0.05, 0.05, 1.0), 0.28).set_ease(Tween.EASE_IN)
+	tt.tween_callback(trail.queue_free)
+	# The bolt itself: a glow sheath around a hot core, flying down the path.
+	var bolt_len := clampf(length * 0.3, 0.6, 3.0)
+	var bolt := Node3D.new()
+	add_child(bolt)
+	for layer: Array in [[width * 2.6, color, 0.7], [width, Color(1.0, 0.97, 0.85), 1.0]]:
+		var mi := MeshInstance3D.new()
+		var b := BoxMesh.new()
+		b.size = Vector3(float(layer[0]), float(layer[0]), bolt_len)
+		b.material = _streak_mat(layer[1], float(layer[2]))
+		mi.mesh = b
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		bolt.add_child(mi)
+	var start := from + dir * bolt_len * 0.5
+	var end := to - dir * bolt_len * 0.5
+	bolt.global_transform = Transform3D(basis, start)
+	var tw := bolt.create_tween()
+	tw.tween_property(bolt, "global_position", end, maxf(length / speed, 0.03))
+	tw.tween_property(bolt, "scale", Vector3(0.2, 0.2, 0.2), 0.04)
+	tw.tween_callback(bolt.queue_free)
+
+
 ## A glob of acid arcing from a spitter to its target.
 func acid_blob(from: Vector3, to: Vector3, flight: float) -> void:
 	lob(from, to, flight, Palette.ACID_GREEN)

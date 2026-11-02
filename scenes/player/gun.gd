@@ -36,6 +36,29 @@ const MAX_WEAPONS := 3
 const AIM_POS: Dictionary = {&"revolver": Vector3(0.0, -0.075, -0.5), &"lever_rifle": Vector3(0.0, -0.056, -0.44),
 	&"coach_shotgun": Vector3(0.0, -0.058, -0.4), &"blunderbuss": Vector3(0.0, -0.05, -0.4), &"crank_gatling": Vector3(0.06, -0.12, -0.45)}
 const AIM_ZOOM: Dictionary = {&"revolver": 1.4, &"lever_rifle": 2.2, &"coach_shotgun": 1.25, &"blunderbuss": 1.15, &"crank_gatling": 1.2}
+## Player shot tracers per gun: colour, thickness (m), speed (m/s).
+const TRACERS: Dictionary = {
+	&"revolver": [Color("#FFC94A"), 0.055, 240.0],
+	&"lever_rifle": [Color("#FFF1B0"), 0.045, 380.0],
+	&"coach_shotgun": [Color("#FF9A3A"), 0.034, 200.0],
+	&"blunderbuss": [Color("#FF5A2A"), 0.045, 160.0],
+	&"crank_gatling": [Color("#FFD23F"), 0.04, 300.0],
+}
+
+
+## A stylized bullet from `from` to the end of each pellet's ray.
+func draw_tracer(id: StringName, from: Vector3, to: Vector3) -> void:
+	if vfx == null:
+		return
+	var s: Array = TRACERS.get(id, TRACERS[&"revolver"])
+	vfx.bullet_streak(from, to, s[0], s[1], s[2])
+
+
+## World position of this gun's muzzle (the flash point).
+func muzzle_global() -> Vector3:
+	return _flash.global_position
+
+
 ## Aimed shotguns spread this much less.
 const AIM_SPREAD := 0.6
 
