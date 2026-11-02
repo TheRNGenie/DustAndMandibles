@@ -83,6 +83,26 @@ func setup(rig: DummyRig, outfit: StringName, first_person: bool) -> void:
 
 
 ## Maps the rig's pivots to bones once everything is in the tree.
+var _fp_chain_cache: Array = []
+
+
+## For each FP_HIDDEN bone: it and all its descendants, parents first.
+func _fp_chains() -> Array:
+	if _fp_chain_cache.is_empty():
+		for bn: String in FP_HIDDEN:
+			var root := skel.find_bone(bn)
+			if root < 0:
+				continue
+			var chain: Array[int] = [root]
+			var i := 0
+			while i < chain.size():
+				for c: int in skel.get_bone_children(chain[i]):
+					chain.append(c)
+				i += 1
+			_fp_chain_cache.append(chain)
+	return _fp_chain_cache
+
+
 func bind() -> void:
 	_map.clear()
 	var to_rig := _rig.global_transform.affine_inverse() * skel.global_transform
@@ -163,11 +183,12 @@ func apply() -> void:
 			origin = _hips_rest + sk_from_rig * off
 		skel.set_bone_global_pose(b, Transform3D(target.orthonormalized(), origin))
 	if _first_person:
-		for bn: String in FP_HIDDEN:
-			var hb := skel.find_bone(bn)
-			if hb >= 0:
-				var tp := skel.get_bone_global_pose(hb)
-				skel.set_bone_global_pose(hb, Transform3D(tp.basis.scaled(Vector3.ONE * 0.001), tp.origin))
+		# Fold each hidden bone and everything below it to a point. Absolute
+		# transforms, so nothing shrinks further frame after frame.
+		for chain: Array in _fp_chains():
+			var at := skel.get_bone_global_pose(int(chain[0])).origin
+			for hb: int in chain:
+				skel.set_bone_global_pose(hb, Transform3D(Basis.from_scale(Vector3.ONE * 0.001), at))
 	# Keep the boots out of the ground: if the lower foot ends up below where it
 	# stands at rest (hips dipping on a stride or a landing), lift the whole body.
 	if _hips_bone >= 0 and _feet.size() == 2 and _feet[0] >= 0 and _feet[1] >= 0:

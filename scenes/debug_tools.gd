@@ -173,6 +173,8 @@ func _ready() -> void:
 					best2 = w
 			print("[arch] crown near z-17: %s  near z20: %s  cliff top %.1f" % [str(best), str(best2), WorldLayout.CLIFF_HEIGHT])
 		get_tree().quit()
+	elif GameState.flag_value("--skyview") != "":
+		_sky_view(GameState.flag_value("--skyview"))
 	elif GameState.has_flag("--boardtest"):
 		# Stand on each great arch's crown, hook the casino's ring, see where the pull lands.
 		for i in 30:
@@ -1394,4 +1396,27 @@ func _whip_test() -> void:
 	shop._buy(multiplayer.get_unique_id(), "gild", &"whip")
 	await get_tree().physics_frame
 	print("[whip] golden: %s, lash damage %.0f, reach %.1f m" % [WeaponMods.is_golden(player.whip.code), Whip.damage_for(player.whip.code), Whip.reach_for(player.whip.code)])
+	get_tree().quit()
+
+
+## --skyview=<png prefix>: stands on the airship deck and saves a screenshot
+## looking each way (N, E, S, W), to check the view from up there.
+func _sky_view(prefix: String) -> void:
+	for i in 40:
+		await get_tree().process_frame
+	var pl := world.call("local_player") as Player
+	var ship := world.get_node("Airship") as Node3D
+	for k in 4:
+		# At the rail on each side, looking out and a little down.
+		var yaw := float(k) * PI * 0.5
+		var out := Vector3(-sin(yaw), 0, -cos(yaw))
+		var reach := Vector3(AirshipBuilder.DECK_W * 0.5 - 1.2, 0, AirshipBuilder.DECK_L * 0.5 - 1.2)
+		pl.global_position = ship.global_position + Vector3(out.x * reach.x, 0.6, out.z * reach.z)
+		pl.velocity = Vector3.ZERO
+		pl.rotation.y = yaw
+		pl.head.rotation.x = -0.3
+		for i in 30:
+			await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png("%s_%d.png" % [prefix, k])
+		print("[sky] saved %s_%d.png at %s" % [prefix, k, str(pl.global_position)])
 	get_tree().quit()

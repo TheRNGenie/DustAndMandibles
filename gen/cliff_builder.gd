@@ -285,6 +285,101 @@ func build(parent: Node3D) -> void:
 	_add_visual(parent, "HostileRidges", _hostile_ridges(), rock)
 	_add_visual(parent, "Bones", _carcasses(), Materials.toon(0.03))
 	_add_visual(parent, "BugTunnels", _bug_tunnels(), Materials.toon(0.03))
+	_add_hinterland(parent, rock)
+
+
+# ---------------------------------------------------------------- hinterland
+## How far the desert runs out past the plateaus in every direction (visual only).
+const HINTER := 1800.0
+
+
+## Rolling high desert all round the canyon, out to the horizon, with mesas,
+## buttes and a ring of far mountains, so the view from the airship (or a
+## grapple swing) never ends at a hard edge. Visual only, no collision.
+func _add_hinterland(parent: Node3D, rock: Material) -> void:
+	var hills := FastNoiseLite.new()
+	hills.seed = 777
+	hills.frequency = 0.004
+	hills.fractal_octaves = 3
+	var top := WorldLayout.CLIFF_HEIGHT
+	var land := func(x: float, z: float) -> float:
+		# About as high as the wild plateaus out past the play area, so they meet.
+		return top + 40.0 + hills.get_noise_2d(x, z) * 16.0
+	# Rows of growing spacing: fine near the plateau edge, coarse at the horizon.
+	var ds: Array[float] = []
+	var step := 6.0
+	var dd := 0.0
+	while dd < HINTER:
+		ds.append(dd)
+		dd += step
+		step = minf(step * 1.12, 90.0)
+	ds.append(HINTER)
+	var zs := _zs(Vector2(-HINTER, HINTER), 24.0)
+	for cid in 2:
+		var s := WorldLayout.side_sign(cid)
+		var grid: Array = []
+		for d in ds:
+			var row: Array[Vector3] = []
+			for z: float in zs:
+				# Starts just inside the plateau's back edge (which is deeper outside the play area).
+				var d0 := WorldLayout.TERRAIN_DEPTH - 3.0 if absf(z) < WorldLayout.WORLD_HALF_Z else 137.0
+				if absf(z) > FAR_Z:
+					d0 = -WorldLayout.HALF_GAP # past the canyon's end: run right to the middle
+				var seam := plateau_point(cid, maxf(d0, 0.0), clampf(z, -FAR_Z, FAR_Z))
+				var x0 := seam.x if d0 >= 0.0 else 0.0
+				var p := Vector3(x0 + s * d, 0.0, z)
+				var p_end := absf(z) - FAR_Z
+				if d0 >= 0.0:
+					p.y = lerpf(seam.y - 0.6, land.call(p.x, z), smoothstep(0.0, 140.0, d))
+				else:
+					# Past the canyon's end: level with the plateaus there, easing into the hills.
+					var ref := plateau_point(cid, 60.0, signf(z) * FAR_Z).y - 0.6
+					p.y = lerpf(ref, land.call(p.x, z), maxf(smoothstep(0.0, 300.0, p_end), smoothstep(160.0, 300.0, d)))
+				row.append(p)
+			grid.append(row)
+		var mi := MeshInstance3D.new()
+		mi.name = "Hinterland%d" % cid
+		mi.mesh = _grid_mesh(grid, Vector3.UP)
+		mi.material_override = rock
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		parent.add_child(mi)
+	# Mesas and buttes out on the flats, and the mountains at the rim.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 31337
+	var st := MeshKit.begin()
+	var cols := [Palette.ROCK_A, Palette.ROCK_B, Palette.ROCK_C, Color("#B85A3A"), Color("#D99A62")]
+	var placed := 0
+	while placed < 70:
+		var x := rng.randf_range(-HINTER * 0.85, HINTER * 0.85)
+		var z := rng.randf_range(-HINTER * 0.85, HINTER * 0.85)
+		# Keep clear of the canyon and its plateaus.
+		if absf(x) < 240.0 and absf(z) < FAR_Z + 60.0:
+			continue
+		if absf(x) < 120.0:
+			continue
+		placed += 1
+		var base := Vector3(x, land.call(x, z) - 3.0, z)
+		var butte := rng.randf() < 0.4
+		var r := rng.randf_range(10.0, 22.0) if butte else rng.randf_range(30.0, 90.0)
+		var h := rng.randf_range(35.0, 90.0) if butte else rng.randf_range(20.0, 55.0)
+		var col: Color = cols[rng.randi() % cols.size()]
+		var segs := rng.randi_range(7, 11)
+		# Talus skirt, then the cliff-sided body with a flat cap.
+		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), base + Vector3(0, h * 0.12, 0)), r * 1.45, r * 1.05, h * 0.25, segs, col.darkened(0.1))
+		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), base + Vector3(0, h * 0.6, 0)), r * 1.05, r * 0.92, h * 0.8, segs, col)
+	for i in 34:
+		var a := TAU * float(i) / 34.0 + rng.randf_range(-0.05, 0.05)
+		var dist := rng.randf_range(HINTER * 0.88, HINTER * 0.98)
+		var base := Vector3(cos(a) * dist, top + 20.0, sin(a) * dist)
+		var h := rng.randf_range(160.0, 360.0)
+		var r := rng.randf_range(160.0, 300.0)
+		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), base + Vector3(0, h * 0.5, 0)), r, r * rng.randf_range(0.05, 0.25), h, rng.randi_range(5, 8), Color("#C98A5E").darkened(rng.randf_range(0.0, 0.25)))
+	var far := MeshInstance3D.new()
+	far.name = "Mesas"
+	far.mesh = MeshKit.finish(st)
+	far.material_override = rock
+	far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(far)
 
 
 ## Hostile dressing on the walls around the play area: leaning rock spikes
