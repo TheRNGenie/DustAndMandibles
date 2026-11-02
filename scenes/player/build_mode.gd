@@ -262,33 +262,28 @@ func _aim_house_mount(pos: Vector3) -> void:
 	_ghost_mat.albedo_color = Color(0.4, 1.0, 0.4, 0.45) if _ok else Color(1.0, 0.3, 0.25, 0.45)
 
 
-## The build bar text for the HUD: the selected item, its neighbours and why the ghost is red.
-func status_text() -> String:
-	if not active:
-		return ""
-	if menu_open:
-		return ""
+## The build bar as data for the HUD card (HudPromptCard.show_build).
+func build_info(icon: Texture2D) -> Dictionary:
 	var id := selected_id()
-	var where := "open plots"
-	if Buildable.TACTICAL.has(id):
-		where = "tactical row or open plots"
-	if id == &"scaffold" or (Defs.is_turret(id) and not Defs.turret(id).guards_plateau):
-		where = "cliff-edge row"
-	elif Defs.is_house_turret(id):
-		where = "house mounts (porch, balcony, roof deck)"
-	elif Defs.is_turret(id):
-		where = "plateau"
-	var line := "BUILDING  %s - %d scrap  (B: menu, wheel: next, right click: done)" % [Defs.name_of(id), Defs.cost_of(id)]
+	var payer := _cliff if GameState.is_solo() else player.cliff_id
+	var status := ""
+	var bad := false
 	if _cell != Vector2i(-1, -1) and not _ok and Buildable.cell_ok_for(id, _cell):
+		bad = true
 		if not BuildManager.instance.may_build(multiplayer.get_unique_id(), _cliff):
-			line += "\nYou can only build on your own plateau. Your turrets cover your partner."
+			status = "Build on your own plateau: your turrets cover your partner"
 		elif not BuildManager.instance.is_free_for(id, _cliff, _cell):
-			line += "\nThat spot is taken."
+			status = "That spot is taken"
 		else:
-			line += "\nNot enough scrap."
+			status = "Not enough scrap"
 	elif not _ghost.visible:
-		line += "\nAim at the %s on your plateau." % where
-	return line
+		status = "Aim at an open spot on your plateau"
+	return {
+		"icon": icon, "name": Defs.name_of(id), "cost": Defs.cost_of(id),
+		"afford": GameState.is_solo() or Economy.can_afford(payer, {&"scrap": Defs.cost_of(id)}),
+		"status": status, "status_bad": bad,
+		"keys": [[KeyHints.key_for("fire"), "Place"], ["Wheel", "Next"], [KeyHints.key_for("build_menu"), "Catalog"], [KeyHints.key_for("alt_fire"), "Done"]],
+	}
 
 
 static func _description(id: StringName) -> String:

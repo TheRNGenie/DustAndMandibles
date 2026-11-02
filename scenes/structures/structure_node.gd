@@ -129,7 +129,7 @@ func _breachers_near(r: float) -> Array[Bug]:
 
 
 func interact_prompt() -> String:
-	var text := "%s  %d/%d HP" % [def.display_name, int(health.hp), int(health.max_hp)]
+	var text := "%s   %d / %d HP" % [def.display_name, int(health.hp), int(health.max_hp)]
 	if def.kind == StructureDef.Kind.BEAR_TRAP:
 		text += "  - armed" if armed else "\nE: re-arm the trap"
 	elif def.kind == StructureDef.Kind.DYNAMITE_CRATE:

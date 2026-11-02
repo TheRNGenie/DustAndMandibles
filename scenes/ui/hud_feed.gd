@@ -9,8 +9,8 @@ const FEED_LIFETIME := 7.0
 
 var cliff_id: int = 0
 var _feed: VBoxContainer
-var _prompt: Label
-var _build: Label
+var _card: HudPromptCard
+var _prompt_text := ""
 var _over: PanelContainer
 var _over_label: Label
 var _build_mode: BuildMode
@@ -31,22 +31,8 @@ func _ready() -> void:
 	_feed.alignment = BoxContainer.ALIGNMENT_BEGIN
 	add_child(_feed)
 
-	_prompt = _outlined("", 20, Palette.BONE)
-	_prompt.set_anchors_preset(Control.PRESET_CENTER)
-	_prompt.offset_left = -300
-	_prompt.offset_right = 300
-	_prompt.offset_top = 30
-	add_child(_prompt)
-
-	_build = _outlined("", 18, Palette.GLOW_YELLOW)
-	_build.anchor_left = 0.5
-	_build.anchor_right = 0.5
-	_build.anchor_top = 0.0
-	_build.anchor_bottom = 0.0
-	_build.offset_left = -420
-	_build.offset_right = 420
-	_build.offset_top = 150
-	add_child(_build)
+	_card = HudPromptCard.new()
+	add_child(_card)
 
 	_over = PanelContainer.new()
 	_over.add_theme_stylebox_override("panel", UiStyle.poster())
@@ -104,13 +90,20 @@ func _ready() -> void:
 func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void:
 	cliff_id = player.cliff_id
 	_build_mode = player.build_mode
-	player.vitals.prompt_changed.connect(func(t: String) -> void: _prompt.text = t)
+	player.vitals.prompt_changed.connect(func(t: String) -> void: _prompt_text = t)
 	bugs.bug_killed.connect(_on_bug_killed)
 	builds.structure_event.connect(func(t: String) -> void: add_line(t, Palette.ROCK_C))
 
 
 func _process(_delta: float) -> void:
-	_build.text = _build_mode.status_text() if _build_mode != null else ""
+	if _build_mode != null and _build_mode.active and not _build_mode.menu_open:
+		var hud := get_parent() as Hud
+		var icon: Texture2D = hud.build_menu.icon_for(_build_mode.selected_id()) if hud != null else null
+		_card.show_build(_build_mode.build_info(icon))
+	elif _build_mode != null and _build_mode.menu_open:
+		_card.show_text("")
+	else:
+		_card.show_text(_prompt_text)
 	_update_boss_bar()
 
 

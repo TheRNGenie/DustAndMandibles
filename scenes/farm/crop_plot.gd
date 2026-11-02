@@ -116,7 +116,9 @@ func cycle_option() -> void:
 func interact_prompt() -> String:
 	if growth.stage == CropGrowth.Stage.EMPTY:
 		var have := Economy.amount(_local_cliff(), SEED_RES[seed_def().id])
-		return "E: plant %s (%d seeds left)   F: change seed\nBuy more seeds at the airship market" % [seed_def().display_name, have]
+		if have <= 0:
+			return "Out of %s seeds\nBuy more at the airship market\nF: change seed" % seed_def().display_name
+		return "%s seeds: %d\nE: plant   F: change seed" % [seed_def().display_name, have]
 	var n := crop_def.display_name
 	match growth.stage:
 		CropGrowth.Stage.PLANTED:

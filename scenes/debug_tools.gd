@@ -173,6 +173,8 @@ func _ready() -> void:
 					best2 = w
 			print("[arch] crown near z-17: %s  near z20: %s  cliff top %.1f" % [str(best), str(best2), WorldLayout.CLIFF_HEIGHT])
 		get_tree().quit()
+	elif GameState.flag_value("--plotview") != "":
+		_plot_view(GameState.flag_value("--plotview"))
 	elif GameState.flag_value("--skyview") != "":
 		_sky_view(GameState.flag_value("--skyview"))
 	elif GameState.has_flag("--boardtest"):
@@ -1419,4 +1421,25 @@ func _sky_view(prefix: String) -> void:
 			await get_tree().process_frame
 		get_viewport().get_texture().get_image().save_png("%s_%d.png" % [prefix, k])
 		print("[sky] saved %s_%d.png at %s" % [prefix, k, str(pl.global_position)])
+	get_tree().quit()
+
+
+## --plotview=<png>: builds a farm plot just ahead, looks at it and saves a
+## screenshot of the prompt card (to check the planting UI).
+func _plot_view(path: String) -> void:
+	for i in 40:
+		await get_tree().process_frame
+	var pl := world.call("local_player") as Player
+	pl.head.rotation.x = -0.75
+	var bm := pl.build_mode
+	bm.toggle()
+	bm.choose(&"farm_plot")
+	for i in 20:
+		await get_tree().physics_frame
+	BuildManager.instance.build(&"farm_plot", bm.get("_cliff"), bm.get("_cell"))
+	bm.toggle()
+	for i in 60:
+		await get_tree().process_frame
+	get_viewport().get_texture().get_image().save_png(path)
+	print("[plot] saved ", path)
 	get_tree().quit()

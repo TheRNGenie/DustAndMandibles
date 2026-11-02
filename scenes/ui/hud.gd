@@ -87,23 +87,20 @@ func _ready() -> void:
 	banner.offset_right = 230
 	banner.offset_top = 14
 	add_child(banner)
+	# The phase plaque: wave and time of day, and one short line on what to do.
+	var plaque := VBoxContainer.new()
+	plaque.add_theme_constant_override("separation", 0)
+	banner.add_child(plaque)
 	_phase_label = Label.new()
 	_phase_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_phase_label.add_theme_font_size_override("font_size", 24)
 	_phase_label.add_theme_color_override("font_color", Palette.BONE)
-	banner.add_child(_phase_label)
+	plaque.add_child(_phase_label)
 	_hint_label = Label.new()
-	_hint_label.anchor_left = 0.5
-	_hint_label.anchor_right = 0.5
-	_hint_label.offset_left = -300
-	_hint_label.offset_right = 300
-	_hint_label.offset_top = 70
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint_label.add_theme_font_size_override("font_size", 18)
-	_hint_label.add_theme_color_override("font_color", Palette.BONE)
-	_hint_label.add_theme_color_override("font_outline_color", Palette.OUTLINE)
-	_hint_label.add_theme_constant_override("outline_size", 6)
-	add_child(_hint_label)
+	_hint_label.add_theme_font_size_override("font_size", 14)
+	_hint_label.add_theme_color_override("font_color", Palette.BONE.darkened(0.2))
+	plaque.add_child(_hint_label)
 	GameState.phase_changed.connect(func(_p: GameState.Phase) -> void: _flash_phase())
 	GameState.skip_votes_changed.connect(func(_v: int, _n: int) -> void: _update_hint())
 
@@ -181,14 +178,14 @@ func _flash_phase() -> void:
 func _update_hint() -> void:
 	match GameState.phase:
 		GameState.Phase.BUILD:
-			_hint_label.text = "Build up your partner's defenses. The wave comes when everyone presses G (%d/%d ready)" % [
-				GameState.skip_votes, maxi(NetworkManager.players.size(), 1)]
+			_hint_label.text = "Build for your partner  ·  press %s when ready" % KeyHints.key_for("ready_up")
 		GameState.Phase.WARNING:
-			_hint_label.text = "A wave is coming! Get back to your own cliff."
+			_hint_label.text = "A wave is coming. Get back to your cliff"
 		GameState.Phase.WAVE:
-			_hint_label.text = "Bugs are climbing. Cover your partner's cliff!"
+			_hint_label.text = "Cover your partner's cliff"
 		_:
 			_hint_label.text = ""
+	_hint_label.visible = _hint_label.text != ""
 
 
 func _on_ammo_changed(current: int, max_ammo: int) -> void:
