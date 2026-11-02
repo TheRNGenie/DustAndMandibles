@@ -3,7 +3,7 @@ extends Node
 ## The local player's hotbar, keys 1-8:
 ##   1-3  weapon slots: any weapons you carry, in the order you got them
 ##   4-6  pickup slots: whatever harvest you're carrying (corn, prickly pear, chili)
-##   7    medicine: herbs (heal 50 HP)
+##   7    medicine: herbs (left click with them out heals 50 HP)
 ##   8    water bucket
 ##   9    grappling hook launcher (always carried)
 ##   0    Zippo lighter (always carried)
@@ -92,9 +92,6 @@ func use_slot(i: int, toggle: bool = true) -> void:
 	if i < 3:
 		player.gun.equip(id)
 	else:
-		# Pressing 7 takes a dose; scrolling past the medicine doesn't.
-		if id == &"herbs" and toggle:
-			player.vitals.use_medicine()
 		player.gun.hold_item(id)
 	selected = i
 	changed.emit()
