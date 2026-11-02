@@ -1,7 +1,8 @@
 class_name LaneClimber
 extends RefCounted
-## Host-side climbing brain: follows a lane up the cliff face with a little sideways
-## drift, sometimes switches lanes at ledges, and handles the per-bug quirks:
+## Host-side climbing brain: picks its own wandering way up the cliff face (every
+## few metres it heads for a new spot left or right, so no two bugs climb the
+## same line), and handles the per-bug quirks:
 ## Wolf Spiders leap and zigzag, Spitter Scorpions cling partway up and spit acid
 ## at turrets on the far cliff.
 
@@ -24,6 +25,8 @@ var _leap_left := 0.0
 var _spit_cd := 0.0
 var _last_y := 0.0
 var _clung := 0.0
+## Climb height at which it next picks a new direction.
+var _next_turn := 0.0
 
 
 func _init(b: Bug) -> void:
@@ -31,6 +34,7 @@ func _init(b: Bug) -> void:
 	target_z = b.lane_z
 	_drift = randf() * TAU
 	_leap_cd = randf_range(1.5, 3.0)
+	_next_turn = b.climb_y + randf_range(2.0, 5.0)
 	_spit_cd = randf_range(1.0, SPIT_INTERVAL)
 
 
@@ -55,23 +59,24 @@ func update(delta: float) -> void:
 			speed += LEAP_HEIGHT / LEAP_TIME * minf(bug.speed(), 1.0)
 	_last_y = bug.climb_y
 	bug.climb_y += speed * delta
-	_maybe_switch_lane(d)
+	_wander(d)
 	_drift += delta * (2.5 if d.behavior == BugDef.Behavior.LEAPER else 1.0)
 	var wobble := sin(_drift) * (0.9 if d.behavior == BugDef.Behavior.LEAPER else 0.35)
-	bug.lane_z = move_toward(bug.lane_z, target_z + wobble, 2.0 * delta)
+	var side_speed := 2.6 if d.behavior == BugDef.Behavior.LEAPER else 1.3
+	bug.lane_z = move_toward(bug.lane_z, target_z + wobble, side_speed * bug.speed() * delta)
 	if bug.climb_y >= WorldLayout.CLIFF_HEIGHT:
 		bug.begin_crest()
 
 
-func _maybe_switch_lane(d: BugDef) -> void:
-	for ledge in WorldLayout.LEDGE_Y:
-		if _last_y < ledge and bug.climb_y >= ledge:
-			var chance := 0.6 if d.behavior == BugDef.Behavior.LEAPER else 0.15
-			if randf() < chance:
-				var lanes := WorldLayout.LANE_Z.size()
-				var next := clampi(bug.lane + (1 if randf() < 0.5 else -1), 0, lanes - 1)
-				bug.lane = next
-				target_z = WorldLayout.LANE_Z[next] + randf_range(-0.8, 0.8)
+## Every few metres up, head for a new spot to the left or right.
+func _wander(d: BugDef) -> void:
+	if bug.climb_y < _next_turn:
+		return
+	var leaper := d.behavior == BugDef.Behavior.LEAPER
+	_next_turn = bug.climb_y + (randf_range(2.0, 4.0) if leaper else randf_range(3.0, 7.0))
+	var reach := 8.0 if leaper else 5.0
+	var half := WorldLayout.PLATEAU_WIDTH * 0.5 - 2.0
+	target_z = clampf(bug.lane_z + randf_range(-reach, reach), -half, half)
 
 
 func _spit(delta: float) -> void:

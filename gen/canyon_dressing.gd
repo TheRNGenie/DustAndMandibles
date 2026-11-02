@@ -36,10 +36,8 @@ static func _add(parent: Node3D, node_name: String, mesh: ArrayMesh, mat: Materi
 	parent.add_child(mi)
 
 
-static func _in_lane(z: float) -> bool:
-	for lz in WorldLayout.LANE_Z:
-		if absf(z - lz) < LANE_CLEAR:
-			return true
+## Climbing lanes are gone (bugs pick their own way up), so nothing is kept clear.
+static func _in_lane(_z: float) -> bool:
 	return false
 
 

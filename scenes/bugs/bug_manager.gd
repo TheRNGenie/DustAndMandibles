@@ -40,7 +40,11 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 	for i in count:
 		if alive_count() >= cfg.max_active_bugs:
 			return
-		var z := WorldLayout.LANE_Z[lane] + randf_range(-1.6, 1.6)
+		# Out of one of the five tunnels, each bug makes for its own spot at the
+		# foot of the wall and picks its own way up from there.
+		var tunnel_z := WorldLayout.LANE_Z[lane] + randf_range(-1.2, 1.2)
+		var half := WorldLayout.PLATEAU_WIDTH * 0.5 - 2.0
+		var z := clampf(tunnel_z + randf_range(-9.0, 9.0), -half, half)
 		var y := start_y - float(i) * 0.9 # stagger groups so they climb in a column
 		var st := Bug.State.CLIMBING
 		var pos := Vector3.ZERO
@@ -49,7 +53,7 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 		if start_y <= 0.0:
 			st = Bug.State.CROSSING
 			var other := WorldLayout.other_cliff(cliff)
-			pos = Bug.cliffs.tunnel_mouth(other, z) + Vector3(WorldLayout.side_sign(other) * (1.2 + float(i) * 1.5), 0, 0)
+			pos = Bug.cliffs.tunnel_mouth(other, tunnel_z) + Vector3(WorldLayout.side_sign(other) * (1.2 + float(i) * 1.5), 0, 0)
 		match Defs.bug(bug_id).behavior:
 			BugDef.Behavior.BURROWER:
 				# Tunnels in: pops up somewhere inside the plateau, never climbs.

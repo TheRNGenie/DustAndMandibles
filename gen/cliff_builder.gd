@@ -114,14 +114,7 @@ func face_offset(cliff_id: int, y: float, z: float) -> float:
 	if w > 0.0:
 		# Horizontal ledges where softer layers eroded, and buttresses.
 		rough += w * (sin(y * 0.55 + n.get_noise_1d(z * 0.05) * 3.0) * 0.9 + _buttress(cliff_id, y, z))
-	var lane := 0.0
-	for lz in WorldLayout.LANE_Z:
-		var dz := z - lz
-		lane -= 0.8 * exp(-dz * dz / 1.5) # vertical crack marking the lane
-		for ly in WorldLayout.LEDGE_Y:
-			var dy := (y - ly) / 0.45
-			lane += 1.0 * exp(-dz * dz / 4.0) * exp(-dy * dy) # small ledge
-	return edge_offset(cliff_id, z) + prof + rough + lane * below_lip
+	return edge_offset(cliff_id, z) + prof + rough
 
 
 ## World position on a cliff face.

@@ -218,7 +218,7 @@ func _ready() -> void:
 			var line := ""
 			for n: Node in get_tree().get_nodes_in_group("bugs"):
 				var b := n as Bug
-				line += "  [%s x %.1f y %.1f climb %.1f]" % [Bug.State.keys()[b.state], b.ground_pos.x, b.global_position.y, b.climb_y]
+				line += "  [%s z %.1f y %.1f]" % [Bug.State.keys()[b.state], b.global_position.z, b.global_position.y]
 			print("[tunnel] t %.0f%s" % [k * 2.0, line])
 			await get_tree().create_timer(2.0).timeout
 		get_tree().quit()

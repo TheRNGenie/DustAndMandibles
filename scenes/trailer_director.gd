@@ -544,6 +544,10 @@ func _shot_tunnels() -> void:
 	_set_time(14.0)
 	var eye := Vector3(-8.0, 9.0, -22.0)
 	var look := Vector3(22.0, 1.5, -2.0)
+	if GameState.flag_value("--view") == "1":
+		# Looking across at the west wall with a wave on it.
+		eye = Vector3(12.0, 48.0, 34.0)
+		look = Vector3(-22.0, 25.0, 0.0)
 	_at(0.2, func() -> void:
 		for lane in 5:
 			_bm().spawn_group(&"dust_mite", 2, WorldLayout.WEST, lane))
