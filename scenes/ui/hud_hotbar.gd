@@ -1,6 +1,6 @@
 class_name HudHotbar
 extends Control
-## Bottom-centre hotbar: eight wooden slots for keys 1-8, each showing a drawn
+## Bottom-centre hotbar: nine wooden slots for keys 1-9, each showing a drawn
 ## icon of what's in it (empty slots stay blank).
 
 const SLOT_SIZE := Vector2(76, 64)
@@ -20,14 +20,14 @@ func _ready() -> void:
 	row.anchor_right = 0.5
 	row.anchor_top = 1.0
 	row.anchor_bottom = 1.0
-	var width := SLOT_SIZE.x * 8 + 6 * 7 + 12
+	var width := SLOT_SIZE.x * Hotbar.SLOTS + 6 * (Hotbar.SLOTS - 1) + 18
 	row.offset_left = -width * 0.5
 	row.offset_right = width * 0.5
 	row.offset_top = -SLOT_SIZE.y - 14
 	row.offset_bottom = -14
 	add_child(row)
-	for i in 8:
-		if i == 3 or i == 6:
+	for i in Hotbar.SLOTS:
+		if i == 3 or i == 6 or i == 8:
 			var gap := Control.new()
 			gap.custom_minimum_size = Vector2(6, 0)
 			row.add_child(gap)
@@ -70,7 +70,7 @@ func bind(h: Hotbar) -> void:
 func refresh() -> void:
 	if hotbar == null:
 		return
-	for i in 8:
+	for i in Hotbar.SLOTS:
 		var info := hotbar.slot_info(i)
 		_icons[i].item = info["id"]
 		_icons[i].queue_redraw()
@@ -119,6 +119,14 @@ class ItemIcon extends Control:
 			&"chili":
 				_poly([c + Vector2(-s * 0.2, -s * 0.6), c + Vector2(s * 0.25, -s * 0.5), c + Vector2(s * 0.35, s * 0.2), c + Vector2(-s * 0.2, s * 0.9), c + Vector2(-s * 0.35, s * 0.1)], Color("#E3361F"))
 				draw_line(c + Vector2(0, -s * 0.6), c + Vector2(s * 0.2, -s * 0.95), Palette.CACTUS, 3.0)
+			&"grapple":
+				# Stubby brass launcher with a three-pronged hook in the muzzle.
+				draw_rect(Rect2(c + Vector2(-s * 0.7, -s * 0.2), Vector2(s * 1.2, s * 0.4)), Color("#D6A74A"), true)
+				_poly([c + Vector2(s * 0.1, s * 0.2), c + Vector2(s * 0.45, s * 0.2), c + Vector2(s * 0.6, s * 0.85), c + Vector2(s * 0.25, s * 0.85)], Palette.WOOD)
+				for k in 3:
+					var a := -0.7 + k * 0.7
+					draw_line(c + Vector2(-s * 0.7, 0), c + Vector2(-s * 0.7, 0) + Vector2(-cos(a), sin(a)) * s * 0.45, Palette.METAL, 3.0)
+				draw_arc(c + Vector2(s * 0.6, -s * 0.5), s * 0.3, 0.0, TAU, 12, Color("#B8955A"), 2.0)
 			&"herbs":
 				draw_rect(Rect2(c + Vector2(-s * 0.45, -s * 0.2), Vector2(s * 0.9, s * 1.0)), Palette.BONE, true)
 				draw_rect(Rect2(c + Vector2(-s * 0.12, -s * 0.05), Vector2(s * 0.24, s * 0.7)), Palette.TEAM_WEST, true)

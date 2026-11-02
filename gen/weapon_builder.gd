@@ -360,6 +360,21 @@ static func held_item(id: StringName) -> ArrayMesh:
 				var p := at + Vector3(-cos(a) * 0.085, 0.06 + sin(a) * 0.09, 0)
 				MeshKit.add_limb(st, prev, p, 0.005, Color("#B8955A"), 4)
 				prev = p
+		&"grapple":
+			# A stubby brass launcher: barrel pointing forward (-Z), a walnut grip,
+			# a rope drum on the side, and the hook's prongs poking out the muzzle.
+			var g := at + Vector3(0, 0.04, -0.05)
+			var fwd := Basis(Vector3.RIGHT, -PI * 0.5)
+			MeshKit.add_cylinder(st, Transform3D(fwd, g + Vector3(0, 0, -0.06)), 0.03, 0.034, 0.2, 12, BRASS)
+			for z: float in [-0.15, -0.02, 0.03]:
+				MeshKit.add_cylinder(st, Transform3D(fwd, g + Vector3(0, 0, z)), 0.037, 0.037, 0.012, 12, BLUED_DARK)
+			MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, 0.3), g + Vector3(0, -0.06, 0.03)), Vector3(0.03, 0.09, 0.04), WALNUT)
+			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), g + Vector3(0.045, 0.0, 0.0)), 0.028, 0.028, 0.025, 12, WALNUT_DARK)
+			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), g + Vector3(0.046, 0.0, 0.0)), 0.024, 0.024, 0.03, 12, Color("#B8955A"))
+			for k in 3:
+				var a := TAU * k / 3.0
+				var tip := g + Vector3(cos(a) * 0.03, sin(a) * 0.03, -0.2)
+				MeshKit.add_limb(st, g + Vector3(0, 0, -0.16), tip, 0.006, STEEL, 4)
 		&"corn":
 			var b := Basis(Vector3.RIGHT, 1.2)
 			MeshKit.add_ellipsoid(st, Transform3D(b, at), Vector3(0.032, 0.085, 0.032), 6, 10, CropBuilder.CORN)
@@ -389,4 +404,17 @@ static func held_item(id: StringName) -> ArrayMesh:
 					MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, sin(a) * 0.5), p), Vector3(0.012, 0.022, 0.006), 3, 6, CropBuilder.SAGE if j % 2 else CropBuilder.SAGE_DARK)
 			MeshKit.add_cylinder(st, Transform3D(Basis(), at + Vector3(0, -0.02, 0)), 0.016, 0.016, 0.02, 8, Color("#C8A878"))
 			MeshKit.add_ellipsoid(st, Transform3D(Basis(), at + Vector3(0, 0.085, 0)), Vector3.ONE * 0.012, 3, 6, CropBuilder.SAGE_FLOWER)
+	return MeshKit.finish(st)
+
+
+## The grappling hook head where it bites in (along +Y = back toward the player).
+static func grapple_hook() -> ArrayMesh:
+	var st := MeshKit.begin()
+	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.12, 0)), 0.03, 0.03, 0.24, 8, STEEL)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.25, 0)), Vector3.ONE * 0.04, 3, 8, BRASS)
+	for k in 3:
+		var a := TAU * k / 3.0
+		var out := Vector3(cos(a), 0, sin(a))
+		MeshKit.add_limb(st, Vector3.ZERO, out * 0.14 + Vector3(0, 0.05, 0), 0.02, STEEL, 5)
+		MeshKit.add_limb(st, out * 0.14 + Vector3(0, 0.05, 0), out * 0.12 + Vector3(0, 0.15, 0), 0.016, STEEL.lightened(0.1), 5)
 	return MeshKit.finish(st)

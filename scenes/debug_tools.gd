@@ -26,6 +26,8 @@ func _ready() -> void:
 		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
+	elif GameState.has_flag("--grappletest"):
+		_grapple_test()
 	elif GameState.flag_value("--stress") != "":
 		_stress(int(GameState.flag_value("--stress")))
 	elif GameState.flag_value("--stairtest") != "":
@@ -366,6 +368,12 @@ func _take_screenshot(path: String) -> void:
 		var wid := StringName(GameState.flag_value("--weapon"))
 		player.gun.grant(wid, 0)
 		player.gun.equip(wid)
+	if GameState.has_flag("--grapple") and player != null:
+		# Hold the grapple and hang a rope off the windmill-ish spot ahead.
+		player.grapple.test_mode = true
+		player.hotbar_use_grapple()
+		player.grapple.attach(Grapple.Mode.PULL, player.global_position - player.global_basis.z * 25.0 + Vector3.UP * 9.0)
+		player.grapple.mode = Grapple.Mode.NONE
 	if GameState.flag_value("--reload") != "" and player != null:
 		# Start a reload with N rounds missing, then wait --reloadwait seconds.
 		player.gun.ammo = player.gun.def.mag_size - int(GameState.flag_value("--reload"))
@@ -634,4 +642,42 @@ func _stress(count: int) -> void:
 			get_tree().get_nodes_in_group("bugs").size(), fps if fps > 0 else float(n) / 2.0, proc / n * 1000.0, phys / n * 1000.0,
 			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
 			Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
+	get_tree().quit()
+
+
+## --grappletest: pulls the player to a point 18 m away and 6 m up, then swings
+## them from an anchor 12 m overhead; prints where they end up. Works headless.
+func _grapple_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	var g := player.grapple
+	g.test_mode = true
+	player.hotbar_use_grapple()
+	var start := player.global_position
+	var fwd := -player.global_basis.z
+	var target := start + fwd * 18.0 + Vector3.UP * 6.0
+	g.attach(Grapple.Mode.PULL, target)
+	var t := 0.0
+	while g.is_active() and t < 3.0:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+	print("[grapple] pull: %.2f s, ended %.1f m from the hook point (started 19 m away)" % [t, (player.global_position + Vector3.UP * 0.9).distance_to(target)])
+	await get_tree().create_timer(1.0).timeout
+	var anchor := player.global_position + Vector3.UP * 12.0 + fwd * 4.0
+	player.velocity = fwd * -6.0 + Vector3.UP * 2.0
+	Input.action_press("alt_fire")
+	g.attach(Grapple.Mode.SWING, anchor)
+	var rope := g._rope_len
+	var max_err := 0.0
+	var lowest := INF
+	for i in 120:
+		await get_tree().physics_frame
+		var d := (player.global_position + Vector3.UP * 0.9).distance_to(anchor)
+		max_err = maxf(max_err, d - rope)
+		lowest = minf(lowest, player.global_position.y)
+	Input.action_release("alt_fire")
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	print("[grapple] swing: rope %.1f m, worst stretch %.2f m, lowest point %.1f m below the anchor, released: %s" % [rope, max_err, anchor.y - lowest, not g.is_active()])
 	get_tree().quit()

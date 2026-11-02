@@ -59,6 +59,7 @@ var _last_pos := Vector3.ZERO
 var _last_y := 0.0
 var _vy_smooth := 0.0
 @onready var vitals: PlayerVitals = $Vitals
+var grapple: Grapple
 ## Set by the world for the local player.
 var build_mode: BuildMode
 
@@ -71,6 +72,11 @@ func _ready() -> void:
 	spawn_transform = global_transform
 	camera.fov = Settings.fov
 	body.visible = false
+	grapple = Grapple.new()
+	grapple.name = "Grapple"
+	grapple.player = self
+	grapple.position = Vector3(0.22, -0.2, -0.4)
+	camera.add_child(grapple)
 	rig = DummyRig.new()
 	rig.name = "Rig"
 	add_child(rig)
@@ -207,7 +213,10 @@ func _physics_process(delta: float) -> void:
 		if sprinting or speed > WALK_SPEED * 0.9:
 			_start_slide()
 
-	if _sliding:
+	var grappling := grapple != null and is_multiplayer_authority() and grapple.physics(delta)
+	if grappling:
+		pass # the grapple drives velocity this tick
+	elif _sliding:
 		_process_slide(delta)
 	else:
 		var target_speed := SPRINT_SPEED if sprinting else WALK_SPEED
@@ -218,9 +227,11 @@ func _physics_process(delta: float) -> void:
 		var accel := ACCEL_GROUND if on_floor else ACCEL_AIR
 		if _stagger > 0.0:
 			accel *= 0.12
-		var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(wish * target_speed, accel * delta)
-		velocity.x = horiz.x
-		velocity.z = horiz.z
+		# In the air with no input, keep your momentum (swings, knock-backs).
+		if on_floor or wish != Vector3.ZERO:
+			var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(wish * target_speed, accel * delta)
+			velocity.x = horiz.x
+			velocity.z = horiz.z
 
 	move_and_slide()
 	_update_camera(delta, sprinting)
@@ -370,6 +381,16 @@ func _porch_transform() -> Transform3D:
 	var fwd := -home.global_basis.z
 	fwd.y = 0.0
 	return Transform3D(Basis.looking_at(fwd.normalized(), Vector3.UP), at)
+
+
+## Debug/tests: take out the grapple launcher (hotbar slot 9).
+func hotbar_use_grapple() -> void:
+	gun.hold_item(&"grapple")
+
+
+## True while dropping into the canyon or lying on its floor.
+func is_plummeting() -> bool:
+	return _falling or _fall_left >= 0.0
 
 
 func respawn() -> void:
