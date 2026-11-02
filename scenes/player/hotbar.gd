@@ -5,8 +5,8 @@ extends Node
 ##   4-6  pickup slots: whatever harvest you're carrying (corn, prickly pear, chili)
 ##   7    medicine: herbs (left click with them out heals 50 HP)
 ##   8    water bucket
-##   9    grappling hook launcher (always carried)
-##   0    Zippo lighter (always carried)
+##   9    Zippo lighter (always carried)
+##   0    grappling hook launcher (always carried)
 ## Mouse wheel steps through the slots that hold something (left click with the
 ## medicine out takes a dose). Pressing the number
 ## of what you're already holding puts it away (empty hands).
@@ -63,9 +63,9 @@ func slot_item(i: int) -> StringName:
 				carried.append(item)
 		return carried[i - 3] if i - 3 < carried.size() else &""
 	if i == 8:
-		return &"grapple"
-	if i == 9:
 		return &"lighter"
+	if i == 9:
+		return &"grapple"
 	return &"herbs" if i == 6 else &"water"
 
 
