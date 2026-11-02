@@ -1,7 +1,8 @@
 class_name Grapple
 extends Node3D
 ## The grappling hook launcher every player carries (hotbar slot 9).
-##   Left click:  fire the hook at what you're aiming at and get reeled in fast.
+##   Hold left:   fire the hook at what you're aiming at and get reeled in fast;
+##                let go of the button and the rope lets go at once.
 ##   Hold right:  hook on and swing from that point on a fixed-length rope;
 ##                let go of the button to drop off with your momentum.
 ## Jump also lets go. Runs on the owning peer; other peers see the rope through
@@ -118,6 +119,10 @@ func _launch(new_mode: Mode) -> void:
 
 func _pull(delta: float) -> bool:
 	_pull_t += delta
+	# Let go of the button: the rope lets go at once, and you keep your speed.
+	if not test_mode and not Input.is_action_pressed("fire"):
+		_release()
+		return false
 	var to := anchor - (player.global_position + Vector3.UP * 0.9)
 	if to.length() < ARRIVE_DIST or _pull_t > PULL_MAX_TIME or Input.is_action_just_pressed("jump"):
 		# Arrive with a little hop so you land on top of ledges.
