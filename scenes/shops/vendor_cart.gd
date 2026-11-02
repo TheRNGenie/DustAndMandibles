@@ -60,6 +60,8 @@ func setup(cid: int) -> void:
 	add_child(rack)
 	_label = ShopBuilder.sign_label()
 	board.add_child(_label)
+	# No price board in the world: the prices live in the shop screen (Logan's call).
+	board.visible = false
 	for k: StringName in ITEMS:
 		_prices[k] = market.price(k)
 	_refresh_sign()

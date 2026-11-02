@@ -56,6 +56,8 @@ func setup(cid: int) -> void:
 		"neck": "bolo", "extra": "bandolier", "paint": "white"}, Color("#4A4E58"))
 	_label = ShopBuilder.sign_label()
 	board.add_child(_label)
+	# No price board in the world: the prices live in the shop screen (Logan's call).
+	board.visible = false
 	var lines: PackedStringArray = ["GUNSMITH", "prices in chitin", ""]
 	for w: StringName in [&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling"]:
 		lines.append("%s ... %d" % [Gun.weapon(w).display_name, Gun.weapon(w).price_chitin])
