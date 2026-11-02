@@ -173,6 +173,8 @@ func _ready() -> void:
 					best2 = w
 			print("[arch] crown near z-17: %s  near z20: %s  cliff top %.1f" % [str(best), str(best2), WorldLayout.CLIFF_HEIGHT])
 		get_tree().quit()
+	elif GameState.flag_value("--threatview") != "":
+		_threat_view(GameState.flag_value("--threatview"))
 	elif GameState.flag_value("--plotview") != "":
 		_plot_view(GameState.flag_value("--plotview"))
 	elif GameState.flag_value("--skyview") != "":
@@ -1442,4 +1444,20 @@ func _plot_view(path: String) -> void:
 		await get_tree().process_frame
 	get_viewport().get_texture().get_image().save_png(path)
 	print("[plot] saved ", path)
+	get_tree().quit()
+
+
+## --threatview=<png>: puts bugs high on both cliffs and screenshots the
+## partner alerts.
+func _threat_view(path: String) -> void:
+	for i in 40:
+		await get_tree().process_frame
+	var bm := world.get("bugs") as BugManager
+	for cid in 2:
+		bm.spawn_group(&"rattler_beetle", 3, cid, 2, 46.0)
+	var pl := world.call("local_player") as Player
+	pl.head.rotation.x = -0.1
+	await get_tree().create_timer(1.5).timeout
+	get_viewport().get_texture().get_image().save_png(path)
+	print("[threat] saved ", path)
 	get_tree().quit()
