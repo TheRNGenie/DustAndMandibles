@@ -228,7 +228,8 @@ func _shot_airship() -> void:
 	ship.position = ship.get("_hover_pos")
 	ship._set_deck_active(true)
 	_dur = 3.0
-	_keys = [[0.0, Vector3(9, 63, -18), Vector3(-4, 70, -40)], [3.0, Vector3(14, 70, -24), Vector3(-4, 72, -40)]]
+	var r := Airship.ring_position()
+	_keys = [[0.0, r + Vector3(14, -10, 22), r + Vector3(0, -2, -6)], [3.0, r + Vector3(18, -6, 16), r + Vector3(0, -2, -6)]]
 
 
 func _shot_reload() -> void:

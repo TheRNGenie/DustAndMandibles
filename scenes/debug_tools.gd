@@ -154,6 +154,47 @@ func _ready() -> void:
 			PickupManager.instance.try_pick_up(multiplayer.get_unique_id(), picks[-1])
 			print("[hotbar] picked it up: corn %d" % Economy.amount(pl.cliff_id, &"corn"))
 		get_tree().quit()
+	elif GameState.has_flag("--archtop"):
+		for i in 10:
+			await get_tree().process_frame
+		var arches := world.find_child("Arches", true, false)
+		for mi: MeshInstance3D in arches.find_children("*", "MeshInstance3D", true, false):
+			var arr := mi.mesh.surface_get_arrays(0)
+			var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var best := Vector3(0, -999, 0)
+			for v in verts:
+				var w := mi.global_transform * v
+				if absf(w.z + 17.0) < 8.0 and w.y > best.y:
+					best = w
+			var best2 := Vector3(0, -999, 0)
+			for v in verts:
+				var w := mi.global_transform * v
+				if absf(w.z - 20.0) < 8.0 and w.y > best2.y:
+					best2 = w
+			print("[arch] crown near z-17: %s  near z20: %s  cliff top %.1f" % [str(best), str(best2), WorldLayout.CLIFF_HEIGHT])
+		get_tree().quit()
+	elif GameState.has_flag("--boardtest"):
+		# Stand on each great arch's crown, hook the casino's ring, see where the pull lands.
+		for i in 30:
+			await get_tree().process_frame
+		var pl := world.call("local_player") as Player
+		var ship := world.get_node("Airship") as Airship
+		for crown: Vector3 in [Vector3(3.7, 96.0, -13.8), Vector3(6.7, 97.5, 21.5)]:
+			pl.global_position = crown + Vector3(0, 1.0, 0)
+			pl.velocity = Vector3.ZERO
+			await get_tree().physics_frame
+			pl.grapple.test_mode = true
+			pl.hotbar_use_grapple()
+			var ring := Airship.ring_position() + Vector3(0, 0.45, 0)
+			var q := PhysicsRayQueryParameters3D.create(pl.global_position + Vector3.UP * 1.5, ring, Grapple.MASK, [pl.get_rid()])
+			var hit := pl.get_world_3d().direct_space_state.intersect_ray(q)
+			print("[board] from %s: line to the ring hits %s" % [str(crown), str(hit.get("collider", "nothing"))])
+			pl.grapple.attach(Grapple.Mode.PULL, ring)
+			for k in 240:
+				await get_tree().physics_frame
+			var local := ship.global_transform.affine_inverse() * pl.global_position
+			print("[board]   ended at %s, ship-local %s, on floor %s" % [str(pl.global_position.snapped(Vector3.ONE * 0.1)), str(local.snapped(Vector3.ONE * 0.1)), pl.is_on_floor()])
+		get_tree().quit()
 	elif GameState.has_flag("--steptest"):
 		for i in 20:
 			await get_tree().process_frame

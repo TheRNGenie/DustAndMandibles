@@ -28,6 +28,8 @@ var mode: Mode = Mode.NONE
 var anchor := Vector3.ZERO
 var _rope_len := 0.0
 var _pull_t := 0.0
+## How long this pull may last (long hooks, like the casino's ring, need longer).
+var _pull_limit := PULL_MAX_TIME
 var _cd := 0.0
 var _rope: MeshInstance3D
 var _hook: MeshInstance3D
@@ -95,6 +97,7 @@ func attach(new_mode: Mode, point: Vector3) -> void:
 	mode = new_mode
 	_pull_t = 0.0
 	_rope_len = maxf((player.global_position + Vector3.UP * 0.9).distance_to(anchor), MIN_ROPE)
+	_pull_limit = maxf(PULL_MAX_TIME, _rope_len / PULL_SPEED * 1.5 + 0.6)
 	_show_rope.rpc(anchor)
 
 
@@ -113,6 +116,7 @@ func _launch(new_mode: Mode) -> void:
 	mode = new_mode
 	_pull_t = 0.0
 	_rope_len = maxf(player.global_position.distance_to(anchor), MIN_ROPE)
+	_pull_limit = maxf(PULL_MAX_TIME, _rope_len / PULL_SPEED * 1.5 + 0.6)
 	Audio.play_at(&"hook_bite", anchor, -2.0)
 	_show_rope.rpc(anchor)
 
@@ -124,7 +128,15 @@ func _pull(delta: float) -> bool:
 		_release()
 		return false
 	var to := anchor - (player.global_position + Vector3.UP * 0.9)
-	if to.length() < ARRIVE_DIST or _pull_t > PULL_MAX_TIME or Input.is_action_just_pressed("jump"):
+	# Hooked the casino ship's boarding ring: step over the rail onto the deck.
+	if to.length() < ARRIVE_DIST + 0.5 and anchor.distance_to(Airship.ring_position()) < 2.0:
+		var ship := player.get_tree().current_scene.get_node_or_null("Airship") as Node3D
+		if ship != null:
+			player.global_position = ship.to_global(Vector3(0, 0.3, AirshipBuilder.DECK_L * 0.5 - 1.2))
+			player.velocity = Vector3.ZERO
+			_release()
+			return true
+	if to.length() < ARRIVE_DIST or _pull_t > _pull_limit or Input.is_action_just_pressed("jump"):
 		# Arrive with a little hop so you land on top of ledges.
 		# Keep some of the flight's momentum, so a pull carries you over a rim.
 		var flat := Vector3(player.velocity.x, 0.0, player.velocity.z)
