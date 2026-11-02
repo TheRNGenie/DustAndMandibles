@@ -3,6 +3,11 @@ extends Node
 ## releases it in 3-5 pulses during the wave, and ends the wave when every bug is dead.
 
 signal wave_announced(heavy_cliff: int, west_share: float, lane_counts: Array)
+## The coming wave's bug mix ([[bug id, count], ...], most first), sent while building.
+signal wave_previewed(mix: Array)
+
+## The last preview, for HUDs that open after it was sent.
+var preview: Array = []
 
 var bug_manager: BugManager
 var _planner: WavePlanner
@@ -24,8 +29,13 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 	if not multiplayer.is_server():
 		return
 	match p:
-		GameState.Phase.WARNING:
+		GameState.Phase.BUILD:
+			# Plan the coming wave now, so both players can see what's coming while they build.
 			_plan = _planner.plan(GameState.wave)
+			_preview.rpc(_mix())
+		GameState.Phase.WARNING:
+			if _plan.is_empty():
+				_plan = _planner.plan(GameState.wave)
 			var extra := Weather.extra_bugs(GameState.weather)
 			if extra > 0.0:
 				# Blood moon: fold part of a second wave's worth of bugs into this one.
@@ -75,6 +85,30 @@ func _lane_counts() -> Array:
 		var row: Array = counts[int(g["cliff"])]
 		row[int(g["lane"])] = int(row[int(g["lane"])]) + int(g["count"])
 	return counts
+
+
+## Bugs per type in the plan, most numerous first.
+func _mix() -> Array:
+	var by: Dictionary = {}
+	for g: Dictionary in _plan["groups"]:
+		by[String(g["bug"])] = int(by.get(String(g["bug"]), 0)) + int(g["count"])
+	var out: Array = []
+	for id: String in by:
+		out.append([id, by[id]])
+	out.sort_custom(func(a: Array, b: Array) -> bool: return int(a[1]) > int(b[1]))
+	return out
+
+
+## Host: re-sends the preview to a player who just joined.
+func send_preview_to(peer: int) -> void:
+	if multiplayer.is_server() and not preview.is_empty():
+		_preview.rpc_id(peer, preview)
+
+
+@rpc("authority", "call_local", "reliable")
+func _preview(mix: Array) -> void:
+	preview = mix
+	wave_previewed.emit(mix)
 
 
 @rpc("authority", "call_local", "reliable")

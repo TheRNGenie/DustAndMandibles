@@ -108,8 +108,14 @@ func _fresh() -> VBoxContainer:
 ## Shrinks to fit the new content and recentres over the hotbar.
 func _settle() -> void:
 	visible = true
-	size = Vector2.ZERO
-	reset_size.call_deferred()
+	_center.call_deferred()
+
+
+func _center() -> void:
+	var s := get_combined_minimum_size()
+	offset_left = -s.x * 0.5
+	offset_right = s.x * 0.5
+	offset_top = offset_bottom - s.y
 
 
 func _clear() -> void:

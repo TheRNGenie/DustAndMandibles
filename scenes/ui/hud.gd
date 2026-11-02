@@ -34,6 +34,7 @@ func _ready() -> void:
 	add_child(hotbar)
 	build_menu = HudBuildMenu.new()
 	add_child(build_menu)
+	add_child(HudWavePreview.new())
 	_speed_lines = SpeedLines.new()
 	_speed_lines.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_speed_lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
