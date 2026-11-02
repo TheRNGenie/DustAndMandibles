@@ -177,8 +177,9 @@ func _ready() -> void:
 		for i in 40:
 			await get_tree().process_frame
 		var hud := world.get("hud") as Hud
-		hud.title_card.show_card("WAVE 7", "They're coming up the walls", Palette.GLOW_YELLOW)
-		await get_tree().create_timer(0.6).timeout
+		hud.title_card.show_card("WAVE 7 HELD", "Breathe easy. For now", Palette.BONE)
+		hud.summary.demo()
+		await get_tree().create_timer(1.2).timeout
 		get_viewport().get_texture().get_image().save_png(GameState.flag_value("--titleview"))
 		print("[title] saved")
 		get_tree().quit()

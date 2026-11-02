@@ -161,12 +161,6 @@ func _on_wave_announced(heavy_cliff: int, west_share: float, lane_counts: Array)
 		heavy = "%s cliff gets %d%%" % ["West" if heavy_cliff == WorldLayout.WEST else "East",
 				int(roundf(maxf(west_share, 1.0 - west_share) * 100.0))]
 	add_line("Dust on the horizon! %s." % heavy, Palette.GLOW_YELLOW)
-	var mine: Array = lane_counts[WorldLayout.other_cliff(cliff_id)]
-	var busiest := 0
-	for i in mine.size():
-		if int(mine[i]) > int(mine[busiest]):
-			busiest = i
-	add_line("Your partner's busiest lane: %d of 5 (watch it with your turrets)." % (busiest + 1), Palette.BONE)
 
 
 func _on_game_over(won: bool, reason: String) -> void:
