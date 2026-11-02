@@ -15,10 +15,10 @@ const MODELS := {
 }
 ## Meshy hats (tools/rig/prep_prop.py: centred, lowest point at 0): [file, height on the head pivot].
 const HATS := {
-	&"cattleman": ["res://assets/rigged/hat_cattleman.glb", 0.15],
-	&"ten_gallon": ["res://assets/rigged/hat_ten_gallon.glb", 0.15],
-	&"gambler": ["res://assets/rigged/hat_gambler.glb", 0.16],
-	&"bowler": ["res://assets/rigged/hat_bowler.glb", 0.16],
+	&"cattleman": ["res://assets/rigged/hat_cattleman.glb", 0.13],
+	&"ten_gallon": ["res://assets/rigged/hat_ten_gallon.glb", 0.13],
+	&"gambler": ["res://assets/rigged/hat_gambler.glb", 0.14],
+	&"bowler": ["res://assets/rigged/hat_bowler.glb", 0.14],
 	&"sombrero": ["res://assets/rigged/hat_sombrero.glb", 0.07],
 }
 const TOON_TEX := preload("res://shaders/toon_tex.gdshader")
@@ -31,6 +31,8 @@ var materials: Array[ShaderMaterial] = []
 var _map: Array = []
 var _hips_bone := -1
 var _hips_rest := Vector3.ZERO
+var _feet: Array = []
+var _ankle_rest := 0.0
 var _rig: DummyRig
 var _scene: Node3D
 static var _cache: Dictionary = {}
@@ -58,7 +60,8 @@ func setup(rig: DummyRig, outfit: StringName, first_person: bool) -> void:
 		m.shader = TOON_TEX
 		if src != null and src.albedo_texture != null:
 			m.set_shader_parameter("albedo_tex", src.albedo_texture)
-		m.next_pass = Materials.outline(0.012)
+		# A thin outline: thick hulls poke through the detailed models' seams.
+		m.next_pass = Materials.outline(0.005)
 		mi.material_override = m
 		materials.append(m)
 		if first_person:
@@ -81,15 +84,23 @@ func bind() -> void:
 		if b < 0:
 			continue
 		var rest_rig: Basis = (to_rig.basis * skel.get_bone_global_rest(b).basis).orthonormalized()
+		var aligned := rest_rig
 		if p[2]:
-			# Line the bone up with the pivot's rest (straight down).
+			# Lined up with the pivot's rest (straight down), so a raised arm points
+			# exactly where the rig aims it. Hanging arms keep the model's own
+			# relaxed angle (they'd clip into the clothes if pulled straight).
 			var along := (rest_rig * Vector3.UP).normalized()
-			rest_rig = _rotation_between(along, Vector3.DOWN) * rest_rig
-		_map.append([p[0], b, rest_rig])
+			aligned = _rotation_between(along, Vector3.DOWN) * rest_rig
+		_map.append([p[0], b, aligned, rest_rig, p[2]])
 	_map.sort_custom(func(a: Array, c: Array) -> bool: return int(a[1]) < int(c[1]))
 	_hips_bone = skel.find_bone("Hips")
 	if _hips_bone >= 0:
 		_hips_rest = skel.get_bone_global_rest(_hips_bone).origin
+	_feet = [skel.find_bone("LeftFoot"), skel.find_bone("RightFoot")]
+	_ankle_rest = 1e9
+	for f in _feet:
+		if f >= 0:
+			_ankle_rest = minf(_ankle_rest, (to_rig * skel.get_bone_global_rest(f).origin).y)
 
 
 static func _rotation_between(a: Vector3, b: Vector3) -> Basis:
@@ -104,18 +115,39 @@ func apply() -> void:
 	if _map.is_empty():
 		bind()
 	var rig_inv := _rig.global_transform.affine_inverse()
-	var sk_from_rig := (rig_inv * skel.global_transform).affine_inverse().basis
+	var to_rig := rig_inv * skel.global_transform
+	var sk_from_rig := to_rig.affine_inverse().basis
+	var raise := {}
 	for m: Array in _map:
 		var pivot: Node3D = m[0]
 		var b: int = m[1]
 		var p_rig: Basis = (rig_inv.basis * pivot.global_basis).orthonormalized()
-		var target: Basis = sk_from_rig * (p_rig * (m[2] as Basis))
+		var rest: Basis = m[2]
+		if m[4]:
+			# How far this arm is raised from hanging (upper arm decides for the forearm too).
+			var side := "L" if skel.get_bone_name(b).begins_with("Left") else "R"
+			if not raise.has(side):
+				var down := (p_rig * Vector3.DOWN).normalized()
+				raise[side] = smoothstep(0.25, 0.9, down.angle_to(Vector3.DOWN))
+			rest = (m[3] as Basis).slerp(m[2], raise[side])
+		var target: Basis = sk_from_rig * (p_rig * rest)
 		var cur := skel.get_bone_global_pose(b)
 		var origin := cur.origin
 		if b == _hips_bone:
 			var off := _rig._hips.position - Vector3(0, RIG_HIP_Y, 0)
 			origin = _hips_rest + sk_from_rig * off
 		skel.set_bone_global_pose(b, Transform3D(target.orthonormalized(), origin))
+	# Keep the boots out of the ground: if the lower foot ends up below where it
+	# stands at rest (hips dipping on a stride or a landing), lift the whole body.
+	if _hips_bone >= 0 and _feet.size() == 2 and _feet[0] >= 0 and _feet[1] >= 0:
+		var low := 1e9
+		for f: int in _feet:
+			low = minf(low, (to_rig * skel.get_bone_global_pose(f).origin).y)
+		var sink := _ankle_rest - low
+		if sink > 0.001:
+			var hp := skel.get_bone_global_pose(_hips_bone)
+			hp.origin += sk_from_rig * Vector3(0, minf(sink, 0.3), 0)
+			skel.set_bone_global_pose(_hips_bone, hp)
 
 
 ## A Meshy hat as a node with the toon look, or null when there's no model for it.
@@ -134,7 +166,7 @@ static func hat(id: StringName, first_person: bool) -> Node3D:
 		m.shader = TOON_TEX
 		if src != null and src.albedo_texture != null:
 			m.set_shader_parameter("albedo_tex", src.albedo_texture)
-		m.next_pass = Materials.outline(0.01)
+		m.next_pass = Materials.outline(0.005)
 		mi.material_override = m
 		if first_person:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY

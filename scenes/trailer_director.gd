@@ -431,6 +431,9 @@ func _shot_posse() -> void:
 		if cu.ends_with("side"):
 			f = r.global_position + Vector3(0, 0.85, 0)
 			eye = f + Vector3(-0.6, 0.35, 3.6)
+		elif cu.ends_with("feet"):
+			f = r.global_position + Vector3(0, 0.3, 0)
+			eye = f + Vector3(-1.6, 0.05, 0.9)
 		_keys = [[0.0, eye, f], [2.0, eye, f]]
 
 

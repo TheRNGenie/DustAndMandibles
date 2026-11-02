@@ -101,6 +101,33 @@ func _ready() -> void:
 		doc.append_from_scene(r, st)
 		print("[export] ", doc.write_to_filesystem(st, GameState.flag_value("--exportdummy")))
 		get_tree().quit()
+	elif GameState.has_flag("--footcheck"):
+		# How high the Meshy bodies' feet sit relative to the rig's origin (the ground).
+		for outfit in ["vest", "duster", "poncho", "lawman"]:
+			var r := DummyRig.new()
+			add_child(r)
+			r.build(Color.RED, false, {"outfit": outfit})
+			for i in 4:
+				r.animate(0.016, 0.0, false, 0.0)
+				await get_tree().process_frame
+			var m: ModelBody = r._model
+			var low := 99.0
+			for mi: MeshInstance3D in m.find_children("*", "MeshInstance3D", true, false):
+				var arrays := mi.mesh.surface_get_arrays(0)
+				var sk := m.skel
+				# Skinned positions: approximate with the foot bones' rest-to-pose shift.
+				for b in ["LeftFoot", "RightFoot"]:
+					var bi := sk.find_bone(b)
+					var rest := sk.get_bone_global_rest(bi)
+					var pose := sk.get_bone_global_pose(bi)
+					var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+					for v in verts:
+						if (rest.affine_inverse() * v).length() < 0.25:
+							var w := r.global_transform.affine_inverse() * (sk.global_transform * (pose * (rest.affine_inverse() * v)))
+							low = minf(low, w.y)
+			print("[foot] %s lowest boot point %.3f m (0 = ground); hips bone %.3f" % [outfit, low, (r.global_transform.affine_inverse() * (m.skel.global_transform * m.skel.get_bone_global_pose(m.skel.find_bone("Hips")).origin)).y])
+			r.queue_free()
+		get_tree().quit()
 	elif GameState.has_flag("--steptest"):
 		for i in 20:
 			await get_tree().process_frame
