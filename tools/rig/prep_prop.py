@@ -10,7 +10,11 @@ exports a GLB.
 import math
 import sys
 
+import os
 import bpy
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from slim import slim_textures  # noqa: E402
 from mathutils import Vector
 
 
@@ -59,9 +63,7 @@ def main():
         d.ratio = o["max_tris"] / tris
         bpy.ops.object.modifier_apply(modifier=d.name)
     print("[prop] triangles:", sum(len(p.vertices) - 2 for p in body.data.polygons), "scale", round(s, 4))
-    for img in bpy.data.images:
-        if img.size[0] > 2048:
-            img.scale(2048, int(2048 * img.size[1] / img.size[0]))
+    slim_textures(1024)
     if o["preview"]:
         scene = bpy.context.scene
         cam = bpy.data.objects.new("cam", bpy.data.cameras.new("c"))

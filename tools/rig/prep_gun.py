@@ -17,7 +17,11 @@ barrels that animate. Writes <name>_body.glb and <name>_<part>.glb.
 import json
 import sys
 
+import os
 import bpy
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from slim import slim_textures  # noqa: E402
 import bmesh
 from mathutils import Vector
 
@@ -107,9 +111,7 @@ def main():
         bm.to_mesh(obj.data)
         bm.free()
     obj.data.update()
-    for img in bpy.data.images:
-        if img.size[0] > 2048:
-            img.scale(2048, int(2048 * img.size[1] / img.size[0]))
+    slim_textures(1024)
     info = {}
     # Cut out the moving parts.
     for name, box in o["parts"]:

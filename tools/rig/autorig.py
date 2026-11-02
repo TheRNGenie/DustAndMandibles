@@ -22,7 +22,11 @@ What it does:
 import math
 import sys
 
+import os
 import bpy
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from slim import slim_textures  # noqa: E402
 import bmesh
 from mathutils import Vector
 
@@ -399,11 +403,7 @@ def main():
     print("[autorig] bones with (almost) no weights:", empty)
     if o["preview"]:
         preview(rig, o["preview"])
-    # Textures: 2K is plenty for a character the size of a player.
-    for img in bpy.data.images:
-        if img.size[0] > 2048:
-            img.scale(2048, int(2048 * img.size[1] / img.size[0]))
-            print("[autorig] texture", img.name, "->", tuple(img.size))
+    slim_textures(2048)
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(export_image_format="JPEG", export_jpeg_quality=90, filepath=o["out"], export_format="GLB", use_selection=True, export_skins=True, export_animations=False)
     print("[autorig] wrote", o["out"])
