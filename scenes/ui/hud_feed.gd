@@ -22,6 +22,7 @@ var _boss_label: Label
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_to_group("hud_feed")
 	_feed = VBoxContainer.new()
 	_feed.anchor_left = 1.0
 	_feed.anchor_right = 1.0

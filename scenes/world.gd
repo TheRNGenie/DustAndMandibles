@@ -60,7 +60,12 @@ func _ready() -> void:
 	StructureNode.vfx = vfx
 	WaveDirector.bug_manager = bugs
 	hud = Hud.new()
+	hud.name = "Hud"
 	add_child(hud)
+	# Pings draw on the HUD layer but live here so their RPCs line up on every peer.
+	var pings := Pings.new()
+	pings.name = "Pings"
+	hud.add_child(pings)
 	var pause := PauseMenu.new()
 	pause.name = "PauseMenu"
 	add_child(pause)

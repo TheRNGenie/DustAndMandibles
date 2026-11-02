@@ -29,6 +29,7 @@ const REMAPPABLE: Dictionary = {
 	"throw_rock": "Throw a rock",
 	"melee": "Quick melee (whip)",
 	"ready_up": "Ready (skip build phase)",
+	"ping": "Ping (hold for the ping wheel)",
 	"debug_overlay": "Debug overlay",
 }
 

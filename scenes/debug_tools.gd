@@ -173,6 +173,8 @@ func _ready() -> void:
 					best2 = w
 			print("[arch] crown near z-17: %s  near z20: %s  cliff top %.1f" % [str(best), str(best2), WorldLayout.CLIFF_HEIGHT])
 		get_tree().quit()
+	elif GameState.flag_value("--pingview") != "":
+		_ping_view(GameState.flag_value("--pingview"))
 	elif GameState.flag_value("--threatview") != "":
 		_threat_view(GameState.flag_value("--threatview"))
 	elif GameState.flag_value("--plotview") != "":
@@ -1460,4 +1462,28 @@ func _threat_view(path: String) -> void:
 	await get_tree().create_timer(1.5).timeout
 	get_viewport().get_texture().get_image().save_png(path)
 	print("[threat] saved ", path)
+	get_tree().quit()
+
+
+## --pingview=<png prefix>: drops a ping, then opens the wheel with "Bugs here"
+## picked; screenshots both.
+func _ping_view(prefix: String) -> void:
+	for i in 40:
+		await get_tree().process_frame
+	var p := Pings.instance
+	var pl := world.call("local_player") as Player
+	pl.head.rotation.x = -0.2
+	p.call("_send", 1)
+	pl.rotate_y(0.5)
+	for i in 20:
+		await get_tree().process_frame
+	p.set("_down", true)
+	p.set("_held", 1.0)
+	p.set("_wheel", true)
+	p.set("_aim", Vector2(0, -80))
+	p.set("_choice", 0)
+	for i in 10:
+		await get_tree().process_frame
+	get_viewport().get_texture().get_image().save_png(prefix + "_wheel.png")
+	print("[ping] saved")
 	get_tree().quit()

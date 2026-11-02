@@ -44,6 +44,7 @@ const KEY_BINDINGS: Dictionary = {
 const MOUSE_BINDINGS: Dictionary = {
 	"fire": [MOUSE_BUTTON_LEFT],
 	"alt_fire": [MOUSE_BUTTON_RIGHT],
+	"ping": [MOUSE_BUTTON_MIDDLE],
 	"melee": [MOUSE_BUTTON_XBUTTON1],
 	"next_item": [MOUSE_BUTTON_WHEEL_DOWN],
 	"prev_item": [MOUSE_BUTTON_WHEEL_UP],
