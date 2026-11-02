@@ -13,7 +13,7 @@ const PLANT_SCALE := 1.45
 ## Seed order for F (cycle) on an empty plot.
 const SEEDS: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs"]
 
-## The seed resource each crop needs (bought from the Oasis vendor for scrap).
+## The seed resource each crop needs (bought from the airship market for scrap).
 const SEED_RES: Dictionary = {&"corn": &"seed_corn", &"prickly_pear": &"seed_prickly_pear",
 	&"firecracker_chili": &"seed_chili", &"herbs": &"seed_herbs"}
 
@@ -116,7 +116,7 @@ func cycle_option() -> void:
 func interact_prompt() -> String:
 	if growth.stage == CropGrowth.Stage.EMPTY:
 		var have := Economy.amount(_local_cliff(), SEED_RES[seed_def().id])
-		return "E: plant %s (%d seeds left)   F: change seed\nBuy more seeds at the Oasis vendor" % [seed_def().display_name, have]
+		return "E: plant %s (%d seeds left)   F: change seed\nBuy more seeds at the airship market" % [seed_def().display_name, have]
 	var n := crop_def.display_name
 	match growth.stage:
 		CropGrowth.Stage.PLANTED:
@@ -149,7 +149,7 @@ func _use(peer_id: int, seed_id: StringName) -> void:
 			if def == null:
 				return
 			if not Economy.spend(payer, {SEED_RES[seed_id]: 1}):
-				Economy.notify(peer_id, "No %s seeds. Buy them at the Oasis vendor for scrap." % def.display_name.to_lower())
+				Economy.notify(peer_id, "No %s seeds. Buy them at the airship market for scrap." % def.display_name.to_lower())
 				return
 			crop_def = def
 			growth.plant(def)

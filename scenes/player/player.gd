@@ -171,7 +171,7 @@ func _on_wood(at: Vector3) -> bool:
 	if hit.is_empty():
 		return false
 	var c: Object = hit["collider"]
-	if c is Homestead or c is RopeBridge:
+	if c is Homestead:
 		return true
 	return c is CollisionObject3D and ((c as CollisionObject3D).collision_layer & WorldLayout.LAYER_STRUCTURE) != 0
 

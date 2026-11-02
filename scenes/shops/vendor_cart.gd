@@ -1,6 +1,6 @@
 class_name VendorCart
 extends StaticBody3D
-## The produce vendor at the Oasis. Chilies sell for chitin (for turret and
+## The produce vendor in the airship market. Chilies sell for chitin (for turret and
 ## weapon upgrades), other vegetables sell for scrap, and seeds cost scrap. F picks a line, E sells or buys one,
 ## hold E to repeat. Vegetable prices drop as you sell (down to -50%) and climb
 ## back while you don't (up to +50%); the sign shows today's prices.

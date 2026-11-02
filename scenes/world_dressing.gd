@@ -25,7 +25,6 @@ func build() -> void:
 	_build_nests()
 	_build_webs()
 	CanyonDressing.build(parent, cliffs, 5151)
-	OasisBuilder.build(parent, 4242)
 
 
 ## A heavy spider infestation: orb webs all over both canyon walls (thicker low
@@ -235,20 +234,13 @@ func _scatter_props(cid: int) -> void:
 ## Fence along the playable boundary (back and sides) plus invisible walls.
 ## The canyon side stays open so players can lean over (and fall off) the lip.
 ## Fence along the playable boundary plus invisible walls. The canyon side stays
-## open so players can lean over (and fall off) the lip, and a walkway along the
-## lip leads south to the drawbridge over to the Oasis.
+## open so players can lean over (and fall off) the lip.
 func _build_boundary(cid: int) -> void:
 	var half_w := WorldLayout.PLATEAU_WIDTH * 0.5
 	var depth := WorldLayout.PLATEAU_DEPTH
-	var walk_end := OasisBuilder.CENTER_Z - 3.5
 	var pts: Array[Vector3] = []
-	pts.append(ground(cid, 0.6, walk_end))
-	pts.append(ground(cid, WALKWAY_D, walk_end))
-	var z := walk_end + 2.5
-	while z < -half_w:
-		pts.append(ground(cid, WALKWAY_D, z))
-		z += 2.5
-	var d := WALKWAY_D
+	var z := -half_w
+	var d := 0.6
 	while d < depth:
 		pts.append(ground(cid, d, -half_w))
 		d += 2.5
@@ -267,16 +259,12 @@ func _build_boundary(cid: int) -> void:
 	var y := WorldLayout.CLIFF_HEIGHT + wall_h * 0.5 - 1.0
 	var gap := WorldLayout.HALF_GAP
 	_add_wall(Vector3(s * (gap + depth + 0.5), y, 0), Vector3(1, wall_h, WorldLayout.PLATEAU_WIDTH + 2.0))
-	_add_wall(Vector3(s * (gap + (WALKWAY_D + depth + 2.0) * 0.5), y, -half_w - 0.5), Vector3(depth + 2.0 - WALKWAY_D, wall_h, 1))
+	_add_wall(Vector3(s * (gap + (depth + 2.0) * 0.5 - 1.0), y, -half_w - 0.5), Vector3(depth + 4.0, wall_h, 1))
 	_add_wall(Vector3(s * (gap + (depth + 2.0) * 0.5 - 1.0), y, half_w + 0.5), Vector3(depth + 4.0, wall_h, 1))
-	# Walkway: inner wall along it and a cap at its far end.
-	var walk_len := -half_w - walk_end
-	_add_wall(Vector3(s * (gap + WALKWAY_D + 0.5), y, (-half_w + walk_end) * 0.5), Vector3(1, wall_h, walk_len + 1.0))
-	_add_wall(Vector3(s * (gap + WALKWAY_D * 0.5 - 1.0), y, walk_end - 0.5), Vector3(WALKWAY_D + 2.0, wall_h, 1))
 
 
-static func _in_walkway(d: float, z: float) -> bool:
-	return d < WALKWAY_D + 2.0 and z < -WorldLayout.PLATEAU_WIDTH * 0.5 + 1.0 and z > OasisBuilder.CENTER_Z - 6.0
+static func _in_walkway(_d: float, _z: float) -> bool:
+	return false
 
 
 func _add_wall(pos: Vector3, size: Vector3) -> void:

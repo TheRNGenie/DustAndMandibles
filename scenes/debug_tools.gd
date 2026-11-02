@@ -288,7 +288,7 @@ func _ladder_test() -> void:
 		await get_tree().create_timer(0.5).timeout
 	await get_tree().create_timer(4.0).timeout
 	print("[ladder] ship hovering at %s, ladder out %s" % [str(ship.global_position.snapped(Vector3.ONE * 0.1)), ship._ladder_mi.visible])
-	player.global_position = Vector3(Airship.LADDER_FOOT.x, WorldLayout.CLIFF_HEIGHT + 0.3, Airship.LADDER_FOOT.z + 0.6)
+	player.global_position = ship.to_global(Vector3(0, 0.3, AirshipBuilder.DECK_L * 0.5 - 1.2))
 	player.velocity = Vector3.ZERO
 	player.rotation.y = 0.0 # facing -Z, toward the deck
 	await get_tree().physics_frame
@@ -776,9 +776,8 @@ func _showcase() -> void:
 		return
 	elif GameState.flag_value("--showcase") == "6":
 		# Shop test: sell corn at the vendor, buy and fire the shotgun.
-		var dressing := world.get_node("Dressing")
-		var vendor := dressing.get_node("Vendor") as VendorCart
-		var shop := dressing.get_node("GunShop") as GunShop
+		var vendor := world.find_child("Vendor", true, false) as VendorCart
+		var shop := world.find_child("GunShop", true, false) as GunShop
 		Economy.earn(WorldLayout.WEST, {&"corn": 20, &"chitin": 5})
 		var before := Economy.amount(WorldLayout.WEST, &"chitin")
 		for i in 12:
@@ -798,7 +797,7 @@ func _showcase() -> void:
 		vendor._sell(1, &"seed_corn")
 		vendor._sell(1, &"seed_corn")
 		var seeds1 := Economy.amount(WorldLayout.WEST, &"seed_corn")
-		var plot := dressing.get_node("Plot0_0_0") as CropPlot
+		var plot := world.get_node("Dressing").get_node("Plot0_0_0") as CropPlot
 		plot._use(1, &"corn")
 		print("[shop] corn seeds %d -> bought -> %d -> planted -> %d, plot stage %d" % [seeds0, seeds1, Economy.amount(WorldLayout.WEST, &"seed_corn"), plot.growth.stage])
 		print("[shop] fired shotgun: %d, ammo %d/%d, pellets %d" % [shots, p.gun.ammo, p.gun.def.mag_size, Gun.shot_dirs(&"coach_shotgun", Vector3.FORWARD, 7).size()])

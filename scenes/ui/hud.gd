@@ -182,7 +182,7 @@ func _update_hint() -> void:
 			_hint_label.text = "Build up your partner's defenses. Press G when ready (%d/%d)" % [
 				GameState.skip_votes, maxi(NetworkManager.players.size(), 1)]
 		GameState.Phase.WARNING:
-			_hint_label.text = "The bridge is coming up! Get back to your own cliff."
+			_hint_label.text = "A wave is coming! Get back to your own cliff."
 		GameState.Phase.WAVE:
 			_hint_label.text = "Bugs are climbing. Cover your partner's cliff!"
 		_:

@@ -10,7 +10,6 @@ const WORLD_SEED := 1234
 var cliffs: CliffBuilder
 var vfx: VfxPool
 var hud: Hud
-var bridge: RopeBridge
 var bugs: BugManager
 var builds: BuildManager
 var players_root: Node3D
@@ -32,10 +31,6 @@ func _ready() -> void:
 	dressing.name = "Dressing"
 	add_child(dressing)
 	WorldDressing.new(cliffs, dressing, WORLD_SEED + 1).build()
-	bridge = RopeBridge.new()
-	bridge.name = "Bridge"
-	add_child(bridge)
-	bridge.setup(cliffs)
 	vfx = VfxPool.new()
 	vfx.name = "Vfx"
 	add_child(vfx)

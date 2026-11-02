@@ -95,8 +95,6 @@ static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerat
 	# Hoodoos: stacked, weathered pillars with a cap stone.
 	for i in 14:
 		var z := rng.randf_range(-190.0, 190.0)
-		if absf(z - OasisBuilder.CENTER_Z) < 16.0:
-			continue
 		var x := cliffs.floor_x(rng.randf_range(-13.0, 13.0), z)
 		var y := cliffs.floor_height(x, z)
 		var h := rng.randf_range(4.0, 11.0)

@@ -451,12 +451,13 @@ func _shot_porch() -> void:
 const D_FRONT := 11.0
 
 
-## The Oasis market: the two shopkeepers at their stalls.
+## The airship market: the two shopkeepers at their stalls.
 func _shot_market() -> void:
 	_set_time(10.0)
 	var v := get_tree().root.find_child("Vendor", true, false) as Node3D
-	var front := v.to_global(Vector3(2.0, 2.0, -6.5))
-	var look := v.to_global(Vector3(2.5, 1.2, 0.0))
+	var ship := get_tree().root.find_child("Airship", true, false) as Node3D
+	var front := ship.to_global(Vector3(0.0, 2.2, 16.0)) if ship != null else v.to_global(Vector3(2.0, 2.0, -6.5))
+	var look := ship.to_global(Vector3(0.0, 1.4, 6.0)) if ship != null else v.to_global(Vector3(2.5, 1.2, 0.0))
 	_player.global_position = v.to_global(Vector3(1.8, 0.2, -3.0))
 	_dur = 3.0
 	_keys = [[0.0, front, look], [3.0, front + Vector3(0.5, 0, 0), look]]

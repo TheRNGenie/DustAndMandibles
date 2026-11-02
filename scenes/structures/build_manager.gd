@@ -301,7 +301,7 @@ func _do_upgrade(peer_id: int, n: Node3D) -> void:
 		return
 	var payer := Economy.payer_cliff(peer_id, t.cliff_id)
 	if not Economy.spend(payer, {&"chitin": t.upgrade_cost()}):
-		Economy.notify(peer_id, "Upgrading needs %d chitin (armoured bugs and the Oasis vendor give it)." % t.upgrade_cost())
+		Economy.notify(peer_id, "Upgrading needs %d chitin (armoured bugs and the airship market give it)." % t.upgrade_cost())
 		return
 	t.upgrade()
 	_upgraded.rpc(t.global_position)
