@@ -86,18 +86,19 @@ func _ready() -> void:
 			p2.position = Vector3(sx * (AirshipBuilder.DECK_W * 0.5 + 2.8), AirshipBuilder.ROOF_Y - 0.6, pz - 1.2)
 			add_child(p2)
 		prop.queue_free()
-	# Painted on both flanks of the envelope.
+	# The name painted on both flanks of the envelope (a decal that wraps the curve).
+	var name_tex: Texture2D = load("res://assets/airship/name.png")
 	for sx: float in [-1.0, 1.0]:
-		var sign := Label3D.new()
-		sign.text = "CASINO\n%s" % NAME
-		sign.font_size = 240
-		sign.outline_size = 28
-		sign.modulate = Palette.GLOW_YELLOW
-		sign.outline_modulate = Color("#7A2E22")
-		sign.pixel_size = 0.011
-		sign.position = Vector3(sx * (AirshipBuilder.ENVELOPE.x + 0.15), AirshipBuilder.ENVELOPE_Y, 0)
-		sign.rotation.y = sx * PI * 0.5
-		add_child(sign)
+		var paint := Decal.new()
+		paint.texture_albedo = name_tex
+		paint.size = Vector3(30.0, AirshipBuilder.ENVELOPE.x * 0.9, 9.4)
+		# Image across along the ship, down the side; projected inward onto the near flank.
+		paint.basis = Basis(Vector3(0, 0, -sx), Vector3(sx, 0, 0), Vector3(0, -1, 0))
+		paint.position = Vector3(sx * AirshipBuilder.ENVELOPE.x * 0.75, AirshipBuilder.ENVELOPE_Y + 1.0, 0)
+		paint.upper_fade = 0.05
+		paint.lower_fade = 0.05
+		paint.albedo_mix = 1.0
+		add_child(paint)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color("#FFC27A")
 	glow.light_energy = 2.0
@@ -187,17 +188,10 @@ func _add_market() -> void:
 	shop.position = Vector3(4.2, 0, 9.5)
 	shop.rotation.y = PI * 0.5
 	add_child(shop)
+	# Painted wooden signboards hung from the canopy on ropes, facing the boarding ring.
 	for sx: float in [-1.0, 1.0]:
-		var sign := Label3D.new()
-		sign.text = "MARKET" if sx < 0 else "GUNSMITH"
-		sign.font_size = 96
-		sign.outline_size = 18
-		sign.modulate = Color("#FFE2B0")
-		sign.outline_modulate = Color("#5C351D")
-		sign.pixel_size = 0.01
-		# Readable as you walk in from the boarding ring.
-		sign.position = Vector3(sx * 4.2, AirshipBuilder.ROOF_Y - 0.9, 9.5)
-		add_child(sign)
+		_signboard(Vector3(sx * 4.2, AirshipBuilder.ROOF_Y - 0.95, 9.5),
+				"res://assets/airship/market.png" if sx < 0 else "res://assets/airship/gunsmith.png", 2.6 if sx < 0 else 3.0)
 
 
 const RING_Y := 0.9
@@ -238,16 +232,35 @@ func _add_boarding_ring() -> void:
 	col.shape = shape
 	col.position = at + Vector3(0, 0.45, 0)
 	body.add_child(col)
-	var sign := Label3D.new()
-	sign.text = "GRAPPLE HERE"
-	sign.font_size = 64
-	sign.outline_size = 14
-	sign.modulate = Palette.GLOW_YELLOW
-	sign.outline_modulate = Color("#7A2E22")
-	sign.pixel_size = 0.012
-	sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	sign.position = at + Vector3(0, -0.8, 0.3)
-	add_child(sign)
+
+
+
+## A plank signboard with painted lettering, hanging on two ropes. Faces +Z.
+func _signboard(at: Vector3, texture_path: String, width: float) -> void:
+	var tex: Texture2D = load(texture_path)
+	var h := width * float(tex.get_height()) / float(tex.get_width()) + 0.2
+	var st := MeshKit.begin()
+	MeshKit.add_box(st, Transform3D(Basis(), at), Vector3(width + 0.3, h, 0.08), Palette.WOOD_DARK)
+	MeshKit.add_box(st, Transform3D(Basis(), at + Vector3(0, 0, 0.045)), Vector3(width + 0.1, h - 0.1, 0.02), Palette.WOOD)
+	for s: float in [-1.0, 1.0]:
+		var top := Vector3(at.x + s * width * 0.4, AirshipBuilder.ROOF_Y, at.z)
+		MeshKit.add_limb(st, top, at + Vector3(s * width * 0.4, h * 0.5, 0), 0.025, Color("#B8955A"), 5)
+	var board := MeshInstance3D.new()
+	board.mesh = MeshKit.finish(st)
+	board.material_override = Materials.toon(0.01)
+	add_child(board)
+	var lettering := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(width, width * float(tex.get_height()) / float(tex.get_width()))
+	lettering.mesh = quad
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = tex
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.4
+	m.roughness = 1.0
+	lettering.material_override = m
+	lettering.position = at + Vector3(0, 0, 0.058)
+	add_child(lettering)
 
 
 func _bar_mesh() -> ArrayMesh:

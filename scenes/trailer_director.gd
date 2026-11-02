@@ -230,6 +230,10 @@ func _shot_airship() -> void:
 	_dur = 3.0
 	var r := Airship.ring_position()
 	_keys = [[0.0, r + Vector3(14, -10, 22), r + Vector3(0, -2, -6)], [3.0, r + Vector3(18, -6, 16), r + Vector3(0, -2, -6)]]
+	if GameState.flag_value("--view") == "1":
+		# Broadside, to see the name on the envelope.
+		var c := ship.global_position + Vector3(0, 12, 0)
+		_keys = [[0.0, c + Vector3(55, 4, 0), c], [3.0, c + Vector3(55, 4, 2), c]]
 
 
 func _shot_reload() -> void:
