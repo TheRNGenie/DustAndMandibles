@@ -23,6 +23,8 @@ var _fires: Array[Dictionary] = []
 
 func _ready() -> void:
 	instance = self
+	# Hands out update turns before the bugs run each tick.
+	process_physics_priority = -10
 	_spawner = MultiplayerSpawner.new()
 	_spawner.name = "BugSpawner"
 	add_child(_spawner)
@@ -193,10 +195,26 @@ func add_fire(cliff: int, center: Vector3, radius: float, dps: float, seconds: f
 	_draw_fire.rpc(center, radius, seconds)
 
 
+## Script time per tick the bugs that take turns may use (the nearest
+## FULL_DETAIL_BUDGET update every tick on top of this).
+const TURN_BUDGET_US := 5000.0
+var _turn := 0
+## Running average cost of one bug update (microseconds).
+static var _avg_us := 60.0
+
+
+static func note_update(us: int) -> void:
+	_avg_us = lerpf(_avg_us, float(us), 0.01)
+
+
 func _physics_process(delta: float) -> void:
+	_hand_out_turns()
 	if not multiplayer.is_server():
 		return
-	separate()
+	# Every other tick is plenty for keeping bugs apart.
+	_sep_tick = not _sep_tick
+	if _sep_tick:
+		separate()
 	if _fires.is_empty():
 		return
 	for f in _fires:
@@ -250,6 +268,55 @@ func _draw_spit(from: Vector3, to: Vector3, flight: float) -> void:
 
 
 ## Host: no two bugs overlap; heavier bugs shove lighter ones aside (BugCrowd).
+
+## At most this many bugs get full-detail updates (every tick) at once; the rest
+## of a close crowd updates every few ticks. The nearest ones win.
+const FULL_DETAIL_BUDGET := 40
+const FAR_BUDGET := 100
+var _detail_t := 0.0
+var _sep_tick := false
+
+
+func _process(delta: float) -> void:
+	_detail_t -= delta
+	if _detail_t > 0.0:
+		return
+	_detail_t = 0.25
+	assign_detail()
+
+
+func _hand_out_turns() -> void:
+	var n := get_child_count()
+	if n == 0:
+		return
+	var given := 0
+	var looked := 0
+	var turns := clampi(int(TURN_BUDGET_US / maxf(_avg_us, 5.0)), 20, 400)
+	while given < turns and looked < n:
+		_turn = (_turn + 1) % n
+		looked += 1
+		var b := get_child(_turn) as Bug
+		if b != null and b.detail != 0:
+			b.due = true
+			given += 1
+
+
+func assign_detail() -> void:
+	var seen: Array[Bug] = []
+	for c in get_children():
+		var b := c as Bug
+		if b == null or not b.is_alive():
+			continue
+		b.detail = b.detail_level()
+		if b.detail < 2:
+			seen.append(b)
+	if seen.size() <= FULL_DETAIL_BUDGET:
+		return
+	seen.sort_custom(func(x: Bug, y: Bug) -> bool: return x.cam_dist < y.cam_dist)
+	for i in range(FULL_DETAIL_BUDGET, seen.size()):
+		seen[i].detail = 1 if i < FULL_DETAIL_BUDGET + FAR_BUDGET else 3
+
+
 func separate() -> void:
 	var groups: Dictionary = {} # surface key -> Array[Bug]
 	for c in get_children():

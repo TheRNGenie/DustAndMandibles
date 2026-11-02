@@ -18,12 +18,30 @@ var _feet: Array[Vector3] = []
 var _step_from: Array[Vector3] = []
 var _step_to: Array[Vector3] = []
 var _step_t: Array[float] = []
-var _coxa: Array[MeshInstance3D] = []
-var _upper: Array[MeshInstance3D] = []
-var _lower: Array[MeshInstance3D] = []
-var _hip_ball: Array[MeshInstance3D] = []
-var _knee_ball: Array[MeshInstance3D] = []
-var _claw: Array[MeshInstance3D] = []
+## Slots in the shared leg batches (see LegBatch): one draw per mesh for all bugs.
+var _coxa: Array[int] = []
+var _upper: Array[int] = []
+var _lower: Array[int] = []
+var _hip_ball: Array[int] = []
+var _knee_ball: Array[int] = []
+var _claw: Array[int] = []
+var _seg_b: LegBatch
+var _ball_b: LegBatch
+var _claw_b: LegBatch
+var _shown := true
+## Far away: just thigh, shin and claw (no coxa or joint balls), half the work.
+var _lite := false
+
+
+func set_lite(on: bool) -> void:
+	if on == _lite or _coxa.is_empty():
+		return
+	_lite = on
+	if on:
+		for i in _coxa.size():
+			_seg_b.hide(_coxa[i])
+			_ball_b.hide(_hip_ball[i])
+			_ball_b.hide(_knee_ball[i])
 var _phase := 0.0
 var _initialized := false
 
@@ -34,25 +52,62 @@ func setup(leg_spec: Dictionary) -> void:
 	var seg := _segment_mesh(color)
 	var ball := _ball_mesh(color.darkened(0.2))
 	var claw := _claw_mesh(color.darkened(0.45))
-	var mat := Materials.toon(0.015)
+	_seg_mesh = seg
+	_ball_mesh_r = ball
+	_claw_mesh_r = claw
 	for i in (spec["legs"] as Array).size():
-		for arr: Array in [_coxa, _upper, _lower]:
-			arr.append(_mi(seg, mat))
-		for arr: Array in [_hip_ball, _knee_ball]:
-			arr.append(_mi(ball, mat))
-		_claw.append(_mi(claw, mat))
 		_feet.append(Vector3.ZERO)
 		_step_from.append(Vector3.ZERO)
 		_step_to.append(Vector3.ZERO)
 		_step_t.append(1.0)
 
 
-func _mi(mesh: Mesh, mat: Material) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = mat
-	add_child(mi)
-	return mi
+var _seg_mesh: Mesh
+var _ball_mesh_r: Mesh
+var _claw_mesh_r: Mesh
+
+
+func _enter_tree() -> void:
+	if not _coxa.is_empty() or spec.is_empty():
+		return
+	var mat := Materials.toon(0.015)
+	var root := get_tree().current_scene if get_tree().current_scene != null else get_tree().root
+	_seg_b = LegBatch.of(_seg_mesh, mat, root)
+	_ball_b = LegBatch.of(_ball_mesh_r, mat, root)
+	_claw_b = LegBatch.of(_claw_mesh_r, mat, root)
+	for i in (spec["legs"] as Array).size():
+		for arr: Array in [_coxa, _upper, _lower]:
+			arr.append(_seg_b.take())
+		for arr: Array in [_hip_ball, _knee_ball]:
+			arr.append(_ball_b.take())
+		_claw.append(_claw_b.take())
+
+
+func _exit_tree() -> void:
+	for arr: Array in [_coxa, _upper, _lower]:
+		for s: int in arr:
+			_seg_b.give_back(s)
+	for arr: Array in [_hip_ball, _knee_ball]:
+		for s: int in arr:
+			_ball_b.give_back(s)
+	for s: int in _claw:
+		_claw_b.give_back(s)
+	for arr: Array in [_coxa, _upper, _lower, _hip_ball, _knee_ball, _claw]:
+		arr.clear()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED and is_inside_tree():
+		_shown = is_visible_in_tree()
+		if not _shown:
+			for arr: Array in [_coxa, _upper, _lower]:
+				for s: int in arr:
+					_seg_b.hide(s)
+			for arr: Array in [_hip_ball, _knee_ball]:
+				for s: int in arr:
+					_ball_b.hide(s)
+			for s: int in _claw:
+				_claw_b.hide(s)
 
 
 ## Unit tapered cylinder (radius 1 at the base, along Y), per leg colour.
@@ -92,7 +147,7 @@ static func _claw_mesh(color: Color) -> ArrayMesh:
 ## body: the bug's current global transform. project: Callable(point, up) -> surface point.
 func update(delta: float, body: Transform3D, speed: float, project: Callable) -> void:
 	var legs: Array = spec["legs"]
-	if legs.is_empty():
+	if legs.is_empty() or _coxa.is_empty() or not _shown:
 		return
 	var up := body.basis.y.normalized()
 	var a := float(spec["upper"])
@@ -151,13 +206,14 @@ func _pose(i: int, body: Transform3D, leg: Dictionary, a: float, b: float, thick
 	if to.length() > (a + b) * 0.98:
 		foot = hip + to.normalized() * (a + b) * 0.98
 	var knee := _knee(hip, foot, a, b, up, body.basis * (rest_local - hip_local))
-	_place(_coxa[i], inner, hip, thick * 1.3)
-	_place(_upper[i], hip, knee, thick)
-	_place(_lower[i], knee, foot, thick * 0.8)
-	_ball(_hip_ball[i], hip, thick * 1.45)
-	_ball(_knee_ball[i], knee, thick * 1.15)
+	_place(_seg_b, _upper[i], hip, knee, thick)
+	_place(_seg_b, _lower[i], knee, foot, thick * 0.8)
+	if not _lite:
+		_place(_seg_b, _coxa[i], inner, hip, thick * 1.3)
+		_ball(_ball_b, _hip_ball[i], hip, thick * 1.45)
+		_ball(_ball_b, _knee_ball[i], knee, thick * 1.15)
 	var dir := (foot - knee).normalized()
-	_claw[i].global_transform = Transform3D(MeshKit.basis_from_y(-dir) * Basis.from_scale(Vector3(thick * 0.8, thick * 2.2, thick * 0.8)), foot + dir * thick * 1.1)
+	_claw_b.put(_claw[i], Transform3D(MeshKit.basis_from_y(-dir) * Basis.from_scale(Vector3(thick * 0.8, thick * 2.2, thick * 0.8)), foot + dir * thick * 1.1))
 
 
 static func _group(i: int) -> int:
@@ -186,14 +242,14 @@ static func _knee(hip: Vector3, foot: Vector3, a: float, b: float, up: Vector3, 
 
 
 ## Stretches a unit segment mesh from a to b.
-static func _place(mi: MeshInstance3D, a: Vector3, b: Vector3, radius: float) -> void:
+static func _place(batch: LegBatch, slot: int, a: Vector3, b: Vector3, radius: float) -> void:
 	var v := b - a
 	var length := v.length()
 	if length < 0.001:
 		return
 	var basis := MeshKit.basis_from_y(v / length) * Basis.from_scale(Vector3(radius, length, radius))
-	mi.global_transform = Transform3D(basis, (a + b) * 0.5)
+	batch.put(slot, Transform3D(basis, (a + b) * 0.5))
 
 
-static func _ball(mi: MeshInstance3D, at: Vector3, radius: float) -> void:
-	mi.global_transform = Transform3D(Basis.from_scale(Vector3.ONE * radius), at)
+static func _ball(batch: LegBatch, slot: int, at: Vector3, radius: float) -> void:
+	batch.put(slot, Transform3D(Basis.from_scale(Vector3.ONE * radius), at))

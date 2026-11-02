@@ -72,7 +72,7 @@ func setup(d: BugDef, cid: int, lane_index: int, start_z: float, start_y: float,
 	add_child(health)
 	_body = MeshInstance3D.new()
 	_body.mesh = spec["body"]
-	_body.material_override = Materials.toon_unique(0.03)
+	_body.material_override = Materials.toon(0.03) # shared, so bodies of a kind batch together
 	_body.scale = Vector3.ONE * float(spec["scale"])
 	add_child(_body)
 	_legs = LegRig.new()
@@ -140,6 +140,19 @@ func speed() -> float:
 
 
 func _physics_process(delta: float) -> void:
+	# Far-off and off-screen bugs update less often (with the time they missed),
+	# so hundreds of bugs fit in a tick. Up close every tick.
+	_tick_acc += delta
+	if detail != 0 and not due and state != State.DEAD and _tick_acc < 0.5:
+		return
+	due = false
+	var t0 := Time.get_ticks_usec()
+	_pp(minf(_tick_acc, 0.25))
+	_tick_acc = 0.0
+	BugManager.note_update(Time.get_ticks_usec() - t0)
+
+
+func _pp(delta: float) -> void:
 	if state == State.DEAD:
 		return
 	if multiplayer.is_server():
@@ -165,36 +178,43 @@ func _physics_process(delta: float) -> void:
 		return
 	# Level of detail: legs and body animation run every tick up close, every
 	# other tick far away, and not at all off-screen (they catch up on return).
-	_lod_t -= delta
-	if _lod_t <= 0.0:
-		_lod_t = 0.25 + randf() * 0.05
-		detail = _detail_level()
+	# (detail is set by BugManager.assign_detail, a few times a second)
 	_anim_acc += delta
 	_anim_skip += 1
-	var every := 1 if detail == 0 else (2 if detail == 1 else 0)
+	var every := 0 if detail == 2 else 1
 	if every == 0 or _anim_skip < every:
 		return
 	_anim_skip = 0
+	_legs.set_lite(detail != 0)
 	_legs.update(_anim_acc, global_transform, spd, _project)
 	_animate_body(_anim_acc, spd)
 	_anim_acc = 0.0
 
 
-## 0 = close and on screen, 1 = far but on screen, 2 = off screen (no camera: full).
+## 0 = close and on screen, 1 = far but on screen, 2 = off screen (no camera: full),
+## 3 = close but over the full-detail budget (a big crowd): updated like 2 but animated.
 var detail := 0
 var _lod_t := 0.0
 var _anim_acc := 0.0
 var _anim_skip := 0
-const LOD_FAR := 45.0
+const LOD_FAR := 18.0
+## Distance to the camera at the last detail check (faces only animate close up).
+var cam_dist := 0.0
+## Physics ticks between updates for each detail level.
+var _tick_acc := 0.0
+## Set by BugManager when it's this bug's turn (bugs other than the nearest
+## few take turns, a fixed number per tick, so a big crowd can't stall a tick).
+var due := false
 
 
-func _detail_level() -> int:
+func detail_level() -> int:
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam == null:
 		return 0
 	var r := float(spec["body_radius"]) + float(spec["upper"]) + float(spec["lower"])
 	var p := global_position
 	var dist := cam.global_position.distance_to(p)
+	cam_dist = dist
 	if dist < r * 2.0 + 3.0:
 		return 0
 	for plane: Plane in cam.get_frustum():

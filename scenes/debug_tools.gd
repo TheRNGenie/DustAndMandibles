@@ -954,11 +954,20 @@ func _stress(count: int) -> void:
 	if GameState.has_flag("--autobuild") and multiplayer.is_server():
 		_autobuild()
 	var bm := world.get("bugs") as BugManager
-	var ids: Array = Defs.BUGS.keys()
+	var ids: Array = Defs.active_bug_ids()
 	ids.erase(&"iron_tumble")
+	# Look across at the far wall so the bugs are on screen.
+	var pl := world.call("local_player") as Player
+	if pl != null:
+		pl.head.rotation.x = -0.35
 	for i in count:
 		bm.spawn_group(ids[i % ids.size()], 1, i % 2, i % 5, float(i % 7) * 4.0)
 	await get_tree().create_timer(1.0).timeout
+	var pic := GameState.flag_value("--stressshot")
+	if pic != "":
+		await get_tree().create_timer(float(GameState.flag_value("--seconds")) if GameState.flag_value("--seconds") != "" else 4.0).timeout
+		get_viewport().get_texture().get_image().save_png(pic)
+		print("[stress] screenshot ", pic)
 	for s in 6:
 		var t0 := Time.get_ticks_msec()
 		var frames := Engine.get_frames_drawn()
@@ -975,6 +984,21 @@ func _stress(count: int) -> void:
 			get_tree().get_nodes_in_group("bugs").size(), fps if fps > 0 else float(n) / 2.0, proc / n * 1000.0, phys / n * 1000.0,
 			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
 			Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
+		var vp := get_viewport().get_viewport_rid()
+		RenderingServer.viewport_set_measure_render_time(vp, true)
+		print("[stress]   render cpu %.2f ms  gpu %.2f ms  frame cpu %.2f ms" % [RenderingServer.viewport_get_measured_render_time_cpu(vp), RenderingServer.viewport_get_measured_render_time_gpu(vp), RenderingServer.get_frame_setup_time_cpu()])
+		print("[stress]   physics active %d  pairs %d  islands %d" % [Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS), Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS), Performance.get_monitor(Performance.PHYSICS_3D_ISLAND_COUNT)])
+		var kinds := {}
+		var states := {}
+		for nd in get_tree().root.find_children("*", "", true, false):
+			var k := nd.get_class() + ("/" + (nd.get_script() as Script).resource_path.get_file() if nd.get_script() != null else "")
+			kinds[k] = int(kinds.get(k, 0)) + 1
+		for b in get_tree().get_nodes_in_group("bugs"):
+			var st := str(b.get("state"))
+			states[st] = int(states.get(st, 0)) + 1
+		var top := kinds.keys()
+		top.sort_custom(func(x, y) -> bool: return kinds[x] > kinds[y])
+		print("[stress]   states ", states, "  top ", top.slice(0, 8).map(func(k) -> String: return "%s=%d" % [k, kinds[k]]))
 	get_tree().quit()
 
 

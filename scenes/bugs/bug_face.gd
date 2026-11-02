@@ -99,6 +99,9 @@ func _mi(parent: Node3D, mesh: Mesh, mat: Material) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.material_override = mat
+	# Eyes and mandibles are tiny: no shadows, and not drawn past 14 m.
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.visibility_range_end = 14.0
 	parent.add_child(mi)
 	return mi
 
@@ -170,6 +173,7 @@ func _build_wings() -> void:
 			mi.mesh = wing
 			mi.material_override = mat
 			mi.scale = Vector3(side, 1.0, 1.0) * scale_k
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			pivot.add_child(mi)
 			pivot.set_meta("side", side)
 			pivot.set_meta("phase", 0.0 if z < 0 else 1.4)
@@ -188,11 +192,15 @@ func _add_cigarette(mouth: Vector3) -> void:
 	(_cig as MeshInstance3D).material_override = Materials.toon(0.006)
 	_cig.position = mouth
 	_cig.rotation = Vector3(-0.35, -0.5, 0.0)
+	_cig.visibility_range_end = 14.0
 	add_child(_cig)
 	_ember = OmniLight3D.new()
 	_ember.light_color = Color("#FF7A2A")
 	_ember.omni_range = len * 1.5
 	_ember.light_energy = 0.4
+	_ember.distance_fade_enabled = true
+	_ember.distance_fade_begin = 12.0
+	_ember.distance_fade_length = 4.0
 	_ember.position = mouth + _cig.basis * Vector3(0, 0, -len)
 	add_child(_ember)
 
@@ -213,7 +221,9 @@ func _process(frame_delta: float) -> void:
 	_acc += frame_delta
 	_skip += 1
 	var lod: int = (_bug as Bug).detail if _bug is Bug else 0
-	if lod == 2 or (lod == 1 and _skip < 3):
+	# Faces aren't drawn past 14 m (wings are), so they don't animate there either.
+	var unseen := _wings.is_empty() and _bug is Bug and (_bug as Bug).cam_dist > 15.0
+	if lod >= 2 or unseen or (lod == 1 and _skip < 3):
 		return
 	_skip = 0
 	var delta := _acc

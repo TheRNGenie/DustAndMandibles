@@ -32,7 +32,7 @@ func _ready() -> void:
 		_ip_edit.text = str(pj["address"])
 		_port_edit.text = str(pj["port"])
 		_on_join()
-	elif GameState.has_flag("--host"):
+	elif GameState.has_flag("--host") or _test_launch():
 		_auto_ready = true
 		_on_host()
 	elif GameState.has_flag("--join") or GameState.flag_value("--join") != "":
@@ -123,6 +123,12 @@ func _build_ui() -> void:
 	add_child(_settings)
 
 
+## Debug/test launches go straight into a solo game, no menu clicks
+## (except the tests that are about the menu itself).
+func _test_launch() -> bool:
+	return GameState.has_flag("--debug") and not GameState.has_flag("--join") 			and not GameState.has_flag("--menushot") and not GameState.has_flag("--menutab") 			and not GameState.has_flag("--menu")
+
+
 func _on_host() -> void:
 	NetworkManager.local_name = _player_name()
 	var err := NetworkManager.host(int(_port_edit.text))
@@ -133,7 +139,7 @@ func _on_host() -> void:
 	if _auto_ready:
 		_ready_btn.set_pressed_no_signal(true)
 		NetworkManager.set_ready.call_deferred(true)
-	if GameState.has_flag("--solo"):
+	if GameState.has_flag("--solo") or _test_launch():
 		NetworkManager.start_game.call_deferred()
 
 
