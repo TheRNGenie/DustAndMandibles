@@ -14,8 +14,8 @@ var _active := false
 
 func _ready() -> void:
 	var defs: Array[BugDef] = []
-	for d: BugDef in Defs.BUGS.values():
-		defs.append(d)
+	for id: StringName in Defs.active_bug_ids():
+		defs.append(Defs.bug(id))
 	_planner = WavePlanner.new(Defs.WAVE_CONFIG, defs, int(Time.get_unix_time_from_system()))
 	GameState.phase_changed.connect(_on_phase_changed)
 

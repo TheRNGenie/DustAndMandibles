@@ -55,7 +55,7 @@ func menu_items(tab: int) -> Array:
 				var price := "starter" if w.price_chitin == 0 else "%d chitin" % w.price_chitin
 				out.append(_item(id, w.display_name, id, str(e.get("lore", w.description)), stats, e.get("tips", []), price))
 		1:
-			var bugs: Array = Defs.BUGS.keys()
+			var bugs: Array = Defs.active_bug_ids()
 			bugs.sort_custom(func(a: StringName, b: StringName) -> bool: return Defs.bug(a).first_wave < Defs.bug(b).first_wave)
 			for id: StringName in bugs:
 				var b := Defs.bug(id)

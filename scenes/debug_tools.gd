@@ -507,7 +507,7 @@ func _cheat(kind: String) -> void:
 			for side in [WorldLayout.WEST, WorldLayout.EAST]:
 				Economy.earn(side, {&"scrap": 500, &"chitin": 50})
 		"spawn":
-			var ids: Array = Defs.BUGS.keys()
+			var ids: Array = Defs.active_bug_ids()
 			var id: StringName = ids[_bug_index % ids.size()]
 			_bug_index += 1
 			var d := Defs.bug(id)

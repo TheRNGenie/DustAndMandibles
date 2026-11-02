@@ -2,6 +2,15 @@ class_name Defs
 extends RefCounted
 ## Registry of every data definition, looked up by id.
 
+## Bugs taken out of the game for now (still defined, never spawned or listed).
+const DISABLED_BUGS: Array[StringName] = [&"burrow_tick"]
+
+
+## The bugs that are in play.
+static func active_bug_ids() -> Array:
+	return BUGS.keys().filter(func(id: StringName) -> bool: return not DISABLED_BUGS.has(id))
+
+
 const BUGS: Dictionary = {
 	&"dust_mite": preload("res://data/bugs/dust_mite.tres"),
 	&"wolf_spider": preload("res://data/bugs/wolf_spider.tres"),
