@@ -23,7 +23,15 @@ extends Resource
 @export var hp_per_wave: float = 0.08
 @export var homestead_hp: float = 500.0
 @export var start_scrap: int = 150
-@export var max_active_bugs: int = 150
+@export var max_active_bugs: int = 750
+## Bugs in wave 1 (both cliffs together); each later wave brings `count_growth` times as many.
+@export var count_base: float = 45.0
+@export var count_growth: float = 1.25
+
+
+## How many bugs wave w sends (wave 1 = count_base, then +25% a wave).
+func bug_count(w: int) -> int:
+	return int(round(count_base * pow(count_growth, float(maxi(w - 1, 0)))))
 
 
 ## Threat budget for wave w: 20 + 12w + 1.5w^2.

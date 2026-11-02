@@ -43,9 +43,14 @@ func test_wave1_is_mites_only_and_within_budget() -> void:
 	var total := 0
 	for g: Dictionary in plan["groups"]:
 		assert_eq(g["bug"], &"dust_mite")
-		total += int(g["count"]) * Defs.bug(g["bug"]).cost
-	assert_true(total <= 34, "spent %d" % total)
-	assert_true(total > 0)
+		total += int(g["count"])
+	assert_eq(total, Defs.WAVE_CONFIG.bug_count(1))
+
+
+func test_waves_grow_by_a_quarter() -> void:
+	var cfg := Defs.WAVE_CONFIG
+	assert_eq(cfg.bug_count(1), 45)
+	assert_true(absf(float(cfg.bug_count(5)) / float(cfg.bug_count(4)) - 1.25) < 0.03)
 
 
 func test_new_bug_appears_on_both_cliffs() -> void:

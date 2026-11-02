@@ -57,6 +57,29 @@ func plan(w: int) -> Dictionary:
 			var pick := affordable[rng.randi_range(0, affordable.size() - 1)] as BugDef
 			groups.append(_group(pick, cid, pulses))
 			spent[cid] += float(pick.cost * pick.group_size)
+	# The budget sets the mix of bugs; the count is scaled to the wave's target
+	# (45 in wave 1, +25% each wave). Bosses stay one of a kind.
+	var planned := 0
+	for g: Dictionary in groups:
+		planned += int(g["count"])
+	var target := config.bug_count(w)
+	if planned > 0 and target > 0:
+		var k := float(target) / float(planned)
+		var total := 0
+		for g: Dictionary in groups:
+			if Defs.bug(StringName(g["bug"])).behavior != BugDef.Behavior.BOSS:
+				g["count"] = maxi(int(round(float(g["count"]) * k)), 1)
+			total += int(g["count"])
+		# Trim or pad the dust-mite-ish filler so the total lands on the target.
+		var i := 0
+		while total != target and i < groups.size() * 4:
+			var g: Dictionary = groups[i % groups.size()]
+			if Defs.bug(StringName(g["bug"])).behavior != BugDef.Behavior.BOSS:
+				var step := 1 if total < target else -1
+				if int(g["count"]) + step >= 1:
+					g["count"] = int(g["count"]) + step
+					total += step
+			i += 1
 	return {"groups": groups, "pulses": pulses, "west_share": west_share, "spent": spent}
 
 

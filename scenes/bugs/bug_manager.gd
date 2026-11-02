@@ -67,9 +67,9 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 				pos = Bug.cliffs.plateau_point(cliff, randf_range(5.0, 12.0), z)
 			BugDef.Behavior.FLIER:
 				st = Bug.State.FLYING
-				# Takes off from the canyon floor with the climbers, then rises.
-				var fx := Bug.cliffs.floor_x(randf_range(-6.0, 6.0), z)
-				pos = Vector3(fx, Bug.cliffs.floor_height(fx, z) + 1.5 + float(i) * 0.6, z)
+				# Flies out of the same tunnels down the canyon, low over the floor.
+				var wall := int(tunnel[0])
+				pos = Bug.cliffs.tunnel_mouth(wall, float(tunnel[1])) + Vector3(-WorldLayout.side_sign(wall) * (1.5 + float(i) * 1.2), 1.8, 0)
 		spawn_at(bug_id, cliff, lane, z, y, st, pos)
 
 
