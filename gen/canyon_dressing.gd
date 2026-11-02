@@ -78,6 +78,13 @@ static func _wall_base(st: SurfaceTool, rng: RandomNumberGenerator, cliffs: Clif
 	var z := -200.0
 	while z < 200.0:
 		z += rng.randf_range(3.0, 9.0)
+		# Keep the bug tunnels in each lane clear.
+		var near_tunnel := false
+		for lz: float in WorldLayout.LANE_Z:
+			if absf(z - lz) < 4.5:
+				near_tunnel = true
+		if near_tunnel:
+			continue
 		var y := cliffs.floor_height(cliffs.face_point(cid, 1.0, z).x, z)
 		var base := cliffs.face_point(cid, 1.0, z)
 		var out := Vector3(-WorldLayout.side_sign(cid), 0, 0)

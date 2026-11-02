@@ -44,6 +44,12 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 		var y := start_y - float(i) * 0.9 # stagger groups so they climb in a column
 		var st := Bug.State.CLIMBING
 		var pos := Vector3.ZERO
+		# Climbers crawl out of a tunnel in the opposite wall, one behind another,
+		# and cross the canyon floor first (unless a test starts them up the face).
+		if start_y <= 0.0:
+			st = Bug.State.CROSSING
+			var other := WorldLayout.other_cliff(cliff)
+			pos = Bug.cliffs.tunnel_mouth(other, z) + Vector3(WorldLayout.side_sign(other) * (1.2 + float(i) * 1.5), 0, 0)
 		match Defs.bug(bug_id).behavior:
 			BugDef.Behavior.BURROWER:
 				# Tunnels in: pops up somewhere inside the plateau, never climbs.
@@ -244,6 +250,8 @@ func separate() -> void:
 		match b.state:
 			Bug.State.CLIMBING:
 				key = b.cliff_id
+			Bug.State.CROSSING:
+				key = 20
 			Bug.State.BREACHING, Bug.State.FLYING:
 				key = 10 + b.cliff_id
 			_:

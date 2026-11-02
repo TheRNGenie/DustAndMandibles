@@ -536,3 +536,16 @@ func _shot_enclosure() -> void:
 		look = cl.plateau_point(WorldLayout.WEST, 56.0, 0.0) + Vector3(0, 30.0, 0)
 	_dur = 3.0
 	_keys = [[0.0, eye, look], [3.0, eye, look]]
+
+
+## The canyon floor and the bug tunnels in the east wall's foot, with a wave
+## crawling out of them (--killat style: bugs spawn after a moment).
+func _shot_tunnels() -> void:
+	_set_time(14.0)
+	var eye := Vector3(-8.0, 9.0, -22.0)
+	var look := Vector3(22.0, 1.5, -2.0)
+	_at(0.2, func() -> void:
+		for lane in 5:
+			_bm().spawn_group(&"dust_mite", 2, WorldLayout.WEST, lane))
+	_dur = 3.0
+	_keys = [[0.0, eye, look], [3.0, eye + Vector3(0, 0, 2), look]]

@@ -8,7 +8,7 @@ extends Node3D
 signal died(bug: Bug, source: String, source_cliff: int)
 signal fled(bug: Bug)
 
-enum State { CLIMBING, CRESTING, BREACHING, DEAD, BURROWED, FLYING }
+enum State { CLIMBING, CRESTING, BREACHING, DEAD, BURROWED, FLYING, CROSSING }
 
 const CREST_TIME := 0.8
 const SMOOTHING := 10.0
@@ -230,6 +230,17 @@ func _update_visibility() -> void:
 
 func _think(delta: float) -> void:
 	match state:
+		State.CROSSING:
+			# Out of the tunnel in the far wall and across the canyon floor to the
+			# foot of the cliff it will climb.
+			var goal := cliffs.tunnel_mouth(cliff_id, lane_z)
+			var to := Vector3(goal.x - ground_pos.x, 0.0, goal.z - ground_pos.z)
+			var step := def.walk_speed * 1.6 * speed() * delta
+			if to.length() <= step + 0.4:
+				state = State.CLIMBING
+				climb_y = 0.0
+			else:
+				ground_pos += to.normalized() * step
 		State.CLIMBING:
 			_climber.update(delta)
 		State.CRESTING:
@@ -280,6 +291,12 @@ func target_transform() -> Transform3D:
 			var t := crest_t
 			var pos := a.origin.lerp(b.origin, t) + Vector3.UP * sin(t * PI) * 0.8
 			return Transform3D(a.basis.slerp(b.basis, t), pos)
+		State.CROSSING:
+			_update_heading()
+			var h := _heading if _heading.length() > 0.01 else -_outward()
+			var zc := -Vector3(h.x, 0, h.z).normalized()
+			var xc := Vector3.UP.cross(zc).normalized()
+			return Transform3D(Basis(xc, Vector3.UP, zc), Vector3(ground_pos.x, cliffs.floor_height(ground_pos.x, ground_pos.z) + clear, ground_pos.z))
 		State.FLYING:
 			_update_heading()
 			var z_axis := -_heading
@@ -331,6 +348,8 @@ func _outward() -> Vector3:
 func _project(point: Vector3, up: Vector3) -> Vector3:
 	if state == State.BREACHING:
 		return Vector3(point.x, cliffs.ground_height_at(cliff_id, point), point.z)
+	if state == State.CROSSING:
+		return Vector3(point.x, cliffs.floor_height(point.x, point.z), point.z)
 	var base := global_position - up * float(spec["clearance"])
 	return point - up * (point - base).dot(up)
 

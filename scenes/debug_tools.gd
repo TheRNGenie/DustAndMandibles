@@ -209,6 +209,19 @@ func _ready() -> void:
 			print("[fly] t %.1f:%s (cliff top %.0f)" % [k * 1.5, line, WorldLayout.CLIFF_HEIGHT])
 			await get_tree().create_timer(1.5).timeout
 		get_tree().quit()
+	elif GameState.has_flag("--tunneltest"):
+		for i in 20:
+			await get_tree().process_frame
+		var bm := world.get("bugs") as BugManager
+		bm.spawn_group(&"dust_mite", 3, WorldLayout.WEST, 2)
+		for k in 16:
+			var line := ""
+			for n: Node in get_tree().get_nodes_in_group("bugs"):
+				var b := n as Bug
+				line += "  [%s x %.1f y %.1f climb %.1f]" % [Bug.State.keys()[b.state], b.ground_pos.x, b.global_position.y, b.climb_y]
+			print("[tunnel] t %.0f%s" % [k * 2.0, line])
+			await get_tree().create_timer(2.0).timeout
+		get_tree().quit()
 	elif GameState.has_flag("--steptest"):
 		for i in 20:
 			await get_tree().process_frame

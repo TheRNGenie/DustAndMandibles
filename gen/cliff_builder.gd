@@ -201,7 +201,60 @@ func _raw_floor(x: float, z: float) -> float:
 	var meander := 6.0 * sin(z * 0.035)
 	var dx := x - meander
 	var riverbed := -1.2 * exp(-dx * dx / 12.0)
-	return _floor_noise.get_noise_2d(x, z) * 0.5 + riverbed
+	var wild := _floor_noise.get_noise_2d(x, z) * 0.5 + riverbed
+	# Through the play area the floor is solid packed ground, nearly flat.
+	var flat := 1.0 - smoothstep(WorldLayout.WORLD_HALF_Z, WorldLayout.WORLD_HALF_Z + 30.0, absf(z))
+	return lerpf(wild, _floor_noise.get_noise_2d(x * 0.5, z * 0.5) * 0.08, flat)
+
+
+## Where a bug tunnel opens at the foot of cliff `cliff_id` in lane z (on the floor).
+func tunnel_mouth(cliff_id: int, z: float) -> Vector3:
+	var p := face_point(cliff_id, 0.0, z)
+	return Vector3(p.x, floor_height(p.x, z), z)
+
+
+## Dark tunnel mouths at the foot of both cliffs, one per lane, with a broken rock
+## rim and rubble spilling out: the bugs crawl out of these and across the floor.
+func _bug_tunnels() -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5150
+	var st := MeshKit.begin()
+	var rim_cols := [Color("#6E3A2C"), Color("#5A3028"), Color("#7E4434")]
+	for cid in 2:
+		var s := WorldLayout.side_sign(cid)
+		var out := Vector3(-s, 0, 0) # from the cliff into the canyon
+		for lane_z: float in WorldLayout.LANE_Z:
+			var m := tunnel_mouth(cid, lane_z)
+			var w := rng.randf_range(4.4, 5.4)
+			var h := rng.randf_range(3.6, 4.3)
+			# The hole: nested dark arches, blackest at the back, so it reads as deep.
+			for k in 4:
+				var depth := 0.35 - k * 0.12
+				var shrink := 1.0 - k * 0.12
+				var col := Color("#160C0A").darkened(k * 0.3)
+				var prev := m + out * depth + Vector3(0, 0, -w * 0.5 * shrink)
+				var c0 := m + out * depth
+				for j in 13:
+					var a := PI * float(j) / 12.0
+					var pt := m + out * depth + Vector3(0, sin(a) * h * shrink, -cos(a) * w * 0.5 * shrink)
+					MeshKit.tri(st, c0, prev, pt, out, out, out, MeshKit.vcol(col), out)
+					prev = pt
+			# Rough rock rim round the opening.
+			var last := Vector3.ZERO
+			for j in 15:
+				var a := PI * float(j) / 14.0
+				var pt := m + out * 0.45 + Vector3(0, sin(a) * (h + 0.35), -cos(a) * (w * 0.5 + 0.35))
+				pt += Vector3(rng.randf_range(-0.15, 0.15), rng.randf_range(-0.12, 0.12), rng.randf_range(-0.12, 0.12))
+				if j > 0:
+					MeshKit.add_limb(st, last, pt, rng.randf_range(0.5, 0.8), rim_cols[rng.randi() % rim_cols.size()], 6)
+				last = pt
+			# Rubble and claw-scraped dirt spilling out onto the floor.
+			for k in 7:
+				var r := m + out * rng.randf_range(0.8, 3.5) + Vector3(0, 0.1, rng.randf_range(-w * 0.6, w * 0.6))
+				MeshKit.add_ellipsoid(st, Transform3D(Basis(), r), Vector3(rng.randf_range(0.25, 0.6), rng.randf_range(0.15, 0.35), rng.randf_range(0.25, 0.6)),
+						4, 7, rim_cols[rng.randi() % rim_cols.size()].darkened(0.1), 0.25, rng)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), m + out * 2.0 + Vector3(0, 0.02, 0)), Vector3(2.4, 0.04, w * 0.55), 3, 12, Color("#7A5038"))
+	return MeshKit.finish(st)
 
 
 # ---------------------------------------------------------------- mesh building
@@ -236,6 +289,7 @@ func build(parent: Node3D) -> void:
 	_add_arches(parent, rock)
 	_add_visual(parent, "HostileRidges", _hostile_ridges(), rock)
 	_add_visual(parent, "Bones", _carcasses(), Materials.toon(0.03))
+	_add_visual(parent, "BugTunnels", _bug_tunnels(), Materials.toon(0.03))
 
 
 ## Hostile dressing on the walls around the play area: leaning rock spikes
