@@ -26,6 +26,8 @@ func _ready() -> void:
 		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
+	elif GameState.has_flag("--chesttest"):
+		_chest_test()
 	elif GameState.has_flag("--porchtest"):
 		_porch_test()
 	elif GameState.has_flag("--aatest"):
@@ -374,6 +376,14 @@ func _take_screenshot(path: String) -> void:
 		var wid := StringName(GameState.flag_value("--weapon"))
 		player.gun.grant(wid, 0)
 		player.gun.equip(wid)
+	if GameState.has_flag("--chestview") and player != null:
+		# Stand inside the house looking at the storage chest, with it open.
+		var home := Homestead.of(player.cliff_id)
+		player.global_position = home.to_global(Vector3(-0.6, 0.15, -0.4))
+		player.look_at(home.to_global(HouseBuilder.chest_position() + Vector3(0, 0.15, 0)), Vector3.UP)
+		player.rotation.x = 0.0
+		player.head.rotation.x = -0.45
+		(home.get_node("Chest") as StorageChest).set("_peek", 30.0)
 	if GameState.has_flag("--lighter") and player != null:
 		player.gun.hold_item(&"lighter")
 		player.lighter.debug_light()
@@ -793,4 +803,29 @@ func _porch_test() -> void:
 		var local := home.to_local(player.global_position)
 		print("[porch] from x=%.1f: ended at local %s, stuck %.2f s, %s" % [start.x, str(local.snapped(Vector3.ONE * 0.05)), stuck,
 				"on the porch or inside" if local.z > -hd - HouseBuilder.PORCH_DEPTH and local.y > 0.25 or local.z > -hd else "did NOT get up"])
+	get_tree().quit()
+
+
+## --chesttest: stores the revolver, corn and water in the house chest, then takes
+## them back, logging pockets and chest after each step.
+func _chest_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	var chest := Homestead.of(player.cliff_id).get_node("Chest") as StorageChest
+	Economy.earn(player.cliff_id, {&"corn": 5})
+	var log := func(step: String) -> void:
+		print("[chest] %s: weapons %s, corn %d, water %d | chest %s %s" % [step, str(player.gun.slots), Economy.amount(player.cliff_id, &"corn"),
+				Economy.amount(player.cliff_id, &"water"), str(chest.weapons), str(chest.items)])
+	log.call("start")
+	chest.menu_press("w:revolver", &"store")
+	chest.menu_press("i:corn", &"storeall")
+	chest.menu_press("i:water", &"store1")
+	await get_tree().physics_frame
+	log.call("stored")
+	chest.menu_press("w:revolver", &"take")
+	chest.menu_press("i:corn", &"take1")
+	chest.menu_press("i:water", &"takeall")
+	await get_tree().physics_frame
+	log.call("took back")
 	get_tree().quit()

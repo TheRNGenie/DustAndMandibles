@@ -60,6 +60,12 @@ func _ready() -> void:
 	ledger.home = self
 	ledger.position = HouseBuilder.ledger_position()
 	add_child(ledger)
+	var chest := StorageChest.new()
+	chest.name = "Chest"
+	chest.home = self
+	chest.position = HouseBuilder.chest_position()
+	chest.rotation.y = -PI * 0.5 # lock faces into the room
+	add_child(chest)
 	_rebuild()
 
 

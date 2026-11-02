@@ -45,6 +45,11 @@ static func mount_count(floors: int) -> int:
 	return clampi(floors, 1, 3) * 2
 
 
+## Where the storage chest sits (ground floor, front left corner, under the window).
+static func chest_position() -> Vector3:
+	return Vector3(-2.95, 0.1, -1.75)
+
+
 ## Where the ledger desk stands (ground floor, front right corner, facing the room).
 static func ledger_position() -> Vector3:
 	return Vector3(2.5, 0.1, -1.7)

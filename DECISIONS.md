@@ -137,3 +137,4 @@ Assumptions and changes from the design doc, newest last.
    - **Step-up:** the player walks straight up any ledge up to 36 cm (`Player._step_up`). It measures the ledge, then checks headroom only for that rise, so low roofs don't stop it.
    - **Porch roof:** raised 20 cm.
    `--porchtest` walks onto the porch from three spots (with `--east` for the other house); all reach the porch or the house.
+113. **Storage chest (Logan's request):** a banded steamer trunk in each house, in the front-left corner of the ground floor (scenes/structures/storage_chest.gd). E opens it with Store and Take Out tabs. It holds up to six weapons, each keeping its upgrade level and taken out of your loadout, and any amount of corn, prickly pears, chilies, medicine and water. Host-authoritative, with contents synced to every peer. The lid creaks open while the menu is up. `--chesttest` stores and retrieves a weapon, corn and water.
