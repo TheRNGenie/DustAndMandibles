@@ -492,3 +492,21 @@ func _shot_arches() -> void:
 	var look := Vector3(0.0, 72.0, 58.0)
 	_dur = 3.0
 	_keys = [[0.0, eye, look], [3.0, eye, look]]
+
+
+## How enclosed the play area feels: --view=0 from the west porch looking
+## round, 1 high above the middle of the canyon.
+func _shot_enclosure() -> void:
+	_set_time(17.0)
+	var v := int(GameState.flag_value("--view"))
+	var cl := Bug.cliffs
+	var eye := cl.plateau_point(WorldLayout.WEST, 14.0, -6.0) + Vector3(0, 3.0, 0)
+	var look := cl.plateau_point(WorldLayout.EAST, 30.0, 10.0) + Vector3(0, 18.0, 0)
+	if v == 1:
+		eye = Vector3(-6.0, 140.0, -95.0)
+		look = Vector3(0.0, 60.0, 5.0)
+	elif v == 2:
+		eye = cl.plateau_point(WorldLayout.WEST, 20.0, 5.0) + Vector3(0, 3.0, 0)
+		look = cl.plateau_point(WorldLayout.WEST, 56.0, 0.0) + Vector3(0, 30.0, 0)
+	_dur = 3.0
+	_keys = [[0.0, eye, look], [3.0, eye, look]]

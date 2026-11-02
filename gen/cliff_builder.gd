@@ -159,6 +159,7 @@ func plateau_height(cliff_id: int, d: float, z: float) -> float:
 	var side_hill := smoothstep(23.0, 36.0, absf(z)) * smoothstep(3.0, 12.0, d)
 	var hill_noise := 0.7 + 0.6 * (n.get_noise_2d(d * 0.03 + 50.0, z * 0.03) * 0.5 + 0.5)
 	var hills := maxf(back_hill, side_hill) * 8.0 * hill_noise
+	hills = maxf(hills, _enclosure(cliff_id, d, z))
 	var w := wildness(z)
 	if w > 0.0:
 		# Out in the wilds: mesas and buttes with flat tops and steep sides,
@@ -168,6 +169,21 @@ func plateau_height(cliff_id: int, d: float, z: float) -> float:
 		var swell := _wild.get_noise_2d(d * 0.01 + 900.0, z * 0.012) * 9.0
 		hills += w * (mesa * smoothstep(8.0, 22.0, d) + swell * smoothstep(0.0, 10.0, d))
 	return WorldLayout.CLIFF_HEIGHT + flat + hills
+
+
+## The walls that hem the play area in: a sheer, jagged cliff rising behind
+## each homestead, and rock walls closing off both ends of each plateau, all
+## topped with broken teeth. Starts outside the fences, so nothing playable moves.
+func _enclosure(cliff_id: int, d: float, z: float) -> float:
+	var n := _noise[cliff_id]
+	var back_rise := smoothstep(44.0, 54.0, d)
+	var back_h := 34.0 + 16.0 * (n.get_noise_2d(z * 0.04, 300.0) * 0.5 + 0.5)
+	var back_teeth := maxf(n.get_noise_2d(z * 0.18, d * 0.18 + 90.0), 0.0) * 18.0 * smoothstep(50.0, 58.0, d)
+	var back := back_rise * back_h + back_teeth
+	var side_rise := smoothstep(32.0, 44.0, absf(z)) * smoothstep(4.0, 14.0, d)
+	var side_h := 28.0 + 14.0 * (n.get_noise_2d(d * 0.05, z * 0.05 + 400.0) * 0.5 + 0.5)
+	var side_teeth := maxf(n.get_noise_2d(d * 0.2 + 70.0, z * 0.2), 0.0) * 12.0 * side_rise
+	return maxf(back, side_rise * side_h + side_teeth)
 
 
 func plateau_point(cliff_id: int, d: float, z: float) -> Vector3:
@@ -218,6 +234,87 @@ func build(parent: Node3D) -> void:
 		_add_visual(parent, "FarFloor%s" % tag, _build_floor(span, FAR_STEP), floor_mat)
 	_add_visual(parent, "FarRocks", _wild_rocks(), rock)
 	_add_arches(parent, rock)
+	_add_visual(parent, "HostileRidges", _hostile_ridges(), rock)
+	_add_visual(parent, "Bones", _carcasses(), Materials.toon(0.03))
+
+
+## Hostile dressing on the walls around the play area: leaning rock spikes
+## along the ridges, and huge curved rock claws that hook out over the plateaus.
+func _hostile_ridges() -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 6161
+	var st := MeshKit.begin()
+	var dark := [Color("#6E3A2C"), Color("#5A3028"), Color("#7E4434"), Palette.ROCK_C.darkened(0.3)]
+	for cid in 2:
+		var s := WorldLayout.side_sign(cid)
+		# Spikes on the back wall and the side walls.
+		for i in 46:
+			var d := rng.randf_range(50.0, 60.0)
+			var z := rng.randf_range(-80.0, 80.0)
+			if i % 3 == 0:
+				d = rng.randf_range(12.0, 56.0)
+				z = (1.0 if rng.randf() < 0.5 else -1.0) * rng.randf_range(42.0, 80.0)
+			var base := plateau_point(cid, d, z) - Vector3(0, 1.0, 0)
+			var h := rng.randf_range(7.0, 20.0)
+			var r := rng.randf_range(1.0, 2.6)
+			var lean := Vector3(-s * rng.randf_range(0.0, 0.35), 1.0, rng.randf_range(-0.25, 0.25)).normalized()
+			var c: Color = dark[rng.randi() % dark.size()]
+			MeshKit.add_cylinder(st, Transform3D(MeshKit.basis_from_y(lean), base + lean * h * 0.5), r, 0.0, h, 7, c)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), base), Vector3(r * 1.6, r * 0.8, r * 1.6), 4, 8, c.darkened(0.15), 0.25, rng)
+		# Rock claws: thick curved talons arching out from the back wall toward the house.
+		for k in 4:
+			var z := rng.randf_range(-40.0, 40.0)
+			var root := plateau_point(cid, 56.0, z)
+			var prev := root
+			var r := 3.2
+			for j in 9:
+				var t := float(j + 1) / 9.0
+				var p := root + Vector3(-s * t * 16.0, sin(t * PI * 0.8) * 16.0 + t * 2.0, rng.randf_range(-0.5, 0.5))
+				MeshKit.add_limb(st, prev, p, r * (1.0 - t * 0.85), (dark[k % dark.size()] as Color).lerp(Color("#8A4A32"), t * 0.4), 7)
+				prev = p
+	return MeshKit.finish(st)
+
+
+## The bleached remains of enormous bugs half sunk into the ridges: a curving
+## spine, a ribcage, a horned skull with mandibles. Warning signs, basically.
+func _carcasses() -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7272
+	var st := MeshKit.begin()
+	var bone := Palette.BONE.darkened(0.08)
+	for spec: Array in [[0, 47.0, 12.0], [1, 48.0, -14.0], [0, 30.0, -50.0]]:
+		var cid: int = spec[0]
+		var s := WorldLayout.side_sign(cid)
+		var base := plateau_point(cid, spec[1], spec[2]) + Vector3(0, -2.0, 0)
+		var along := Vector3(0, 0, 1)
+		# Spine: a row of vertebrae curving along the slope.
+		var spine: Array[Vector3] = []
+		for i in 12:
+			var t := float(i) / 11.0
+			var p := base + along * (t * 22.0 - 11.0) + Vector3(-s * sin(t * PI) * 2.0, sin(t * PI) * 5.0, 0)
+			spine.append(p)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), p), Vector3(1.0, 0.8, 0.9), 4, 8, bone.darkened(rng.randf() * 0.1), 0.15, rng)
+		# Ribs: big arcs over the spine.
+		for i in range(2, 10):
+			var p := spine[i]
+			for side: float in [-1.0, 1.0]:
+				var prev := p
+				for j in 6:
+					var t := float(j + 1) / 6.0
+					var q := p + Vector3(side * sin(t * PI * 0.9) * 6.0, sin(t * PI * 0.6) * 7.0 - t * t * 4.0, 0)
+					MeshKit.add_limb(st, prev, q, 0.45 * (1.0 - t * 0.6), bone, 5)
+					prev = q
+		# Skull with two horns and open mandibles.
+		var head := spine[11] + along * 4.0 + Vector3(0, 1.0, 0)
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(), head), Vector3(4.0, 3.0, 4.5), 5, 10, bone, 0.15, rng)
+		for side: float in [-1.0, 1.0]:
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), head + Vector3(side * 1.8, 0.6, 3.6)), Vector3(0.9, 0.9, 0.5), 3, 8, Palette.OUTLINE)
+			var m0 := head + Vector3(side * 1.4, -1.6, 3.8)
+			MeshKit.add_limb(st, m0, m0 + Vector3(side * 3.0, -0.6, 3.5), 0.6, bone.darkened(0.1), 6)
+			MeshKit.add_limb(st, m0 + Vector3(side * 3.0, -0.6, 3.5), m0 + Vector3(side * 1.0, -0.8, 6.5), 0.35, bone.darkened(0.15), 6)
+			var h0 := head + Vector3(side * 1.6, 2.4, 1.0)
+			MeshKit.add_limb(st, h0, h0 + Vector3(side * 2.5, 6.0, -1.5), 0.7, bone, 6)
+	return MeshKit.finish(st)
 
 
 ## Stone arches. Two span the canyon over the play area (north of the turret
