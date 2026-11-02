@@ -195,6 +195,20 @@ func _ready() -> void:
 			var local := ship.global_transform.affine_inverse() * pl.global_position
 			print("[board]   ended at %s, ship-local %s, on floor %s" % [str(pl.global_position.snapped(Vector3.ONE * 0.1)), str(local.snapped(Vector3.ONE * 0.1)), pl.is_on_floor()])
 		get_tree().quit()
+	elif GameState.has_flag("--flytest"):
+		for i in 20:
+			await get_tree().process_frame
+		var bm := world.get("bugs") as BugManager
+		bm.spawn_group(&"dragonfly_bandit", 2, WorldLayout.WEST, 2)
+		await get_tree().physics_frame
+		for k in 14:
+			var line := ""
+			for n: Node in get_tree().get_nodes_in_group("bugs"):
+				var b := n as Bug
+				line += " y %.1f x %.1f" % [b.ground_pos.y, b.ground_pos.x]
+			print("[fly] t %.1f:%s (cliff top %.0f)" % [k * 1.5, line, WorldLayout.CLIFF_HEIGHT])
+			await get_tree().create_timer(1.5).timeout
+		get_tree().quit()
 	elif GameState.has_flag("--steptest"):
 		for i in 20:
 			await get_tree().process_frame

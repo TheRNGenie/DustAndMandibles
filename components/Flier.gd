@@ -32,6 +32,10 @@ func update(delta: float) -> void:
 	var horizontal := Vector2(goal.x - bug.ground_pos.x, goal.z - bug.ground_pos.z).length()
 	if horizontal > 6.0:
 		goal.y = maxf(goal.y, WorldLayout.CLIFF_HEIGHT + CRUISE_HEIGHT)
+	# Down in the canyon: climb mostly straight up out of it first, so it doesn't
+	# fly into the cliff face.
+	if bug.ground_pos.y < WorldLayout.CLIFF_HEIGHT + 2.0:
+		goal = Vector3(bug.ground_pos.x * 0.9, WorldLayout.CLIFF_HEIGHT + CRUISE_HEIGHT, bug.ground_pos.z)
 	_fly_to(goal, delta)
 	if bug.ground_pos.distance_to(_target.global_position + Vector3.UP * 1.5) < 1.5:
 		_steal()
