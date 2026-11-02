@@ -27,6 +27,10 @@ var _t := 0.0
 var _state := 0 # 0 away, 1 arriving, 2 hovering, 3 leaving
 var _hover_pos := Vector3.ZERO
 var _away_pos := Vector3.ZERO
+var _envelope: Node3D
+var _bulb_mat: ShaderMaterial
+var _glows: Array = []
+var _shadow: Decal
 
 
 ## The ship no longer comes and goes (so no extra build time for a visit).
@@ -50,6 +54,22 @@ func _ready() -> void:
 	hull.mesh = AirshipBuilder.hull()
 	hull.material_override = Materials.toon(0.04)
 	add_child(hull)
+	# The envelope hangs on its rigging and sways a little; the bulbs light up at night.
+	_envelope = Node3D.new()
+	_envelope.name = "Envelope"
+	_envelope.position = Vector3(0, AirshipBuilder.ROOF_Y, 0)
+	add_child(_envelope)
+	var env_mi := MeshInstance3D.new()
+	env_mi.mesh = AirshipBuilder.envelope()
+	env_mi.material_override = Materials.toon(0.04)
+	env_mi.position = Vector3(0, -AirshipBuilder.ROOF_Y, 0)
+	_envelope.add_child(env_mi)
+	var bulbs := MeshInstance3D.new()
+	bulbs.mesh = AirshipBuilder.bulbs()
+	_bulb_mat = Materials.toon_unique(0.0)
+	bulbs.material_override = _bulb_mat
+	add_child(bulbs)
+	_add_shadow()
 	# Deck and railing collide so players can walk around up there.
 	_deck = StaticBody3D.new()
 	_deck.name = "Deck"
@@ -98,7 +118,8 @@ func _ready() -> void:
 		paint.upper_fade = 0.05
 		paint.lower_fade = 0.05
 		paint.albedo_mix = 1.0
-		add_child(paint)
+		paint.position -= _envelope.position
+		_envelope.add_child(paint)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color("#FFC27A")
 	glow.light_energy = 2.0
@@ -112,6 +133,7 @@ func _ready() -> void:
 	glow2.omni_range = 14.0
 	glow2.position = Vector3(0, 3.2, 9.0)
 	add_child(glow2)
+	_glows = [glow, glow2]
 	# Ladder hangs from the gap in the +Z railing.
 	var ladder_top := Vector3(0, 0.0, AirshipBuilder.DECK_L * 0.5 + 0.25)
 	_ladder_mi = MeshInstance3D.new()
@@ -295,6 +317,7 @@ func _process(delta: float) -> void:
 	if _state == 0:
 		return
 	_t += delta
+	_animate_grandeur()
 	var bob := Vector3(0, sin(_t * 0.7) * 0.25, 0)
 	match _state:
 		1:
@@ -313,6 +336,58 @@ func _process(delta: float) -> void:
 			if _t >= ARRIVE_TIME:
 				_state = 0
 				visible = false
+
+
+## A soft shadow cast down the sun's direction onto the canyon below
+## (the ship hangs above the real shadow map's reach).
+func _add_shadow() -> void:
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0, 0, 0, 1))
+	grad.set_color(1, Color(0, 0, 0, 0))
+	grad.add_point(0.55, Color(0, 0, 0, 0.9))
+	var tex := GradientTexture2D.new()
+	tex.gradient = grad
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(0.5, 0.0)
+	tex.width = 64
+	tex.height = 64
+	_shadow = Decal.new()
+	_shadow.name = "Shadow"
+	_shadow.texture_albedo = tex
+	_shadow.albedo_mix = 1.0
+	_shadow.size = Vector3(AirshipBuilder.ENVELOPE.x * 2.0, 360.0, AirshipBuilder.ENVELOPE.z * 2.1)
+	_shadow.upper_fade = 0.0
+	_shadow.lower_fade = 0.0
+	add_child(_shadow)
+	_shadow.top_level = true
+
+
+## Envelope sway, the moving shadow, and the lights coming on after dark.
+func _animate_grandeur() -> void:
+	if _envelope != null:
+		_envelope.rotation = Vector3(sin(_t * 0.37) * 0.012, 0.0, sin(_t * 0.29 + 1.0) * 0.02)
+		_envelope.position.x = sin(_t * 0.29 + 1.0) * 0.12
+	var night := DayCycle.instance.night_amount() if DayCycle.instance != null else 0.0
+	if _bulb_mat != null:
+		# Chasing marquee bulbs at night, a steady glow by day.
+		_bulb_mat.set_shader_parameter("emission_strength", 2.5 + night * (5.0 + sin(_t * 6.0) * 1.5))
+	for g: OmniLight3D in _glows:
+		g.light_energy = lerpf(1.8, 3.2, night)
+	if _shadow != null and DayCycle.instance != null and DayCycle.instance.sun != null:
+		var sun := DayCycle.instance.sun
+		var down := sun.global_basis.z.normalized()
+		if down.y < 0.15:
+			down = Vector3(down.x, 0.15, down.z).normalized()
+		# Starts just under the gondola so the ship never shadows itself.
+		var centre := global_position - Vector3.UP * 3.0
+		# Decals project along their -Y: point Y back up toward the sun.
+		var y := down
+		var z := global_basis.z.normalized()
+		var x := y.cross(z).normalized()
+		z = x.cross(y).normalized()
+		_shadow.global_transform = Transform3D(Basis(x, y, z), centre - y * 180.0)
+		_shadow.modulate = Color(1, 1, 1, clampf(sun.light_energy / 1.35, 0.0, 1.0) * 0.55)
 
 
 ## Spins a propeller.

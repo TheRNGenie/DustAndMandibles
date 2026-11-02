@@ -19,3 +19,4 @@ breach_dps = 3.0
 size = 0.85
 shell_color = Color(0.71, 0.325, 0.18, 1)
 first_wave = 1
+counter = "One hit pops a mite, but they come in clouds: rapid fire (Gatling Post) and splash (Chili Mortar, Dynamite Lobber) clear a whole pack."

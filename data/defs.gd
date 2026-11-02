@@ -87,14 +87,18 @@ static func gets_scaffold(id: StringName) -> bool:
 	return true
 
 
-## Chitin cost of turret upgrade tiers 1, 2, 3.
-const UPGRADE_COSTS: Array[int] = [10, 25, 50]
+## Chitin cost of turret upgrade tiers 1 and 2 (a casino upgrade token pays for either).
+const UPGRADE_COSTS: Array[int] = [12, 30]
 
 const WAVE_CONFIG: WaveConfig = preload("res://data/wave_config.tres")
 
 
 static func bug(id: StringName) -> BugDef:
-	return BUGS.get(id) as BugDef
+	var d := BUGS.get(id) as BugDef
+	if d == null and String(id).contains("@"):
+		# Kill-method variants ("rattler_beetle@bullet"), made from the base bug.
+		d = (load("res://scenes/bugs/bug_variants.gd") as GDScript).call("get_def", id) as BugDef
+	return d
 
 
 static func turret(id: StringName) -> TurretDef:

@@ -19,3 +19,4 @@ breach_dps = 15.0
 size = 1.5
 shell_color = Color(0.18, 0.549, 0.494, 1)
 first_wave = 3
+counter = "Armoured from the front only: hit it from above or behind, or use armour-piercing shots (Buffalo Rifle, lever-action) and splash."

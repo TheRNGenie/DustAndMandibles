@@ -19,3 +19,4 @@ breach_dps = 12.0
 size = 1.7
 shell_color = Color(0.48, 0.22, 0.42, 1)
 first_wave = 7
+counter = "Splash and fire: at half health she bursts into six spiderlings in a tight clump; a mortar fire patch or a dynamite blast on that spot clears them."

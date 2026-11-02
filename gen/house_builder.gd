@@ -46,6 +46,11 @@ static func mount_count(floors: int) -> int:
 
 
 ## Where the storage chest sits (ground floor, front left corner, under the window).
+## Outside, against the side wall by the porch corner (the shared deposit box).
+static func deposit_box_position() -> Vector3:
+	return Vector3(W * 0.5 + 0.55, 0.0, 1.2)
+
+
 static func chest_position() -> Vector3:
 	return Vector3(-2.95, 0.1, -1.75)
 

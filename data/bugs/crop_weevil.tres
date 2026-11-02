@@ -19,3 +19,4 @@ breach_dps = 4.0
 size = 0.8
 shell_color = Color(0.6, 0.55, 0.2, 1)
 first_wave = 6
+counter = "Trap the farm: it walks straight at your crops, so barbed wire and bear traps around the plots catch it."

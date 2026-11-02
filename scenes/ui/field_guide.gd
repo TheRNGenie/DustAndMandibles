@@ -5,6 +5,7 @@ extends RefCounted
 ## so both stay up to date and easy to edit. Open with J or from the pause menu.
 
 const TEXT_PATH := "res://data/field_guide.json"
+const BugVariantsText := preload("res://scenes/bugs/bug_variants.gd")
 const BEHAVIORS := ["Swarm", "Tank", "Leaper", "Spitter", "Brood", "Burrower", "Flier", "Crop eater", "Boss"]
 
 static var _text: Dictionary = {}
@@ -65,7 +66,14 @@ func menu_items(tab: int) -> Array:
 						("front armour %d%%   |   " % int(b.front_armor * 100.0)) if b.front_armor > 0.0 else "",
 						b.first_wave, b.scrap_drop, (", %d chitin" % b.chitin_drop) if b.chitin_drop > 0 else ""]
 				var icon: Variant = IconStudio.bug(MenuScreen.instance, id) if MenuScreen.instance != null else null
-				out.append(_item(id, b.display_name, icon, str(e.get("lore", "")), stats, e.get("tips", []), ""))
+				# (Bugs helper) The counter, and the variants overusing one method brings.
+				var tips: Array = []
+				if b.counter != "":
+					tips.append("COUNTER: " + b.counter)
+				tips.append_array(e.get("tips", []))
+				if BugVariantsText.can_vary(id, &"bullet"):
+					tips.append(BugVariantsText.summary())
+				out.append(_item(id, b.display_name, icon, str(e.get("lore", "")), stats, tips, ""))
 		2:
 			for id: StringName in Defs.BUILD_ORDER:
 				if not Defs.is_turret(id):

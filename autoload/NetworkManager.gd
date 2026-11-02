@@ -17,6 +17,10 @@ const MENU_SCENE := "res://scenes/main_menu.tscn"
 
 ## peer_id -> {"name": String, "cliff": int, "ready": bool}. Owned by the host, mirrored on clients.
 var players: Dictionary = {}
+## CPU teammate quality: -1 off, 0 Low, 1 Medium, 2 High. Host sets it in the
+## lobby; a CPU fills the empty cliff when there's room (see has_cpu).
+var cpu_quality := -1
+const CPU_QUALITY_NAMES := ["Low", "Medium", "High"]
 var local_name: String = "Rancher"
 var _peer: ENetMultiplayerPeer
 var _started := false
@@ -42,6 +46,16 @@ func host(port: int = DEFAULT_PORT) -> Error:
 	leave()
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_server(port, MAX_PLAYERS - 1)
+	# Debug/test launches: if the port is taken (another test or game is running),
+	# try the next few so parallel automated runs don't hang on the menu.
+	if err != OK and GameState.has_flag("--debug") and not GameState.has_flag("--host"):
+		for i in range(1, 32):
+			peer = ENetMultiplayerPeer.new()
+			err = peer.create_server(port + i, MAX_PLAYERS - 1)
+			if err == OK:
+				print("[net] port %d busy, hosting on %d" % [port, port + i])
+				port += i
+				break
 	if err != OK:
 		return err
 	_peer = peer
@@ -119,6 +133,33 @@ func join_from_menu(address: String, port: int) -> void:
 
 func local_id() -> int:
 	return multiplayer.get_unique_id()
+
+
+## Is there a CPU teammate this run (quality set and a free slot for it)?
+func has_cpu() -> bool:
+	return cpu_quality >= 0 and players.size() < MAX_PLAYERS
+
+
+## The cliff the CPU teammate takes: whichever no human is on.
+func cpu_cliff() -> int:
+	for id: int in players:
+		return WorldLayout.other_cliff(cliff_of(id))
+	return WorldLayout.EAST
+
+
+## Host: set the CPU teammate's quality (-1 = none) and tell everyone.
+func set_cpu(quality: int) -> void:
+	if not multiplayer.is_server():
+		return
+	cpu_quality = clampi(quality, -1, 2)
+	_sync_cpu.rpc(cpu_quality)
+	players_changed.emit()
+
+
+@rpc("authority", "reliable")
+func _sync_cpu(q: int) -> void:
+	cpu_quality = q
+	players_changed.emit()
 
 
 func cliff_of(peer_id: int) -> int:
@@ -210,6 +251,7 @@ func start_game() -> void:
 
 func _broadcast() -> void:
 	_sync_players.rpc(players)
+	_sync_cpu.rpc(cpu_quality)
 	players_changed.emit()
 
 

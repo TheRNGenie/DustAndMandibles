@@ -4,6 +4,8 @@ extends Control
 ## small alert card appears under the plaque and a marker on screen points at
 ## the highest one: red for your own cliff ("call for cover"), amber for your
 ## partner's (the one your turrets protect). Rings once each time it starts.
+## With colour-blind shapes on, your cliff is a square marked "!!" and your
+## partner's a diamond marked "!", on the markers and on the card's lines.
 
 const TOP_SHARE := 0.65 # how far up the face counts as "near the top"
 const SCAN := 0.4
@@ -21,10 +23,19 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card = PanelContainer.new()
-	_card.add_theme_stylebox_override("panel", KeyHints.card_style())
-	_card.anchor_left = 0.5
-	_card.anchor_right = 0.5
-	_card.offset_top = 168
+	# A compact card: tight margins, small text.
+	var sb := KeyHints.card_style()
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 4
+	sb.content_margin_bottom = 5
+	sb.set_border_width_all(2)
+	_card.add_theme_stylebox_override("panel", sb)
+	# Top-left corner, under your homestead bar, out of the middle of the view.
+	_card.anchor_left = 0.0
+	_card.anchor_right = 0.0
+	_card.offset_left = 20
+	_card.offset_top = 64
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.visible = false
 	add_child(_card)
@@ -73,10 +84,10 @@ func _scan() -> void:
 		c.queue_free()
 	if _threats.has(mine):
 		var n := int(_threats[mine]["count"])
-		_label_box.add_child(_line("%d %s at the top of YOUR cliff  ·  call for cover" % [n, "bug" if n == 1 else "bugs"], Palette.TEAM_WEST.lightened(0.35)))
+		_label_box.add_child(_line("%d at Yours" % n, Palette.TEAM_WEST.lightened(0.35), true))
 	if _threats.has(theirs):
 		var n := int(_threats[theirs]["count"])
-		_label_box.add_child(_line("%d %s nearing the top of your partner's cliff" % [n, "bug" if n == 1 else "bugs"], Palette.GLOW_YELLOW))
+		_label_box.add_child(_line("%d at Theirs" % n, Palette.GLOW_YELLOW, false))
 	_card.visible = _label_box.get_child_count() > 0
 	if _card.visible:
 		_center.call_deferred()
@@ -87,16 +98,61 @@ func _scan() -> void:
 		_was[cid] = now
 
 
-func _line(s: String, color: Color) -> Label:
-	var l := KeyHints.text(s, 16, color)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	return l
+func _line(s: String, color: Color, mine: bool) -> Control:
+	var l := KeyHints.text(s, 13, color)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	if not Settings.colorblind:
+		return l
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_BEGIN
+	row.add_theme_constant_override("separation", 6)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var glyph := Glyph.new()
+	glyph.mine = mine
+	glyph.color = color
+	row.add_child(glyph)
+	row.add_child(l)
+	return row
+
+
+## The colour-blind shape for an alert line: square "!!" (yours), diamond "!" (theirs).
+class Glyph extends Control:
+	var mine := false
+	var color := Color.WHITE
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(18, 18)
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		HudThreatAlert.draw_shape(self, size * 0.5, 8.5, mine, color)
+
+
+## Draws an alert shape on any canvas item: a square with "!!" for your own
+## cliff in colour-blind mode, otherwise a diamond with "!".
+static func draw_shape(ci: CanvasItem, p: Vector2, r: float, mine: bool, color: Color) -> void:
+	var square := mine and Settings.colorblind
+	var pts := _shape_points(p, r, square)
+	ci.draw_colored_polygon(pts, Color(Palette.OUTLINE, 0.85))
+	ci.draw_colored_polygon(_shape_points(p, r - 3.0, square), color)
+	var font: Font = ci.get_theme_default_font()
+	var mark := "!!" if square else "!"
+	var w: float = font.get_string_size(mark, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+	ci.draw_string(font, p + Vector2(-w * 0.5, 5), mark, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Palette.OUTLINE)
+
+
+static func _shape_points(p: Vector2, r: float, square: bool) -> PackedVector2Array:
+	if square:
+		var h := r * 0.8
+		return PackedVector2Array([p + Vector2(-h, -h), p + Vector2(h, -h), p + Vector2(h, h), p + Vector2(-h, h)])
+	return PackedVector2Array([p + Vector2(0, -r), p + Vector2(r, 0), p + Vector2(0, r), p + Vector2(-r, 0)])
 
 
 func _center() -> void:
 	var s := _card.get_combined_minimum_size()
-	_card.offset_left = -s.x * 0.5
-	_card.offset_right = s.x * 0.5
+	_card.offset_left = 20
+	_card.offset_right = 20 + s.x
 
 
 ## Markers: a diamond over the highest bug of each threatened cliff, pinned to
@@ -110,6 +166,8 @@ func _draw() -> void:
 	# Keep markers clear of the plaque at the top and the hotbar at the bottom.
 	var vr := get_viewport_rect()
 	var rect := Rect2(vr.position + Vector2(48, 90), vr.size - Vector2(96, 90 + 150))
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return # headless or a tiny window
 	for cid: int in _threats:
 		var pos: Vector3 = _threats[cid]["pos"]
 		var color := Palette.TEAM_WEST.lightened(0.2) if cid == player.cliff_id else Palette.GLOW_YELLOW
@@ -128,8 +186,4 @@ func _draw() -> void:
 			draw_colored_polygon(PackedVector2Array([tip, p + dir.orthogonal() * 10.0, p - dir.orthogonal() * 10.0]), color)
 		var pulse := 1.0 + 0.15 * sin(Time.get_ticks_msec() * 0.01)
 		var r := 11.0 * pulse
-		var pts := PackedVector2Array([p + Vector2(0, -r), p + Vector2(r, 0), p + Vector2(0, r), p + Vector2(-r, 0)])
-		draw_colored_polygon(pts, Color(Palette.OUTLINE, 0.8))
-		var r2 := r - 3.0
-		draw_colored_polygon(PackedVector2Array([p + Vector2(0, -r2), p + Vector2(r2, 0), p + Vector2(0, r2), p + Vector2(-r2, 0)]), color)
-		draw_string(get_theme_default_font(), p + Vector2(-4, 5), "!", HORIZONTAL_ALIGNMENT_CENTER, -1, 14, Palette.OUTLINE)
+		draw_shape(self, p, r, cid == player.cliff_id, color)

@@ -19,3 +19,4 @@ breach_dps = 3.0
 size = 0.5
 shell_color = Color(0.55, 0.3, 0.55, 1)
 first_wave = 99
+counter = "Tiny and many: splash and fire patches clear them."

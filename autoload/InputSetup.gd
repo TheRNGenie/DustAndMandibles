@@ -24,6 +24,8 @@ const KEY_BINDINGS: Dictionary = {
 	"pause_menu": [KEY_ESCAPE],
 	"debug_overlay": [KEY_F3],
 	"ready_up": [KEY_G],
+	"emote": [KEY_H], # co-op/UI: hold for the emote wheel
+	"photo_mode": [KEY_P], # co-op/UI: hide the HUD, then free camera
 	"debug_skip_phase": [KEY_F6],
 	"debug_add_scrap": [KEY_F7],
 	"debug_spawn_bug": [KEY_F8],

@@ -3,6 +3,9 @@ extends RefCounted
 ## What each turret's shot does when it lands, by TurretDef.effect. Host only.
 ## Lobbed shots (mortar, dynamite) land after def.flight_time.
 
+## Metres a heavy bug slips down the wall when a Water Cannon hits it.
+const HEAVY_SLIP := 3.0
+
 static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 	var source := "%s's %s" % [t.owner_name, t.def.display_name]
 	var dir := (aim - t.muzzle_position()).normalized()
@@ -11,7 +14,13 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 			target.receive_hit(damage, aim, dir, t.def.armor_pierce, 1.0, source, t.cliff_id)
 		TurretDef.Effect.KNOCKBACK:
 			target.receive_hit(damage, aim, dir, false, 1.0, source, t.cliff_id)
-			if target.is_alive():
+			if not target.is_alive():
+				pass
+			elif TurretDef.is_heavy(target.def):
+				# Heavy bugs only slip a few metres down the wall.
+				if target.is_climbing():
+					target.climb_y = maxf(target.climb_y - HEAVY_SLIP, 0.0)
+			else:
 				target.knock_off(source, t.cliff_id)
 		TurretDef.Effect.PIN:
 			target.receive_hit(damage, aim, dir, false, 1.0, source, t.cliff_id)

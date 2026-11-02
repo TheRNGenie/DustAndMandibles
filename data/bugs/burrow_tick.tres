@@ -19,3 +19,4 @@ breach_dps = 8.0
 size = 0.9
 shell_color = Color(0.55, 0.42, 0.3, 1)
 first_wave = 6
+counter = "Lantern light forces it to the surface."

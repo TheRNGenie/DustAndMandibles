@@ -17,10 +17,24 @@ static var _last_eyes: Dictionary = {}
 const EYE_WHITE := Color("#FFF6D8")
 
 
+## Specs already built, by bug id. Every bug of a kind shares one spec (and one
+## body mesh, so they batch and spawning stays cheap). Nothing writes to a spec.
+static var _built: Dictionary = {}
+
+
 static func build(def: BugDef) -> Dictionary:
+	if _built.has(def.id):
+		return _built[def.id]
+	var spec := _build(def)
+	_built[def.id] = spec
+	return spec
+
+
+static func _build(def: BugDef) -> Dictionary:
 	_last_eyes = {}
 	var spec: Dictionary
-	match def.id:
+	# Kill-method variants share their base bug's body, in their own shell colour.
+	match def.base_id():
 		&"dust_mite":
 			spec = _mite(def.shell_color)
 		&"wolf_spider":

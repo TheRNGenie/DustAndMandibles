@@ -1,20 +1,32 @@
 extends Node
-## Host only: plans each wave from the threat budget when the warning bell rings,
-## releases it in 3-5 pulses during the wave, and ends the wave when every bug is dead.
+## Host only: plans each wave when the build phase starts (so players can see
+## what's coming), releases it pulse by pulse on the wave's own schedule (its
+## shape: steady stream, one rush, two pushes...), and ends the wave when every
+## bug is dead. Also tallies kills per (bug type, kill method) and unlocks
+## kill-method variants once a type keeps dying the same way.
+
+const KillMethod := preload("res://scenes/bugs/kill_method.gd")
+const KillTally := preload("res://scenes/bugs/kill_tally.gd")
 
 signal wave_announced(heavy_cliff: int, west_share: float, lane_counts: Array)
 ## The coming wave's bug mix ([[bug id, count], ...], most first), sent while building.
 signal wave_previewed(mix: Array)
+## Host and clients: a kill-method variant just showed up for the first time this run.
+signal variant_unlocked(variant_id: StringName)
 
 ## The last preview, for HUDs that open after it was sent.
 var preview: Array = []
+## The coming wave's shape (WavePlanner.STEADY, RUSH, ...), sent with the preview.
+var preview_shape: StringName = &""
 
 var bug_manager: BugManager
+var tally := KillTally.new()
 var _planner: WavePlanner
 var _plan: Dictionary = {}
 var _pulse := 0
-var _pulse_timer := 0.0
+var _clock := 0.0
 var _active := false
+var _last_wave := 0
 
 
 func _ready() -> void:
@@ -22,6 +34,10 @@ func _ready() -> void:
 	for id: StringName in Defs.active_bug_ids():
 		defs.append(Defs.bug(id))
 	_planner = WavePlanner.new(Defs.WAVE_CONFIG, defs, int(Time.get_unix_time_from_system()))
+	tally.threshold = Defs.WAVE_CONFIG.variant_kills
+	# Testing: --variantkills=N makes variants show up after N kills.
+	if GameState.flag_value("--variantkills") != "":
+		tally.threshold = maxi(int(GameState.flag_value("--variantkills")), 1)
 	GameState.phase_changed.connect(_on_phase_changed)
 
 
@@ -29,42 +45,54 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 	if not multiplayer.is_server():
 		return
 	match p:
+		GameState.Phase.LOBBY:
+			tally.reset()
+			_last_wave = 0
 		GameState.Phase.BUILD:
+			# A new run (wave count went back): forget last run's kills.
+			if GameState.wave <= 1 or GameState.wave < _last_wave:
+				tally.reset()
+			_last_wave = GameState.wave
 			# Plan the coming wave now, so both players can see what's coming while they build.
-			_plan = _planner.plan(GameState.wave)
-			_preview.rpc(_mix())
+			_plan = _make_plan()
+			_preview.rpc(_mix(), _plan["shape"])
 		GameState.Phase.WARNING:
 			if _plan.is_empty():
-				_plan = _planner.plan(GameState.wave)
+				_plan = _make_plan()
 			var extra := Weather.extra_bugs(GameState.weather)
 			if extra > 0.0:
 				# Blood moon: fold part of a second wave's worth of bugs into this one.
-				var more: Array = _planner.plan(GameState.wave)["groups"]
+				var more: Array = _make_plan()["groups"]
 				var groups: Array = _plan["groups"]
 				for i in int(more.size() * extra):
-					groups.append(more[i])
+					var g: Dictionary = more[i]
+					g["pulse"] = int(g["pulse"]) % int(_plan["pulses"])
+					groups.append(g)
 			_announce.rpc(WavePlanner.heavier_cliff(float(_plan["west_share"])), float(_plan["west_share"]), _lane_counts())
 		GameState.Phase.WAVE:
 			if _plan.is_empty():
-				_plan = _planner.plan(GameState.wave)
+				_plan = _make_plan()
 			_pulse = 0
-			_pulse_timer = 0.0
+			_clock = 0.0
 			_active = true
 		_:
 			_active = false
 
 
+func _make_plan() -> Dictionary:
+	_planner.variants = tally.unlocked
+	return _planner.plan(GameState.wave)
+
+
 func _process(delta: float) -> void:
 	if not _active or not multiplayer.is_server() or bug_manager == null:
 		return
-	var pulses := int(_plan["pulses"])
-	if _pulse < pulses:
-		_pulse_timer -= delta
-		if _pulse_timer <= 0.0:
-			_release(_pulse)
-			_pulse += 1
-			_pulse_timer = Defs.WAVE_CONFIG.pulse_interval
-	elif bug_manager.alive_count() == 0:
+	var times: Array = _plan["pulse_times"]
+	_clock += delta
+	while _pulse < times.size() and _clock >= float(times[_pulse]):
+		_release(_pulse)
+		_pulse += 1
+	if _pulse >= times.size() and bug_manager.alive_count() == 0 and bug_manager.pending_count() == 0:
 		_active = false
 		_plan = {}
 		GameState.end_wave()
@@ -72,10 +100,22 @@ func _process(delta: float) -> void:
 
 func _release(pulse: int) -> void:
 	if GameState.has_flag("--netlog"):
-		print("[wave] releasing pulse %d of %d, %d groups planned" % [pulse, int(_plan["pulses"]), (_plan["groups"] as Array).size()])
+		print("[wave] %s: releasing pulse %d of %d, %d groups planned" % [_plan["shape"], pulse, int(_plan["pulses"]), (_plan["groups"] as Array).size()])
 	for g: Dictionary in _plan["groups"]:
 		if int(g["pulse"]) == pulse:
+			if GameState.has_flag("--netlog") and String(g["bug"]).contains("@"):
+				print("[wave]   variant group: %d x %s" % [int(g["count"]), Defs.bug(StringName(g["bug"])).display_name])
 			bug_manager.spawn_group(StringName(g["bug"]), int(g["count"]), int(g["cliff"]), int(g["lane"]))
+
+
+## Host: BugManager reports every kill; enough kills of one type the same way
+## unlocks its variant for the coming waves.
+func note_kill(def: BugDef, source: String) -> void:
+	var v := tally.note(def, KillMethod.of(source))
+	if v != &"":
+		if GameState.has_flag("--netlog"):
+			print("[wave] variant unlocked: %s (%d kills by %s)" % [v, tally.count(def.base_id(), KillMethod.of(source)), KillMethod.of(source)])
+		_variant_unlocked.rpc(v)
 
 
 ## Bugs per [cliff][lane], so the warning HUD can show the busiest lanes.
@@ -87,30 +127,54 @@ func _lane_counts() -> Array:
 	return counts
 
 
-## Bugs per type in the plan, most numerous first.
+## Bugs per type in the plan: kill-method variants first (so the HUD never hides
+## them under "+N more"), then most numerous first.
 func _mix() -> Array:
+	return mix_of(_plan["groups"])
+
+
+static func mix_of(groups: Array) -> Array:
 	var by: Dictionary = {}
-	for g: Dictionary in _plan["groups"]:
+	for g: Dictionary in groups:
 		by[String(g["bug"])] = int(by.get(String(g["bug"]), 0)) + int(g["count"])
 	var out: Array = []
 	for id: String in by:
 		out.append([id, by[id]])
-	out.sort_custom(func(a: Array, b: Array) -> bool: return int(a[1]) > int(b[1]))
+	out.sort_custom(func(a: Array, b: Array) -> bool:
+		var va := String(a[0]).contains("@")
+		var vb := String(b[0]).contains("@")
+		if va != vb:
+			return va
+		return int(a[1]) > int(b[1]))
 	return out
 
 
 ## Host: re-sends the preview to a player who just joined.
 func send_preview_to(peer: int) -> void:
 	if multiplayer.is_server() and not preview.is_empty():
-		_preview.rpc_id(peer, preview)
+		_preview.rpc_id(peer, preview, preview_shape)
 
 
 @rpc("authority", "call_local", "reliable")
-func _preview(mix: Array) -> void:
+func _preview(mix: Array, shape: StringName) -> void:
 	preview = mix
+	preview_shape = shape
 	wave_previewed.emit(mix)
 
 
 @rpc("authority", "call_local", "reliable")
 func _announce(heavy_cliff: int, west_share: float, lane_counts: Array) -> void:
 	wave_announced.emit(heavy_cliff, west_share, lane_counts)
+
+
+@rpc("authority", "call_local", "reliable")
+func _variant_unlocked(variant_id: StringName) -> void:
+	variant_unlocked.emit(variant_id)
+	var d := Defs.bug(variant_id)
+	if d == null or bug_manager == null:
+		return
+	var base := Defs.bug(d.variant_of)
+	var method := String(variant_id).get_slice("@", 1)
+	# One line in the kill feed (every peer adds its own copy).
+	bug_manager.bug_killed.emit("The %ss are adapting to %s: %ss are coming. %s" % [
+			base.display_name, KillMethod.WORDS.get(StringName(method), method), d.display_name, d.counter], -1, "", -2, {})

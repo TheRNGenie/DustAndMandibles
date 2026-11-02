@@ -19,3 +19,4 @@ breach_dps = 8.0
 size = 1.3
 shell_color = Color(0.85, 0.6, 0.25, 1)
 first_wave = 4
+counter = "Knock it off the wall: a Water Cannon blast drops a clinging spitter, and the long fall takes most of its health."

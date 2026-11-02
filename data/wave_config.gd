@@ -28,6 +28,28 @@ extends Resource
 @export var count_base: float = 45.0
 @export var count_growth: float = 1.25
 
+@export_group("Wave shapes")
+## Every this many waves is a boss wave (brutes up front, the boss once it's unlocked).
+@export var boss_every: int = 5
+## Steady stream: many small pulses this far apart.
+@export var steady_pulses: int = 8
+@export var steady_interval: float = 6.0
+## One big rush: everything within a few seconds (spread a little so spawning can't hitch).
+@export var rush_pulses: int = 3
+@export var rush_interval: float = 1.2
+## Two pushes: two tight bursts this many seconds apart.
+@export var push_gap: float = 35.0
+## Share of each cliff's budget spent on fliers in a flier-heavy wave.
+@export var flier_share: float = 0.45
+## Share of each cliff's budget spent on brutes (tanks, brood mothers) in a boss wave.
+@export var brute_share: float = 0.4
+
+@export_group("Kill-method variants")
+## Kills of one bug type by one method (bullets, fire, explosives) before its variant shows up.
+@export var variant_kills: int = 60
+## Once a variant is unlocked, the share of that type's groups that come as the variant.
+@export var variant_share: float = 0.35
+
 
 ## How many bugs wave w sends (wave 1 = count_base, then +25% a wave).
 func bug_count(w: int) -> int:

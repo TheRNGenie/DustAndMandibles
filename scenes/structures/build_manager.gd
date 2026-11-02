@@ -114,6 +114,23 @@ func build(id: StringName, cid: int, cell: Vector2i) -> void:
 	_call(&"build", [id, cid, cell])
 
 
+## Host: a CPU teammate builds on its own cliff, paying from the shared pool
+## within its share (Economy.cpu_spend). Returns whether it went up.
+func cpu_build(cpu_name: String, id: StringName, cid: int, cell: Vector2i) -> bool:
+	if not multiplayer.is_server() or not is_free_for(id, cid, cell) or GameState.phase == GameState.Phase.GAME_OVER:
+		return false
+	if not Economy.cpu_spend(cpu_name, {&"scrap": Defs.cost_of(id)}):
+		return false
+	# Already paid out of its share; _do_build skips charging while _cpu_builder is set.
+	_cpu_builder = cpu_name
+	_do_build(-1, id, cid, cell)
+	_cpu_builder = ""
+	return true
+
+
+var _cpu_builder := ""
+
+
 ## Demolish / repair / upgrade the given built node (a turret, structure or scaffold).
 func demolish_node(n: Node) -> void:
 	_call(&"demolish", [n.name])
@@ -161,10 +178,10 @@ func _handle(peer_id: int, action: StringName, args: Array) -> void:
 func _do_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> void:
 	if not (Defs.is_turret(id) or Defs.STRUCTURES.has(id)):
 		return
-	if not may_build(peer_id, cid) or not is_free_for(id, cid, cell) or GameState.phase == GameState.Phase.GAME_OVER:
+	if (_cpu_builder == "" and not may_build(peer_id, cid)) or not is_free_for(id, cid, cell) or GameState.phase == GameState.Phase.GAME_OVER:
 		return
 	var cost := Defs.cost_of(id)
-	if not Economy.spend(cid, {&"scrap": cost}):
+	if _cpu_builder == "" and not Economy.spend(cid, {&"scrap": cost}):
 		Economy.notify(peer_id, "Not enough scrap for a %s (%d)." % [Defs.name_of(id), cost])
 		return
 	if id == &"scaffold" and scaffold_levels(cid, cell) > 0:
@@ -309,10 +326,13 @@ func _do_upgrade(peer_id: int, n: Node3D) -> void:
 	if t == null or t.upgrade_cost() <= 0:
 		return
 	var payer := Economy.payer_cliff(peer_id, t.cliff_id)
-	if not Economy.spend(payer, {&"chitin": t.upgrade_cost()}):
+	# A casino upgrade token pays first; otherwise chitin.
+	var paid := Economy.amount(payer, Turret.UPGRADE_TOKEN) > 0 and Economy.spend(payer, {Turret.UPGRADE_TOKEN: 1})
+	if not paid and not Economy.spend(payer, {&"chitin": t.upgrade_cost()}):
 		Economy.notify(peer_id, "Upgrading needs %d chitin (armoured bugs and the airship market give it)." % t.upgrade_cost())
 		return
 	t.upgrade()
+	Economy.notify(peer_id, "%s upgraded: %s." % [t.def.display_name, TurretDef.TIER_NAMES[t.tier]])
 	_upgraded.rpc(t.global_position)
 
 
@@ -348,6 +368,8 @@ func _wreck(pos: Vector3, text: String) -> void:
 
 
 func _name_of(peer_id: int) -> String:
+	if _cpu_builder != "":
+		return _cpu_builder
 	if NetworkManager.players.has(peer_id):
 		return str((NetworkManager.players[peer_id] as Dictionary)["name"])
 	return NetworkManager.local_name

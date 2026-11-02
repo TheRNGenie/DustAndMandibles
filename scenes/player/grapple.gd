@@ -122,7 +122,8 @@ func _launch(new_mode: Mode) -> void:
 	anchor = hit["position"]
 	mode = new_mode
 	_pull_t = 0.0
-	_rope_len = maxf(player.global_position.distance_to(anchor), MIN_ROPE)
+	# Measured from the same point _swing() keeps on the rope (0.9 m up), as attach() does.
+	_rope_len = maxf((player.global_position + Vector3.UP * 0.9).distance_to(anchor), MIN_ROPE)
 	_pull_limit = maxf(PULL_MAX_TIME, _rope_len / PULL_SPEED * 1.5 + 0.6)
 	Audio.play_at(&"hook_bite", anchor, -2.0)
 	_show_rope.rpc(anchor)
@@ -201,7 +202,9 @@ func _release() -> void:
 	_show_rope.rpc(null)
 
 
-@rpc("authority", "call_local", "unreliable_ordered")
+# Reliable: it's a one-shot state change (hooked / let go). Unreliable could drop
+# the "let go" and leave the rope hanging on the partner's screen.
+@rpc("authority", "call_local", "reliable")
 func _show_rope(point: Variant) -> void:
 	_remote_anchor = point
 

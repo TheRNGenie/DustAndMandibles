@@ -600,6 +600,9 @@ func start_zip(line: ZipLine, from_west: bool, land: Vector3) -> void:
 
 
 func _ride_zip(delta: float) -> void:
+	if not is_instance_valid(_zip_line):
+		_zip_line = null # the tower went away mid-ride: drop with the momentum we had
+		return
 	var length := _zip_line.a.distance_to(_zip_line.b)
 	_zip_speed = move_toward(_zip_speed, ZIP_SPEED, 14.0 * delta)
 	var before := global_position

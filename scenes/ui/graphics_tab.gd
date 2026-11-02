@@ -1,6 +1,7 @@
 class_name GraphicsTab
 extends VBoxContainer
-## Graphics tab: brightness, FPS cap, V-Sync, fullscreen, FOV, shadows, anti-aliasing, render scale.
+## Graphics tab: brightness, FPS cap, V-Sync, fullscreen, FOV, shadows, anti-aliasing,
+## render scale, and the colour-blind option (shapes on team colours and alerts).
 
 
 func _ready() -> void:
@@ -33,3 +34,6 @@ func _ready() -> void:
 
 	add_child(UiStyle.row("Render scale", UiStyle.slider(0.5, 1.0, 0.05, Settings.render_scale, "%.2f",
 			func(v: float) -> void: Settings.set_value("render_scale", v))))
+
+	add_child(UiStyle.row("Colour-blind shapes", UiStyle.check(Settings.colorblind,
+			func(on: bool) -> void: Settings.set_value("colorblind", on))))

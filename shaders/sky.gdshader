@@ -1,4 +1,6 @@
-// Stylised gradient sky with a hard-edged sun and soft banding.
+// Stylised gradient sky: a hard-edged sun with a warm halo that spreads along
+// the horizon at golden hour, flat cartoon clouds, and at night a starry sky
+// with a faint dust band and a cratered moon (the sun light doubles as the moon).
 shader_type sky;
 
 uniform vec4 top_color : source_color = vec4(0.310, 0.722, 0.847, 1.0); // #4FB8D8
@@ -10,6 +12,38 @@ uniform float bands = 0.0; // > 0 posterises the gradient
 uniform float cloud_amount : hint_range(0.0, 1.0) = 0.35;
 uniform vec4 cloud_color : source_color = vec4(1.0, 0.97, 0.92, 1.0);
 uniform sampler2D cloud_noise : filter_linear_mipmap, repeat_enable;
+// 0 by day, 1 at full night (stars, moon instead of sun).
+uniform float night : hint_range(0.0, 1.0) = 0.0;
+// 0..1: how strongly the low sun floods the horizon with colour (golden hour).
+uniform float golden : hint_range(0.0, 1.0) = 0.0;
+uniform vec4 glow_color : source_color = vec4(1.0, 0.55, 0.25, 1.0);
+// Storms hide the stars.
+uniform float overcast : hint_range(0.0, 1.0) = 0.0;
+
+float hash(vec3 p) {
+	p = fract(p * vec3(443.897, 441.423, 437.195));
+	p += dot(p, p.yzx + 19.19);
+	return fract((p.x + p.y) * p.z);
+}
+
+// Hard little stars on a cube-ish grid of directions, twinkling.
+float stars(vec3 dir) {
+	float s = 0.0;
+	for (int layer = 0; layer < 2; layer++) {
+		float scale = layer == 0 ? 90.0 : 190.0;
+		vec3 p = dir * scale;
+		vec3 cell = floor(p);
+		float h = hash(cell + float(layer) * 17.0);
+		if (h > (layer == 0 ? 0.965 : 0.93)) {
+			vec3 c = cell + vec3(hash(cell + 1.3), hash(cell + 2.7), hash(cell + 4.1));
+			float d = length(p - c);
+			float size = layer == 0 ? 0.28 : 0.18;
+			float tw = 0.65 + 0.35 * sin(TIME * (1.5 + h * 4.0) + h * 40.0);
+			s += smoothstep(size, size * 0.4, d) * tw * (layer == 0 ? 1.0 : 0.6);
+		}
+	}
+	return s;
+}
 
 void sky() {
 	vec3 dir = EYEDIR;
@@ -19,8 +53,30 @@ void sky() {
 		t = floor(t * bands) / bands;
 	}
 	vec3 col = mix(horizon_color.rgb, top_color.rgb, t);
+	vec3 sun_dir = LIGHT0_ENABLED ? LIGHT0_DIRECTION : vec3(0.0, 1.0, 0.0);
+	float to_sun = dot(dir, sun_dir);
+	// Golden hour: the horizon toward the sun flares orange-pink in soft bands.
+	if (golden > 0.0 && dir.y > -0.05) {
+		float facing = clamp(dot(normalize(dir.xz + 1e-4), normalize(sun_dir.xz + 1e-4)) * 0.5 + 0.5, 0.0, 1.0);
+		float low = 1.0 - smoothstep(0.0, 0.35, up);
+		float flare = pow(facing, 3.0) * low;
+		flare = floor(flare * 4.0 + 0.5) / 4.0; // toon bands
+		col = mix(col, glow_color.rgb, flare * golden * 0.8);
+		// A pink-violet band higher up, away from the sun.
+		float belt = smoothstep(0.08, 0.2, up) * (1.0 - smoothstep(0.2, 0.42, up)) * (1.0 - facing);
+		col = mix(col, vec3(0.82, 0.5, 0.66), belt * golden * 0.35);
+	}
 	if (dir.y < 0.0) {
 		col = mix(horizon_color.rgb, ground_color.rgb, smoothstep(0.0, 0.15, -dir.y));
+	}
+	// Night: stars and a faint band of dust across the sky.
+	if (night > 0.0 && dir.y > 0.0) {
+		float fade = night * (1.0 - overcast) * smoothstep(0.0, 0.25, dir.y);
+		vec3 bd = normalize(vec3(0.45, 0.2, 1.0));
+		float band = 1.0 - smoothstep(0.0, 0.32, abs(dot(dir, normalize(cross(bd, vec3(0.0, 1.0, 0.3))))));
+		float dust = texture(cloud_noise, dir.xz * 0.6 + 0.3).r;
+		col += vec3(0.3, 0.32, 0.5) * band * (0.25 + dust * 0.5) * fade * 0.55;
+		col += vec3(1.0, 0.96, 0.88) * stars(dir) * fade * (1.0 + band * 0.6);
 	}
 	// Flat, hard-edged cartoon clouds.
 	if (dir.y > 0.02) {
@@ -28,12 +84,32 @@ void sky() {
 		float c = texture(cloud_noise, uv).r;
 		float mask = smoothstep(1.0 - cloud_amount, 1.0 - cloud_amount + 0.02, c);
 		mask *= smoothstep(0.02, 0.2, dir.y);
-		col = mix(col, cloud_color.rgb, mask * 0.9);
+		// Clouds near the low sun get a hot rim.
+		float rim = smoothstep(1.0 - cloud_amount + 0.02, 1.0 - cloud_amount + 0.06, c);
+		vec3 cc = mix(cloud_color.rgb + glow_color.rgb * golden * 0.35 * smoothstep(0.5, 1.0, to_sun), cloud_color.rgb, rim);
+		col = mix(col, cc, mask * 0.9 * (1.0 - night * 0.4));
 	}
 	if (LIGHT0_ENABLED) {
-		float s = dot(dir, LIGHT0_DIRECTION);
-		float disk = smoothstep(1.0 - sun_size, 1.0 - sun_size * 0.8, s);
-		col = mix(col, sun_color.rgb * 2.0, disk);
+		if (night < 0.5) {
+			// Sun: hard disk, a toon halo ring, and a wide soft glow (bigger when low).
+			float halo = smoothstep(1.0 - sun_size * 4.0, 1.0 - sun_size * 3.4, to_sun) * 0.12;
+			float wide = pow(max(to_sun, 0.0), 64.0) * (0.15 + golden * 0.5) + pow(max(to_sun, 0.0), 8.0) * golden * 0.25;
+			col += sun_color.rgb * (halo + wide) * (1.0 - night * 2.0);
+			float disk = smoothstep(1.0 - sun_size, 1.0 - sun_size * 0.8, to_sun);
+			col = mix(col, sun_color.rgb * 2.0, disk);
+		} else {
+			// Moon: a bigger pale disk with darker maria, and a cool glow.
+			float msize = sun_size * 2.2;
+			float disk = smoothstep(1.0 - msize, 1.0 - msize * 0.9, to_sun);
+			vec3 side = normalize(cross(sun_dir, vec3(0.0, 1.0, 0.0)) + 1e-4);
+			vec3 upv = cross(side, sun_dir);
+			vec2 m = vec2(dot(dir, side), dot(dir, upv)) / sqrt(msize * 2.0);
+			float maria = smoothstep(0.32, 0.25, length(m - vec2(0.25, 0.2))) + smoothstep(0.22, 0.15, length(m - vec2(-0.3, -0.1)))
+				+ smoothstep(0.15, 0.1, length(m - vec2(0.1, -0.4)));
+			vec3 moon = mix(vec3(1.0, 0.98, 0.9), vec3(0.72, 0.74, 0.82), clamp(maria, 0.0, 1.0)) * 1.4;
+			col += vec3(0.4, 0.45, 0.65) * pow(max(to_sun, 0.0), 60.0) * 0.5 * night;
+			col = mix(col, moon, disk * (1.0 - overcast * 0.7));
+		}
 	}
 	COLOR = col;
 }

@@ -4,9 +4,27 @@ extends Resource
 
 enum Effect { HITSCAN, KNOCKBACK, BURN, SPLASH, PIN }
 
+## Upgrade tiers 0 (as built), 1 (brass fittings) and 2 (big bore).
+const MAX_TIER := 2
+## Per tier: damage, range and hit-point multipliers, and the fire-interval multiplier.
+const TIER_DAMAGE: Array[float] = [1.0, 1.3, 1.7]
+const TIER_RANGE: Array[float] = [1.0, 1.1, 1.2]
+const TIER_HP: Array[float] = [1.0, 1.2, 1.4]
+const TIER_INTERVAL: Array[float] = [1.0, 0.9, 0.8]
+## Names shown for each upgrade tier.
+const TIER_NAMES: Array[String] = ["Stock", "Brass fittings", "Big bore"]
+## Extra range per scaffold level the turret stands on (5% each).
+const RANGE_PER_LEVEL := 0.05
+## Bugs with this much HP (or any armour plate) count as heavy.
+const HEAVY_HP := 100.0
+
 @export var id: StringName = &""
 @export var display_name: String = ""
 @export var description: String = ""
+## The one job this turret is for, a few words for the build catalog.
+@export var role: String = ""
+## What it is bad at, a few words for the build catalog.
+@export var weakness: String = ""
 @export var cost_scrap: int = 40
 @export var max_hp: float = 150.0
 @export var range: float = 80.0
@@ -14,6 +32,9 @@ enum Effect { HITSCAN, KNOCKBACK, BURN, SPLASH, PIN }
 @export var fire_interval: float = 0.15
 @export var damage: float = 6.0
 @export var armor_pierce: bool = false
+## Damage multiplier against heavy bugs (armour-plated, or 100+ HP): below 1 for
+## swarm guns, above 1 for big-game guns.
+@export var heavy_mult: float = 1.0
 ## Furthest the barrel can aim below horizontal, in degrees.
 @export var pitch_limit_deg: float = 30.0
 ## Degrees per second.
@@ -33,10 +54,63 @@ enum Effect { HITSCAN, KNOCKBACK, BURN, SPLASH, PIN }
 ## House turret: mounts on the Homestead (porch, balcony, roof deck) and only shoots
 ## bugs on your plateau within Homestead.GUARD_RADIUS of the house.
 @export var guards_house: bool = false
-## Resources spent per shot from the owner's stockpile, e.g. {&"water": 2}.
+## Upkeep: resources spent per shot from the owner's stockpile, e.g. {&"chili": 1}.
+## Only special turrets have any; the basic ones never need ammo.
 @export var ammo_cost: Dictionary = {}
 ## Air defence: sits in the second row from the lip and only shoots flying bugs,
 ## over either plateau or the canyon.
 @export var anti_air: bool = false
 ## Shot sound (audio/sfx name). "gatling" picks one of three variants.
 @export var sound: StringName = &"gatling"
+
+
+## Armour-plated or 100+ HP: the bugs big-game guns are for and swarm guns struggle with.
+static func is_heavy(bd: BugDef) -> bool:
+	return bd.front_armor > 0.0 or bd.max_hp >= HEAVY_HP
+
+
+## Needs upkeep (ammo) to keep firing.
+func has_upkeep() -> bool:
+	return not ammo_cost.is_empty()
+
+
+## "1 chili" / "1 scrap" per shot, for prompts and the catalog.
+func upkeep_text() -> String:
+	var parts: PackedStringArray = []
+	for k: Variant in ammo_cost.keys():
+		parts.append("%d %s" % [int(ammo_cost[k]), String(k).replace("_", " ")])
+	return ", ".join(parts)
+
+
+## Damage of one shot at an upgrade tier, against a heavy bug or not.
+func damage_at(tier: int, heavy: bool = false) -> float:
+	return damage * TIER_DAMAGE[clampi(tier, 0, MAX_TIER)] * (heavy_mult if heavy else 1.0)
+
+
+## Range at an upgrade tier, standing on `level` scaffold levels.
+func range_at(tier: int, level: int = 0) -> float:
+	return range * range_mult(tier, level)
+
+
+static func range_mult(tier: int, level: int) -> float:
+	return TIER_RANGE[clampi(tier, 0, MAX_TIER)] + RANGE_PER_LEVEL * maxi(level, 0)
+
+
+func interval_at(tier: int) -> float:
+	return fire_interval * TIER_INTERVAL[clampi(tier, 0, MAX_TIER)]
+
+
+func hp_at(tier: int) -> float:
+	return max_hp * TIER_HP[clampi(tier, 0, MAX_TIER)]
+
+
+## One line for the build catalog's detail strip: job, weakness and any upkeep.
+func role_line() -> String:
+	var parts: PackedStringArray = []
+	if role != "":
+		parts.append("Job: %s" % role)
+	if weakness != "":
+		parts.append("Weak: %s" % weakness)
+	if has_upkeep():
+		parts.append("Upkeep: %s a shot" % upkeep_text())
+	return "   ·   ".join(parts)

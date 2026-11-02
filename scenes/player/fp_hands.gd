@@ -105,6 +105,8 @@ func play(id: StringName, prop: StringName = &"", target: Vector3 = Vector3(0.1,
 	_target = target
 	t = 0.0
 	_dur = DUR_FP * (1.25 if id in [&"pump", &"slots", &"water", &"ledger"] else 1.0)
+	if id in DummyActions.EMOTES:
+		_dur = DummyActions.duration(id)
 	visible = true
 	_fly.visible = false
 	_prop_r.mesh = null
@@ -162,6 +164,8 @@ const REST_LOW := Vector3(0.22, -0.45, -0.26)
 ## of view with whatever it took (65-100%).
 func _pose(id: StringName, tt: float, _delta: float) -> Array:
 	var life := Time.get_ticks_msec() * 0.001
+	if id in DummyActions.EMOTES:
+		return _emote_pose(id, tt, life)
 	var reach := smoothstep(0.0, 0.35, tt)
 	var back := smoothstep(0.68, 1.0, tt)
 	var a := clampf((tt - 0.35) / 0.33, 0.0, 1.0) # progress of the job itself
@@ -239,6 +243,40 @@ func _pose(id: StringName, tt: float, _delta: float) -> Array:
 		_set_prop(_prop_l, &"ledger", &"ledger")
 	var dip_amt := clampf(-at.y * 0.35, 0.0, 0.16)
 	return [r_pos, rot, l_pos, Vector3(rot.x, -0.15, -0.1), left, dip_amt]
+
+
+## Emotes in first person: the hand comes up into view to tip the hat, wave,
+## point down the crosshair, or both hands turn palms up for a shrug.
+func _emote_pose(id: StringName, tt: float, life: float) -> Array:
+	var e := smoothstep(0.0, 0.25, tt) * (1.0 - smoothstep(0.78, 1.0, tt))
+	_set_prop(_prop_r, &"", &"")
+	var r := R0
+	var rot := Vector3(0.3, 0.2, 0.15)
+	var l := REST_LOW * Vector3(-1, 1, 1)
+	var l_rot := Vector3(0.3, -0.15, -0.1)
+	var left := false
+	var dip_amt := 0.0
+	match id:
+		&"tip_hat":
+			var nod := sin(smoothstep(0.3, 0.75, tt) * PI)
+			r = Vector3(0.1, 0.13 - nod * 0.03, -0.3)
+			rot = Vector3(1.2 + nod * 0.3, 0.3, 0.4)
+			dip_amt = 0.12 * nod
+		&"wave":
+			var sway := sin(life * 11.0)
+			r = Vector3(0.26 + sway * 0.05, 0.02, -0.5)
+			rot = Vector3(1.4, 0.0, -0.2 + sway * 0.45)
+		&"point":
+			var jab := sin(smoothstep(0.25, 0.45, tt) * PI) * 0.04
+			r = Vector3(0.07, -0.12, -0.52 - jab)
+			rot = Vector3(0.05, 0.08, 0.0)
+		&"shrug":
+			left = true
+			r = Vector3(0.27, -0.3, -0.42)
+			rot = Vector3(0.2, 0.3, 1.3)
+			l = Vector3(-0.27, -0.3, -0.42)
+			l_rot = Vector3(0.2, -0.3, -1.3)
+	return [REST_LOW.lerp(r, e), rot, (REST_LOW * Vector3(-1, 1, 1)).lerp(l, e), l_rot, left, dip_amt * e]
 
 
 func _set_prop(mi: MeshInstance3D, id: StringName, _kind: StringName) -> void:

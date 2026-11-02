@@ -69,7 +69,7 @@
     "brood_mother": {
       "lore": "A bloated spider carrying a living cargo of spiderlings.",
       "tips": [
-        "Kill her high up and the brood falls with her.",
+        "Hit her hard and fast: the brood bursts out at half health.",
         "Splash turrets clean up the spiderlings."
       ]
     },
@@ -96,7 +96,7 @@
     "crop_weevil": {
       "lore": "Heads for your farm plots and chews them bare.",
       "tips": [
-        "Plant behind a palisade.",
+        "Weevils pay walls no mind: they head straight for the crops.",
         "Bear traps on the approach help."
       ]
     },
@@ -122,7 +122,7 @@
       ]
     },
     "water_cannon": {
-      "lore": "Knocks climbers clean off the rock. Burns water as ammo.",
+      "lore": "Knocks climbers clean off the rock. Needs no ammo.",
       "tips": [
         "The higher a bug is, the harder it falls."
       ]
@@ -134,7 +134,7 @@
       ]
     },
     "dynamite_lobber": {
-      "lore": "Arcs dynamite for a big splash.",
+      "lore": "Arcs dynamite for a big splash. Each stick costs 1 scrap.",
       "tips": [
         "Best on crowded lanes."
       ]
@@ -201,6 +201,7 @@
       "lore": "A rack of skyrockets with very short fuses.",
       "tips": [
         "Long range, big bursts, punches through armour.",
+        "Each rocket costs 1 scrap.",
         "Expensive: save it for blood moons."
       ]
     }

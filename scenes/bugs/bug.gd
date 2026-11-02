@@ -11,6 +11,7 @@ signal fled(bug: Bug)
 enum State { CLIMBING, CRESTING, BREACHING, DEAD, BURROWED, FLYING, CROSSING }
 
 const CREST_TIME := 0.8
+const KillMethod := preload("res://scenes/bugs/kill_method.gd")
 const SMOOTHING := 10.0
 
 static var cliffs: CliffBuilder
@@ -422,6 +423,9 @@ func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, mul
 	if not multiplayer.is_server() or not is_alive() or is_hidden():
 		return
 	var dmg := damage * multiplier
+	# Kill-method variants take more or less from bullets, fire or explosives.
+	if not def.damage_taken.is_empty():
+		dmg *= def.damage_mult(KillMethod.of(source))
 	# The armour plate faces away from the cliff: shots from the canyon side bounce off it.
 	if def.front_armor > 0.0 and not pierce and state == State.CLIMBING:
 		if dir.normalized().dot(global_basis.y) < -0.3:

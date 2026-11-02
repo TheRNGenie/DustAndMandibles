@@ -4,10 +4,19 @@ extends RefCounted
 ## so it can be unit-tested. The Economy autoload wraps it and syncs it.
 
 const RESOURCES: Array[StringName] = [&"scrap", &"chitin", &"water", &"corn", &"prickly_pear", &"chili", &"herbs",
-	&"seed_corn", &"seed_prickly_pear", &"seed_chili", &"seed_herbs"]
+	&"seed_corn", &"seed_prickly_pear", &"seed_chili", &"seed_herbs", &"upgrade_token"]
 
 ## cliff_id -> {resource: int}
 var stock: Dictionary = {}
+
+## Town bounty for holding a wave: base scrap plus a little more each wave.
+const WAVE_PAY_BASE := 30
+const WAVE_PAY_PER_WAVE := 5
+
+
+## Scrap each player gets for holding wave `held` (paid as the next build phase starts).
+static func wave_pay(held: int) -> int:
+	return WAVE_PAY_BASE + WAVE_PAY_PER_WAVE * maxi(held, 0) if held >= 1 else 0
 
 
 func reset(start: Dictionary) -> void:
@@ -25,9 +34,10 @@ func amount(cliff_id: int, res: StringName) -> int:
 	return int((stock[cliff_id] as Dictionary).get(res, 0))
 
 
+## Negative amounts are never affordable (so spend / transfer can't be used to mint resources).
 func can_afford(cliff_id: int, cost: Dictionary) -> bool:
 	for r: StringName in cost:
-		if amount(cliff_id, r) < int(cost[r]):
+		if int(cost[r]) < 0 or amount(cliff_id, r) < int(cost[r]):
 			return false
 	return true
 

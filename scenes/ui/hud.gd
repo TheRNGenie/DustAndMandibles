@@ -18,6 +18,9 @@ var build_menu: HudBuildMenu
 var threat: HudThreatAlert
 var title_card: HudTitleCard
 var summary: HudWaveSummary
+var tallies: TurretTallies
+var tutorial: HudTutorial
+var photo: PhotoMode
 
 const PHASE_NAMES := {
 	GameState.Phase.LOBBY: "Waiting for riders",
@@ -44,6 +47,21 @@ func _ready() -> void:
 	add_child(title_card)
 	summary = HudWaveSummary.new()
 	add_child(summary)
+	# These two sit beside the HUD in the world, not in it: the tallies need a
+	# fixed path for their RPCs, and photo mode must stay up while the HUD hides.
+	tallies = TurretTallies.new()
+	tallies.name = "TurretTallies"
+	photo = PhotoMode.new()
+	photo.name = "PhotoMode"
+	photo.hud = self
+	if get_parent() != null:
+		get_parent().add_child.call_deferred(tallies)
+		get_parent().add_child.call_deferred(photo)
+	var emotes := Emotes.new()
+	emotes.name = "Emotes"
+	add_child(emotes)
+	tutorial = HudTutorial.new()
+	add_child(tutorial)
 	_speed_lines = SpeedLines.new()
 	_speed_lines.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_speed_lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -131,6 +149,8 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 	threat.player = player
 	title_card.player = player
 	summary.bind(bugs, player.cliff_id)
+	tallies.bind(bugs)
+	tutorial.player = player
 	player.gun.ammo_changed.connect(_on_ammo_changed)
 	player.gun.hit_confirmed.connect(func(weak: bool) -> void: (_crosshair as Crosshair).flash(weak))
 	player.gun.reload_started.connect(func(_d: float) -> void: _ammo_label.text = "Reloading")
@@ -223,28 +243,74 @@ static func wood_sign_style() -> StyleBoxFlat:
 	return sb
 
 
-## A small cross with a dark outline, drawn in code.
+## A small cross with a dark outline, drawn in code. Hits flash an X; weak-spot
+## hits flash a bigger gold X with a little "CRIT" pop and a high ping.
 class Crosshair extends Control:
+	const CRIT_SOUND := "res://audio/sfx/armor_ping.wav"
+	const CRIT_GAP := 0.07 # fastest the crit ping repeats (automatic guns)
 	var marker := 0.0
 	var marker_weak := false
+	var _crit := 0.0
+	var _crit_side := 1.0
+	var _crit_sfx: AudioStreamPlayer
+	var _crit_cd := 0.0
+
+	func _ready() -> void:
+		if ResourceLoader.exists(CRIT_SOUND):
+			_crit_sfx = AudioStreamPlayer.new()
+			_crit_sfx.stream = load(CRIT_SOUND)
+			_crit_sfx.bus = &"UI" if AudioServer.get_bus_index("UI") >= 0 else &"Master"
+			_crit_sfx.volume_db = -7.0
+			add_child(_crit_sfx)
 
 	func flash(weak: bool) -> void:
 		marker = 1.0
 		marker_weak = weak
+		if weak:
+			_crit = 1.0
+			_crit_side = -_crit_side
+			if _crit_sfx != null and _crit_cd <= 0.0:
+				_crit_cd = CRIT_GAP
+				_crit_sfx.pitch_scale = randf_range(1.75, 1.95)
+				_crit_sfx.play()
 		queue_redraw()
 
 	func _process(delta: float) -> void:
-		if marker > 0.0:
-			marker = maxf(marker - delta * 5.0, 0.0)
+		_crit_cd -= delta
+		if marker > 0.0 or _crit > 0.0:
+			marker = maxf(marker - delta * (3.5 if marker_weak else 5.0), 0.0)
+			_crit = maxf(_crit - delta * 2.2, 0.0)
 			queue_redraw()
 
 	func _draw() -> void:
 		var c := size * 0.5
 		if marker > 0.0:
-			# Hit marker: an X that pops when your shot lands.
-			var mc := (Palette.GLOW_YELLOW if marker_weak else Color.WHITE) * Color(1, 1, 1, marker)
-			for d: Vector2 in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
-				draw_line(c + d * 7.0, c + d * 15.0, mc, 3.0)
+			# Hit marker: an X that pops when your shot lands. Weak spots get a
+			# bigger, outlined gold X that punches out and settles.
+			if marker_weak:
+				var punch := 1.0 + 0.35 * marker * marker
+				var gold := Color(Palette.GLOW_YELLOW, minf(marker * 1.6, 1.0))
+				var edge := Color(Palette.OUTLINE, minf(marker * 1.6, 1.0) * 0.9)
+				for d: Vector2 in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+					draw_line(c + d * 7.0 * punch, c + d * 19.0 * punch, edge, 6.0)
+				for d: Vector2 in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+					draw_line(c + d * 7.5 * punch, c + d * 18.0 * punch, gold, 3.5)
+			else:
+				var mc := Color.WHITE * Color(1, 1, 1, marker)
+				for d: Vector2 in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+					draw_line(c + d * 7.0, c + d * 15.0, mc, 3.0)
+		if _crit > 0.0:
+			# "CRIT" on a tiny dark tag, rising off to one side and fading.
+			var font := get_theme_default_font()
+			var fs := 13
+			var rise := (1.0 - _crit) * 14.0
+			var a := minf(_crit * 2.5, 1.0)
+			var tw := font.get_string_size("CRIT", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			var at := c + Vector2(26.0 * _crit_side - (tw if _crit_side < 0.0 else 0.0), -18.0 - rise)
+			var tag := Rect2(at + Vector2(-5, -fs + 1), Vector2(tw + 10, fs + 6))
+			draw_rect(tag, Color(Palette.OUTLINE, 0.75 * a))
+			draw_rect(tag, Color(Palette.GLOW_YELLOW, a), false, 1.5)
+			draw_string(font, at, "CRIT", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(Palette.GLOW_YELLOW, a))
 		for pass_i in 2:
 			var col := Palette.OUTLINE if pass_i == 0 else Palette.BONE
 			var w := 4.0 if pass_i == 0 else 2.0

@@ -125,6 +125,8 @@ func _draw_marker(cam: Camera3D, p: Dictionary) -> void:
 	var pos: Vector3 = p["pos"]
 	var vr := get_viewport_rect()
 	var rect := Rect2(vr.position + Vector2(48, 90), vr.size - Vector2(96, 240))
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return # headless or a tiny window
 	var behind := cam.is_position_behind(pos)
 	var s := cam.unproject_position(pos)
 	if behind:

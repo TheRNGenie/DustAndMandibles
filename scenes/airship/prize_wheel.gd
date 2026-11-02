@@ -4,12 +4,8 @@ extends CasinoGame
 ## every peer sees the wheel spin to it.
 
 const COST := 5
-## Label, prize. One wedge each.
-const WEDGES: Array[Array] = [
-	["BUST", {}], ["50 SCRAP", {&"scrap": 50}], ["8 CHITIN", {&"chitin": 8}], ["BUST", {}],
-	["120 SCRAP", {&"scrap": 120}], ["3 CHILI SEEDS", {&"seed_chili": 3}], ["BUST", {}], ["JACKPOT 25 CHITIN", {&"chitin": 25}],
-	["30 SCRAP", {&"scrap": 30}], ["4 HERBS", {&"herbs": 4}],
-]
+## Label, prize. One wedge each (in CasinoRules, unit tested).
+const WEDGES: Array[Array] = CasinoRules.WHEEL_WEDGES
 const SPIN_TIME := 3.5
 
 var _wheel: Node3D
@@ -78,7 +74,7 @@ func ui_title() -> String:
 
 
 func ui_rules() -> String:
-	return "%d chitin a spin. Scrap, chitin, chili seeds, herbs, or the 25-chitin jackpot. Three wedges bust." % COST
+	return "%d chitin a spin. Scrap, chili seeds, herbs, a turret upgrade token, or the 25-chitin jackpot. Three wedges bust." % COST
 
 
 func ui_currency() -> StringName:

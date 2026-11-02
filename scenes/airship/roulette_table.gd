@@ -18,7 +18,7 @@ func ui_title() -> String:
 
 
 func ui_rules() -> String:
-	return "Single zero. Colours, odd/even and halves pay 1:1, the 1st dozen 2:1, Lucky 7 pays 35:1."
+	return "Single zero. Colours, odd/even and halves pay 1:1, the 1st dozen 2:1, Lucky 7 pays 35:1 plus a turret upgrade token."
 
 
 func _ready() -> void:
@@ -68,10 +68,13 @@ func _act(peer_id: int, action: StringName, choice: int, bet: int) -> void:
 	var bi := clampi(choice, 0, CasinoRules.ROULETTE_BETS.size() - 1)
 	var n := _rng.randi_range(0, 36)
 	var won := CasinoRules.roulette_payout(bi, n, bet)
-	_pay(peer_id, {&"scrap": won} if won > 0 else {})
+	var prize: Dictionary = {&"scrap": won} if won > 0 else {}
+	if won > 0 and CasinoRules.ROULETTE_BETS[bi][0] == "seven":
+		prize[&"upgrade_token"] = 1
+	_pay(peer_id, prize)
 	var colour := "green" if n == 0 else ("red" if CasinoRules.RED_NUMBERS.has(n) else "black")
 	_broadcast({"kind": "number", "peer": peer_id, "number": n, "colour": colour, "spinning": true,
-			"result": "%d %s - %s %s" % [n, colour, CasinoRules.ROULETTE_BETS[bi][1], ("wins %d scrap" % won) if won > 0 else "loses"]})
+			"result": "%d %s - %s %s" % [n, colour, CasinoRules.ROULETTE_BETS[bi][1], ("wins %s" % CasinoRules.prize_text(prize)) if won > 0 else "loses"]})
 
 
 func _on_view() -> void:

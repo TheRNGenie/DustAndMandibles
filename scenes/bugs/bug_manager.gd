@@ -36,21 +36,57 @@ func _ready() -> void:
 
 ## Host only: spawns `count` bugs of a type at the bottom of a lane.
 var _tunnel_spin := 0
+## Big bugs (brutes, the boss) announced at a tunnel mouth but not out yet.
+var _pending := 0
+
+## Seconds of dust and rumble at a tunnel mouth before a big bug comes out.
+const TELEGRAPH_TIME := 3.0
+const TunnelRumble := preload("res://scenes/bugs/tunnel_rumble.gd")
 
 
 func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y: float = 0.0) -> void:
 	if not multiplayer.is_server():
 		return
 	_tunnel_spin += 1
+	# Out of a tunnel down the canyon (a group's lane picks which).
+	var tunnel: Array = WorldLayout.TUNNELS[(lane * 3 + cliff * 5 + _tunnel_spin) % WorldLayout.TUNNELS.size()]
+	var def := Defs.bug(bug_id)
+	if start_y <= 0.0 and is_big(def) and Bug.cliffs != null:
+		# Brutes and the boss are heard before they're seen: dust and a rumble
+		# at the tunnel mouth, then they come out of that same tunnel.
+		var wall := int(tunnel[0])
+		_rumble.rpc(Bug.cliffs.tunnel_mouth(wall, float(tunnel[1])), wall, def.size)
+		_pending += count
+		get_tree().create_timer(TELEGRAPH_TIME, false).timeout.connect(_spawn_heralded.bind(bug_id, count, cliff, lane, tunnel))
+		return
+	_spawn_from(bug_id, count, cliff, lane, start_y, tunnel)
+
+
+## Telegraphed bugs that haven't left their tunnel yet (the wave isn't over while any wait).
+func pending_count() -> int:
+	return _pending
+
+
+## Bugs worth a warning before they leave their tunnel.
+static func is_big(def: BugDef) -> bool:
+	return def != null and def.behavior in [BugDef.Behavior.TANK, BugDef.Behavior.BROOD, BugDef.Behavior.BOSS]
+
+
+func _spawn_heralded(bug_id: StringName, count: int, cliff: int, lane: int, tunnel: Array) -> void:
+	_pending = maxi(_pending - count, 0)
+	if GameState.phase == GameState.Phase.GAME_OVER or GameState.phase == GameState.Phase.LOBBY:
+		return
+	_spawn_from(bug_id, count, cliff, lane, 0.0, tunnel)
+
+
+func _spawn_from(bug_id: StringName, count: int, cliff: int, lane: int, start_y: float, tunnel: Array) -> void:
 	var cfg := Defs.WAVE_CONFIG
+	var def := Defs.bug(bug_id)
 	for i in count:
 		if alive_count() >= cfg.max_active_bugs:
 			return
-		# Out of one of the five tunnels, each bug makes for its own spot at the
-		# foot of the wall and picks its own way up from there.
-		# Out of a tunnel down the canyon (a group's lane picks which), then up the
-		# floor into the play area to its own spot at the foot of the wall.
-		var tunnel: Array = WorldLayout.TUNNELS[(lane * 3 + cliff * 5 + _tunnel_spin) % WorldLayout.TUNNELS.size()]
+		# Out of the tunnel, each bug makes for its own spot at the foot of the
+		# wall and picks its own way up from there.
 		var half := WorldLayout.PLATEAU_WIDTH * 0.5 - 2.0
 		var z := clampf(WorldLayout.LANE_Z[lane] + randf_range(-9.0, 9.0), -half, half)
 		var y := start_y - float(i) * 0.9 # stagger groups so they climb in a column
@@ -62,7 +98,7 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 			st = Bug.State.CROSSING
 			var wall := int(tunnel[0])
 			pos = Bug.cliffs.tunnel_mouth(wall, float(tunnel[1])) + Vector3(WorldLayout.side_sign(wall) * (1.2 + float(i) * 1.5), 0, 0)
-		match Defs.bug(bug_id).behavior:
+		match def.behavior:
 			BugDef.Behavior.BURROWER:
 				# Tunnels in: pops up somewhere inside the plateau, never climbs.
 				st = Bug.State.BURROWED
@@ -73,6 +109,14 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 				var wall := int(tunnel[0])
 				pos = Bug.cliffs.tunnel_mouth(wall, float(tunnel[1])) + Vector3(-WorldLayout.side_sign(wall) * (1.5 + float(i) * 1.2), 1.8, 0)
 		spawn_at(bug_id, cliff, lane, z, y, st, pos)
+
+
+## Every peer: dust boils out of a tunnel mouth and the ground rumbles.
+@rpc("authority", "call_local", "reliable")
+func _rumble(mouth: Vector3, wall: int, size: float) -> void:
+	TunnelRumble.play(get_parent(), mouth, wall, size, TELEGRAPH_TIME)
+	if vfx != null:
+		vfx.shake_requested.emit(mouth, 0.15 * size)
 
 
 ## Host: spawns one bug in any state (used for spiderlings and special bugs).
@@ -91,6 +135,10 @@ func _spawn_bug(data: Variant) -> Node:
 	bug.setup(Defs.bug(StringName(d["bug"])), int(d["cliff"]), int(d["lane"]),
 			float(d["z"]), float(d["y"]), float(d["hp"]), int(d.get("state", Bug.State.CLIMBING)),
 			d.get("pos", Vector3.ZERO))
+	# Dust rolls out of the tunnel mouth as bugs pour out (every peer; VfxPool throttles it).
+	var st0 := int(d.get("state", Bug.State.CLIMBING))
+	if vfx != null and (st0 == Bug.State.CROSSING or st0 == Bug.State.FLYING):
+		vfx.tunnel_dust(d.get("pos", Vector3.ZERO))
 	if multiplayer.is_server():
 		bug.died.connect(_on_bug_died)
 		bug.fled.connect(_on_bug_fled)
@@ -117,6 +165,7 @@ func climbers_on(cliff: int) -> Array[Bug]:
 
 func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 	# Loot lands on the cliff the bug was climbing: your turrets earn for your partner.
+	WaveDirector.note_kill(bug.def, source)
 	var loot := {&"scrap": bug.def.scrap_drop, &"chitin": bug.def.chitin_drop * Weather.chitin_mult(GameState.weather)}
 	Economy.earn(bug.cliff_id, loot)
 	_corpse.rpc(get_path_to(bug))

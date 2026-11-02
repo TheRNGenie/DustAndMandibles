@@ -47,7 +47,12 @@ func _rebuild() -> void:
 	col.add_theme_constant_override("separation", 4)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(col)
-	var head := KeyHints.text("WAVE %d BRINGS" % GameState.wave, 12, Palette.BONE.darkened(0.3))
+	var head_text := "WAVE %d BRINGS" % GameState.wave
+	# (Bugs helper) How the wave arrives: steady stream, one big rush, two pushes...
+	var shape := str(WavePlanner.SHAPE_NAMES.get(WaveDirector.preview_shape, ""))
+	if shape != "":
+		head_text = "WAVE %d  -  %s" % [GameState.wave, shape.to_upper()]
+	var head := KeyHints.text(head_text, 12, Palette.BONE.darkened(0.3))
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(head)
 	var row := HBoxContainer.new()
@@ -73,7 +78,9 @@ func _rebuild() -> void:
 		words.add_theme_constant_override("separation", -2)
 		words.alignment = BoxContainer.ALIGNMENT_CENTER
 		words.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		words.add_child(KeyHints.text(Defs.bug(id).display_name, 14, Palette.BONE))
+		var bd := Defs.bug(id)
+		# Kill-method variants stand out in their own shell colour.
+		words.add_child(KeyHints.text(bd.display_name, 14, bd.shell_color.lightened(0.5) if bd.is_variant() else Palette.BONE))
 		words.add_child(KeyHints.text(amount_word(n), 12, Palette.GLOW_YELLOW))
 		cell.add_child(words)
 		row.add_child(cell)

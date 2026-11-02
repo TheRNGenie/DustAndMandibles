@@ -41,3 +41,17 @@ func test_transfer_moves_between_cliffs() -> void:
 	assert_eq(l.amount(0, &"scrap"), 70)
 	assert_eq(l.amount(1, &"scrap"), 130)
 	assert_false(l.transfer(0, 1, {&"scrap": 500}))
+
+
+func test_wave_pay_grows_and_skips_the_start() -> void:
+	assert_eq(EconomyLedger.wave_pay(0), 0, "nothing before the first wave")
+	assert_eq(EconomyLedger.wave_pay(1), 35)
+	assert_true(EconomyLedger.wave_pay(5) > EconomyLedger.wave_pay(1))
+
+
+func test_negative_spend_and_transfer_rejected() -> void:
+	var l := _ledger()
+	assert_false(l.spend(0, {&"scrap": -50}))
+	assert_eq(l.amount(0, &"scrap"), 100)
+	assert_false(l.transfer(0, 1, {&"scrap": -20}))
+	assert_eq(l.amount(1, &"scrap"), 100)

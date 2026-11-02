@@ -16,6 +16,11 @@ func _init() -> void:
 	files.sort()
 	for f in files:
 		var script := load("res://tests/" + f) as GDScript
+		# A test file that fails to parse or compile must fail the run, not vanish.
+		if script == null or not script.can_instantiate():
+			failures += 1
+			print("  FAIL  %s (script failed to load: parse/compile error, see above)" % f.get_basename())
+			continue
 		for m: Dictionary in script.get_script_method_list():
 			var method := str(m["name"])
 			if not method.begins_with("test_"):

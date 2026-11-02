@@ -66,6 +66,13 @@ func _ready() -> void:
 	chest.position = HouseBuilder.chest_position()
 	chest.rotation.y = -PI * 0.5 # lock faces into the room
 	add_child(chest)
+	# The shared deposit box, outside against the side wall.
+	var box := DepositBox.new()
+	box.name = "DepositBox"
+	box.home = self
+	box.position = HouseBuilder.deposit_box_position()
+	box.rotation.y = PI * 0.5
+	add_child(box)
 	_rebuild()
 
 

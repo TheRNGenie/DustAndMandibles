@@ -240,6 +240,10 @@ func _ready() -> void:
 			print("[tunnel] t %.0f%s" % [k * 2.0, line])
 			await get_tree().create_timer(2.0).timeout
 		get_tree().quit()
+	elif GameState.has_flag("--housediag"):
+		_house_diag()
+	elif GameState.has_flag("--gatlingdiag"):
+		_gatling_diag()
 	elif GameState.has_flag("--crawltest"):
 		# A rattler beetle climbing up through a column of mites on the west wall.
 		for i in 20:
@@ -1496,4 +1500,118 @@ func _ping_view(prefix: String) -> void:
 		await get_tree().process_frame
 	get_viewport().get_texture().get_image().save_png(prefix + "_wheel.png")
 	print("[ping] saved")
+	get_tree().quit()
+
+
+## --housediag [--inwave] [--noidle]: house turrets vs mites standing in the yard; prints each
+## targeting check and shots per second (--inwave: during a wave; --noidle: hold _idle_t at 0).
+func _house_diag() -> void:
+	for i in 30:
+		await get_tree().process_frame
+	_house_turrets()
+	var bm := world.get("bugs") as BugManager
+	var home := Homestead.of(0)
+	var spot := Vector3(-34.0, 60.3, 1.0)
+	bm.spawn_at(&"dust_mite", WorldLayout.WEST, 2, 0.0, 60.0, Bug.State.BREACHING, spot)
+	for i in 3:
+		await get_tree().physics_frame
+	var b: Bug = null
+	for n: Node in get_tree().get_nodes_in_group("bugs"):
+		b = n as Bug
+	if b == null:
+		print("[housediag] no bug")
+		get_tree().quit()
+		return
+	print("[housediag] bug %s state %d cliff %d pos %s, home %s dist %.1f (guard %.1f), turrets %d" % [b.def.id, b.state, b.cliff_id, str(b.global_position.snapped(Vector3.ONE * 0.1)), str(home.global_position.snapped(Vector3.ONE * 0.1)), b.global_position.distance_to(home.global_position), Homestead.GUARD_RADIUS, get_tree().get_nodes_in_group("turrets").size()])
+	for n: Node in BuildManager.instance.get_children():
+		var t := n as Turret
+		if t == null or not t.def.guards_house:
+			continue
+		var head: Node3D = t.get("_head")
+		var muzzle := head.global_position
+		var to := b.global_position - muzzle
+		var pitch := rad_to_deg(atan2(to.y, Vector2(to.x, to.z).length()))
+		var q := PhysicsRayQueryParameters3D.create(muzzle, b.global_position, WorldLayout.LAYER_WORLD)
+		var hit := t.get_world_3d().direct_space_state.intersect_ray(q)
+		print("[housediag] %s cliff %d cell %s muzzle %s dist %.1f pitch %.0f (limit %.0f) valid %s, LOS hit %s at %s" % [t.def.id, t.cliff_id, str(t.cell), str(muzzle.snapped(Vector3.ONE * 0.1)), to.length(), pitch, t.pitch_limit(), t.call("_valid", b), hit.get("collider"), str(hit.get("position"))])
+	if GameState.has_flag("--inwave"):
+		var t0 := Time.get_ticks_msec()
+		while GameState.phase != GameState.Phase.WAVE and Time.get_ticks_msec() - t0 < 60000:
+			GameState.vote_skip()
+			await get_tree().create_timer(0.5).timeout
+		print("[housediag] phase %d wave %d floors %d mounts %d" % [GameState.phase, GameState.wave, home.floors, home.mount_count()])
+		for n: Node in BuildManager.instance.get_children():
+			if n is Turret and (n as Turret).def.guards_house:
+				print("[housediag]   %s cliff %d cell %s alive %s" % [(n as Turret).def.id, (n as Turret).cliff_id, str((n as Turret).cell), is_instance_valid(n)])
+	for k in 8:
+		bm.spawn_at(&"dust_mite", WorldLayout.WEST, 2, 0.0, 60.0, Bug.State.BREACHING, spot + Vector3(0, 0, k * 0.5))
+	var shots0 := {}
+	for n: Node in BuildManager.instance.get_children():
+		if n is Turret:
+			shots0[n] = (n as Turret).shots
+	for s in 10:
+		for f in 60:
+			if GameState.has_flag("--noidle"):
+				for t: Turret in shots0:
+					t.set("_idle_t", 0.0)
+			await get_tree().physics_frame
+		var alive := 0
+		var where := ""
+		for n: Node in get_tree().get_nodes_in_group("bugs"):
+			var bb := n as Bug
+			if bb.is_alive():
+				alive += 1
+				where = "%s st %d hidden %s" % [str(bb.global_position.snapped(Vector3.ONE * 0.1)), bb.state, bb.is_hidden()]
+		var shot := ""
+		for t: Turret in shots0:
+			if t.cliff_id == 0:
+				shot += " %d" % (t.shots - int(shots0[t]))
+		print("[housediag] t %d: alive %d (e.g. %s), west house turret shots%s" % [s + 1, alive, where, shot])
+	get_tree().quit()
+
+
+## --gatlingdiag [--noidle]: five east gatlings vs six beetles held 30 m up the west face during a
+## wave; prints shots and beetle HP each second (--noidle: hold _idle_t at 0 to compare).
+func _gatling_diag() -> void:
+	for i in 30:
+		await get_tree().process_frame
+	var builds := world.get("builds") as BuildManager
+	Economy.earn(1, {&"scrap": 1000})
+	for col: int in [3, 6, 9, 12, 15]:
+		builds.build(&"gatling_post", 1, Vector2i(0, col))
+	var t0 := Time.get_ticks_msec()
+	while GameState.phase != GameState.Phase.WAVE and Time.get_ticks_msec() - t0 < 60000:
+		GameState.vote_skip()
+		await get_tree().create_timer(0.5).timeout
+	await get_tree().create_timer(4.0).timeout # turrets go idle
+	var bm := world.get("bugs") as BugManager
+	for k in 6:
+		bm.spawn_at(&"rattler_beetle", WorldLayout.WEST, 2, -6.0 + k * 2.5, 30.0, Bug.State.CLIMBING, Vector3.ZERO)
+	var mine: Array[Turret] = []
+	for n: Node in builds.get_children():
+		if n is Turret and (n as Turret).cliff_id == 1:
+			mine.append(n)
+	var shots0 := 0
+	for t in mine:
+		shots0 += t.shots
+	for s in 8:
+		for f in 60:
+			for n: Node in get_tree().get_nodes_in_group("bugs"):
+				var b := n as Bug
+				if b.def.id == &"rattler_beetle":
+					if not b.has_meta("pin"):
+						b.set_meta("pin", b.climb_y)
+					b.climb_y = float(b.get_meta("pin"))
+			if GameState.has_flag("--noidle"):
+				for t in mine:
+					t.set("_idle_t", 0.0)
+			await get_tree().physics_frame
+		var shots := 0
+		for t in mine:
+			shots += t.shots
+		var hp := 0.0
+		for n: Node in get_tree().get_nodes_in_group("bugs"):
+			if (n as Bug).def.id == &"rattler_beetle" and (n as Bug).is_alive():
+				hp += (n as Bug).health.hp
+		print("[gatdiag] t %d: east gatling shots %d, beetle hp left %.0f, idle_t %.1f" % [s + 1, shots - shots0, hp, float(mine[0].get("_idle_t"))])
 	get_tree().quit()

@@ -28,6 +28,7 @@ func root(seconds: float) -> void:
 
 
 func burn(dps: float, seconds: float, source: String, source_cliff: int) -> void:
+	dps *= bug.def.damage_mult(&"fire") # kill-method variants (Sootback / Ironback / Stoneshell)
 	_burn_dps = maxf(_burn_dps, dps)
 	_burn_t = maxf(_burn_t, seconds)
 	_burn_source = source

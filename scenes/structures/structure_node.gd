@@ -93,7 +93,10 @@ func _process(delta: float) -> void:
 		_light.omni_range = def.radius * (1.0 + sin(_swing_t * 13.0) * 0.03)
 	if _light != null:
 		var night := GameState.phase == GameState.Phase.WAVE or GameState.phase == GameState.Phase.WARNING
-		_light.light_energy = move_toward(_light.light_energy, 2.5 if night else 0.0, 0.05)
+		# Lit through waves, and glowing warm all night long (brighter in the dark).
+		var dark := DayCycle.instance.night_amount() if DayCycle.instance != null else 0.0
+		var want := maxf(2.5 if night else 0.0, dark * 3.2)
+		_light.light_energy = move_toward(_light.light_energy, want, 0.05)
 
 
 func _physics_process(delta: float) -> void:

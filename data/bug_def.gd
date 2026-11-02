@@ -26,3 +26,23 @@ enum Behavior { SWARM, TANK, LEAPER, SPITTER, BROOD, BURROWER, FLIER, CROP_EATER
 @export var shell_color: Color = Color.WHITE
 ## First wave this bug can appear in.
 @export var first_wave: int = 1
+## The one learnable way to beat this bug (shown in the Field Guide).
+@export_multiline var counter: String = ""
+## Kill-method variants only: the bug this one is a variant of, and how much
+## damage it takes from each kill method (&"bullet", &"fire", &"blast"; 1 = normal).
+@export var variant_of: StringName = &""
+@export var damage_taken: Dictionary = {}
+
+
+## The plain bug type this is (itself, or the bug a variant is based on).
+func base_id() -> StringName:
+	return variant_of if variant_of != &"" else id
+
+
+func is_variant() -> bool:
+	return variant_of != &""
+
+
+## Damage multiplier for a kill method (1 for every plain bug).
+func damage_mult(method: StringName) -> float:
+	return float(damage_taken.get(method, 1.0)) if not damage_taken.is_empty() else 1.0

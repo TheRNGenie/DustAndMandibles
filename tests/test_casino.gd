@@ -58,3 +58,36 @@ func test_roulette_bets() -> void:
 	assert_eq(CasinoRules.roulette_payout(7, 7, 20), 720) # lucky 7 pays 35:1
 	assert_eq(CasinoRules.roulette_payout(0, 0, 20), 0) # zero loses outside bets
 	assert_eq(CasinoRules.roulette_payout(6, 12, 20), 60)
+
+
+func test_slots_pay_back_fairly() -> void:
+	var rate := CasinoRules.slot_return_rate()
+	assert_true(rate > 0.7 and rate < 0.95, "slots return %.3f of stakes in scrap" % rate)
+
+
+func test_slots_prizes() -> void:
+	# Symbol order: BUG, CACTUS, CHILI, HORSESHOE, STAR.
+	assert_eq(CasinoRules.slot_prize([0, 0, 0], 10), {})
+	assert_eq(CasinoRules.slot_prize([1, 1, 0], 10), {&"scrap": 10}) # a pair returns the stake
+	assert_eq(CasinoRules.slot_prize([0, 0, 1], 10), {}) # bug pairs pay nothing
+	assert_eq(CasinoRules.slot_prize([3, 0, 3], 10), {&"scrap": 20})
+	assert_eq(CasinoRules.slot_prize([2, 2, 2], 10), {&"scrap": 150, &"seed_chili": 3})
+	assert_eq(CasinoRules.slot_prize([4, 4, 4], 10), {&"scrap": 600, &"upgrade_token": 1})
+	assert_eq(CasinoRules.slot_prize([0, 1, 2], 10), {})
+
+
+func test_prize_wheel_has_useful_prizes() -> void:
+	var kinds: Dictionary = {}
+	var busts := 0
+	for w: Array in CasinoRules.WHEEL_WEDGES:
+		if (w[1] as Dictionary).is_empty():
+			busts += 1
+		for k: Variant in (w[1] as Dictionary).keys():
+			kinds[k] = true
+	assert_eq(busts, 3)
+	assert_true(kinds.has(&"upgrade_token") and kinds.has(&"seed_chili") and kinds.has(&"chitin"))
+
+
+func test_prize_text() -> void:
+	assert_eq(CasinoRules.prize_text({&"scrap": 600, &"upgrade_token": 1}), "600 scrap + 1 upgrade token")
+	assert_eq(CasinoRules.prize_text({&"seed_chili": 3}), "3 chili seeds")

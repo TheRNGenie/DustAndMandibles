@@ -222,6 +222,9 @@ func _show_detail(id: StringName, payer: int) -> void:
 	_detail_cost.text = "%d scrap" % cost
 	_detail_cost.add_theme_color_override("font_color", Palette.GLOW_YELLOW if affordable else Palette.TEAM_WEST.lightened(0.3))
 	_detail_desc.text = BuildMode._description(id)
+	# Turrets (Helper 3): their one job, weakness and any upkeep on a second line.
+	if Defs.is_turret(id) and Defs.turret(id).role_line() != "":
+		_detail_desc.text += "\n" + Defs.turret(id).role_line()
 	_detail_where.text = _where(id)
 
 

@@ -1,6 +1,6 @@
 class_name CasinoRules
 extends RefCounted
-## Pure rules for the airship's table games (blackjack, baccarat, roulette), kept
+## Pure rules for the airship's games (blackjack, baccarat, roulette, slots, prize wheel), kept
 ## free of nodes so they can be unit tested. Cards are ints 1-13 (ace = 1).
 
 const RANKS := ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
@@ -9,6 +9,16 @@ const RED_NUMBERS: Array[int] = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 
 ## Roulette bets: id, label, payout (to 1).
 const ROULETTE_BETS: Array[Array] = [["red", "Red", 1], ["black", "Black", 1], ["odd", "Odd", 1], ["even", "Even", 1],
 	["low", "1-18", 1], ["high", "19-36", 1], ["dozen1", "1st dozen", 2], ["seven", "Lucky 7", 35]]
+## Slot machine: Symbol, weight, payout multiplier for three of a kind, multiplier for a pair.
+const SLOT_SYMBOLS: Array[Array] = [["BUG", 30, 0, 0], ["CACTUS", 25, 10, 1], ["CHILI", 20, 15, 1], ["HORSESHOE", 15, 25, 2], ["STAR", 10, 60, 2]]
+## Extra prizes on top of the scrap for three of a kind.
+const SLOT_BONUS: Dictionary = {"CHILI": {&"seed_chili": 3}, "STAR": {&"upgrade_token": 1}}
+## Prize wheel wedges: label, prize.
+const WHEEL_WEDGES: Array[Array] = [
+	["BUST", {}], ["50 SCRAP", {&"scrap": 50}], ["UPGRADE TOKEN", {&"upgrade_token": 1}], ["BUST", {}],
+	["120 SCRAP", {&"scrap": 120}], ["3 CHILI SEEDS", {&"seed_chili": 3}], ["BUST", {}], ["JACKPOT 25 CHITIN", {&"chitin": 25}],
+	["30 SCRAP", {&"scrap": 30}], ["4 HERBS", {&"herbs": 4}],
+]
 
 
 static func new_shoe(rng: RandomNumberGenerator, decks: int = 4) -> Array[int]:
@@ -157,3 +167,53 @@ static func roulette_wins(bet_id: String, n: int) -> bool:
 static func roulette_payout(bet_index: int, n: int, bet: int) -> int:
 	var b: Array = ROULETTE_BETS[bet_index]
 	return bet * (int(b[2]) + 1) if roulette_wins(String(b[0]), n) else 0
+
+
+## Slot machine: scrap payout multiplier for three reels.
+static func slot_payout(reels: Array) -> int:
+	if reels[0] == reels[1] and reels[1] == reels[2]:
+		return int(SLOT_SYMBOLS[reels[0]][2])
+	for i in 3:
+		if reels[i] == reels[(i + 1) % 3]:
+			return int(SLOT_SYMBOLS[reels[i]][3])
+	return 0
+
+
+## Slot machine: everything three reels win at a stake: scrap plus any bonus prize.
+static func slot_prize(reels: Array, bet: int) -> Dictionary:
+	var out: Dictionary = {}
+	var win := bet * slot_payout(reels)
+	if win > 0:
+		out[&"scrap"] = win
+	if reels[0] == reels[1] and reels[1] == reels[2]:
+		var extra: Dictionary = SLOT_BONUS.get(String(SLOT_SYMBOLS[reels[0]][0]), {})
+		out.merge(extra)
+	return out
+
+
+## Slot machine: exact share of stakes paid back in scrap (for tests and tuning).
+static func slot_return_rate() -> float:
+	var total := 0.0
+	for s: Array in SLOT_SYMBOLS:
+		total += float(s[1])
+	var rate := 0.0
+	for a in SLOT_SYMBOLS.size():
+		for b in SLOT_SYMBOLS.size():
+			for c in SLOT_SYMBOLS.size():
+				var p := float(SLOT_SYMBOLS[a][1]) * float(SLOT_SYMBOLS[b][1]) * float(SLOT_SYMBOLS[c][1]) / pow(total, 3)
+				rate += p * slot_payout([a, b, c])
+	return rate
+
+
+## "120 scrap + 1 upgrade token" for result lines.
+static func prize_text(amounts: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	for k: Variant in amounts.keys():
+		var n := int(amounts[k])
+		var label := String(k).replace("seed_", "").replace("_", " ")
+		if String(k).begins_with("seed_"):
+			label += " seed" if n == 1 else " seeds"
+		elif String(k) == "upgrade_token" and n > 1:
+			label += "s"
+		parts.append("%d %s" % [n, label])
+	return " + ".join(parts)

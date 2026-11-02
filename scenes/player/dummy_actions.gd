@@ -16,7 +16,12 @@ const DUR := {
 	# Idle business for NPCs.
 	&"stretch": 2.6, &"cross_arms": 5.0, &"wipe": 3.2, &"pocket_watch": 3.0,
 	&"scratch_head": 2.0, &"look_around": 3.4, &"shift_weight": 3.0,
+	# Emotes (the emote wheel).
+	&"tip_hat": 1.3, &"wave": 1.6, &"point": 1.4, &"shrug": 1.2,
 }
+## The emote wheel's moves, clockwise from the top, with their names.
+const EMOTES: Array[StringName] = [&"tip_hat", &"wave", &"point", &"shrug"]
+const EMOTE_NAMES := {&"tip_hat": "Tip hat", &"wave": "Wave", &"point": "Point", &"shrug": "Shrug"}
 ## The idle moves shopkeepers pick from.
 const IDLES: Array[StringName] = [&"stretch", &"cross_arms", &"wipe", &"pocket_watch", &"scratch_head", &"look_around", &"shift_weight"]
 
@@ -39,6 +44,8 @@ const SFX := {
 	&"dice": [[0.0, &"dice", -3.0]],
 	&"roulette": [[0.15, &"roulette_spin", -4.0]],
 	&"water": [[0.1, &"equip", -10.0]],
+	&"tip_hat": [[0.3, &"rustle", -12.0]],
+	&"shrug": [[0.2, &"rustle", -14.0]],
 }
 
 
@@ -271,3 +278,35 @@ static func pose(rig: DummyRig, id: StringName, t: float, w: float) -> void:
 			_arm(rig, 0, Vector3(2.4, 0.2, -0.35), 2.0, w)
 			_arm(rig, 1, Vector3(0.35 + sin(t * PI) * 0.4, 0.25, 0.05), 1.2, w)
 			_head(rig, Vector3(-0.1, sin(t * PI * 2.0) * 0.2, 0), w)
+		&"tip_hat":
+			# Hand up to the brim, a slow nod with the hat tipped, back down.
+			_stand(rig, w)
+			var up := _seg(t, 0.0, 0.3) * (1.0 - _seg(t, 0.78, 1.0))
+			var nod := sin(_seg(t, 0.3, 0.75) * PI)
+			_arm(rig, 1, Vector3(2.4 * up + 0.1 + nod * 0.15, -0.2 * up, 0.35 * up), 2.0 * up + 0.2, w)
+			_rot(rig._torso, Vector3(-0.12 * nod, 0, 0), w)
+			_head(rig, Vector3(-0.35 * nod, 0, 0), w)
+		&"wave":
+			# Arm up high, a few broad waves overhead.
+			_stand(rig, w)
+			var up := _seg(t, 0.0, 0.2) * (1.0 - _seg(t, 0.82, 1.0))
+			var sway := sin(life * 11.0) * up
+			_arm(rig, 1, Vector3(2.6 * up + 0.1, 0.0, (0.45 + sway * 0.35) * up), (0.45 + sway * 0.25) * up + 0.2, w)
+			_head(rig, Vector3(0.12 * up, 0, 0.06 * up), w)
+		&"point":
+			# A straight arm out at whatever you're looking at, held a beat.
+			_stand(rig, w)
+			var out := _seg(t, 0.0, 0.25) * (1.0 - _seg(t, 0.8, 1.0))
+			var jab := sin(_seg(t, 0.25, 0.45) * PI) * 0.12
+			_arm(rig, 1, Vector3(1.5 * out + 0.05 + jab, 0.0, 0.05), 0.08, w)
+			_rot(rig._torso, Vector3(-0.08 * out, -0.15 * out, 0), w)
+			_head(rig, Vector3(0, 0.1 * out, 0), w)
+		&"shrug":
+			# Palms up, elbows out, head tipped: who knows.
+			_stand(rig, w)
+			var sh := _seg(t, 0.0, 0.25) * (1.0 - _seg(t, 0.75, 1.0))
+			for i in 2:
+				var s := -1.0 if i == 0 else 1.0
+				_arm(rig, i, Vector3(0.2 * sh, -s * 0.65 * sh, s * 0.1 * sh), 1.25 * sh + 0.15, w)
+			_rot(rig._torso, Vector3(0.06 * sh, 0, 0), w)
+			_head(rig, Vector3(0.05 * sh, 0, 0.22 * sh), w)

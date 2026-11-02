@@ -196,6 +196,9 @@ func _request(op: StringName, what: StringName, n: int) -> void:
 
 ## Host: apply one chest action for `peer_id`.
 func _host(peer_id: int, op: StringName, what: StringName, n: int) -> void:
+	# The shared deposit box holds crops and supplies only, never weapons.
+	if (op == &"store_weapon" or op == &"take_weapon") and self is DepositBox:
+		return
 	var cid := Economy.payer_cliff(peer_id, home.cliff_id)
 	if not GunShop.loadouts.has(peer_id):
 		GunShop.loadouts[peer_id] = {&"revolver": 0}

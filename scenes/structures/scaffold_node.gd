@@ -16,6 +16,9 @@ var radius: float = 1.0
 ## Replicated: how many levels tall.
 var levels: int = 1:
 	set(v):
+		# A level coming down splinters apart (every peer sees the new count).
+		if is_inside_tree() and v < levels and is_instance_valid(VfxPool.instance):
+			VfxPool.instance.splinters(global_position + Vector3.UP * LEVEL_HEIGHT * (float(v) + 0.5), 1.0)
 		levels = v
 		if is_inside_tree():
 			_rebuild()
@@ -45,6 +48,12 @@ func setup(cid: int, c: Vector2i, pos: Vector3) -> void:
 
 func _ready() -> void:
 	_rebuild()
+
+
+## Taken down for good (not the whole world closing): splinters where it stood.
+func _exit_tree() -> void:
+	if is_queued_for_deletion() and is_instance_valid(VfxPool.instance) and VfxPool.instance.is_inside_tree():
+		VfxPool.instance.splinters(global_position + Vector3.UP * LEVEL_HEIGHT * 0.5, 1.0)
 
 
 ## Host: change the height.

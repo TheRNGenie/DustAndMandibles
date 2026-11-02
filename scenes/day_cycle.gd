@@ -37,16 +37,20 @@ var clarity_fog := 1.0
 
 ## Hour, sun colour, sun energy, ambient, sky top, sky horizon.
 const KEYS: Array = [
-	[0.0, Color("#8FA6D9"), 0.35, Color("#4A4E7A"), Color("#0E1630"), Color("#2C3560")],
-	[4.5, Color("#8FA6D9"), 0.35, Color("#4A4E7A"), Color("#141C3C"), Color("#3A3F6A")],
+	[0.0, Color("#8FA6D9"), 0.35, Color("#4A4E7A"), Color("#0A1028"), Color("#28305A")],
+	[4.5, Color("#8FA6D9"), 0.35, Color("#4A4E7A"), Color("#101838"), Color("#343A66")],
+	[5.3, Color("#C08AB0"), 0.45, Color("#5A4A7A"), Color("#2A3468"), Color("#C87A8A")],
 	[6.0, Color("#FFB08A"), 0.75, Color("#9A7AA8"), Color("#5E7FB8"), Color("#F6A27A")],
+	[7.0, Color("#FFD0A0"), 1.0, Color("#A882B4"), Color("#5A9AC8"), Color("#F8C090")],
 	[8.5, Color("#FFE2B8"), 1.15, Color("#B08AB8"), Color("#4FA8D2"), Color("#F7D2A0")],
 	[12.0, Color("#FFF2D8"), 1.35, Color("#B898C0"), Color("#4FB8D8"), Color("#F7D9A0")],
 	[15.5, Color("#FFE2B8"), 1.2, Color("#B08AB8"), Color("#4FA8D2"), Color("#F5C890")],
-	[18.0, Color("#FF9A4A"), 1.0, Color("#7A5A8C"), Color("#3E5C93"), Color("#F08A4B")],
-	[19.5, Color("#C27AA0"), 0.55, Color("#5A4A7A"), Color("#24305E"), Color("#9A5A7A")],
-	[21.0, Color("#8FA6D9"), 0.35, Color("#4A4E7A"), Color("#141C3C"), Color("#33396A")],
-	[24.0, Color("#8FA6D9"), 0.35, Color("#4A4E7A"), Color("#0E1630"), Color("#2C3560")],
+	[17.0, Color("#FFC27A"), 1.2, Color("#B888A8"), Color("#4A8CC8"), Color("#F8B070")],
+	[18.0, Color("#FF8A3A"), 1.0, Color("#8A5A8C"), Color("#3A5A98"), Color("#FF7A3A")],
+	[18.8, Color("#FF6A5A"), 0.72, Color("#6A4A80"), Color("#2C3C78"), Color("#E0607A")],
+	[19.6, Color("#A27AC0"), 0.45, Color("#4E4478"), Color("#1C2552"), Color("#6A4C80")],
+	[21.0, Color("#8FA6D9"), 0.35, Color("#4A4E7A"), Color("#101838"), Color("#30386A")],
+	[24.0, Color("#8FA6D9"), 0.35, Color("#4A4E7A"), Color("#0A1028"), Color("#28305A")],
 ]
 const STAGES: Array = [[5.0, "DEAD OF NIGHT"], [7.0, "DAYBREAK"], [11.0, "MORNING"], [13.0, "HIGH NOON"],
 	[17.0, "AFTERNOON"], [19.0, "SUNDOWN"], [23.0, "NIGHTFALL"], [24.0, "MIDNIGHT"]]
@@ -179,6 +183,44 @@ func _apply_now() -> void:
 	# Clouds pick up the light: white by day, warm at dusk, dim blue-grey at night.
 	sky.set_shader_parameter("cloud_color", Color("#FFF7EA").lerp(sun_color, 0.35) * clampf(energy / 1.2, 0.3, 1.0) + horizon * 0.15)
 	sky.set_shader_parameter("sun_color", sun_color)
+	# Stars and moon at night, a flaring horizon at golden hour.
+	var n := night_amount()
+	var g := golden_amount() * (1.0 - _storm)
+	sky.set_shader_parameter("night", n)
+	sky.set_shader_parameter("golden", g)
+	sky.set_shader_parameter("glow_color", Color("#FF7A3A") if h > 12.0 else Color("#FF9A7A"))
+	sky.set_shader_parameter("overcast", clampf(_storm * 1.2, 0.0, 1.0))
+	_glow_at_night(n)
+
+
+## 0 by day, 1 in full night (stars out, lamps glowing).
+func night_amount() -> float:
+	var h := hour()
+	if h >= 12.0:
+		return smoothstep(19.0, 20.6, h)
+	return 1.0 - smoothstep(4.6, 6.0, h)
+
+
+## 0..1 around sunrise and sunset.
+func golden_amount() -> float:
+	var h := hour()
+	var dusk := 1.0 - clampf(absf(h - 18.2) / 1.8, 0.0, 1.0)
+	var dawn := 1.0 - clampf(absf(h - 6.0) / 1.2, 0.0, 1.0)
+	return smoothstep(0.0, 1.0, maxf(dusk, dawn))
+
+
+var _glow_shown := -1.0
+
+
+## Everything that glows (lantern glass, windows, bulbs, bug eyes) glows harder at night.
+func _glow_at_night(n: float) -> void:
+	if absf(n - _glow_shown) < 0.02:
+		return
+	_glow_shown = n
+	var cache: Dictionary = Materials._cache
+	for key: String in cache:
+		if key.begins_with("toon_"):
+			(cache[key] as ShaderMaterial).set_shader_parameter("emission_strength", 2.5 + n * 2.5)
 
 
 ## Colour cast for the weather (alpha = how strong).

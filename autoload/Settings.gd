@@ -30,6 +30,8 @@ const REMAPPABLE: Dictionary = {
 	"melee": "Quick melee (whip)",
 	"ready_up": "Ready (skip build phase)",
 	"ping": "Ping (hold for the ping wheel)",
+	"emote": "Emote (tap: tip hat, hold: wheel)",
+	"photo_mode": "Photo mode (hide HUD, free camera)",
 	"debug_overlay": "Debug overlay",
 }
 
@@ -49,6 +51,10 @@ var render_scale: float = 1.0
 var master_volume: float = 0.8
 var sfx_volume: float = 1.0
 var music_volume: float = 0.6
+# Accessibility: shape glyphs on team colours and alerts, not colour alone.
+var colorblind: bool = false
+## The first-wave hint cards have been seen (never shown again).
+var tutorial_done: bool = false
 ## Debug cheats (F6-F10, god mode) without the --debug launch flag.
 var debug_mode: bool = false
 ## Your dummy's outfit (see DummyLook), as {slot: option}.
@@ -170,7 +176,8 @@ func _deserialize(data: String) -> InputEvent:
 # ------------------------------------------------------------------ persistence
 
 const SAVED_KEYS: Array[String] = ["mouse_sensitivity", "invert_y", "fov", "brightness", "fps_cap",
-	"vsync", "fullscreen", "shadows", "msaa", "render_scale", "master_volume", "sfx_volume", "music_volume", "debug_mode"]
+	"vsync", "fullscreen", "shadows", "msaa", "render_scale", "master_volume", "sfx_volume", "music_volume", "debug_mode",
+	"colorblind", "tutorial_done"]
 
 
 func save_settings() -> void:

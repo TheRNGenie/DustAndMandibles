@@ -2,16 +2,32 @@ class_name WavePlanner
 extends RefCounted
 ## Turns a wave number into a list of spawn groups: spends the threat budget on
 ## the bugs unlocked so far, splits it between the cliffs and assigns lanes and
-## pulses. Pure logic (seeded), so it can be unit-tested.
+## pulses. Each wave also gets a shape (how it arrives: a steady stream, one big
+## rush, two pushes, a flier-heavy wave, or a boss wave every few waves) and
+## mixes in any kill-method variants the players have unlocked.
+## Pure logic (seeded), so it can be unit-tested.
+
+const STEADY := &"steady"
+const RUSH := &"rush"
+const TWO_PUSHES := &"two_pushes"
+const FLIERS := &"fliers"
+const BOSS := &"boss"
+## What each shape is called on the HUD.
+const SHAPE_NAMES := {STEADY: "A steady stream", RUSH: "One big rush", TWO_PUSHES: "Two pushes",
+	FLIERS: "Fliers overhead", BOSS: "Boss wave"}
 
 var config: WaveConfig
 var bug_defs: Array[BugDef] = []
 var rng := RandomNumberGenerator.new()
+## Kill-method variant ids the players have unlocked (mixed in by plan()).
+var variants: Array[StringName] = []
+var _seed := 0
 
 
 func _init(cfg: WaveConfig, defs: Array[BugDef], seed_value: int = 0) -> void:
 	config = cfg
 	bug_defs = defs
+	_seed = seed_value
 	rng.seed = seed_value
 
 
@@ -19,68 +35,173 @@ func _init(cfg: WaveConfig, defs: Array[BugDef], seed_value: int = 0) -> void:
 func unlocked(w: int) -> Array[BugDef]:
 	var out: Array[BugDef] = []
 	for d in bug_defs:
-		if d.first_wave <= w:
+		if d.first_wave <= w and not d.is_variant():
 			out.append(d)
 	return out
 
 
+static func is_brute(d: BugDef) -> bool:
+	return d.behavior in [BugDef.Behavior.TANK, BugDef.Behavior.BROOD, BugDef.Behavior.BOSS]
+
+
+## How wave w arrives. Depends only on the seed and the wave, never on what was
+## planned before, and the same shape never comes twice in a row.
+func shape_for(w: int) -> StringName:
+	if w <= 1:
+		return STEADY
+	if config.boss_every > 0 and w % config.boss_every == 0:
+		return BOSS
+	var pool: Array[StringName] = [STEADY, RUSH, TWO_PUSHES]
+	for d in unlocked(w):
+		if d.behavior == BugDef.Behavior.FLIER and d.cost > 0:
+			pool.append(FLIERS)
+			break
+	var r := RandomNumberGenerator.new()
+	r.seed = hash([_seed, w, "shape"])
+	var pick := pool[r.randi_range(0, pool.size() - 1)]
+	if pick == shape_for(w - 1):
+		pick = pool[(pool.find(pick) + 1) % pool.size()]
+	return pick
+
+
+## Seconds after the wave starts that each pulse leaves the tunnels.
+func pulse_times(shape: StringName) -> Array[float]:
+	var times: Array[float] = []
+	match shape:
+		STEADY:
+			for i in config.steady_pulses:
+				times.append(i * config.steady_interval)
+		RUSH:
+			for i in config.rush_pulses:
+				times.append(i * config.rush_interval)
+		TWO_PUSHES:
+			times.assign([0.0, 2.0, config.push_gap, config.push_gap + 2.0])
+		_:
+			for i in rng.randi_range(config.pulses_min, config.pulses_max):
+				times.append(i * config.pulse_interval)
+	return times
+
+
 ## Returns {"groups": Array of {"bug": StringName, "count": int, "cliff": int, "lane": int, "pulse": int},
-##          "pulses": int, "west_share": float, "spent": [west, east]}
+##          "pulses": int, "pulse_times": Array[float], "shape": StringName,
+##          "west_share": float, "spent": [west, east]}
 func plan(w: int) -> Dictionary:
 	var budget := config.budget(w)
 	var west_share := config.west_share_for(w, rng.randf())
 	var pools := [budget * west_share, budget * (1.0 - west_share)]
 	var spent := [0.0, 0.0]
-	var pulses := rng.randi_range(config.pulses_min, config.pulses_max)
+	var shape := shape_for(w)
+	var times := pulse_times(shape)
+	var pulses := times.size()
 	var groups: Array = []
 	var options := unlocked(w)
-	# Make sure every bug introduced this wave shows up on both cliffs.
-	# The boss wave: the Iron Tumbleweed climbs the heavier cliff's centre lane in the first pulse.
+	# The boss climbs the heavier cliff's centre lane in the first pulse: on the
+	# wave it's introduced, and on every boss wave after that.
 	for d in options:
-		if d.behavior == BugDef.Behavior.BOSS and d.first_wave == w:
+		if d.behavior == BugDef.Behavior.BOSS and (d.first_wave == w or shape == BOSS):
 			var boss_cliff := WorldLayout.WEST if west_share >= 0.5 else WorldLayout.EAST
 			groups.append({"bug": d.id, "count": 1, "cliff": boss_cliff, "lane": 2, "pulse": 0})
+	# Make sure every bug introduced this wave shows up on both cliffs.
 	for newest in _newest(options, w):
 		for cid in 2:
 			var c := float(newest.cost * newest.group_size)
 			if pools[cid] - spent[cid] >= c:
 				groups.append(_group(newest, cid, pulses))
 				spent[cid] += c
+	# Shaped waves spend part of each cliff's budget on their kind of bug first.
+	if shape == FLIERS:
+		_spend(groups, spent, pools, options.filter(func(d: BugDef) -> bool: return d.behavior == BugDef.Behavior.FLIER), config.flier_share, pulses, false)
+	elif shape == BOSS:
+		_spend(groups, spent, pools, options.filter(func(d: BugDef) -> bool: return is_brute(d)), config.brute_share, pulses, true)
 	for cid in 2:
-		var guard := 0
-		while guard < 500:
-			guard += 1
-			var left: float = pools[cid] - spent[cid]
-			var affordable := options.filter(func(d: BugDef) -> bool: return d.cost > 0 and d.cost * d.group_size <= left)
-			if affordable.is_empty():
+		_fill(groups, spent, cid, pools[cid], options, pulses)
+	_mix_variants(groups)
+	_scale_counts(groups, config.bug_count(w))
+	return {"groups": groups, "pulses": pulses, "pulse_times": times, "shape": shape,
+			"west_share": west_share, "spent": spent}
+
+
+## Spends `share` of each cliff's pool on `kinds` (brutes come in the first pulses).
+func _spend(groups: Array, spent: Array, pools: Array, kinds: Array, share: float, pulses: int, up_front: bool) -> void:
+	if kinds.is_empty():
+		return
+	for cid in 2:
+		_fill(groups, spent, cid, float(spent[cid]) + float(pools[cid]) * share, kinds, pulses)
+	if up_front:
+		for g: Dictionary in groups:
+			if kinds.any(func(d: BugDef) -> bool: return d.id == g["bug"]):
+				g["pulse"] = mini(int(g["pulse"]), mini(1, pulses - 1))
+
+
+## Buys random affordable groups from `kinds` until cliff `cid` has spent `limit`.
+func _fill(groups: Array, spent: Array, cid: int, limit: float, kinds: Array, pulses: int) -> void:
+	var guard := 0
+	while guard < 500:
+		guard += 1
+		var left: float = limit - float(spent[cid])
+		var affordable := kinds.filter(func(d: BugDef) -> bool: return d.cost > 0 and d.cost * d.group_size <= left)
+		if affordable.is_empty():
+			break
+		var pick := affordable[rng.randi_range(0, affordable.size() - 1)] as BugDef
+		groups.append(_group(pick, cid, pulses))
+		spent[cid] += float(pick.cost * pick.group_size)
+
+
+## Swaps a share of each type's groups for its unlocked variants (at least one
+## group each, so a new variant always shows up in the next wave's preview).
+func _mix_variants(groups: Array) -> void:
+	if variants.is_empty():
+		return
+	var shown: Dictionary = {}
+	for g: Dictionary in groups:
+		var options := _variants_of(StringName(g["bug"]))
+		if not options.is_empty() and rng.randf() < config.variant_share:
+			var v := options[rng.randi_range(0, options.size() - 1)]
+			g["bug"] = v
+			shown[v] = true
+	for v in variants:
+		if shown.has(v):
+			continue
+		var base := Defs.bug(v).variant_of if Defs.bug(v) != null else &""
+		for g: Dictionary in groups:
+			if StringName(g["bug"]) == base:
+				g["bug"] = v
 				break
-			var pick := affordable[rng.randi_range(0, affordable.size() - 1)] as BugDef
-			groups.append(_group(pick, cid, pulses))
-			spent[cid] += float(pick.cost * pick.group_size)
-	# The budget sets the mix of bugs; the count is scaled to the wave's target
-	# (45 in wave 1, +25% each wave). Bosses stay one of a kind.
+
+
+func _variants_of(base: StringName) -> Array[StringName]:
+	var out: Array[StringName] = []
+	for v in variants:
+		var d := Defs.bug(v)
+		if d != null and d.variant_of == base:
+			out.append(v)
+	return out
+
+
+## The budget sets the mix of bugs; the count is scaled to the wave's target
+## (45 in wave 1, +25% each wave). Bosses stay one of a kind.
+func _scale_counts(groups: Array, target: int) -> void:
 	var planned := 0
 	for g: Dictionary in groups:
 		planned += int(g["count"])
-	var target := config.bug_count(w)
-	if planned > 0 and target > 0:
-		var k := float(target) / float(planned)
-		var total := 0
-		for g: Dictionary in groups:
-			if Defs.bug(StringName(g["bug"])).behavior != BugDef.Behavior.BOSS:
-				g["count"] = maxi(int(round(float(g["count"]) * k)), 1)
-			total += int(g["count"])
-		# Trim or pad the dust-mite-ish filler so the total lands on the target.
-		var i := 0
-		while total != target and i < groups.size() * 4:
-			var g: Dictionary = groups[i % groups.size()]
-			if Defs.bug(StringName(g["bug"])).behavior != BugDef.Behavior.BOSS:
-				var step := 1 if total < target else -1
-				if int(g["count"]) + step >= 1:
-					g["count"] = int(g["count"]) + step
-					total += step
-			i += 1
-	return {"groups": groups, "pulses": pulses, "west_share": west_share, "spent": spent}
+	if planned <= 0 or target <= 0:
+		return
+	var k := float(target) / float(planned)
+	var total := 0
+	for g: Dictionary in groups:
+		if Defs.bug(StringName(g["bug"])).behavior != BugDef.Behavior.BOSS:
+			g["count"] = maxi(int(round(float(g["count"]) * k)), 1)
+		total += int(g["count"])
+	# Trim or pad the groups so the total lands on the target.
+	var i := 0
+	while total != target and i < groups.size() * 4:
+		var g: Dictionary = groups[i % groups.size()]
+		if Defs.bug(StringName(g["bug"])).behavior != BugDef.Behavior.BOSS:
+			var step := 1 if total < target else -1
+			if int(g["count"]) + step >= 1:
+				g["count"] = int(g["count"]) + step
+				total += step
+		i += 1
 
 
 func _group(d: BugDef, cliff: int, pulses: int) -> Dictionary:

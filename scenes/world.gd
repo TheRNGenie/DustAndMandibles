@@ -121,7 +121,21 @@ func _on_peer_loaded(id: int) -> void:
 	_started = true
 	for peer_id: int in roster:
 		spawner.spawn({"peer": peer_id, "cliff": int((roster[peer_id] as Dictionary)["cliff"])})
+	if NetworkManager.has_cpu():
+		_spawn_cpu()
+	else:
+		Economy.shared = false # no CPU this run: separate stockpiles again
 	GameState.start_run()
+
+
+## Host: the CPU partner takes the empty cliff and the team shares one pool.
+func _spawn_cpu() -> void:
+	var cpu := CpuTeammate.new()
+	cpu.name = "CPU"
+	cpu.setup(NetworkManager.cpu_quality, NetworkManager.cpu_cliff(), cliffs, vfx)
+	add_child(cpu)
+	Economy.enable_shared_pool(NetworkManager.players.size() + 1, 1)
+	print("[cpu] %s partner on cliff %d" % [NetworkManager.CPU_QUALITY_NAMES[NetworkManager.cpu_quality], cpu.cliff_id])
 
 
 ## Lobby roster, or a single offline player when the scene runs on its own.

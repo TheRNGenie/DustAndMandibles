@@ -80,7 +80,8 @@ func reset() -> void:
 
 
 func is_solo() -> bool:
-	return NetworkManager.players.size() <= 1
+	# A CPU teammate makes it a two-sided game: you build for its cliff, it for yours.
+	return NetworkManager.players.size() <= 1 and not NetworkManager.has_cpu()
 
 
 func _process(delta: float) -> void:
@@ -104,7 +105,7 @@ func start_run() -> void:
 	reset()
 	Economy.reset()
 	GunShop.reset_loadouts()
-	_sync_homesteads.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
+	_sync_homesteads_reliable.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
 	wave = 1
 	if has_flag("--debug") and flag_value("--startwave") != "":
 		wave = clampi(int(flag_value("--startwave")), 1, config().last_wave)
@@ -205,13 +206,20 @@ func _sync_homesteads(west: float, east: float, west_max: float, east_max: float
 		homestead_changed.emit(cid, homestead_hp[cid], homestead_max[cid])
 
 
+# One-shot changes (run start, upgrades, repairs) must arrive: a dropped packet
+# would leave the partner's HUD on stale (or 0/0) house HP until the next hit.
+@rpc("authority", "call_local", "reliable")
+func _sync_homesteads_reliable(west: float, east: float, west_max: float, east_max: float) -> void:
+	_sync_homesteads(west, east, west_max, east_max)
+
+
 ## Host: raise a Homestead's max HP (the extra is added to its current HP too).
 func raise_homestead_max(cliff_id: int, extra: float) -> void:
 	if not multiplayer.is_server():
 		return
 	homestead_max[cliff_id] += extra
 	homestead_hp[cliff_id] += extra
-	_sync_homesteads.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
+	_sync_homesteads_reliable.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
 
 
 ## Host: patch a Homestead up (never past its max).
@@ -219,7 +227,7 @@ func heal_homestead(cliff_id: int, amount: float) -> void:
 	if not multiplayer.is_server() or phase == Phase.GAME_OVER:
 		return
 	homestead_hp[cliff_id] = minf(homestead_hp[cliff_id] + amount, homestead_max[cliff_id])
-	_sync_homesteads.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
+	_sync_homesteads_reliable.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
 
 
 @rpc("authority", "call_local", "reliable")

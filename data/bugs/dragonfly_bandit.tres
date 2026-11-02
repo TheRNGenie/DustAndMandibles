@@ -19,3 +19,4 @@ breach_dps = 0.0
 size = 1.1
 shell_color = Color(0.25, 0.65, 0.6, 1)
 first_wave = 8
+counter = "Air defence: it flies over cliff turrets and wall traps, so only anti-air turrets and your own guns can reach it."

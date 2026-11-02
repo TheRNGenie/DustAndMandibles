@@ -19,3 +19,4 @@ breach_dps = 40.0
 size = 3.0
 shell_color = Color(0.73, 0.76, 0.8, 1)
 first_wave = 10
+counter = "Its front shell halves damage: let your partner's turrets hit its back, shoot its glowing belly from above, and bring armour-piercing guns and splash."

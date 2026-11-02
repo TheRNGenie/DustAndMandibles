@@ -1,11 +1,12 @@
 class_name SlotMachine
 extends CasinoGame
 ## A one-armed bandit on the casino deck. Pick a stake and Pull. The host rolls
-## three reels; three of a kind pays, two horseshoes return the stake.
+## three reels; three of a kind pays (chilis add seeds, stars add a turret upgrade
+## token), a pair returns the stake. Pays back about 82% of stakes in scrap.
 
 const BETS: Array = [10, 25, 50]
-## Symbol, weight, payout multiplier for three of a kind.
-const SYMBOLS: Array[Array] = [["BUG", 30, 0], ["CACTUS", 25, 3], ["CHILI", 20, 5], ["HORSESHOE", 15, 8], ["STAR", 10, 20]]
+## Reel symbols and prizes live in CasinoRules (unit tested).
+const SYMBOLS: Array[Array] = CasinoRules.SLOT_SYMBOLS
 
 var _arm: MeshInstance3D
 var _arm_t := 0.0
@@ -56,7 +57,7 @@ func ui_title() -> String:
 
 
 func ui_rules() -> String:
-	return "Three of a kind pays: cactus x3, chili x5, horseshoe x8, star x20. Two horseshoes return your stake."
+	return "Three of a kind: cactus x10, chili x15 + 3 chili seeds, horseshoe x25, star x60 + a turret upgrade token. A pair returns your stake (horseshoes or stars pay double); bugs pay nothing."
 
 
 func ui_bets() -> Array:
@@ -79,17 +80,6 @@ static func roll(rng: RandomNumberGenerator) -> int:
 	return 0
 
 
-## Payout multiplier for three reels.
-static func payout(reels: Array) -> int:
-	if reels[0] == reels[1] and reels[1] == reels[2]:
-		return int(SYMBOLS[reels[0]][2])
-	var shoes := 0
-	for r: int in reels:
-		if SYMBOLS[r][0] == "HORSESHOE":
-			shoes += 1
-	return 1 if shoes == 2 else 0
-
-
 func _act(peer_id: int, action: StringName, _choice: int, bet: int) -> void:
 	if action != &"pull":
 		return
@@ -97,10 +87,10 @@ func _act(peer_id: int, action: StringName, _choice: int, bet: int) -> void:
 	if not _take(peer_id, bet):
 		return
 	var reels := [roll(_rng), roll(_rng), roll(_rng)]
-	var win := bet * payout(reels)
-	_pay(peer_id, {&"scrap": win} if win > 0 else {})
+	var won := CasinoRules.slot_prize(reels, bet)
+	_pay(peer_id, won)
 	_broadcast({"kind": "reels", "peer": peer_id, "reels": [SYMBOLS[reels[0]][0], SYMBOLS[reels[1]][0], SYMBOLS[reels[2]][0]],
-			"result": ("You win %d scrap!" % win) if win > 0 else "No luck this time."})
+			"result": ("You win %s!" % CasinoRules.prize_text(won)) if not won.is_empty() else "No luck this time."})
 
 
 func _on_view() -> void:

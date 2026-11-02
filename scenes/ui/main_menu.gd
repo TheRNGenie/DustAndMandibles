@@ -8,6 +8,7 @@ var _port_edit: LineEdit
 var _status: Label
 var _roster: Label
 var _ready_btn: CheckButton
+var _cpu_pick: OptionButton
 var _connect_box: VBoxContainer
 var _lobby_box: VBoxContainer
 var _solo_btn: Button
@@ -35,6 +36,10 @@ func _ready() -> void:
 	elif GameState.has_flag("--host") or _test_launch():
 		_auto_ready = true
 		_on_host()
+		# --cpu=low|medium|high: start with a CPU partner (tests).
+		var cq := ["low", "medium", "high"].find(GameState.flag_value("--cpu").to_lower())
+		if cq >= 0:
+			NetworkManager.set_cpu(cq)
 	elif GameState.has_flag("--join") or GameState.flag_value("--join") != "":
 		_auto_ready = true
 		var ip := GameState.flag_value("--join")
@@ -106,6 +111,13 @@ func _build_ui() -> void:
 	_ready_btn.add_theme_color_override("font_color", Palette.OUTLINE)
 	_ready_btn.toggled.connect(func(on: bool) -> void: NetworkManager.set_ready(on))
 	_lobby_box.add_child(_ready_btn)
+	# Host: an optional CPU partner for the empty cliff.
+	_cpu_pick = OptionButton.new()
+	for label: String in ["No CPU partner", "CPU partner: Low", "CPU partner: Medium", "CPU partner: High"]:
+		_cpu_pick.add_item(label)
+	_cpu_pick.selected = NetworkManager.cpu_quality + 1
+	_cpu_pick.item_selected.connect(func(i: int) -> void: NetworkManager.set_cpu(i - 1))
+	_lobby_box.add_child(_cpu_pick)
 	_solo_btn = _button("Start alone (testing)")
 	_solo_btn.pressed.connect(func() -> void: NetworkManager.start_game())
 	_lobby_box.add_child(_solo_btn)
@@ -192,10 +204,16 @@ func _refresh() -> void:
 		var cliff := "West" if int(p["cliff"]) == WorldLayout.WEST else "East"
 		var tick := "[ready]" if bool(p["ready"]) else "[not ready]"
 		lines.append("%s cliff: %s %s" % [cliff, str(p["name"]), tick])
-	if NetworkManager.players.size() < NetworkManager.MAX_PLAYERS:
+	if NetworkManager.has_cpu():
+		var cpu_side := "West" if NetworkManager.cpu_cliff() == WorldLayout.WEST else "East"
+		lines.append("%s cliff: %s (CPU, %s) [ready]" % [cpu_side, CpuTeammate.NAME, NetworkManager.CPU_QUALITY_NAMES[NetworkManager.cpu_quality]])
+	elif NetworkManager.players.size() < NetworkManager.MAX_PLAYERS:
 		lines.append("(waiting for a partner...)")
 	_roster.text = "\n".join(lines)
 	_solo_btn.visible = multiplayer.is_server() and NetworkManager.is_online()
+	_solo_btn.text = "Start with CPU partner" if NetworkManager.has_cpu() else "Start alone (testing)"
+	_cpu_pick.visible = multiplayer.is_server()
+	_cpu_pick.selected = NetworkManager.cpu_quality + 1
 
 
 # ------------------------------------------------------------------ styling helpers
