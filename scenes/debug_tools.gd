@@ -1,6 +1,6 @@
 class_name DebugTools
 extends Node
-## Debug cheats (with --debug or Settings > Debug mode): F6 skip phase, F7 +500 scrap, F8 spawn the next
+## Debug cheats (with --debug or Settings > Debug mode): F6 skip phase, F7 +500 scrap and +50 chitin for both sides, F8 spawn the next
 ## bug type on a random lane of your partner's cliff, F9 god mode, F10 show lanes.
 ## Also the automation flags used for testing:
 ##   --shot=<png> [--frames=N] [--pos=d,z] [--look=yaw,pitch] [--autofire] [--autoskip]
@@ -374,7 +374,9 @@ func _cheat(kind: String) -> void:
 	var cid := NetworkManager.cliff_of(sender) if NetworkManager.is_online() else _local_cliff()
 	match kind:
 		"scrap":
-			Economy.earn(cid, {&"scrap": 500, &"chitin": 50})
+			# Both sides get it, so a playtest isn't stuck waiting on the partner.
+			for side in [WorldLayout.WEST, WorldLayout.EAST]:
+				Economy.earn(side, {&"scrap": 500, &"chitin": 50})
 		"spawn":
 			var ids: Array = Defs.BUGS.keys()
 			var id: StringName = ids[_bug_index % ids.size()]
