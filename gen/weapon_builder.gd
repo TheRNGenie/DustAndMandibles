@@ -360,6 +360,8 @@ static func held_item(id: StringName) -> ArrayMesh:
 				var p := at + Vector3(-cos(a) * 0.085, 0.06 + sin(a) * 0.09, 0)
 				MeshKit.add_limb(st, prev, p, 0.005, Color("#B8955A"), 4)
 				prev = p
+		&"lighter":
+			pass # the Zippo is its own animated model (Lighter)
 		&"grapple":
 			# A stubby brass launcher: barrel pointing forward (-Z), a walnut grip,
 			# a rope drum on the side, and the hook's prongs poking out the muzzle.
@@ -417,4 +419,43 @@ static func grapple_hook() -> ArrayMesh:
 		var out := Vector3(cos(a), 0, sin(a))
 		MeshKit.add_limb(st, Vector3.ZERO, out * 0.14 + Vector3(0, 0.05, 0), 0.02, STEEL, 5)
 		MeshKit.add_limb(st, out * 0.14 + Vector3(0, 0.05, 0), out * 0.12 + Vector3(0, 0.15, 0), 0.016, STEEL.lightened(0.1), 5)
+	return MeshKit.finish(st)
+
+
+## The Zippo, built in parts so the lid can swing (origin at the base, Y up).
+const ZIPPO_HINGE := Vector3(0.0, 0.04, 0.0065)
+const ZIPPO_WICK := Vector3(0.0, 0.05, -0.001)
+
+
+static func zippo_body() -> ArrayMesh:
+	var st := MeshKit.begin()
+	var chrome := STEEL.lightened(0.25)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.02, 0)), Vector3(0.036, 0.04, 0.013), chrome)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.02, -0.0068)), Vector3(0.026, 0.026, 0.001), BRASS)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.02, -0.0075)), Vector3(0.006, 0.006, 0.001), 3, 8, Palette.TEAM_WEST)
+	# Chimney (windscreen with holes), flint wheel and cam.
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.047, 0)), Vector3(0.024, 0.014, 0.011), STEEL)
+	for x: float in [-0.007, 0.0, 0.007]:
+		for y: float in [0.044, 0.05]:
+			MeshKit.add_box(st, Transform3D(Basis(), Vector3(x, y, -0.0058)), Vector3(0.003, 0.003, 0.001), BLUED_DARK)
+	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0, 0.055, 0.004)), 0.004, 0.004, 0.008, 10, BLUED)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.0545, -0.001)), Vector3(0.004, 0.004, 0.004), Palette.BONE)
+	return MeshKit.finish(st)
+
+
+## Lid, relative to its hinge at the back top edge of the body.
+static func zippo_lid() -> ArrayMesh:
+	var st := MeshKit.begin()
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.008, -0.0065)), Vector3(0.0365, 0.016, 0.0135), STEEL.lightened(0.25))
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.0005, -0.0065)), Vector3(0.037, 0.001, 0.0137), STEEL)
+	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0, 0, 0)), 0.0015, 0.0015, 0.012, 6, STEEL)
+	return MeshKit.finish(st)
+
+
+## Flame: a glowing orange teardrop with a yellow core and a blue base.
+static func zippo_flame() -> ArrayMesh:
+	var st := MeshKit.begin()
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.012, 0)), Vector3(0.007, 0.016, 0.007), 5, 10, Color("#FF8A2A"), 0.0, null, 0.3)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.009, 0)), Vector3(0.004, 0.009, 0.004), 4, 8, Color("#FFE27A"), 0.0, null, 0.2)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.002, 0)), Vector3(0.004, 0.003, 0.004), 3, 8, Color("#5AA8FF"), 0.0, null, 0.4)
 	return MeshKit.finish(st)

@@ -6,15 +6,16 @@ extends Node
 ##   7    medicine: herbs (heal 50 HP)
 ##   8    water bucket
 ##   9    grappling hook launcher (always carried)
+##   0    Zippo lighter (always carried)
 ## Q drops the weapon in your hand (it lands at your feet for anyone to pick up).
 ## While the build tool (B) is open, number keys pick what to build instead.
 
 signal changed
 
 const PICKUP_ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili"]
-const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Pear", &"chili": "Chili", &"herbs": "Medicine", &"water": "Bucket", &"grapple": "Grapple"}
+const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Pear", &"chili": "Chili", &"herbs": "Medicine", &"water": "Bucket", &"grapple": "Grapple", &"lighter": "Zippo"}
 
-const SLOTS := 9
+const SLOTS := 10
 
 var player: Player
 var selected := 0
@@ -53,6 +54,8 @@ func slot_item(i: int) -> StringName:
 		return carried[i - 3] if i - 3 < carried.size() else &""
 	if i == 8:
 		return &"grapple"
+	if i == 9:
+		return &"lighter"
 	return &"herbs" if i == 6 else &"water"
 
 
@@ -97,6 +100,6 @@ func slot_info(i: int) -> Dictionary:
 			info["count"] = "+%d" % lvl
 	else:
 		info["label"] = NAMES.get(id, String(id))
-		info["count"] = "" if id == &"grapple" else "x%d" % Economy.amount(_cliff(), id)
+		info["count"] = "" if id == &"grapple" or id == &"lighter" else "x%d" % Economy.amount(_cliff(), id)
 		info["selected"] = player.gun.holding == id
 	return info

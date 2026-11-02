@@ -22,11 +22,17 @@ void light() {
 	DIFFUSE_LIGHT += shade * LIGHT_COLOR / PI * falloff;
 
 	float rim = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
-	rim = smoothstep(rim_width, rim_width + 0.03, rim) * b1;
+	// On upward-facing surfaces (the ground, floors, roofs) the rim depends only
+	// on viewing angle, so a hard edge would draw a ring around the camera.
+	// Fade it in very gradually there and keep it crisp on everything else.
+	vec3 up_view = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+	float flat_k = smoothstep(0.55, 0.9, dot(NORMAL, up_view));
+	float rim_soft = mix(0.03, 0.32, flat_k);
+	rim = smoothstep(rim_width, min(rim_width + rim_soft, 1.0), rim) * b1 * mix(1.0, 0.45, flat_k);
 	SPECULAR_LIGHT += rim * rim_strength * LIGHT_COLOR / PI * falloff;
 
 	// Hard-edged highlight blob on the lit side.
 	float hl = pow(clamp(dot(reflect(-LIGHT, NORMAL), VIEW), 0.0, 1.0), 20.0);
-	hl = smoothstep(0.45, 0.5, hl) * b2;
+	hl = smoothstep(0.45, 0.5 + 0.4 * flat_k, hl) * b2;
 	SPECULAR_LIGHT += hl * spec_strength * LIGHT_COLOR * falloff;
 }

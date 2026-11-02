@@ -60,6 +60,7 @@ var _last_y := 0.0
 var _vy_smooth := 0.0
 @onready var vitals: PlayerVitals = $Vitals
 var grapple: Grapple
+var lighter: Lighter
 ## Set by the world for the local player.
 var build_mode: BuildMode
 
@@ -77,6 +78,10 @@ func _ready() -> void:
 	grapple.player = self
 	grapple.position = Vector3(0.22, -0.2, -0.4)
 	camera.add_child(grapple)
+	lighter = Lighter.new()
+	lighter.name = "Lighter"
+	lighter.player = self
+	gun.add_child(lighter)
 	rig = DummyRig.new()
 	rig.name = "Rig"
 	add_child(rig)
@@ -163,6 +168,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	if _mantling:
+		return
+	if _zip_line != null:
+		_ride_zip(delta)
 		return
 	_update_fall(delta)
 	var blocked := GameState.menu_open or vitals.downed
@@ -386,6 +394,52 @@ func _porch_transform() -> Transform3D:
 ## Debug/tests: take out the grapple launcher (hotbar slot 9).
 func hotbar_use_grapple() -> void:
 	gun.hold_item(&"grapple")
+
+
+# ------------------------------------------------------------------ zip line
+
+const ZIP_SPEED := 22.0
+const ZIP_HANG := 1.9
+var _zip_line: ZipLine
+var _zip_t := 0.0
+var _zip_dir := 1.0
+var _zip_speed := 0.0
+var _zip_land := Vector3.ZERO
+
+
+## Grab the trolley and slide to the far tower (jump lets go mid-way).
+func start_zip(line: ZipLine, from_west: bool, land: Vector3) -> void:
+	_zip_line = line
+	_zip_dir = 1.0 if from_west else -1.0
+	_zip_t = 0.0 if from_west else 1.0
+	_zip_speed = 4.0
+	_zip_land = land
+	_end_slide()
+	Audio.play_at(&"reload", global_position, -4.0)
+
+
+func _ride_zip(delta: float) -> void:
+	var length := _zip_line.a.distance_to(_zip_line.b)
+	_zip_speed = move_toward(_zip_speed, ZIP_SPEED, 14.0 * delta)
+	var before := global_position
+	_zip_t += _zip_dir * _zip_speed * delta / maxf(length, 1.0)
+	var done := _zip_t <= 0.0 or _zip_t >= 1.0
+	_zip_t = clampf(_zip_t, 0.0, 1.0)
+	global_position = _zip_line.point(_zip_t) + Vector3.DOWN * ZIP_HANG
+	velocity = (global_position - before) / maxf(delta, 0.001)
+	var let_go := not GameState.menu_open and Input.is_action_just_pressed("jump") and is_multiplayer_authority()
+	if done:
+		global_position = _zip_land
+		velocity = Vector3.ZERO
+		_zip_line = null
+		Audio.play_at(&"build", global_position, -4.0)
+	elif let_go or not is_instance_valid(_zip_line):
+		_zip_line = null # keep the momentum and drop
+	_update_camera(delta, false)
+
+
+func is_ziplining() -> bool:
+	return _zip_line != null
 
 
 ## True while dropping into the canyon or lying on its floor.

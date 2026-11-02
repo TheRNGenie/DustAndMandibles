@@ -6,6 +6,13 @@ extends RefCounted
 ## stone-skirted walls (reinforced), a second storey with a front balcony, and a
 ## third "lookout" storey with a flat, railed roof deck.
 ## Local space: origin on the ground at the cabin centre, front (door) faces -Z.
+##
+## Two styles (style_id = cliff): 0 West is a log cabin with a shingle roof, a
+## stone chimney, shutters and flower boxes; its upgrades are timber planks,
+## iron bands and a stone skirt. 1 East is a painted clapboard shack with a
+## false front, a corrugated tin roof and a stovepipe; its upgrades are tin
+## sheets riveted over the windows, steel corner plates and sandbags.
+## Top upgrade on both: a lookout tower on the roof deck (zip line anchor).
 
 const W := 7.0
 const D := 5.5
@@ -16,6 +23,16 @@ const PORCH_DEPTH := 2.2
 ## Stair ramp along the back wall: rises from x = STAIR_LOW_X up to the left wall.
 const STAIR_LOW_X := 2.4
 const STAIR_Z0 := 1.35
+## The zip-line tower on the roof deck (back right, clear of the stair hatch and mounts).
+const TOWER_X := 2.2
+const TOWER_Z := 1.55
+const TOWER_HALF := 0.95
+const TOWER_H := 7.0
+const EAST_PAINT := Color("#9FB6BA")
+const EAST_TRIM := Color("#EDE3CC")
+const TIN := Color("#8C949C")
+
+static var _style := 0
 ## House turret mounts, two per storey: porch corners, balcony corners, roof deck.
 const MOUNTS: Array[Vector3] = [
 	Vector3(-2.3, 0.3, -D * 0.5 - 1.3), Vector3(2.3, 0.3, -D * 0.5 - 1.3),
@@ -34,7 +51,9 @@ static func ledger_position() -> Vector3:
 
 
 ## collision_only skips purely visual bits (tread lines) that would snag a walking player.
-static func build(seed_value: int, team: Color, floors: int, boarded: bool, reinforced: bool, collision_only: bool = false) -> ArrayMesh:
+static func build(seed_value: int, team: Color, floors: int, boarded: bool, reinforced: bool, collision_only: bool = false,
+		tower: bool = false, style_id: int = 0) -> ArrayMesh:
+	_style = style_id
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var st := MeshKit.begin()
@@ -75,7 +94,9 @@ static func build(seed_value: int, team: Color, floors: int, boarded: bool, rein
 				_boards(st, rng, Vector3.BACK, hw + T * 0.5 + 0.06, o, y0, 1.0)
 			for o: Array in back:
 				_boards(st, rng, Vector3.RIGHT, hd + T * 0.5 + 0.06, o, y0, 1.0)
-		if reinforced:
+		if reinforced and _style == 1:
+			_steel_plates(st, y0)
+		elif reinforced:
 			for cx: float in [-hw, hw]:
 				for cz: float in [-hd, hd]:
 					MeshKit.add_box(st, Transform3D(Basis(), Vector3(cx, y0 + H * 0.5, cz)),
@@ -84,7 +105,9 @@ static func build(seed_value: int, team: Color, floors: int, boarded: bool, rein
 				MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, band_y, hd + T * 0.5 + 0.03)), Vector3(W + T, 0.14, 0.04), Palette.METAL)
 				MeshKit.add_box(st, Transform3D(Basis(), Vector3(-hw - T * 0.5 - 0.03, band_y, 0)), Vector3(0.04, 0.14, D), Palette.METAL)
 				MeshKit.add_box(st, Transform3D(Basis(), Vector3(hw + T * 0.5 + 0.03, band_y, 0)), Vector3(0.04, 0.14, D), Palette.METAL)
-	if reinforced:
+	if reinforced and _style == 1:
+		_sandbags(st, rng)
+	elif reinforced:
 		# Stone skirt on the sides and back (the porch covers the front).
 		MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.3, hd + 0.3)), Vector3(W + 1.0, 0.6, 0.5), Palette.ROCK_B, 0.05, rng)
 		MeshKit.add_box(st, Transform3D(Basis(), Vector3(-hw - 0.3, 0.3, 0)), Vector3(0.5, 0.6, D + 0.6), Palette.ROCK_B, 0.05, rng)
@@ -92,8 +115,12 @@ static func build(seed_value: int, team: Color, floors: int, boarded: bool, rein
 	var roof_y := H * floors
 	if floors == 3:
 		_roof_deck(st, rng, roof_y)
+		if tower:
+			_tower(st, rng, roof_y)
 	else:
 		_pitched_roof(st, rng, roof_y)
+		if _style == 1:
+			_false_front(st, rng, roof_y, team)
 	_porch(st, rng, floors >= 2)
 	_furniture(st, rng, floors)
 	# Flag pole with team colour.
@@ -154,6 +181,20 @@ static func chimney_top(floors: int) -> Vector3:
 ## Shutters beside the front windows and a flower box under each.
 static func _window_dressing(st: SurfaceTool, rng: RandomNumberGenerator, floors: int, boarded: bool) -> void:
 	var hd := D * 0.5
+	if _style == 1:
+		# Striped canvas awnings over the front windows, and tin-can cactus pots.
+		for f in mini(floors, 2):
+			var y0 := H * f
+			for wx: float in [-2.2, 2.2]:
+				for k in 6:
+					var c := Color("#B8352A") if k % 2 == 0 else EAST_TRIM
+					MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.6), Vector3(wx - 0.55 + k * 0.22, y0 + 2.6, -hd - 0.45)), Vector3(0.22, 0.04, 0.8), c)
+				if f == 0 and not boarded:
+					for k in 2:
+						var px := wx - 0.25 + k * 0.5
+						MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(px, y0 + 1.2, -hd - 0.28)), 0.09, 0.09, 0.18, 10, TIN.lightened(0.2))
+						MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(px, y0 + 1.38, -hd - 0.28)), Vector3(0.07, 0.15, 0.07), 4, 8, Palette.CACTUS)
+		return
 	for f in mini(floors, 2):
 		var y0 := H * f
 		for wx: float in [-2.2, 2.2]:
@@ -194,9 +235,10 @@ static func _yard_details(st: SurfaceTool, rng: RandomNumberGenerator) -> void:
 ## [along_from, along_to, y_from, y_to] relative to the storey floor.
 static func _wall(st: SurfaceTool, rng: RandomNumberGenerator, along: Vector3, fixed: float,
 		a0: float, a1: float, y0: float, openings: Array) -> void:
-	var rows := int(round(H / LOG))
+	var row_h := LOG if _style == 0 else 0.25
+	var rows := int(round(H / row_h))
 	for r in rows:
-		var ry := r * LOG + LOG * 0.5
+		var ry := r * row_h + row_h * 0.5
 		var pieces: Array = [[a0, a1]]
 		for o: Array in openings:
 			if ry > float(o[2]) and ry < float(o[3]):
@@ -211,14 +253,21 @@ static func _wall(st: SurfaceTool, rng: RandomNumberGenerator, along: Vector3, f
 						next.append([o[1], p[1]])
 				pieces = next
 		var shade := Palette.WOOD if r % 2 == 0 else Palette.WOOD.darkened(0.08)
+		if _style == 1:
+			shade = EAST_PAINT.darkened(0.06 * float(r % 3)).lerp(EAST_PAINT.darkened(0.2), rng.randf() * 0.25)
 		for p: Array in pieces:
 			var len := float(p[1]) - float(p[0])
 			if len < 0.05:
 				continue
 			var mid := (float(p[0]) + float(p[1])) * 0.5
 			var pos := Vector3(mid, y0 + ry, fixed) if along == Vector3.RIGHT else Vector3(fixed, y0 + ry, mid)
-			var size := Vector3(len, LOG, T) if along == Vector3.RIGHT else Vector3(T, LOG, len)
-			MeshKit.add_box(st, Transform3D(Basis(), pos), size, shade, 0.02, rng)
+			var size := Vector3(len, row_h + 0.02, T) if along == Vector3.RIGHT else Vector3(T, row_h + 0.02, len)
+			MeshKit.add_box(st, Transform3D(Basis(), pos), size, shade, 0.02 if _style == 0 else 0.0, rng)
+	if _style == 1:
+		# White corner boards.
+		for a: float in [a0, a1]:
+			var cp := Vector3(a, y0 + H * 0.5, fixed) if along == Vector3.RIGHT else Vector3(fixed, y0 + H * 0.5, a)
+			MeshKit.add_box(st, Transform3D(Basis(), cp), Vector3(0.18, H, T + 0.06), EAST_TRIM)
 	# Frames around the openings.
 	for o: Array in openings:
 		var mid := (float(o[0]) + float(o[1])) * 0.5
@@ -226,7 +275,7 @@ static func _wall(st: SurfaceTool, rng: RandomNumberGenerator, along: Vector3, f
 		var lintel_pos := Vector3(mid, top_y + 0.06, fixed) if along == Vector3.RIGHT else Vector3(fixed, top_y + 0.06, mid)
 		var lintel := Vector3(float(o[1]) - float(o[0]) + 0.2, 0.12, T + 0.08) if along == Vector3.RIGHT \
 				else Vector3(T + 0.08, 0.12, float(o[1]) - float(o[0]) + 0.2)
-		MeshKit.add_box(st, Transform3D(Basis(), lintel_pos), lintel, Palette.WOOD_DARK)
+		MeshKit.add_box(st, Transform3D(Basis(), lintel_pos), lintel, Palette.WOOD_DARK if _style == 0 else EAST_TRIM)
 
 
 static func _floor_with_hole(st: SurfaceTool, rng: RandomNumberGenerator, y: float) -> void:
@@ -279,6 +328,20 @@ static func _boards(st: SurfaceTool, rng: RandomNumberGenerator, along: Vector3,
 	var mid := (a0 + a1) * 0.5
 	var y_from := y0 + float(o[2])
 	var y_to := y0 + float(o[3])
+	if _style == 1:
+		# A corrugated tin sheet riveted over the window.
+		var size := Vector3(a1 - a0, y_to - y_from + 0.2, 0.04) if along == Vector3.RIGHT else Vector3(0.04, y_to - y_from + 0.2, a1 - a0)
+		var c := Vector3(mid, (y_from + y_to) * 0.5, fixed) if along == Vector3.RIGHT else Vector3(fixed, (y_from + y_to) * 0.5, mid)
+		MeshKit.add_box(st, Transform3D(Basis(Vector3.FORWARD if along == Vector3.RIGHT else Vector3.RIGHT, rng.randf_range(-0.05, 0.05)), c), size, TIN.darkened(rng.randf() * 0.15))
+		for k in 7:
+			var u := lerpf(a0 + 0.1, a1 - 0.1, float(k) / 6.0)
+			var rp := Vector3(u, c.y, fixed - signf(-fixed) * 0.0) if along == Vector3.RIGHT else Vector3(fixed, c.y, u)
+			MeshKit.add_box(st, Transform3D(Basis(), rp), Vector3(0.03, size.y - 0.05, 0.05) if along == Vector3.RIGHT else Vector3(0.05, size.y - 0.05, 0.03), TIN.lightened(0.12))
+		for cy: float in [y_from - 0.02, y_to + 0.02]:
+			for ca: float in [a0 + 0.06, a1 - 0.06]:
+				var rv := Vector3(ca, cy, fixed) if along == Vector3.RIGHT else Vector3(fixed, cy, ca)
+				MeshKit.add_ellipsoid(st, Transform3D(Basis(), rv), Vector3.ONE * 0.035, 3, 6, Palette.METAL.darkened(0.3))
+		return
 	var n := 3
 	for i in n:
 		var yy := lerpf(y_from + 0.2, y_to - 0.2, float(i) / float(n - 1))
@@ -301,6 +364,16 @@ static func _pitched_roof(st: SurfaceTool, rng: RandomNumberGenerator, h: float)
 	for side: float in [-1.0, 1.0]:
 		var b := Basis(Vector3.BACK, -side * roof_angle)
 		var center := Vector3(side * half_span * 0.5, h + tan(roof_angle) * half_span * 0.5 + 0.1, 0)
+		if _style == 1:
+			# Corrugated tin: ridges running down the slope, a few rust streaks.
+			MeshKit.add_box(st, Transform3D(b, center), Vector3(slab_len, 0.12, D + 1.6), TIN, 0.0, rng)
+			for k in 22:
+				var z := lerpf(-(D + 1.4) * 0.5, (D + 1.4) * 0.5, float(k) / 21.0)
+				MeshKit.add_box(st, Transform3D(b, center + Vector3(0, 0.07, z)), Vector3(slab_len, 0.04, 0.06), TIN.lightened(0.1))
+			for k in 4:
+				var z := rng.randf_range(-D * 0.5, D * 0.5)
+				MeshKit.add_box(st, Transform3D(b, center + b * Vector3(rng.randf_range(-0.6, 0.6), 0.08, 0) + Vector3(0, 0, z)), Vector3(slab_len * 0.4, 0.02, 0.18), Color("#9A5A34"))
+			continue
 		MeshKit.add_box(st, Transform3D(b, center), Vector3(slab_len, 0.2, D + 1.6), Palette.ROOF.darkened(0.15), 0.02, rng)
 		var rows := 7
 		for r in rows:
@@ -313,8 +386,15 @@ static func _pitched_roof(st: SurfaceTool, rng: RandomNumberGenerator, h: float)
 		var peak := Vector3(0, h + tan(roof_angle) * (W * 0.5), gz)
 		var n := Vector3(0, 0, signf(gz))
 		MeshKit.tri(st, Vector3(-W * 0.5, h, gz), Vector3(W * 0.5, h, gz), peak, n, n, n,
-				MeshKit.vcol(Palette.WOOD.lightened(0.05)), n)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(W * 0.3, h + 1.8, D * 0.15)), Vector3(0.7, 2.2, 0.7), Palette.ROCK_B, 0.04, rng)
+				MeshKit.vcol(Palette.WOOD.lightened(0.05) if _style == 0 else EAST_PAINT), n)
+	if _style == 1:
+		# Stovepipe with a rain cap.
+		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(W * 0.3, h + 1.7, D * 0.15)), 0.18, 0.18, 2.4, 10, Palette.METAL.darkened(0.25))
+		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(W * 0.3, h + 3.0, D * 0.15)), 0.34, 0.0, 0.25, 10, Palette.METAL.darkened(0.1))
+		for y: float in [h + 1.2, h + 2.2]:
+			MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(W * 0.3, y, D * 0.15)), 0.2, 0.2, 0.05, 10, Palette.METAL.darkened(0.4))
+	else:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(W * 0.3, h + 1.8, D * 0.15)), Vector3(0.7, 2.2, 0.7), Palette.ROCK_B, 0.04, rng)
 
 
 ## Flat lookout deck with a railing and the stair hatch at the back.
@@ -351,7 +431,7 @@ static func _porch(st: SurfaceTool, rng: RandomNumberGenerator, balcony: bool) -
 			MeshKit.add_box(st, Transform3D(Basis(), Vector3(x, H + 0.5, -hd - PORCH_DEPTH)), Vector3(0.07, 0.8, 0.07), Palette.WOOD)
 	else:
 		MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, deg_to_rad(-12.0)), Vector3(0, 2.55, -hd - 1.2)),
-				Vector3(W + 0.4, 0.15, 2.6), Palette.ROOF.darkened(0.1), 0.03, rng)
+				Vector3(W + 0.4, 0.15, 2.6), Palette.ROOF.darkened(0.1) if _style == 0 else TIN, 0.03, rng)
 
 
 static func _furniture(st: SurfaceTool, rng: RandomNumberGenerator, floors: int) -> void:
@@ -379,3 +459,115 @@ static func _furniture(st: SurfaceTool, rng: RandomNumberGenerator, floors: int)
 		for c in 3:
 			MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, rng.randf_range(-0.3, 0.3)), Vector3(1.8 + c * 0.6, y3 + 0.35, -1.5 + (c % 2) * 0.7)),
 					Vector3(0.7, 0.7, 0.7), Palette.WOOD, 0.03, rng)
+
+
+## East style reinforcement: riveted steel plates on the corners and a riveted strip.
+static func _steel_plates(st: SurfaceTool, y0: float) -> void:
+	var hw := W * 0.5
+	var hd := D * 0.5
+	var steel := Palette.METAL.darkened(0.05)
+	for cx: float in [-hw, hw]:
+		for cz: float in [-hd, hd]:
+			MeshKit.add_box(st, Transform3D(Basis(), Vector3(cx, y0 + H * 0.5, cz)), Vector3(T + 0.5, H, T + 0.5), steel)
+			for k in 5:
+				var y := y0 + 0.3 + k * (H - 0.6) / 4.0
+				MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(cx + signf(cx) * (T * 0.5 + 0.26), y, cz)), Vector3.ONE * 0.05, 3, 6, steel.lightened(0.25))
+				MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(cx, y, cz + signf(cz) * (T * 0.5 + 0.26))), Vector3.ONE * 0.05, 3, 6, steel.lightened(0.25))
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, y0 + 1.0, hd + T * 0.5 + 0.03)), Vector3(W, 0.3, 0.04), steel)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(-hw - T * 0.5 - 0.03, y0 + 1.0, 0)), Vector3(0.04, 0.3, D), steel)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(hw + T * 0.5 + 0.03, y0 + 1.0, 0)), Vector3(0.04, 0.3, D), steel)
+
+
+## East style reinforcement: two rows of sandbags along the sides and back.
+static func _sandbags(st: SurfaceTool, rng: RandomNumberGenerator) -> void:
+	var hw := W * 0.5 + 0.45
+	var hd := D * 0.5 + 0.45
+	var bag := Color("#C8A878")
+	var runs: Array = [[Vector3(-hw, 0, hd), Vector3(hw, 0, hd)], [Vector3(-hw, 0, -hd + 0.6), Vector3(-hw, 0, hd)], [Vector3(hw, 0, -hd + 0.6), Vector3(hw, 0, hd)]]
+	for run: Array in runs:
+		var a: Vector3 = run[0]
+		var b: Vector3 = run[1]
+		var n := int(a.distance_to(b) / 0.6)
+		var dir := (b - a).normalized()
+		var yaw := atan2(dir.x, dir.z)
+		for layer in 2:
+			for i in n:
+				var p := a.lerp(b, (float(i) + 0.5 + 0.5 * layer) / float(n + layer))
+				MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.UP, yaw + PI * 0.5 + rng.randf_range(-0.1, 0.1)), p + Vector3(0, 0.15 + layer * 0.26, 0)),
+						Vector3(0.32, 0.14, 0.2), 3, 8, bag.darkened(rng.randf() * 0.12))
+
+
+## East style false front: a tall painted facade over the front wall with a sign.
+static func _false_front(st: SurfaceTool, rng: RandomNumberGenerator, h: float, team: Color) -> void:
+	var hd := D * 0.5 + T * 0.5 + 0.05
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, h + 1.1, -hd)), Vector3(W + T + 0.3, 2.2, 0.16), EAST_PAINT.darkened(0.08), 0.0, rng)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, h + 2.45, -hd)), Vector3(3.2, 0.5, 0.16), EAST_PAINT.darkened(0.08))
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, h + 2.72, -hd)), Vector3(3.5, 0.08, 0.26), EAST_TRIM)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, h + 2.22, -hd)), Vector3(W + T + 0.5, 0.08, 0.26), EAST_TRIM)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, h + 1.15, -hd - 0.1)), Vector3(4.2, 0.9, 0.05), team.darkened(0.15))
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, h + 1.15, -hd - 0.12)), Vector3(3.6, 0.12, 0.03), EAST_TRIM)
+
+
+## The zip-line tower: four posts up from the roof deck to a railed platform
+## with a little peaked roof, cross braces on three sides, and a ladder up the
+## front face. Timber for West, steel for East.
+static func _tower(st: SurfaceTool, rng: RandomNumberGenerator, h: float) -> void:
+	var post := Palette.WOOD if _style == 0 else Palette.METAL.darkened(0.15)
+	var c := Vector3(TOWER_X, h, TOWER_Z)
+	var s := TOWER_HALF
+	var top := h + TOWER_H
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			MeshKit.add_box(st, Transform3D(Basis(), c + Vector3(sx * s, TOWER_H * 0.5, sz * s)), Vector3(0.18, TOWER_H, 0.18), post, 0.02, rng)
+	# Braces on the back and sides (the front face carries the ladder).
+	for face: Array in [[Vector3(-s, 0, s), Vector3(s, 0, s)], [Vector3(-s, 0, -s), Vector3(-s, 0, s)], [Vector3(s, 0, -s), Vector3(s, 0, s)]]:
+		var a: Vector3 = face[0]
+		var b: Vector3 = face[1]
+		for k in 3:
+			var y0 := 0.3 + k * (TOWER_H - 0.6) / 3.0
+			var y1 := y0 + (TOWER_H - 0.6) / 3.0
+			MeshKit.add_limb(st, c + a + Vector3(0, y0, 0), c + b + Vector3(0, y1, 0), 0.05, post.darkened(0.1), 5)
+			MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, atan2((b - a).x, (b - a).z) + PI * 0.5), c + (a + b) * 0.5 + Vector3(0, y1, 0)), Vector3(2.0 * s, 0.1, 0.1), post)
+	# Ladder up the front face.
+	var lz := c.z - s - 0.12
+	for lx: float in [-0.25, 0.25]:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(c.x + lx, h + TOWER_H * 0.5 - 0.1, lz)), Vector3(0.06, TOWER_H - 0.2, 0.06), Palette.WOOD_DARK)
+	var rungs := int(TOWER_H / 0.35)
+	for k in rungs:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(c.x, h + 0.3 + k * 0.35, lz)), Vector3(0.5, 0.05, 0.05), Palette.WOOD_DARK)
+	# Platform with a railing (gap over the ladder).
+	var ps := s + 0.35
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(c.x, top, c.z)), Vector3(ps * 2.0, 0.2, ps * 2.0), Palette.WOOD_DARK, 0.02, rng)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(c.x, top + 0.55, c.z + ps)), Vector3(ps * 2.0, 0.08, 0.08), post)
+	for sx: float in [-1.0, 1.0]:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(c.x + sx * ps, top + 0.55, c.z)), Vector3(0.08, 0.08, ps * 2.0), post)
+		# Front rail, with a wide gap over the ladder to step through.
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(c.x + sx * (ps + 0.7) * 0.5, top + 0.55, c.z - ps)), Vector3(ps - 0.7, 0.08, 0.08), post)
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			MeshKit.add_box(st, Transform3D(Basis(), Vector3(c.x + sx * ps, top + 1.2, c.z + sz * ps)), Vector3(0.1, 2.4, 0.1), post)
+	# Peaked roof (shingle or tin).
+	var roof_c := Palette.ROOF if _style == 0 else TIN
+	for sx: float in [-1.0, 1.0]:
+		MeshKit.add_box(st, Transform3D(Basis(Vector3.BACK, -sx * 0.45), Vector3(c.x + sx * ps * 0.5, top + 2.65, c.z)), Vector3(ps * 1.25, 0.1, ps * 2.3), roof_c, 0.02, rng)
+	# Zip-line bracket and pulley at the front.
+	var a := zip_anchor(h)
+	MeshKit.add_box(st, Transform3D(Basis(), a + Vector3(0, 0.1, 0.3)), Vector3(0.12, 0.12, 0.8), Palette.METAL.darkened(0.2))
+	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), a), 0.12, 0.12, 0.08, 12, Color("#D6A74A"))
+
+
+## House-space point where the zip-line cable is tied (front of the tower top),
+## for a house with its roof deck at height h (= H * 3).
+static func zip_anchor(h: float = H * 3.0) -> Vector3:
+	# Off to the side of the ladder, so climbers don't bump their heads on it.
+	return Vector3(TOWER_X - 0.8, h + TOWER_H + 2.4, TOWER_Z - TOWER_HALF - 0.45)
+
+
+## Where a rider lands on the tower platform.
+static func zip_arrival(h: float = H * 3.0) -> Vector3:
+	return Vector3(TOWER_X, h + TOWER_H + 0.15, TOWER_Z)
+
+
+## The tower ladder's climbing zone (centre and size), house space.
+static func tower_ladder_box(h: float = H * 3.0) -> AABB:
+	return AABB(Vector3(TOWER_X - 0.5, h + 0.1, TOWER_Z - TOWER_HALF - 0.9), Vector3(1.0, TOWER_H + 0.3, 0.75))

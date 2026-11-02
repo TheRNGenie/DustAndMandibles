@@ -88,7 +88,7 @@ static func turret_accuracy(k: int) -> float:
 static func turret_range(k: int, lit: bool = false) -> float:
 	match k:
 		Kind.DUST_STORM:
-			return 0.55
+			return 0.8 if lit else 0.55
 		Kind.FOG:
 			return 1.0 if lit else 0.65
 	return 1.0

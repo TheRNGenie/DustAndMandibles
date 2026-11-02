@@ -13,6 +13,7 @@ const UPGRADES: Array[Dictionary] = [
 	{"id": &"reinforce", "name": "Reinforce the walls", "cost": {&"scrap": 80, &"chitin": 10}, "desc": "Iron bands and a stone skirt: +250 max HP."},
 	{"id": &"floor2", "name": "Build a second floor", "cost": {&"scrap": 120, &"chitin": 15}, "desc": "Adds a storey and a front balcony with 2 house turret mounts."},
 	{"id": &"floor3", "name": "Build a lookout floor", "cost": {&"scrap": 180, &"chitin": 30}, "desc": "Adds a top storey and a railed roof deck with 2 more mounts."},
+	{"id": &"tower", "name": "Build a zip-line tower", "cost": {&"scrap": 220, &"chitin": 40}, "desc": "A tall lookout tower on the roof deck. Once both houses have one, a zip line joins them across the canyon."},
 ]
 const BOARDED_DAMAGE := 0.7
 const REINFORCE_HP := 250.0
@@ -25,6 +26,9 @@ var radius: float = 4.5
 var floors := 1
 var boarded := false
 var reinforced := false
+var tower := false
+var _ladder: Area3D
+var _handle: ZipHandle
 var _hit_cooldown := 0.0
 var _mi: MeshInstance3D
 var _col: CollisionShape3D
@@ -135,9 +139,10 @@ func _puff() -> void:
 
 
 func _rebuild() -> void:
-	var mesh := HouseBuilder.build(100 + cliff_id, Palette.team_color(cliff_id), floors, boarded, reinforced)
+	var mesh := HouseBuilder.build(100 + cliff_id, Palette.team_color(cliff_id), floors, boarded, reinforced, false, tower, cliff_id)
 	_mi.mesh = mesh
-	_col.shape = HouseBuilder.build(100 + cliff_id, Color.WHITE, floors, boarded, reinforced, true).create_trimesh_shape()
+	_col.shape = HouseBuilder.build(100 + cliff_id, Color.WHITE, floors, boarded, reinforced, true, tower, cliff_id).create_trimesh_shape()
+	_build_tower_bits()
 	if _flag == null:
 		_flag = _make_flag()
 		add_child(_flag)
@@ -156,6 +161,44 @@ func _rebuild() -> void:
 		l.position = Vector3(0, HouseBuilder.H * _lights.size() + 2.4, 0)
 		add_child(l)
 		_lights.append(l)
+
+
+## The tower's ladder zone and the zip-line handle (only once the tower is up).
+func _build_tower_bits() -> void:
+	if not tower or _ladder != null:
+		return
+	_ladder = Area3D.new()
+	_ladder.collision_layer = 0
+	_ladder.collision_mask = 0xFFFF
+	var box := HouseBuilder.tower_ladder_box()
+	var lcol := CollisionShape3D.new()
+	var lshape := BoxShape3D.new()
+	lshape.size = box.size
+	lcol.shape = lshape
+	lcol.position = box.get_center()
+	_ladder.add_child(lcol)
+	add_child(_ladder)
+	_ladder.body_entered.connect(func(b: Node3D) -> void:
+		if b is Player:
+			(b as Player).ladder_count += 1
+			(b as Player).ladder_top_y = to_global(HouseBuilder.zip_arrival()).y)
+	_ladder.body_exited.connect(func(b: Node3D) -> void:
+		if b is Player:
+			(b as Player).ladder_count = maxi((b as Player).ladder_count - 1, 0))
+	_handle = ZipHandle.new()
+	_handle.home = self
+	# Beside the ladder gap on the front rail, not in the way of climbers.
+	_handle.position = HouseBuilder.zip_anchor() + Vector3(0.05, -1.5, 0.55)
+	add_child(_handle)
+
+
+## Global points for the zip line: the cable tie and the landing spot.
+func zip_anchor_global() -> Vector3:
+	return to_global(HouseBuilder.zip_anchor())
+
+
+func zip_arrival_global() -> Vector3:
+	return to_global(HouseBuilder.zip_arrival())
 
 
 func mount_count() -> int:
@@ -186,6 +229,11 @@ func can_offer(id: StringName) -> String:
 				return "Already built."
 			if floors < 2:
 				return "Build the second floor first."
+		&"tower":
+			if tower:
+				return "Already built."
+			if floors < 3:
+				return "Build the lookout floor first."
 	return ""
 
 
@@ -204,30 +252,40 @@ func buy(peer_id: int, index: int) -> void:
 	if not Economy.spend(cliff_id, u["cost"]):
 		Economy.notify(peer_id, "Not enough for %s (%s)." % [str(u["name"]).to_lower(), cost_text(u["cost"])])
 		return
+	# Work out the new state and let _set_state apply it everywhere (the host
+	# included), so every peer sees the change and rebuilds the house.
+	var f := floors
+	var b := boarded
+	var r := reinforced
+	var tw := tower
 	match u["id"]:
 		&"patch":
 			GameState.heal_homestead(cliff_id, PATCH_HP)
 		&"board":
-			boarded = true
+			b = true
 		&"reinforce":
-			reinforced = true
+			r = true
 			GameState.raise_homestead_max(cliff_id, REINFORCE_HP)
 		&"floor2":
-			floors = 2
+			f = 2
 		&"floor3":
-			floors = 3
-	_set_state.rpc(floors, boarded, reinforced)
+			f = 3
+		&"tower":
+			tw = true
+	_set_state.rpc(f, b, r, tw)
 	Economy.notify_cliff(cliff_id, "Homestead: %s done." % str(u["name"]).to_lower())
 
 
 @rpc("authority", "call_local", "reliable")
-func _set_state(f: int, b: bool, r: bool) -> void:
-	var changed := f != floors or b != boarded or r != reinforced
+func _set_state(f: int, b: bool, r: bool, tw: bool = false) -> void:
+	var changed := f != floors or b != boarded or r != reinforced or tw != tower
 	floors = f
 	boarded = b
 	reinforced = r
+	tower = tw
 	if changed:
 		_rebuild()
+		ZipLine.refresh(get_tree())
 	var ledger := get_node_or_null("Ledger") as HouseLedger
 	if ledger != null:
 		ledger.notify_changed()

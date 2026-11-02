@@ -119,6 +119,13 @@ class ItemIcon extends Control:
 			&"chili":
 				_poly([c + Vector2(-s * 0.2, -s * 0.6), c + Vector2(s * 0.25, -s * 0.5), c + Vector2(s * 0.35, s * 0.2), c + Vector2(-s * 0.2, s * 0.9), c + Vector2(-s * 0.35, s * 0.1)], Color("#E3361F"))
 				draw_line(c + Vector2(0, -s * 0.6), c + Vector2(s * 0.2, -s * 0.95), Palette.CACTUS, 3.0)
+			&"lighter":
+				# A Zippo with its lid flipped open and a little flame.
+				draw_rect(Rect2(c + Vector2(-s * 0.35, -s * 0.05), Vector2(s * 0.7, s * 0.85)), Palette.METAL.lightened(0.3), true)
+				draw_rect(Rect2(c + Vector2(-s * 0.35, -s * 0.05), Vector2(s * 0.7, s * 0.85)), dark, false, 2.0)
+				_poly([c + Vector2(s * 0.35, -s * 0.05), c + Vector2(s * 0.85, -s * 0.45), c + Vector2(s * 0.75, -s * 0.6), c + Vector2(s * 0.25, -s * 0.2)], Palette.METAL.lightened(0.15))
+				draw_rect(Rect2(c + Vector2(-s * 0.22, -s * 0.3), Vector2(s * 0.44, s * 0.25)), Palette.METAL, true)
+				_poly([c + Vector2(0, -s * 0.95), c + Vector2(s * 0.14, -s * 0.5), c + Vector2(0, -s * 0.38), c + Vector2(-s * 0.14, -s * 0.5)], Color("#FF8A2A"))
 			&"grapple":
 				# Stubby brass launcher with a three-pronged hook in the muzzle.
 				draw_rect(Rect2(c + Vector2(-s * 0.7, -s * 0.2), Vector2(s * 1.2, s * 0.4)), Color("#D6A74A"), true)

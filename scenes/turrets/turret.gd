@@ -196,7 +196,10 @@ func _valid(b: Bug) -> bool:
 	elif not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing()):
 		return false
 	var muzzle := _head.global_position
-	if not Targeting.in_arc(muzzle, b.global_position, pitch_limit(), def.range * range_multiplier() * weather_range()):
+	var seen := weather_range()
+	if seen < 1.0 and _lit_near(b.global_position):
+		seen = 1.0 # a lantern or a lit lighter shows this bug through the murk
+	if not Targeting.in_arc(muzzle, b.global_position, pitch_limit(), def.range * range_multiplier() * seen):
 		return false
 	var q := PhysicsRayQueryParameters3D.create(muzzle, b.global_position, WorldLayout.LAYER_WORLD)
 	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
@@ -210,12 +213,21 @@ func pitch_limit() -> float:
 ## How far the weather lets this turret see (fog: unless a lantern is near).
 func weather_range() -> float:
 	var w := GameState.weather
-	if w != Weather.Kind.FOG:
+	if w != Weather.Kind.FOG and w != Weather.Kind.DUST_STORM:
 		return Weather.turret_range(w)
 	for l: Node in get_tree().get_nodes_in_group("lanterns"):
 		if (l as Node3D).global_position.distance_to(global_position) < Weather.LANTERN_FOG_RADIUS:
 			return Weather.turret_range(w, true)
 	return Weather.turret_range(w)
+
+
+## Is `pos` lit by a lantern post or someone's lit Zippo?
+func _lit_near(pos: Vector3) -> bool:
+	for l: Node in get_tree().get_nodes_in_group("lanterns"):
+		var n := l as Node3D
+		if n.global_position.distance_to(pos) < float(n.call("reveal_radius")):
+			return true
+	return false
 
 
 func range_multiplier() -> float:

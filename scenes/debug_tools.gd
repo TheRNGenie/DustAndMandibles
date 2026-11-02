@@ -26,6 +26,8 @@ func _ready() -> void:
 		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
+	elif GameState.has_flag("--ziptest"):
+		_zip_test()
 	elif GameState.has_flag("--grappletest"):
 		_grapple_test()
 	elif GameState.flag_value("--stress") != "":
@@ -368,6 +370,9 @@ func _take_screenshot(path: String) -> void:
 		var wid := StringName(GameState.flag_value("--weapon"))
 		player.gun.grant(wid, 0)
 		player.gun.equip(wid)
+	if GameState.has_flag("--lighter") and player != null:
+		player.gun.hold_item(&"lighter")
+		player.lighter.debug_light()
 	if GameState.has_flag("--grapple") and player != null:
 		# Hold the grapple and hang a rope off the windmill-ish spot ahead.
 		player.grapple.test_mode = true
@@ -680,4 +685,43 @@ func _grapple_test() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	print("[grapple] swing: rope %.1f m, worst stretch %.2f m, lowest point %.1f m below the anchor, released: %s" % [rope, max_err, anchor.y - lowest, not g.is_active()])
+	get_tree().quit()
+
+
+## --ziptest: both houses get towers; the local player climbs the west tower's
+## ladder, rides the zip line to the east tower and the run is logged.
+func _zip_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	for cid in 2:
+		Homestead.of(cid)._set_state(3, false, false, true)
+	await get_tree().physics_frame
+	var line := ZipLine.current(get_tree())
+	print("[zip] line exists: %s, span %.1f m" % [line != null, line.a.distance_to(line.b) if line != null else 0.0])
+	var player := world.call("local_player") as Player
+	var home := Homestead.of(player.cliff_id)
+	# Ladder: stand at its foot on the roof deck and hold forward.
+	var box := HouseBuilder.tower_ladder_box()
+	player.global_position = home.to_global(Vector3(box.get_center().x, HouseBuilder.H * 3.0 + 0.3, box.position.z - 0.2))
+	player.look_at(home.to_global(Vector3(HouseBuilder.TOWER_X, HouseBuilder.H * 3.0 + 0.3, HouseBuilder.TOWER_Z)), Vector3.UP)
+	player.rotation.x = 0.0
+	player.rotation.z = 0.0
+	Input.action_press("move_forward")
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 5000:
+		await get_tree().physics_frame
+	Input.action_release("move_forward")
+	for i in 20:
+		await get_tree().physics_frame
+	var local := home.to_local(player.global_position)
+	print("[zip] after the ladder: local %s (platform top %.1f), on floor %s" % [str(local.snapped(Vector3.ONE * 0.1)), HouseBuilder.zip_arrival().y, player.is_on_floor()])
+	var other := Homestead.of(WorldLayout.other_cliff(player.cliff_id))
+	player.start_zip(line, player.cliff_id == WorldLayout.WEST, other.zip_arrival_global())
+	var t := 0.0
+	var lowest := INF
+	while player.is_ziplining() and t < 15.0:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		lowest = minf(lowest, player.global_position.y)
+	print("[zip] ride took %.1f s, lowest %.1f m, landed %.1f m from the far platform" % [t, lowest, player.global_position.distance_to(other.zip_arrival_global())])
 	get_tree().quit()

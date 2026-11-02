@@ -201,7 +201,7 @@ func _build_environment() -> void:
 	env.ambient_light_color = Color("#B08AB8")
 	env.ambient_light_energy = 0.95
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
-	env.fog_enabled = true
+	env.fog_enabled = not GameState.has_flag("--nofog")
 	env.fog_light_color = Palette.SKY_HORIZON
 	env.fog_density = 0.0032
 	env.fog_sky_affect = 0.0
@@ -219,6 +219,13 @@ func _build_environment() -> void:
 	sun.light_energy = 1.25
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 160.0
+	# Blend between shadow cascades and push shadows off surfaces a bit more, so
+	# there's no hard-edged ring on the ground a few metres around the camera.
+	sun.directional_shadow_blend_splits = true
+	sun.shadow_normal_bias = 2.5
+	sun.shadow_bias = 0.08
+	sun.directional_shadow_fade_start = 0.6
+	sun.shadow_blur = 1.5
 	sun.rotation_degrees = Vector3(-42.0, -35.0, 0.0)
 	add_child(sun)
 	_sun = sun
@@ -235,7 +242,7 @@ func _build_environment() -> void:
 func _apply_settings() -> void:
 	_env.adjustment_enabled = true
 	_env.adjustment_brightness = Settings.brightness
-	_sun.shadow_enabled = Settings.shadows
+	_sun.shadow_enabled = Settings.shadows and not GameState.has_flag("--noshadow")
 	if players_root == null:
 		return
 	var p := local_player()

@@ -446,3 +446,21 @@ func _shot_scrap() -> void:
 	var look := pile.global_position + Vector3(0, 1.0, 0)
 	_dur = 3.0
 	_keys = [[0.0, eye, look], [3.0, eye, look]]
+
+
+## Both houses fully upgraded (towers and the zip line); --side=0 or 1 picks
+## which one the camera looks at, --plain=1 shows them unupgraded.
+func _shot_houses() -> void:
+	_set_time(9.5)
+	var plain := GameState.flag_value("--plain") == "1"
+	for cid in 2:
+		if plain:
+			Homestead.of(cid)._set_state(1, false, false, false)
+		else:
+			Homestead.of(cid)._set_state(3, true, true, true)
+	var side := int(GameState.flag_value("--side"))
+	var home := Homestead.of(side)
+	var eye := home.to_global(Vector3(-9.0, 7.0, -16.0))
+	var look := home.to_global(Vector3(0.5, 6.0 if not plain else 2.5, 0.0))
+	_dur = 3.0
+	_keys = [[0.0, eye, look], [3.0, eye, look]]

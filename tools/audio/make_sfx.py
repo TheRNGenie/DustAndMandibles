@@ -429,6 +429,43 @@ def water_pour(rng):
     return lowpass(out, 4000)
 
 
+def zippo_open(rng):
+    """The famous Zippo 'ting': a click, then a bright ringing ping."""
+    length = 0.6
+    n = int(SR * length)
+    t = t_axis(length)
+    out = place(np.zeros(n), click(rng, 0.008, 3000) * 0.8, 0.0)
+    ring = np.zeros(n)
+    for f, a, d in [(3150, 1.0, 0.09), (4720, 0.5, 0.06), (6900, 0.3, 0.04)]:
+        ring += a * np.sin(2 * np.pi * f * t) * np.exp(-t / d)
+    return out + ring * 0.5 * (t > 0.004)
+
+
+def zippo_close(rng):
+    """Snapping the lid shut: a dull metal clack."""
+    length = 0.25
+    n = int(SR * length)
+    t = t_axis(length)
+    clack = bandpass(rng.standard_normal(n), 1200, 5000) * env(n, 0.0005, 0.015)
+    body = np.sin(2 * np.pi * 1450 * t) * np.exp(-t / 0.02) * 0.4
+    return clack + body
+
+
+def zippo_strike(rng):
+    """Thumb on the flint wheel: a gritty scrape, then the flame catching."""
+    length = 0.7
+    n = int(SR * length)
+    t = t_axis(length)
+    scrape = np.zeros(n)
+    for _ in range(40):
+        i = int(SR * rng.uniform(0.0, 0.12))
+        ln = int(SR * 0.004)
+        scrape[i:i + ln] += rng.standard_normal(ln) * rng.uniform(0.3, 1.0)
+    scrape = bandpass(scrape, 2500, 9000)
+    whoosh = lowpass(rng.standard_normal(n), 900) * np.clip((t - 0.1) / 0.05, 0, 1) * np.exp(-np.clip(t - 0.15, 0, None) / 0.18)
+    return scrape + whoosh * 0.7
+
+
 def thunder(rng):
     """A close lightning strike: a sharp crack, then a long rolling rumble."""
     length = 3.5
@@ -478,6 +515,10 @@ def main():
     # Farming.
     save("rustle", rustle(rng), 0.7)
     save("water_pour", water_pour(rng), 0.6)
+    # Zippo.
+    save("zippo_open", zippo_open(rng), 0.6)
+    save("zippo_close", zippo_close(rng), 0.6)
+    save("zippo_strike", zippo_strike(rng), 0.6)
 
 
 if __name__ == "__main__":
