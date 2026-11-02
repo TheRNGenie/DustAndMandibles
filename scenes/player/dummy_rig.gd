@@ -184,7 +184,14 @@ func set_weapon(id: StringName) -> void:
 	if id == _weapon:
 		return
 	_weapon = id
-	_gun_mi.mesh = WeaponBuilder.gun(id) if id != &"" else null
+	for c in _gun_mi.get_children():
+		c.queue_free()
+	var model := GunModels.whole(id, 0.006, not first_person) if id != &"" else null
+	if model != null:
+		_gun_mi.mesh = null
+		_gun_mi.add_child(model)
+	else:
+		_gun_mi.mesh = WeaponBuilder.gun(id) if id != &"" else null
 
 
 ## A shove (rock hit, explosion): the body tips away from `dir` and springs back.

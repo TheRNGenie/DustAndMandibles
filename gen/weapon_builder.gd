@@ -203,13 +203,15 @@ const HINGE := Vector3(0, -0.004, -0.055)
 ## Where each gun's left (support) hand rests, and where rounds go in.
 const LEFT_FIST: Dictionary = {&"revolver": Vector3(-0.022, -0.075, 0.07), &"lever_rifle": Vector3(-0.004, -0.016, -0.2),
 	&"coach_shotgun": Vector3(-0.004, -0.024, -0.15), &"blunderbuss": Vector3(-0.004, -0.03, -0.17),
-	&"crank_gatling": Vector3(-0.07, 0.02, -0.12)}
+	&"crank_gatling": Vector3(-0.062, 0.006, -0.22)}
 const LOAD_POINT: Dictionary = {&"revolver": Vector3(0.022, 0.03, 0.03), &"lever_rifle": Vector3(0.026, -0.004, -0.04),
 	&"coach_shotgun": Vector3(0.0, 0.03, -0.045), &"blunderbuss": Vector3(0.0, 0.05, -0.44),
 	&"crank_gatling": Vector3(0.0, 0.1, 0.03)}
 ## Crank Gatling: barrel spin axis origin and the crank's pivot (gun space).
 const GATLING_AXIS := Vector3(0, 0.0, -0.05)
 const GATLING_CRANK := Vector3(0.06, 0.0, 0.04)
+## The crank handle on the Meshy Gatling, where the right hand holds it.
+const GATLING_KNOB := Vector3(0.125, -0.078, -0.19)
 
 
 static func lever_rifle() -> ArrayMesh:
@@ -452,8 +454,9 @@ static func arm_right(id: StringName, look: Dictionary = {}) -> ArrayMesh:
 			sleeve(st, Vector3(0.03, -0.08, 0.12), Vector3(0.12, -0.33, 0.48), look)
 		&"crank_gatling":
 			# Right hand on the crank knob.
-			fist(st, GATLING_CRANK + Vector3(0.045, -0.07, 0.0), Vector3(1, 0, 0), Vector3(0, -0.3, 1), paint)
-			sleeve(st, GATLING_CRANK + Vector3(0.07, -0.11, 0.04), Vector3(0.16, -0.35, 0.45), look)
+			# On the crank handle at the side of the gear housing.
+			fist(st, GATLING_KNOB, Vector3(1, 0, 0), Vector3(0, -0.3, 1), paint)
+			sleeve(st, GATLING_KNOB + Vector3(0.025, -0.04, 0.04), Vector3(0.18, -0.35, 0.32), look)
 		_:
 			fist(st, Vector3(0.003, -0.05, 0.07), Vector3(0, 0.95, -0.35), Vector3(1, 0.1, 0.25), paint)
 			sleeve(st, Vector3(0.025, -0.1, 0.11), Vector3(0.1, -0.33, 0.45), look)
@@ -478,9 +481,10 @@ static func arm_left(id: StringName, look: Dictionary = {}, local: bool = false)
 			fist(st, o + Vector3(-0.004, -0.03, -0.17), Vector3(0, 0, -1), Vector3(-0.7, -1, 0), paint)
 			sleeve(st, o + Vector3(-0.035, -0.075, -0.13), o + Vector3(-0.2, -0.3, 0.1), look)
 		&"crank_gatling":
-			# Left hand on the side grip.
-			fist(st, o + Vector3(-0.07, 0.02, -0.12), Vector3(0, 1, 0), Vector3(-1, 0, 0.2), paint)
-			sleeve(st, o + Vector3(-0.08, -0.03, -0.1), o + Vector3(-0.24, -0.3, 0.12), look)
+			# Left hand over the barrel housing, steadying it.
+			var lf: Vector3 = LEFT_FIST[id]
+			fist(st, o + lf, Vector3(0, 0, -1), Vector3(-1, 0.4, 0), paint)
+			sleeve(st, o + lf + Vector3(-0.02, -0.04, 0.03), o + Vector3(-0.24, -0.3, 0.1), look)
 		_:
 			fist(st, o + Vector3(-0.022, -0.075, 0.07), Vector3(0, 0.6, -0.8), Vector3(-1, -0.3, 0.2), paint)
 			sleeve(st, o + Vector3(-0.05, -0.11, 0.1), o + Vector3(-0.22, -0.34, 0.36), look)

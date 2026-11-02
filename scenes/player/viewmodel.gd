@@ -61,6 +61,8 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 			barrels.position = WeaponBuilder.HINGE
 			add_child(barrels)
 			_mi(barrels, WeaponBuilder.shotgun_barrels())
+	if GunModels.has(id):
+		_use_model(body)
 	_right_mi = _mi(self, null)
 	left = Node3D.new()
 	left.position = WeaponBuilder.LEFT_FIST[id]
@@ -85,6 +87,29 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 		_flyer.visible = false
 		add_child(_flyer)
 	set_look(look)
+
+
+## Swap the code-built gun for the Meshy model: the body goes on this node, and
+## each moving part goes on its pivot (moved to the model's own hinge point).
+func _use_model(body: MeshInstance3D) -> void:
+	body.mesh = null
+	add_child(GunModels.make(id))
+	for pair: Array in [[lever, "lever"], [barrels, "barrels"], [spinner, "barrels"]]:
+		var node: Node3D = pair[0]
+		if node == null:
+			continue
+		for c in node.get_children():
+			c.queue_free()
+		var part := GunModels.make(id, pair[1])
+		if part != null:
+			node.position = GunModels.pivot(id, pair[1])
+			part.position = -node.position
+			node.add_child(part)
+	# The model's cylinder and crank are part of its body (they don't turn).
+	if drum != null:
+		drum.visible = false
+	if crank != null:
+		crank.visible = false
 
 
 func set_look(look: Dictionary) -> void:

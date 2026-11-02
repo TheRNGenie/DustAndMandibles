@@ -502,6 +502,8 @@ func _take_screenshot(path: String) -> void:
 		lt.autostart = true
 		add_child(lt)
 		lt.timeout.connect(func() -> void: player.whip.lash())
+	if GameState.flag_value("--hold") != "" and player != null:
+		player.gun.hold_item(StringName(GameState.flag_value("--hold")))
 	if GameState.has_flag("--lighter") and player != null:
 		player.gun.hold_item(&"lighter")
 		player.lighter.debug_light()

@@ -18,6 +18,8 @@ const HATS := {
 	&"cattleman": ["res://assets/rigged/hat_cattleman.glb", 0.15],
 	&"ten_gallon": ["res://assets/rigged/hat_ten_gallon.glb", 0.15],
 	&"gambler": ["res://assets/rigged/hat_gambler.glb", 0.16],
+	&"bowler": ["res://assets/rigged/hat_bowler.glb", 0.16],
+	&"sombrero": ["res://assets/rigged/hat_sombrero.glb", 0.07],
 }
 const TOON_TEX := preload("res://shaders/toon_tex.gdshader")
 ## The procedural rig's hip height at rest; the model's hips follow changes to it.

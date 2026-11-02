@@ -23,6 +23,7 @@ var _model: Node3D
 var _lid: Node3D
 var _flame: MeshInstance3D
 var _light: OmniLight3D
+var _side_hinge := false
 
 
 func _ready() -> void:
@@ -40,11 +41,21 @@ func _ready() -> void:
 	_lid = Node3D.new()
 	_lid.position = WeaponBuilder.ZIPPO_HINGE
 	_model.add_child(_lid)
-	var lid := MeshInstance3D.new()
-	lid.mesh = WeaponBuilder.zippo_lid()
-	lid.material_override = mat
-	lid.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_lid.add_child(lid)
+	if GunModels.has(&"zippo") and GunModels.has(&"zippo", "lid"):
+		# The Meshy lighter: hinged on its side, so the lid swings over sideways.
+		body.mesh = null
+		body.add_child(GunModels.make(&"zippo"))
+		_lid.position = GunModels.pivot(&"zippo", "lid")
+		var mlid := GunModels.make(&"zippo", "lid")
+		mlid.position = -_lid.position
+		_lid.add_child(mlid)
+		_side_hinge = true
+	else:
+		var lid := MeshInstance3D.new()
+		lid.mesh = WeaponBuilder.zippo_lid()
+		lid.material_override = mat
+		lid.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_lid.add_child(lid)
 	_flame = MeshInstance3D.new()
 	_flame.mesh = WeaponBuilder.zippo_flame()
 	_flame.material_override = Materials.toon(0.0)
@@ -86,7 +97,10 @@ func _process(delta: float) -> void:
 	# Lid swings open on its hinge; the flame flickers; the light breathes.
 	_lid_t = move_toward(_lid_t, 1.0 if is_open else 0.0, delta * LID_SPEED)
 	var e := _lid_t * _lid_t * (3.0 - 2.0 * _lid_t)
-	_lid.rotation.x = e * 2.2
+	if _side_hinge:
+		_lid.rotation.z = -e * 2.4
+	else:
+		_lid.rotation.x = e * 2.2
 	_flame.visible = lit
 	if lit:
 		var f := 1.0 + sin(_t * 23.0) * 0.08 + sin(_t * 37.0) * 0.06

@@ -240,7 +240,15 @@ func hold_item(id: StringName) -> void:
 	holding = id
 	for k: StringName in _models:
 		(_models[k] as Node3D).visible = false
-	_item_mi.mesh = WeaponBuilder.held_item(id) if id != &"none" else null
+	for c in _item_mi.get_children():
+		c.queue_free()
+	var model_id: StringName = {&"water": &"bucket", &"grapple": &"grapple"}.get(id, &"")
+	var model := GunModels.make(model_id) if model_id != &"" else null
+	if model != null:
+		_item_mi.mesh = null
+		_item_mi.add_child(model)
+	else:
+		_item_mi.mesh = WeaponBuilder.held_item(id) if id != &"none" else null
 	_item_mi.visible = id != &"none"
 	_hand.visible = id != &"none"
 	_raise = 1.0
