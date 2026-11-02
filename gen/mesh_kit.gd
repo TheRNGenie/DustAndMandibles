@@ -55,8 +55,13 @@ static func _normal_basis(xf: Transform3D) -> Basis:
 
 
 ## Box centred on xf.origin. `jitter` randomly offsets corners for a hand-made wobble.
+## Collision builds set this to 0 so walkable surfaces come out perfectly flat.
+static var jitter_scale := 1.0
+
+
 static func add_box(st: SurfaceTool, xf: Transform3D, size: Vector3, color: Color,
 		jitter: float = 0.0, rng: RandomNumberGenerator = null, glow: float = 0.0) -> void:
+	jitter *= jitter_scale
 	var h := size * 0.5
 	var corners: Array[Vector3] = []
 	for i in 8:

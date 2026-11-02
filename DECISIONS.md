@@ -131,3 +131,9 @@ Assumptions and changes from the design doc, newest last.
    - **Powder Flak** (90): air-burst shells that hit every flier within 4.5 m of a led aim point.
    - **Firework Battery** (120): long-range armour-piercing skyrockets with 3.2 m bursts.
    `--aatest` places all five and spawns six bandits overhead; all six were downed within 20 s.
+112. **Smooth porch and house walking (Logan's request):** the porch was a 30 cm ledge with no steps, and the house collision used the same slightly jittered boards as the visuals, which left little lips that caught the player. Now:
+   - **Flat collision:** collision builds turn the board jitter off (`MeshKit.jitter_scale`), so floors and doorways are perfectly flat.
+   - **Porch steps:** two steps run the full width of the porch and reach down into the dirt, so they meet the ground on both plateaus (the east one dips about 20 cm).
+   - **Step-up:** the player walks straight up any ledge up to 36 cm (`Player._step_up`). It measures the ledge, then checks headroom only for that rise, so low roofs don't stop it.
+   - **Porch roof:** raised 20 cm.
+   `--porchtest` walks onto the porch from three spots (with `--east` for the other house); all reach the porch or the house.

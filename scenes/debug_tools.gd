@@ -26,6 +26,8 @@ func _ready() -> void:
 		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
+	elif GameState.has_flag("--porchtest"):
+		_porch_test()
 	elif GameState.has_flag("--aatest"):
 		_aa_test()
 	elif GameState.has_flag("--ziptest"):
@@ -755,4 +757,40 @@ func _aa_test() -> void:
 		if (n as Bug).is_alive():
 			left += 1
 	print("[aa] built %d air-defence turrets; dragonflies left after 20 s: %d of 6" % [built, left])
+	get_tree().quit()
+
+
+## --porchtest: walks into the house from the yard three ways (up the steps, onto
+## the porch's side edge, and straight at the porch's front edge off the steps)
+## and logs where the player ended up and how far they got.
+func _porch_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	var home := Homestead.of(player.cliff_id)
+	var hd := HouseBuilder.D * 0.5
+	for start: Vector3 in [Vector3(0, 0.3, -hd - 5.0), Vector3(2.6, 0.3, -hd - 5.0), Vector3(-2.4, 0.3, -hd - 5.0)]:
+		player.global_position = home.to_global(start)
+		player.velocity = Vector3.ZERO
+		player.look_at(home.to_global(Vector3(start.x, 0.3, 0.0)), Vector3.UP)
+		player.rotation.x = 0.0
+		player.rotation.z = 0.0
+		for i in 10:
+			await get_tree().physics_frame
+		Input.action_press("move_forward")
+		var t0 := Time.get_ticks_msec()
+		var stuck := 0.0
+		var last := player.global_position
+		while Time.get_ticks_msec() - t0 < 2500:
+			await get_tree().physics_frame
+			if player.global_position.distance_to(last) < 0.01:
+				stuck += get_physics_process_delta_time()
+			last = player.global_position
+		var c := player.get_last_slide_collision()
+		if c != null:
+			print("[porch]   touching %s at local %s normal %s" % [c.get_collider(), str(home.to_local(c.get_position()).snapped(Vector3.ONE * 0.05)), str((home.global_basis.inverse() * c.get_normal()).snapped(Vector3.ONE * 0.05))])
+		Input.action_release("move_forward")
+		var local := home.to_local(player.global_position)
+		print("[porch] from x=%.1f: ended at local %s, stuck %.2f s, %s" % [start.x, str(local.snapped(Vector3.ONE * 0.05)), stuck,
+				"on the porch or inside" if local.z > -hd - HouseBuilder.PORCH_DEPTH and local.y > 0.25 or local.z > -hd else "did NOT get up"])
 	get_tree().quit()

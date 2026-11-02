@@ -54,6 +54,8 @@ static func ledger_position() -> Vector3:
 static func build(seed_value: int, team: Color, floors: int, boarded: bool, reinforced: bool, collision_only: bool = false,
 		tower: bool = false, style_id: int = 0) -> ArrayMesh:
 	_style = style_id
+	# Collision: no wobble on boards and logs, so floors and doorways are smooth.
+	MeshKit.jitter_scale = 0.0 if collision_only else 1.0
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var st := MeshKit.begin()
@@ -129,6 +131,7 @@ static func build(seed_value: int, team: Color, floors: int, boarded: bool, rein
 	if not collision_only:
 		_window_dressing(st, rng, floors, boarded)
 		_yard_details(st, rng)
+	MeshKit.jitter_scale = 1.0
 	return MeshKit.finish(st)
 
 
@@ -416,7 +419,12 @@ static func _roof_deck(st: SurfaceTool, rng: RandomNumberGenerator, h: float) ->
 static func _porch(st: SurfaceTool, rng: RandomNumberGenerator, balcony: bool) -> void:
 	var hd := D * 0.5
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.15, -hd - PORCH_DEPTH * 0.5 - 0.1)), Vector3(W, 0.3, PORCH_DEPTH), Palette.WOOD_DARK, 0.03, rng)
-	var post_h := H if balcony else 2.3
+	# Two steps the full width of the porch, reaching down into the dirt so they
+	# still meet the ground where it dips (the east plateau sits a little lower).
+	var front := -hd - PORCH_DEPTH - 0.1
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, -0.2, front - 0.2)), Vector3(W, 0.8, 0.4), Palette.WOOD, 0.02, rng)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, -0.25, front - 0.6)), Vector3(W, 0.7, 0.4), Palette.WOOD.darkened(0.06), 0.02, rng)
+	var post_h := H if balcony else 2.5
 	for px: float in [-W * 0.5 + 0.2, -1.0, 1.0, W * 0.5 - 0.2]:
 		MeshKit.add_box(st, Transform3D(Basis(), Vector3(px, 0.3 + post_h * 0.5 - 0.15, -hd - PORCH_DEPTH + 0.1)),
 				Vector3(0.18, post_h - 0.3, 0.18), Palette.WOOD, 0.02, rng)
@@ -430,7 +438,7 @@ static func _porch(st: SurfaceTool, rng: RandomNumberGenerator, balcony: bool) -
 			var x := lerpf(-W * 0.5 + 0.1, W * 0.5 - 0.1, float(i) / 8.0)
 			MeshKit.add_box(st, Transform3D(Basis(), Vector3(x, H + 0.5, -hd - PORCH_DEPTH)), Vector3(0.07, 0.8, 0.07), Palette.WOOD)
 	else:
-		MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, deg_to_rad(-12.0)), Vector3(0, 2.55, -hd - 1.2)),
+		MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, deg_to_rad(-12.0)), Vector3(0, 2.75, -hd - 1.2)),
 				Vector3(W + 0.4, 0.15, 2.6), Palette.ROOF.darkened(0.1) if _style == 0 else TIN, 0.03, rng)
 
 

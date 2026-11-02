@@ -241,6 +241,7 @@ func _physics_process(delta: float) -> void:
 			velocity.x = horiz.x
 			velocity.z = horiz.z
 
+	_step_up(delta)
 	move_and_slide()
 	_update_camera(delta, sprinting)
 	_handle_weapon()
@@ -256,6 +257,39 @@ func _handle_weapon() -> void:
 		net.fire(camera.global_position, -camera.global_transform.basis.z)
 	if Input.is_action_just_pressed("reload"):
 		gun.reload()
+
+
+# ------------------------------------------------------------------ steps
+
+## Tallest ledge you walk straight up without jumping (porch steps, thresholds,
+## trap bases).
+const STEP_HEIGHT := 0.36
+
+
+## Walking into a low ledge: lift onto it instead of getting stuck against it.
+func _step_up(delta: float) -> void:
+	if not is_on_floor() or _sliding:
+		return
+	var h := Vector3(velocity.x, 0.0, velocity.z) * delta
+	if h.length() < 0.001:
+		return
+	# Look a little further ahead than one tick so slow walking still steps.
+	var probe := h.normalized() * maxf(h.length(), 0.25)
+	if not test_move(global_transform, probe):
+		return
+	# How tall is the ledge? Drop a probe onto it from step height.
+	var hit := KinematicCollision3D.new()
+	var over := global_transform.translated(Vector3.UP * STEP_HEIGHT + probe)
+	if not test_move(over, Vector3.DOWN * STEP_HEIGHT, hit):
+		return
+	var rise := STEP_HEIGHT - hit.get_travel().length() + 0.02
+	if rise < 0.03 or rise > STEP_HEIGHT or hit.get_normal().y < 0.3:
+		return
+	# Room to stand up there? (only as high as the step itself, so low roofs are fine)
+	var up := Vector3.UP * rise
+	if test_move(global_transform, up) or test_move(global_transform.translated(up), probe):
+		return # a wall, not a step
+	global_position += up
 
 
 # ------------------------------------------------------------------ slide
