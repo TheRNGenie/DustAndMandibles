@@ -47,7 +47,7 @@ func light() -> void:
 	left = BUFF_TIME
 	_hold = HOLD_TIME
 	_cig.visible = true
-	Audio.play_at(&"pluck", global_position, -10.0)
+	Audio.play_at(&"cig_light", global_position, -8.0)
 	changed.emit(left)
 
 

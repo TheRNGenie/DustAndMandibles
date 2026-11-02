@@ -253,4 +253,4 @@ func eject_shells() -> void:
 		tw.tween_property(s, "rotation", Vector3(randf() * 6.0, randf() * 6.0, 0), 0.35)
 		tw.chain().tween_property(s, "global_position", start + fly * 0.5 + Vector3.DOWN * 1.2, 0.35).set_ease(Tween.EASE_IN)
 		tw.chain().tween_callback(s.queue_free)
-	Audio.play_at(&"reload", global_position, -8.0)
+	Audio.play_at(&"shell_eject", global_position, -6.0)

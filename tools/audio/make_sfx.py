@@ -4,6 +4,7 @@ Uses NumPy and SciPy only, with fixed seeds so results are repeatable.
 Recipes follow the design doc's Audio table.
 
     python tools/audio/make_sfx.py            # writes into audio/sfx/
+    python tools/audio/make_foley.py          # then the second pass (overwrites the guns)
 """
 from pathlib import Path
 

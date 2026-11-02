@@ -76,4 +76,4 @@ func _act(peer_id: int, action: StringName, choice: int, bet: int) -> void:
 
 func _on_view() -> void:
 	_t = 0.0
-	Audio.play_at(&"reload", global_position + Vector3.UP, -4.0)
+	Audio.play_at(&"roulette_spin", global_position + Vector3.UP, -4.0)

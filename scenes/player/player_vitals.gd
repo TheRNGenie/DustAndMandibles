@@ -58,7 +58,7 @@ func use_medicine() -> void:
 func consumed(_kind: StringName) -> void:
 	hp = minf(hp + HERB_HEAL, MAX_HP)
 	health_changed.emit(hp, MAX_HP)
-	Audio.play_ui(&"pluck", -6.0)
+	Audio.play_ui(&"herb_eat", -4.0)
 
 
 ## Runs on the owning peer.

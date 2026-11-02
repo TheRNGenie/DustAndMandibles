@@ -10,6 +10,11 @@ extends Node3D
 ## In first person you see your own legs; the upper body only casts a shadow.
 
 const JOINT := Color("#26262C")
+
+## A foot came down (world position of the boot, 0..1 how hard).
+signal stepped(at: Vector3, strength: float)
+## Touched down after being in the air (0..1 how hard).
+signal landed(strength: float)
 const MARK_DARK := Color("#1E1E22")
 const MARK_LIGHT := Color("#F2C230")
 const HAT := Color("#6B4A2E")
@@ -87,6 +92,7 @@ func build(team: Color, is_first_person: bool, dummy_look: Dictionary = {}) -> v
 	_shoulders.clear()
 	_elbows.clear()
 	_ankles.clear()
+	action = &""
 	_mat = Materials.toon_unique(0.022)
 	_hips = _pivot(self, Vector3(0, 0.95, 0))
 	var pelvis := _part(_hips, "pelvis")
@@ -169,6 +175,7 @@ func animate(delta: float, speed: float, sliding: bool, pitch: float, vy: float 
 	# Landing: a squash when the air pose ends.
 	if _air > 0.45 and air_target == 0.0:
 		_land = maxf(_land, _air)
+		landed.emit(_air)
 	_air = move_toward(_air, air_target, dt * 5.0)
 	_land = move_toward(_land, 0.0, dt * 3.2)
 	# Acceleration lean (smoothed).
@@ -185,7 +192,12 @@ func animate(delta: float, speed: float, sliding: bool, pitch: float, vy: float 
 		strafe_yaw = clampf(atan2(-mv.x, absf(mv.y) + 0.001) * dir, -0.75, 0.75) if absf(mv.x) > 0.3 else 0.0
 	_strafe = lerpf(_strafe, strafe_yaw if k > 0.05 else 0.0, clampf(dt * 6.0, 0.0, 1.0))
 	if speed > 0.3:
+		var before := floori(_phase / PI)
 		_phase += dt * (4.2 + speed * 0.85)
+		# A footfall each half cycle (heel strike), not while sliding or airborne.
+		if floori(_phase / PI) != before and _air < 0.3 and _slide < 0.3 and speed > 1.0:
+			var foot: Node3D = _ankles[(floori(_phase / PI)) % 2] if _ankles.size() == 2 else self
+			stepped.emit(foot.global_position + Vector3(0, -SHIN, 0) if foot != self else global_position, clampf(speed / 9.5, 0.2, 1.0))
 	else:
 		_phase = lerpf(_phase, roundf(_phase / PI) * PI, clampf(dt * 6.0, 0.0, 1.0))
 	# Idle: breathing, a slow weight shift, now and then a look around or a fidget.
@@ -295,8 +307,14 @@ func _apply_action(dt: float) -> void:
 		_gun_mi.visible = action == &""
 	if action == &"":
 		return
+	var prev_t := action_t
 	action_t += dt
 	var dur := DummyActions.duration(action)
+	# Sounds timed to the move (heard by everyone nearby).
+	for cue: Array in DummyActions.SFX.get(action, []):
+		var at := float(cue[0]) * dur
+		if prev_t <= at and action_t > at and action_freeze < 0.0:
+			Audio.play_at(cue[1], global_position + Vector3.UP * 0.9 - global_basis.z * 0.5, float(cue[2]))
 	if action_freeze >= 0.0:
 		action_t = action_freeze * dur
 	if action_t >= dur:

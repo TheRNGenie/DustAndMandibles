@@ -112,7 +112,7 @@ func _launch(new_mode: Mode) -> void:
 	mode = new_mode
 	_pull_t = 0.0
 	_rope_len = maxf(player.global_position.distance_to(anchor), MIN_ROPE)
-	Audio.play_at(&"reload", anchor, -4.0)
+	Audio.play_at(&"hook_bite", anchor, -2.0)
 	_show_rope.rpc(anchor)
 
 

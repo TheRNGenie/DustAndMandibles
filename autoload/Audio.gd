@@ -8,12 +8,24 @@ const NAMES: Array[StringName] = [&"revolver", &"gatling_1", &"gatling_2", &"gat
 	&"dynamite", &"skitter", &"beetle_hiss", &"spider_screech", &"bug_pop", &"bell", &"build",
 	&"coin", &"acid_spit", &"hit_tick", &"armor_ping", &"homestead_hit", &"reload", &"pluck", &"guitar_smash", &"thunder",
 	&"lever_rifle", &"shotgun", &"repeater", &"sharpshooter", &"harpoon", &"scattergun", &"water_blast",
-	&"mortar", &"lobber", &"cannon", &"rustle", &"water_pour", &"zippo_open", &"zippo_close", &"zippo_strike", &"blunderbuss", &"whip_crack_1", &"whip_crack_2", &"whip_crack_3"]
+	&"mortar", &"lobber", &"cannon", &"rustle", &"water_pour", &"zippo_open", &"zippo_close", &"zippo_strike", &"blunderbuss", &"whip_crack_1", &"whip_crack_2", &"whip_crack_3",
+	# Foley pass (tools/audio/make_foley.py): reloads, movement, hands-on work.
+	&"revolver_open", &"revolver_load", &"revolver_close", &"lever_rifle_open", &"lever_rifle_load", &"lever_rifle_close",
+	&"coach_shotgun_open", &"coach_shotgun_load", &"coach_shotgun_close", &"shell_eject", &"blunderbuss_open", &"blunderbuss_load",
+	&"blunderbuss_close", &"crank_gatling_open", &"crank_gatling_load", &"crank_gatling_close",
+	&"step_dirt", &"step_wood", &"land_dirt", &"land_wood", &"jump", &"slide", &"equip", &"throw",
+	&"harvest_pull", &"plant_dig", &"pump", &"salvage", &"loot_crack", &"chest_open", &"scribble", &"hammer_hit",
+	&"slot_lever", &"card_flick", &"roulette_spin", &"wheel_tick", &"dice", &"register", &"zip_grab", &"zip_start",
+	&"herb_eat", &"cig_light", &"hook_bite"]
+## Most sounds have several takes (name.wav, name__2.wav, ...); one is picked at random.
+const MAX_TAKES := 6
 const POOL_3D := 32
 const POOL_UI := 8
 const PITCH_VARIATION := 0.08
 
 var _streams: Dictionary = {}
+var _takes: Dictionary = {}
+var _log := false
 var _players_3d: Array[AudioStreamPlayer3D] = []
 var _players_ui: Array[AudioStreamPlayer] = []
 var _next_3d := 0
@@ -25,10 +37,30 @@ var _music_name: StringName = &""
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_log = "--audiolog" in OS.get_cmdline_user_args()
 	for n in NAMES:
 		var path := SFX_DIR + String(n) + ".wav"
 		if ResourceLoader.exists(path):
 			_streams[n] = load(path)
+			var takes: Array = [_streams[n]]
+			for k in range(2, MAX_TAKES + 1):
+				var alt := SFX_DIR + "%s__%d.wav" % [n, k]
+				if ResourceLoader.exists(alt):
+					takes.append(load(alt))
+			_takes[n] = takes
+	# Keep stacked gunfire from clipping: gentle glue on effects, a brick wall on the master.
+	var sfx_i := AudioServer.get_bus_index("SFX")
+	if sfx_i >= 0 and AudioServer.get_bus_effect_count(sfx_i) == 0:
+		var comp := AudioEffectCompressor.new()
+		comp.threshold = -10.0
+		comp.ratio = 3.0
+		comp.attack_us = 2000.0
+		comp.release_ms = 180.0
+		AudioServer.add_bus_effect(sfx_i, comp)
+	if AudioServer.get_bus_effect_count(0) == 0:
+		var lim := AudioEffectHardLimiter.new()
+		lim.ceiling_db = -0.5
+		AudioServer.add_bus_effect(0, lim)
 	var sfx_bus := &"SFX" if AudioServer.get_bus_index("SFX") >= 0 else &"Master"
 	var ui_bus := &"UI" if AudioServer.get_bus_index("UI") >= 0 else &"Master"
 	for i in POOL_3D:
@@ -86,13 +118,22 @@ func has_sound(sound: StringName) -> bool:
 func play_at(sound: StringName, pos: Vector3, volume_db: float = 0.0) -> void:
 	if not _streams.has(sound):
 		return
+	if _log:
+		print("[audio] %s at %s %.0f dB" % [sound, str(pos.snapped(Vector3.ONE * 0.1)), volume_db])
 	var p := _players_3d[_next_3d]
 	_next_3d = (_next_3d + 1) % _players_3d.size()
-	p.stream = _streams[sound]
+	p.stream = _pick(sound)
 	p.global_position = pos
 	p.volume_db = volume_db
 	p.pitch_scale = randf_range(1.0 - PITCH_VARIATION, 1.0 + PITCH_VARIATION)
 	p.play()
+
+
+func _pick(sound: StringName) -> AudioStream:
+	var takes: Array = _takes.get(sound, [])
+	if takes.size() > 1:
+		return takes[randi() % takes.size()]
+	return _streams[sound]
 
 
 ## Non-positional sound (UI, the wave bell).
@@ -101,7 +142,7 @@ func play_ui(sound: StringName, volume_db: float = 0.0) -> void:
 		return
 	var p := _players_ui[_next_ui]
 	_next_ui = (_next_ui + 1) % _players_ui.size()
-	p.stream = _streams[sound]
+	p.stream = _pick(sound)
 	p.volume_db = volume_db
 	p.pitch_scale = 1.0
 	p.play()

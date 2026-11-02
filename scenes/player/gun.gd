@@ -208,6 +208,8 @@ func equip(id: StringName) -> void:
 	_cycle = 1.0
 	for k: StringName in _models:
 		(_models[k] as Node3D).visible = k == id
+	if _raise < 0.5 and is_inside_tree():
+		Audio.play_at(&"equip", global_position, -10.0)
 	_raise = 1.0
 	var muzzle_z := -0.28 if id == &"revolver" else -0.62
 	_flash.position = Vector3(0, 0.02, muzzle_z)
@@ -425,7 +427,7 @@ func _advance_reload(delta: float) -> void:
 			ammo = mag_size() if def.id == &"crank_gatling" else mini(ammo + 1, mag_size())
 			_loaded_this_reload += 1
 			ammo_changed.emit(ammo, mag_size())
-			Audio.play_at(&"reload", global_position, -10.0)
+			_foley("load", -8.0)
 			if def.id == &"revolver":
 				_drum_target += TAU / 6.0
 			if ammo < mag_size():
@@ -438,7 +440,7 @@ func _advance_reload(delta: float) -> void:
 				_kick = 0.4 # snapped shut
 			elif def.id == &"lever_rifle":
 				_cycle = 0.0 # work the lever to chamber a round
-			Audio.play_at(&"reload", global_position, -6.0)
+			_foley("close", -5.0)
 
 
 func _begin(stage: Reload, length: float) -> void:
@@ -510,10 +512,17 @@ func reload() -> void:
 	_catching = def.id == &"lever_rifle" and ammo > 0
 	_begin(Reload.OPEN, CATCH_TIME if _catching else times.x)
 	if _catching:
-		Audio.play_at(&"reload", global_position, -4.0)
+		_foley("open", -4.0)
 	var rounds := mag_size() if def.id == &"coach_shotgun" else (1 if def.id == &"crank_gatling" else mag_size() - ammo)
 	reload_started.emit(times.x + times.y * rounds + times.z)
-	Audio.play_at(&"reload", global_position, -6.0)
+	if not _catching:
+		_foley("open", -5.0)
+
+
+## This gun's reload sound for a step ("open", "load", "close"), or the generic click.
+func _foley(step: String, volume_db: float) -> void:
+	var id := StringName("%s_%s" % [def.id, step]) if def != null else &"reload"
+	Audio.play_at(id if Audio.has_sound(id) else &"reload", global_position, volume_db)
 
 
 func is_reloading() -> bool:

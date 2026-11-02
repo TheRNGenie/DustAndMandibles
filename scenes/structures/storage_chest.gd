@@ -248,5 +248,5 @@ func _sync(new_items: Dictionary, new_weapons: Dictionary) -> void:
 	items = new_items
 	weapons = new_weapons
 	_peek = 0.8
-	Audio.play_at(&"build", global_position, -8.0)
+	Audio.play_at(&"equip", global_position, -8.0)
 	menu_changed.emit()

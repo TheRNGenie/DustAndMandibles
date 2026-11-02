@@ -276,7 +276,7 @@ func _spawn_rock(origin: Vector3, vel: Vector3) -> void:
 	rock.authoritative = player.is_multiplayer_authority()
 	player.get_tree().current_scene.add_child(rock)
 	rock.global_position = origin
-	Audio.play_at(&"pluck", origin, -6.0)
+	Audio.play_at(&"throw", origin, -4.0)
 
 
 @rpc("any_peer", "call_local", "reliable")

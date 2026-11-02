@@ -16,6 +16,27 @@ const DUR := {
 }
 
 
+## Sounds played during each move: [fraction of the move, sound, volume dB].
+const SFX := {
+	&"harvest": [[0.52, &"harvest_pull", -2.0]],
+	&"plant": [[0.1, &"plant_dig", -4.0]],
+	&"pump": [[0.02, &"pump", -2.0]],
+	&"salvage": [[0.05, &"salvage", -3.0]],
+	&"loot": [[0.05, &"loot_crack", -2.0]],
+	&"chest": [[0.2, &"chest_open", -2.0]],
+	&"ledger": [[0.08, &"scribble", -6.0]],
+	&"buy": [[0.35, &"register", -4.0]],
+	&"pickup": [[0.45, &"equip", -2.0]],
+	&"hammer": [[0.24, &"hammer_hit", -2.0], [0.74, &"hammer_hit", -2.0]],
+	&"zip": [[0.25, &"zip_grab", -4.0]],
+	&"slots": [[0.3, &"slot_lever", -2.0]],
+	&"cards": [[0.42, &"card_flick", -4.0]],
+	&"dice": [[0.0, &"dice", -3.0]],
+	&"roulette": [[0.15, &"roulette_spin", -4.0]],
+	&"water": [[0.1, &"equip", -10.0]],
+}
+
+
 static func has(id: StringName) -> bool:
 	return DUR.has(id)
 

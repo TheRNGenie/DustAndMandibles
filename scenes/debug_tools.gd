@@ -83,6 +83,16 @@ func _ready() -> void:
 		_grapple_test()
 	elif GameState.flag_value("--stress") != "":
 		_stress(int(GameState.flag_value("--stress")))
+	elif GameState.has_flag("--steptest"):
+		for i in 20:
+			await get_tree().process_frame
+		var pl := world.call("local_player") as Player
+		var home := Homestead.of(pl.cliff_id)
+		pl.global_position = home.global_transform * Vector3(0, 0.5, -HouseBuilder.D * 0.5 - 7.0)
+		await _walk(pl, home, Vector3(0, 0, 1), 3.5)
+		Input.action_release("move_forward")
+		print("[steptest] done")
+		get_tree().quit()
 	elif GameState.flag_value("--stairtest") != "":
 		_stair_test(int(GameState.flag_value("--stairtest")))
 

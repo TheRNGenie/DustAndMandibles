@@ -93,4 +93,4 @@ func _sync(value: int, is_working: bool) -> void:
 
 @rpc("authority", "call_local", "unreliable")
 func _fx() -> void:
-	Audio.play_at(&"pluck", global_position)
+	Audio.play_at(&"water_pour", global_position, -4.0)

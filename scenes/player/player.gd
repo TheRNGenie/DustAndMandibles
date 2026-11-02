@@ -37,6 +37,7 @@ var _slide_left := 0.0
 var _mantling := false
 var _fall_left := -1.0
 var _bob_t := 0.0
+var _body_vel := Vector3.ZERO
 var _feel_floor := true
 var _feel_vy := 0.0
 var _cam_land := 0.0
@@ -105,6 +106,8 @@ func _ready() -> void:
 	rig.build(Palette.team_color(cliff_id), is_multiplayer_authority() and not GameState.has_flag("--thirdperson"),
 			Settings.look if is_multiplayer_authority() else {})
 	net.prime()
+	rig.stepped.connect(_on_step)
+	rig.landed.connect(_on_body_landed)
 	if is_multiplayer_authority():
 		cigarette = Cigarette.new()
 		cigarette.name = "Cigarette"
@@ -143,6 +146,34 @@ func display_name() -> String:
 ## Remote players: the replicated slide state drives the body pose.
 func set_remote_pose(sliding: bool) -> void:
 	_remote_sliding = sliding
+
+
+## Footstep: boots on porch boards and floors (structures) or on dirt.
+func _on_step(at: Vector3, strength: float) -> void:
+	var wood := _on_wood(at)
+	var vol := lerpf(-16.0, -6.0, strength) + (-3.0 if is_multiplayer_authority() else 0.0)
+	Audio.play_at(&"step_wood" if wood else &"step_dirt", at, vol)
+
+
+## Remote players: landing heard from the body pose (the owner uses real floor contact).
+func _on_body_landed(strength: float) -> void:
+	if strength < 0.8 or is_multiplayer_authority():
+		return
+	var at := global_position
+	Audio.play_at(&"land_wood" if _on_wood(at) else &"land_dirt", at, lerpf(-10.0, -2.0, strength))
+
+
+func _on_wood(at: Vector3) -> bool:
+	var q := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.4, at + Vector3.DOWN * 0.6,
+			WorldLayout.LAYER_WORLD | WorldLayout.LAYER_STRUCTURE)
+	q.exclude = [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty():
+		return false
+	var c: Object = hit["collider"]
+	if c is Homestead or c is RopeBridge:
+		return true
+	return c is CollisionObject3D and ((c as CollisionObject3D).collision_layer & WorldLayout.LAYER_STRUCTURE) != 0
 
 
 ## Owner: act out using something (see DummyActions), in first person and
@@ -202,12 +233,18 @@ func _process(delta: float) -> void:
 	var moved := global_position - _last_pos
 	_last_pos = global_position
 	moved.y = 0.0
-	var speed := moved.length() / maxf(delta, 0.0001)
+	# Your own body uses your real velocity; others are smoothed from how far they
+	# moved, since render frames and network/physics ticks don't line up.
+	var raw_vel := moved / maxf(delta, 0.0001)
+	if is_multiplayer_authority():
+		raw_vel = Vector3(velocity.x, 0.0, velocity.z)
+	_body_vel = _body_vel.lerp(raw_vel, clampf(delta * (30.0 if is_multiplayer_authority() else 8.0), 0.0, 1.0))
+	var speed := _body_vel.length()
 	var sliding := _sliding if is_multiplayer_authority() else _remote_sliding
 	var vy := (global_position.y - _last_y) / maxf(delta, 0.0001)
 	_last_y = global_position.y
 	_vy_smooth = lerpf(_vy_smooth, vy, clampf(delta * 10.0, 0.0, 1.0))
-	rig.move_local = global_basis.inverse() * (moved / maxf(delta, 0.0001))
+	rig.move_local = global_basis.inverse() * _body_vel
 	rig.animate(delta, minf(speed, 12.0), sliding, head.rotation.x, _vy_smooth if not is_on_floor() or not is_multiplayer_authority() else 0.0)
 
 
@@ -284,6 +321,7 @@ func _physics_process(delta: float) -> void:
 	if not blocked and Input.is_action_just_pressed("jump"):
 		if on_floor:
 			velocity.y = JUMP_VELOCITY
+			Audio.play_at(&"jump", global_position + Vector3.UP, -8.0)
 			if _sliding:
 				_slide_hop()
 			_end_slide()
@@ -393,6 +431,7 @@ func _slide_hop() -> void:
 
 func _start_slide() -> void:
 	_sliding = true
+	Audio.play_at(&"slide", global_position, -6.0)
 	_slide_left = SLIDE_TIME
 	var horiz := Vector3(velocity.x, 0.0, velocity.z)
 	var dir := horiz.normalized() if horiz.length() > 0.1 else -transform.basis.z
@@ -547,7 +586,7 @@ func start_zip(line: ZipLine, from_west: bool, land: Vector3) -> void:
 	_zip_speed = 4.0
 	_zip_land = land
 	_end_slide()
-	Audio.play_at(&"reload", global_position, -4.0)
+	Audio.play_at(&"zip_start", global_position + Vector3.UP * 2.0, -4.0)
 
 
 func _ride_zip(delta: float) -> void:
@@ -564,7 +603,7 @@ func _ride_zip(delta: float) -> void:
 		global_position = _zip_land
 		velocity = Vector3.ZERO
 		_zip_line = null
-		Audio.play_at(&"build", global_position, -4.0)
+		Audio.play_at(&"land_wood", global_position, -4.0)
 	elif let_go or not is_instance_valid(_zip_line):
 		_zip_line = null # keep the momentum and drop
 	_update_camera(delta, false)
@@ -602,6 +641,7 @@ func _update_camera(delta: float, sprinting: bool) -> void:
 		var hard := clampf((-_feel_vy - 4.0) / 10.0, 0.0, 1.0)
 		_cam_land_vel -= 0.6 + hard * 1.6
 		gun.land(0.3 + hard * 0.7)
+		Audio.play_at(&"land_wood" if _on_wood(global_position) else &"land_dirt", global_position, lerpf(-10.0, -2.0, hard))
 	_feel_floor = is_on_floor()
 	_feel_vy = velocity.y
 	_cam_land_vel += (-_cam_land * 110.0 - _cam_land_vel * 13.0) * delta

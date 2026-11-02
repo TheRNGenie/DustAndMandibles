@@ -140,4 +140,4 @@ func _on_view() -> void:
 	var target := (float(i) + 0.5) / n * TAU
 	_to = _from + TAU * 4.0 + fposmod(target - _from, TAU)
 	_t = 0.0
-	Audio.play_at(&"reload", global_position + Vector3.UP * 1.5, -4.0)
+	Audio.play_at(&"wheel_tick", global_position + Vector3.UP * 1.5, -2.0)

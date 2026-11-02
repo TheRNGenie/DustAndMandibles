@@ -49,7 +49,7 @@ func ui_bets() -> Array:
 
 
 func _on_view() -> void:
-	Audio.play_at(&"pluck", global_position + Vector3.UP, -6.0)
+	Audio.play_at(&"card_flick", global_position + Vector3.UP, -4.0)
 
 
 func _shoe() -> Array[int]:

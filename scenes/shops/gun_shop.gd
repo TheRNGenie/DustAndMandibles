@@ -231,7 +231,7 @@ func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
 
 @rpc("authority", "call_local", "unreliable")
 func _sold() -> void:
-	Audio.play_at(&"reload", global_position)
+	Audio.play_at(&"register", global_position, -2.0)
 	menu_changed.emit()
 
 
