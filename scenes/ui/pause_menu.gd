@@ -9,6 +9,7 @@ signal closed
 var in_main_menu := false
 var _root: Control
 var _tabs: TabContainer
+var _vote_btn: Button
 
 
 func _ready() -> void:
@@ -23,9 +24,20 @@ func is_open() -> bool:
 
 
 func open() -> void:
+	_refresh_vote()
+	if PauseVote.instance != null and not PauseVote.instance.votes_changed.is_connected(_refresh_vote):
+		PauseVote.instance.votes_changed.connect(_refresh_vote)
 	_root.visible = true
 	GameState.menu_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+## The vote button shows how many have voted and whether you have.
+func _refresh_vote() -> void:
+	if _vote_btn == null or PauseVote.instance == null:
+		return
+	var v := PauseVote.instance
+	_vote_btn.text = ("Cancel pause vote" if v.has_voted() else "Vote to pause") + "  (%s)" % v.vote_count_text()
 
 
 func select_tab(index: int) -> void:
@@ -97,6 +109,12 @@ func _build() -> void:
 		footer.alignment = BoxContainer.ALIGNMENT_END
 		footer.add_theme_constant_override("separation", 10)
 		col.add_child(footer)
+		var vote_btn := UiStyle.button("Vote to pause")
+		vote_btn.pressed.connect(func() -> void:
+			if PauseVote.instance != null:
+				PauseVote.instance.toggle_vote())
+		footer.add_child(vote_btn)
+		_vote_btn = vote_btn
 		var wardrobe := UiStyle.button("Wardrobe")
 		wardrobe.pressed.connect(func() -> void:
 			close()

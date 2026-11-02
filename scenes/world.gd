@@ -69,6 +69,9 @@ func _ready() -> void:
 	var pause := PauseMenu.new()
 	pause.name = "PauseMenu"
 	add_child(pause)
+	var vote := PauseVote.new()
+	vote.name = "PauseVote"
+	add_child(vote)
 
 	players_root = Node3D.new()
 	players_root.name = "Players"

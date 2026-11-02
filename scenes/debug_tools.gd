@@ -26,6 +26,21 @@ func _ready() -> void:
 		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
+	elif GameState.has_flag("--pausetest"):
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		for i in 30:
+			await get_tree().process_frame
+		var v := PauseVote.instance
+		v.toggle_vote()
+		await get_tree().process_frame
+		print("[pause] after voting: paused %s, tree paused %s, boxes %d" % [v.paused, get_tree().paused, v.get("_boxes").get_child_count()])
+		var t0 := GameState.time_left
+		await get_tree().create_timer(1.0, true, false, true).timeout
+		print("[pause] build timer while paused: %.2f -> %.2f" % [t0, GameState.time_left])
+		v.press_unpause()
+		await get_tree().create_timer(1.0, true, false, true).timeout
+		print("[pause] after unpause: paused %s, tree paused %s" % [v.paused, get_tree().paused])
+		get_tree().quit()
 	elif GameState.has_flag("--covertest"):
 		var cp := CoveragePreview.new()
 		cp.cliffs = Bug.cliffs
@@ -425,6 +440,9 @@ func _take_screenshot(path: String) -> void:
 		player.rotation.x = 0.0
 		player.head.rotation.x = -0.45
 		(home.get_node("Chest") as StorageChest).set("_peek", 30.0)
+	if GameState.has_flag("--pauseshot"):
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		PauseVote.instance.toggle_vote()
 	if GameState.has_flag("--cover") and player != null:
 		var cp := CoveragePreview.new()
 		cp.cliffs = Bug.cliffs
