@@ -19,4 +19,8 @@ extends Resource
 ## Chitin per upgrade level (each: +25% damage, 15% faster reload).
 @export var upgrade_costs: PackedInt32Array = PackedInt32Array([10, 25])
 @export var shake: float = 0.15
+## Hold the trigger to keep firing (the Crank Gatling).
+@export var automatic: bool = false
+## Seconds of cranking before an automatic weapon starts firing.
+@export var spin_up: float = 0.0
 @export var sound: StringName = &"revolver"

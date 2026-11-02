@@ -251,9 +251,12 @@ func _handle_weapon() -> void:
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or GameState.menu_open or vitals.downed \
 			or (build_mode != null and build_mode.active):
 		gun.set_aiming(false)
+		gun.trigger_held = false
 		return
 	gun.set_aiming(Input.is_action_pressed("alt_fire") and not _sliding)
-	if Input.is_action_just_pressed("fire") and gun.trigger(camera):
+	gun.trigger_held = Input.is_action_pressed("fire")
+	var pull := Input.is_action_pressed("fire") if gun.def != null and gun.def.automatic else Input.is_action_just_pressed("fire")
+	if pull and gun.trigger(camera):
 		net.fire(camera.global_position, -camera.global_transform.basis.z)
 	if Input.is_action_just_pressed("reload"):
 		gun.reload()

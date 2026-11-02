@@ -26,6 +26,8 @@ func _ready() -> void:
 		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
+	elif GameState.has_flag("--guntest"):
+		_gun_test()
 	elif GameState.has_flag("--chesttest"):
 		_chest_test()
 	elif GameState.has_flag("--porchtest"):
@@ -828,4 +830,37 @@ func _chest_test() -> void:
 	chest.menu_press("i:water", &"takeall")
 	await get_tree().physics_frame
 	log.call("took back")
+	get_tree().quit()
+
+
+## --guntest: fires the blunderbuss once and reloads it; holds the crank
+## gatling's trigger for 2 s; logs ammo along the way.
+func _gun_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	var gun := player.gun
+	gun.grant(&"blunderbuss", 0)
+	gun.equip(&"blunderbuss")
+	await get_tree().create_timer(0.5).timeout
+	var fired := gun.trigger(player.camera)
+	print("[guns] blunderbuss fired %s, ammo %d/%d, second shot allowed: %s" % [fired, gun.ammo, gun.def.mag_size, gun.trigger(player.camera)])
+	gun.reload()
+	await get_tree().create_timer(3.5).timeout
+	print("[guns] blunderbuss after reload: %d/%d" % [gun.ammo, gun.def.mag_size])
+	gun.grant(&"crank_gatling", 0)
+	gun.equip(&"crank_gatling")
+	await get_tree().create_timer(0.5).timeout
+	gun.trigger_held = true
+	var t0 := Time.get_ticks_msec()
+	var first_shot := -1.0
+	while Time.get_ticks_msec() - t0 < 2000:
+		# (headless has no captured mouse, so the player's input code keeps
+		# letting go of the trigger each physics tick: hold it again)
+		await get_tree().process_frame
+		gun.trigger_held = true
+		if gun.trigger(player.camera) and first_shot < 0.0:
+			first_shot = (Time.get_ticks_msec() - t0) / 1000.0
+	gun.trigger_held = false
+	print("[guns] gatling: first shot after %.2f s of cranking, ammo after 2 s held: %d/%d" % [first_shot, gun.ammo, gun.def.mag_size])
 	get_tree().quit()

@@ -17,8 +17,10 @@ const WEAPONS: Dictionary = {
 	&"revolver": preload("res://data/weapons/revolver.tres"),
 	&"lever_rifle": preload("res://data/weapons/lever_rifle.tres"),
 	&"coach_shotgun": preload("res://data/weapons/coach_shotgun.tres"),
+	&"blunderbuss": preload("res://data/weapons/blunderbuss.tres"),
+	&"crank_gatling": preload("res://data/weapons/crank_gatling.tres"),
 }
-const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun"]
+const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling"]
 const MAX_RANGE := 300.0
 const IMPACT_FORCE := 4.0
 const REST_POS := Vector3(0.2, -0.19, -0.5)
@@ -32,8 +34,8 @@ var slots: Array[StringName] = [&"revolver", &"", &""]
 const MAX_WEAPONS := 3
 ## Right-click aim: where the gun sits, and how far the view zooms in.
 const AIM_POS: Dictionary = {&"revolver": Vector3(0.0, -0.075, -0.5), &"lever_rifle": Vector3(0.0, -0.056, -0.44),
-	&"coach_shotgun": Vector3(0.0, -0.058, -0.4)}
-const AIM_ZOOM: Dictionary = {&"revolver": 1.4, &"lever_rifle": 2.2, &"coach_shotgun": 1.25}
+	&"coach_shotgun": Vector3(0.0, -0.058, -0.4), &"blunderbuss": Vector3(0.0, -0.05, -0.4), &"crank_gatling": Vector3(0.06, -0.12, -0.45)}
+const AIM_ZOOM: Dictionary = {&"revolver": 1.4, &"lever_rifle": 2.2, &"coach_shotgun": 1.25, &"blunderbuss": 1.15, &"crank_gatling": 1.2}
 ## Aimed shotguns spread this much less.
 const AIM_SPREAD := 0.6
 
@@ -215,8 +217,18 @@ static func shot_dirs(id: StringName, dir: Vector3, seed_value: int) -> Array[Ve
 	return out
 
 
+## Automatic weapons: is the trigger held, and how wound-up the barrels are (0..1).
+var trigger_held := false
+var spin := 0.0
+
+
 func _process(delta: float) -> void:
 	_cooldown = maxf(_cooldown - delta, 0.0)
+	if def != null and def.automatic:
+		var want := 1.0 if trigger_held and holding == &"" and _stage == Reload.NONE else 0.0
+		spin = move_toward(spin, want, delta / maxf(def.spin_up if want > 0.0 else def.spin_up * 2.0, 0.05))
+	else:
+		spin = 0.0
 	_advance_reload(delta)
 	if _flash_left > 0.0:
 		_flash_left -= delta
@@ -233,6 +245,7 @@ func _process(delta: float) -> void:
 		var load_t := clampf(_stage_t / maxf(_stage_len, 0.001), 0.0, 1.0)
 		var catch_t := load_t if (_stage == Reload.OPEN and _catching) else -1.0
 		vm.pose(_open, load_t, _stage == Reload.LOAD, _cycle, _drum_angle, _loaded_this_reload, catch_t)
+		vm.turn_crank(spin, delta)
 	aim = move_toward(aim, 1.0 if aiming else 0.0, delta * 7.0)
 	var aim_pos: Vector3 = AIM_POS.get(def.id, REST_POS) if def != null else REST_POS
 	position = REST_POS.lerp(aim_pos, aim) + Vector3(0, 0, _kick * 0.06 * (1.0 - aim * 0.5))
@@ -247,6 +260,10 @@ func _times() -> Vector3:
 			return Vector3(0.3, def.reload_time * 0.2, 0.35) * k
 		&"coach_shotgun":
 			return Vector3(0.35, def.reload_time * 0.25, 0.3) * k
+		&"blunderbuss":
+			return Vector3(0.4, def.reload_time * 0.6, 0.4) * k
+		&"crank_gatling":
+			return Vector3(0.45, def.reload_time * 0.6, 0.4) * k
 	return Vector3(0.35, def.reload_time * 0.3, 0.3) * k
 
 
@@ -266,7 +283,8 @@ func _advance_reload(delta: float) -> void:
 				ammo_changed.emit(ammo, def.mag_size)
 			_begin(Reload.LOAD, times.y)
 		Reload.LOAD:
-			ammo = mini(ammo + 1, def.mag_size)
+			# The gatling swaps a whole drum at once.
+			ammo = def.mag_size if def.id == &"crank_gatling" else mini(ammo + 1, def.mag_size)
 			_loaded_this_reload += 1
 			ammo_changed.emit(ammo, def.mag_size)
 			Audio.play_at(&"reload", global_position, -10.0)
@@ -307,6 +325,8 @@ func trigger(camera: Camera3D) -> bool:
 		_stage = Reload.NONE
 	if _cooldown > 0.0:
 		return false
+	if def.automatic and spin < 1.0:
+		return false # still winding the crank up
 	if ammo <= 0:
 		reload()
 		return false
@@ -352,7 +372,7 @@ func reload() -> void:
 	_begin(Reload.OPEN, CATCH_TIME if _catching else times.x)
 	if _catching:
 		Audio.play_at(&"reload", global_position, -4.0)
-	var rounds := def.mag_size if def.id == &"coach_shotgun" else def.mag_size - ammo
+	var rounds := def.mag_size if def.id == &"coach_shotgun" else (1 if def.id == &"crank_gatling" else def.mag_size - ammo)
 	reload_started.emit(times.x + times.y * rounds + times.z)
 	Audio.play_at(&"reload", global_position, -6.0)
 

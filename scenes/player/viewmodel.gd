@@ -15,6 +15,9 @@ var id: StringName
 var drum: MeshInstance3D
 var lever: Node3D
 var barrels: Node3D
+## Crank Gatling: the spinning barrel cluster and the crank handle.
+var spinner: Node3D
+var crank: Node3D
 var left: Node3D
 var _right_mi: MeshInstance3D
 var _left_mi: MeshInstance3D
@@ -40,6 +43,18 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 			lever.position = WeaponBuilder.LEVER_PIVOT
 			add_child(lever)
 			_mi(lever, WeaponBuilder.rifle_lever())
+		&"blunderbuss":
+			body.mesh = WeaponBuilder.blunderbuss()
+		&"crank_gatling":
+			body.mesh = WeaponBuilder.gatling_body()
+			spinner = Node3D.new()
+			spinner.position = WeaponBuilder.GATLING_AXIS
+			add_child(spinner)
+			_mi(spinner, WeaponBuilder.gatling_barrels())
+			crank = Node3D.new()
+			crank.position = WeaponBuilder.GATLING_CRANK
+			add_child(crank)
+			_mi(crank, WeaponBuilder.gatling_crank())
 		_:
 			body.mesh = WeaponBuilder.shotgun_action()
 			barrels = Node3D.new()
@@ -51,7 +66,15 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 	left.position = WeaponBuilder.LEFT_FIST[id]
 	add_child(left)
 	_left_mi = _mi(left, null)
-	_round = _mi(left, WeaponBuilder.shell() if id == &"coach_shotgun" else WeaponBuilder.cartridge())
+	var held_round := WeaponBuilder.cartridge()
+	match id:
+		&"coach_shotgun":
+			held_round = WeaponBuilder.shell()
+		&"blunderbuss":
+			held_round = WeaponBuilder.powder_horn()
+		&"crank_gatling":
+			held_round = WeaponBuilder.gatling_drum()
+	_round = _mi(left, held_round)
 	_round.position = Vector3(0.012, 0.02, -0.02)
 	_round.visible = false
 	if id == &"lever_rifle":
@@ -93,6 +116,12 @@ func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: f
 			transform = Transform3D(Basis.from_euler(Vector3(0.35 * e, 0.3 * e, 0.95 * e)), Vector3(-0.07, 0.06, 0.04) * e)
 		&"lever_rifle":
 			transform = Transform3D(Basis.from_euler(Vector3(0.22 * e, -0.15 * e, -0.8 * e)), Vector3(-0.02, 0.07, 0.07) * e)
+		&"blunderbuss":
+			# Muzzle up to pour the charge and ram it home.
+			transform = Transform3D(Basis.from_euler(Vector3(1.05 * e, 0.1 * e, 0.15 * e)), Vector3(-0.03, -0.02, 0.12) * e)
+		&"crank_gatling":
+			# Tip it right to swap the drum on top.
+			transform = Transform3D(Basis.from_euler(Vector3(0.15 * e, 0.0, -0.55 * e)), Vector3(-0.04, 0.05, 0.05) * e)
 		_:
 			transform = Transform3D(Basis.from_euler(Vector3(0.4 * e, 0.12 * e, 0.3 * e)), Vector3(-0.04, 0.06, 0.06) * e)
 	if drum != null:
@@ -173,6 +202,18 @@ func _catch(t: float, rest: Vector3, gate: Vector3) -> Array:
 	return [(grab - Vector3(0, 0.03, 0)).lerp(gate - _push_dir() * 0.05, _ease((t - 0.7) / 0.3)), true]
 
 
+## Crank Gatling: barrels whirl and the crank turns with the wind-up.
+var _spin_angle := 0.0
+
+
+func turn_crank(amount: float, delta: float) -> void:
+	if spinner == null:
+		return
+	_spin_angle += amount * 26.0 * delta
+	spinner.rotation.z = _spin_angle
+	crank.rotation.x = -_spin_angle * 0.5
+
+
 ## Where the round goes, in this node's parent space (the gun's resting frame).
 func _load_point(round_index: int) -> Vector3:
 	if id == &"coach_shotgun" and barrels != null:
@@ -187,6 +228,8 @@ func _push_dir() -> Vector3:
 	match id:
 		&"lever_rifle":
 			return transform.basis * Vector3(-0.5, 0.1, -1.0).normalized()
+		&"blunderbuss", &"crank_gatling":
+			return transform.basis * Vector3(0, -1, 0)
 		&"coach_shotgun":
 			return (transform.basis * barrels.transform.basis * Vector3(0, 0, -1)).normalized() if barrels != null else Vector3.FORWARD
 	return transform.basis * Vector3(0, 0, -1)

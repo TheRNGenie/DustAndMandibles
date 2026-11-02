@@ -116,9 +116,14 @@ const LEVER_PIVOT := Vector3(0, -0.02, -0.03)
 const HINGE := Vector3(0, -0.004, -0.055)
 ## Where each gun's left (support) hand rests, and where rounds go in.
 const LEFT_FIST: Dictionary = {&"revolver": Vector3(-0.022, -0.075, 0.07), &"lever_rifle": Vector3(-0.004, -0.016, -0.2),
-	&"coach_shotgun": Vector3(-0.004, -0.024, -0.15)}
+	&"coach_shotgun": Vector3(-0.004, -0.024, -0.15), &"blunderbuss": Vector3(-0.004, -0.03, -0.17),
+	&"crank_gatling": Vector3(-0.07, 0.02, -0.12)}
 const LOAD_POINT: Dictionary = {&"revolver": Vector3(0.022, 0.03, 0.03), &"lever_rifle": Vector3(0.026, -0.004, -0.04),
-	&"coach_shotgun": Vector3(0.0, 0.03, -0.045)}
+	&"coach_shotgun": Vector3(0.0, 0.03, -0.045), &"blunderbuss": Vector3(0.0, 0.05, -0.44),
+	&"crank_gatling": Vector3(0.0, 0.1, 0.03)}
+## Crank Gatling: barrel spin axis origin and the crank's pivot (gun space).
+const GATLING_AXIS := Vector3(0, 0.0, -0.05)
+const GATLING_CRANK := Vector3(0.06, 0.0, 0.04)
 
 
 static func lever_rifle() -> ArrayMesh:
@@ -253,6 +258,14 @@ static func gun(id: StringName) -> ArrayMesh:
 			return lever_rifle()
 		&"coach_shotgun":
 			return coach_shotgun()
+		&"blunderbuss":
+			return blunderbuss()
+		&"crank_gatling":
+			var st := MeshKit.begin()
+			st.append_from(gatling_body(), 0, Transform3D())
+			st.append_from(gatling_barrels(), 0, Transform3D(Basis(), GATLING_AXIS))
+			st.append_from(gatling_crank(), 0, Transform3D(Basis(), GATLING_CRANK))
+			return st.commit()
 	return revolver()
 
 
@@ -303,9 +316,13 @@ static func arm_right(id: StringName, look: Dictionary = {}) -> ArrayMesh:
 		&"lever_rifle":
 			fist(st, Vector3(0.004, -0.02, 0.1), Vector3(0, 0.6, -0.8), Vector3(1, 0.2, 0.1), paint)
 			sleeve(st, Vector3(0.03, -0.065, 0.14), Vector3(0.12, -0.32, 0.5), look)
-		&"coach_shotgun":
+		&"coach_shotgun", &"blunderbuss":
 			fist(st, Vector3(0.004, -0.035, 0.085), Vector3(0, 0.8, -0.6), Vector3(1, 0.2, 0.1), paint)
 			sleeve(st, Vector3(0.03, -0.08, 0.12), Vector3(0.12, -0.33, 0.48), look)
+		&"crank_gatling":
+			# Right hand on the crank knob.
+			fist(st, GATLING_CRANK + Vector3(0.045, -0.07, 0.0), Vector3(1, 0, 0), Vector3(0, -0.3, 1), paint)
+			sleeve(st, GATLING_CRANK + Vector3(0.07, -0.11, 0.04), Vector3(0.16, -0.35, 0.45), look)
 		_:
 			fist(st, Vector3(0.003, -0.05, 0.07), Vector3(0, 0.95, -0.35), Vector3(1, 0.1, 0.25), paint)
 			sleeve(st, Vector3(0.025, -0.1, 0.11), Vector3(0.1, -0.33, 0.45), look)
@@ -326,6 +343,13 @@ static func arm_left(id: StringName, look: Dictionary = {}, local: bool = false)
 		&"coach_shotgun":
 			fist(st, o + Vector3(-0.004, -0.024, -0.15), Vector3(0, 0, -1), Vector3(-0.7, -1, 0), paint)
 			sleeve(st, o + Vector3(-0.035, -0.07, -0.11), o + Vector3(-0.2, -0.3, 0.1), look)
+		&"blunderbuss":
+			fist(st, o + Vector3(-0.004, -0.03, -0.17), Vector3(0, 0, -1), Vector3(-0.7, -1, 0), paint)
+			sleeve(st, o + Vector3(-0.035, -0.075, -0.13), o + Vector3(-0.2, -0.3, 0.1), look)
+		&"crank_gatling":
+			# Left hand on the side grip.
+			fist(st, o + Vector3(-0.07, 0.02, -0.12), Vector3(0, 1, 0), Vector3(-1, 0, 0.2), paint)
+			sleeve(st, o + Vector3(-0.08, -0.03, -0.1), o + Vector3(-0.24, -0.3, 0.12), look)
 		_:
 			fist(st, o + Vector3(-0.022, -0.075, 0.07), Vector3(0, 0.6, -0.8), Vector3(-1, -0.3, 0.2), paint)
 			sleeve(st, o + Vector3(-0.05, -0.11, 0.1), o + Vector3(-0.22, -0.34, 0.36), look)
@@ -458,4 +482,101 @@ static func zippo_flame() -> ArrayMesh:
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.012, 0)), Vector3(0.007, 0.016, 0.007), 5, 10, Color("#FF8A2A"), 0.0, null, 0.3)
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.009, 0)), Vector3(0.004, 0.009, 0.004), 4, 8, Color("#FFE27A"), 0.0, null, 0.2)
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.002, 0)), Vector3(0.004, 0.003, 0.004), 3, 8, Color("#5AA8FF"), 0.0, null, 0.4)
+	return MeshKit.finish(st)
+
+
+# ------------------------------------------------------------------ blunderbuss
+
+## Blunderbuss: a short brass barrel that flares into a wide bell, a flintlock,
+## and a stubby walnut stock. Muzzle along -Z.
+static func blunderbuss() -> ArrayMesh:
+	var st := MeshKit.begin()
+	# Barrel, widening toward the bell, with brass bands.
+	rod(st, Vector3(0, 0.012, -0.03), Vector3(0, 0.012, -0.36), 0.016, 0.021, 12, BRASS.darkened(0.08))
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0.012, -0.4)), 0.042, 0.022, 0.08, 14, BRASS)
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0.012, -0.441)), 0.045, 0.045, 0.006, 14, BRASS.lightened(0.15))
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0.012, -0.443)), 0.034, 0.034, 0.004, 14, Color("#1A1410"))
+	for z: float in [-0.08, -0.2, -0.32]:
+		MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0.012, z)), 0.022 + (-z) * 0.012, 0.022 + (-z) * 0.012, 0.008, 12, BLUED_DARK)
+	# Walnut forestock under the barrel, ramrod beneath.
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, -0.012, -0.15)), Vector3(0.03, 0.024, 0.26), WALNUT)
+	rod(st, Vector3(0, -0.028, -0.02), Vector3(0, -0.028, -0.3), 0.0035, 0.0035, 6, WALNUT_DARK)
+	# Flintlock: lock plate, cock with flint, frizzen and pan.
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.019, 0.006, 0.02)), Vector3(0.006, 0.026, 0.07), STEEL)
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.7), Vector3(0.022, 0.032, 0.045)), Vector3(0.006, 0.028, 0.01), BLUED_DARK)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.022, 0.042, 0.036)), Vector3(0.008, 0.006, 0.01), Color("#6A6A70"))
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3(0.022, 0.03, 0.008)), Vector3(0.006, 0.026, 0.006), STEEL.lightened(0.1))
+	bent(st, [Vector3(0, -0.014, 0.03), Vector3(0, -0.03, 0.036)], 0.0028, STEEL)
+	bent(st, arc(Vector3(0, -0.018, 0.045), 0.024, -0.3 * PI, -1.1 * PI, 8), 0.0035, BRASS)
+	# Stubby stock with a brass butt plate.
+	var a := Vector3(0, -0.006, 0.05)
+	var b := Vector3(0, -0.07, 0.27)
+	MeshKit.add_box(st, Transform3D(MeshKit.basis_from_y((b - a).normalized()), (a + b) * 0.5), Vector3(0.04, (b - a).length(), 0.075), WALNUT)
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.15), b + Vector3(0, -0.01, 0.03)), Vector3(0.044, 0.11, 0.03), WALNUT)
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.15), b + Vector3(0, -0.01, 0.047)), Vector3(0.046, 0.114, 0.006), BRASS)
+	return MeshKit.finish(st)
+
+
+## A cow-horn powder flask with a brass spout (what the hand pours in on a reload).
+static func powder_horn() -> ArrayMesh:
+	var st := MeshKit.begin()
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0, 0.01)), 0.016, 0.006, 0.07, 10, Color("#E8D9B8"))
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0, -0.03)), 0.005, 0.004, 0.02, 8, BRASS)
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0, 0.045)), 0.017, 0.017, 0.006, 10, BRASS.darkened(0.2))
+	return MeshKit.finish(st)
+
+
+# ------------------------------------------------------------------ crank gatling
+
+## Crank Gatling: a boxy brass receiver with a carry handle, a side grip on the
+## left, and a drum magazine on top. The barrels and crank are separate parts.
+static func gatling_body() -> ArrayMesh:
+	var st := MeshKit.begin()
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0, 0.04)), Vector3(0.09, 0.08, 0.14), BRASS.darkened(0.1))
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0, 0.04)), Vector3(0.092, 0.03, 0.12), BLUED_DARK)
+	for side: float in [-1.0, 1.0]:
+		for k in 3:
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(side * 0.046, 0.03, 0.0 + k * 0.04)), Vector3.ONE * 0.004, 3, 6, BRASS.lightened(0.2))
+	# Front bearing plate where the barrels turn.
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0, -0.035)), 0.05, 0.05, 0.02, 14, BLUED)
+	# Carry handle and the left side grip.
+	bent(st, [Vector3(0, 0.04, 0.0), Vector3(0, 0.075, 0.02), Vector3(0, 0.075, 0.08), Vector3(0, 0.04, 0.1)], 0.006, BLUED_DARK)
+	rod(st, Vector3(-0.046, 0.0, -0.12), Vector3(-0.07, 0.0, -0.12), 0.007, 0.007, 6, BLUED_DARK)
+	rod(st, Vector3(-0.07, -0.03, -0.12), Vector3(-0.07, 0.06, -0.12), 0.014, 0.014, 8, WALNUT)
+	rod(st, Vector3(-0.046, 0.0, -0.05), Vector3(-0.046, 0.0, -0.12), 0.006, 0.006, 6, BLUED_DARK)
+	# Drum magazine on top.
+	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.09, 0.03)), 0.05, 0.05, 0.03, 16, BLUED)
+	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.108, 0.03)), 0.015, 0.015, 0.012, 10, BRASS)
+	# A short back plate with a brass butt cap (it's carried at the hip, no stock).
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0, 0.115)), Vector3(0.07, 0.06, 0.012), BRASS)
+	return MeshKit.finish(st)
+
+
+## The spinning barrel cluster (around the gun's -Z axis, origin at GATLING_AXIS).
+static func gatling_barrels() -> ArrayMesh:
+	var st := MeshKit.begin()
+	for i in 6:
+		var a := TAU * float(i) / 6.0
+		rod(st, Vector3(cos(a) * 0.024, sin(a) * 0.024, 0.0), Vector3(cos(a) * 0.024, sin(a) * 0.024, -0.36), 0.008, 0.008, 8, STEEL.darkened(0.1))
+	for z: float in [-0.12, -0.3]:
+		MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0, z)), 0.036, 0.036, 0.01, 12, BRASS)
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0, -0.36)), 0.034, 0.034, 0.012, 12, BLUED_DARK)
+	return MeshKit.finish(st)
+
+
+## The crank: an arm and a wooden knob, turning about the gun's X axis.
+static func gatling_crank() -> ArrayMesh:
+	var st := MeshKit.begin()
+	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0.006, 0, 0)), 0.012, 0.012, 0.012, 10, BRASS)
+	rod(st, Vector3(0.012, 0, 0), Vector3(0.012, -0.07, 0.0), 0.005, 0.005, 6, BLUED_DARK)
+	rod(st, Vector3(0.012, -0.07, 0.0), Vector3(0.045, -0.07, 0.0), 0.005, 0.005, 6, BLUED_DARK)
+	rod(st, Vector3(0.03, -0.07, 0.0), Vector3(0.06, -0.07, 0.0), 0.009, 0.009, 8, WALNUT)
+	return MeshKit.finish(st)
+
+
+## A spare drum magazine (in the hand during a reload).
+static func gatling_drum() -> ArrayMesh:
+	var st := MeshKit.begin()
+	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3.ZERO), 0.05, 0.05, 0.03, 16, BLUED)
+	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0, -0.018)), 0.015, 0.015, 0.012, 10, BRASS)
 	return MeshKit.finish(st)

@@ -466,6 +466,22 @@ def zippo_strike(rng):
     return scrape + whoosh * 0.7
 
 
+def blunderbuss_shot(rng):
+    """Blunderbuss: a flintlock click and pan flash, then a huge ragged boom."""
+    n = int(SR * 1.4)
+    t = t_axis(1.4)
+    out = np.zeros(n)
+    place(out, click(rng, 0.01, 3000) * 0.4, 0.0)
+    place(out, highpass(rng.standard_normal(int(SR * 0.04)), 2000) * env(int(SR * 0.04), 0.001, 0.02) * 0.4, 0.02)
+    boom_n = n - int(SR * 0.05)
+    tb = t_axis(boom_n / SR)
+    blast = sweep_lowpass(rng.standard_normal(boom_n), 6000, 300) * env(boom_n, 0.002, 0.25, 3.0)
+    body = lowpass(brown_noise(rng, boom_n), 350) * env(boom_n, 0.002, 0.5, 3.0)
+    thump = np.sin(2 * np.pi * (55 - 15 * tb) * tb) * env(boom_n, 0.001, 0.2)
+    place(out, blast * 1.3 + body * 1.6 + thump, 0.05)
+    return echo(out, [0.35, 0.8], [0.25, 0.12], 700)
+
+
 def thunder(rng):
     """A close lightning strike: a sharp crack, then a long rolling rumble."""
     length = 3.5
@@ -519,6 +535,7 @@ def main():
     save("zippo_open", zippo_open(rng), 0.6)
     save("zippo_close", zippo_close(rng), 0.6)
     save("zippo_strike", zippo_strike(rng), 0.6)
+    save("blunderbuss", blunderbuss_shot(rng), 0.95)
 
 
 if __name__ == "__main__":

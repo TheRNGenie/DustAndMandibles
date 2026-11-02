@@ -21,6 +21,20 @@
         "Aiming tightens the spread.",
         "Useless at range, brutal up close."
       ]
+    },
+    "blunderbuss": {
+      "lore": "A bell-mouthed flintlock that throws a fistful of nails and shot.",
+      "tips": [
+        "One shot, then a slow muzzle-load: make it count.",
+        "Brutal against anything that reaches your plateau."
+      ]
+    },
+    "crank_gatling": {
+      "lore": "A six-barrel gatling you crank by hand, with a drum on top.",
+      "tips": [
+        "Hold fire: it winds up for a moment, then keeps firing.",
+        "Sixty rounds a drum; swapping drums takes a few seconds."
+      ]
     }
   },
   "bugs": {

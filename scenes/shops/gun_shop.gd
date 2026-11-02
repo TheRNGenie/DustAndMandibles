@@ -8,9 +8,13 @@ extends StaticBody3D
 const SHELF: Array[Dictionary] = [
 	{"kind": "buy", "id": &"lever_rifle"},
 	{"kind": "buy", "id": &"coach_shotgun"},
+	{"kind": "buy", "id": &"blunderbuss"},
+	{"kind": "buy", "id": &"crank_gatling"},
 	{"kind": "upgrade", "id": &"revolver"},
 	{"kind": "upgrade", "id": &"lever_rifle"},
 	{"kind": "upgrade", "id": &"coach_shotgun"},
+	{"kind": "upgrade", "id": &"blunderbuss"},
+	{"kind": "upgrade", "id": &"crank_gatling"},
 ]
 
 ## Host: what every peer owns, peer_id -> {weapon id: level}.
@@ -46,9 +50,9 @@ func setup(cid: int) -> void:
 	_label = ShopBuilder.sign_label()
 	board.add_child(_label)
 	var lines: PackedStringArray = ["GUNSMITH", "prices in chitin", ""]
-	for w: StringName in [&"lever_rifle", &"coach_shotgun"]:
+	for w: StringName in [&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling"]:
 		lines.append("%s ... %d" % [Gun.weapon(w).display_name, Gun.weapon(w).price_chitin])
-	lines.append("Upgrades ... 10, then 25")
+	lines.append("Upgrades ... from 10 chitin")
 	_label.text = "\n".join(lines)
 
 

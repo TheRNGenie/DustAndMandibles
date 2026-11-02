@@ -175,7 +175,7 @@ func animate(delta: float, speed: float, sliding: bool, pitch: float, vy: float 
 		var hang := sin(_phase) * 0.55 * k + breathe * 2.0
 		_shoulders[1].rotation.x = lerpf(hang - 0.1, -2.7, wave)
 		_elbows[1].rotation.x = lerpf(-0.3, -0.35 + sin(_life * 11.0) * 0.45, wave)
-	var two_hands := 1.0 if (_weapon == &"lever_rifle" or _weapon == &"coach_shotgun") else 0.0
+	var two_hands := 1.0 if _weapon in [&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling"] else 0.0
 	_two = move_toward(_two, two_hands, delta * 4.0)
 	var swing := -sin(_phase) * 0.55 * k
 	var flail := sin(_life * 11.0) * 0.6 * _air * (1.0 if vy < 0.0 else 0.3)

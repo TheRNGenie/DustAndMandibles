@@ -107,6 +107,18 @@ class ItemIcon extends Control:
 				draw_rect(Rect2(c + Vector2(-s * 1.2, -s * 0.35), Vector2(s * 1.4, s * 0.16)), Palette.METAL, true)
 				draw_rect(Rect2(c + Vector2(-s * 1.2, -s * 0.16), Vector2(s * 1.4, s * 0.16)), Palette.METAL.darkened(0.15), true)
 				_poly([c + Vector2(s * 0.2, -s * 0.35), c + Vector2(s * 1.2, -s * 0.15), c + Vector2(s * 1.2, s * 0.4), c + Vector2(s * 0.2, s * 0.0)], Palette.WOOD_DARK)
+			&"blunderbuss":
+				# Short barrel flaring into a bell, chunky stock.
+				draw_rect(Rect2(c + Vector2(-s * 0.9, -s * 0.3), Vector2(s * 1.1, s * 0.16)), Color("#D6A74A"), true)
+				_poly([c + Vector2(-s * 0.9, -s * 0.38), c + Vector2(-s * 1.25, -s * 0.55), c + Vector2(-s * 1.25, s * 0.05), c + Vector2(-s * 0.9, -s * 0.1)], Color("#D6A74A").lightened(0.15))
+				_poly([c + Vector2(s * 0.15, -s * 0.3), c + Vector2(s * 1.1, -s * 0.05), c + Vector2(s * 1.1, s * 0.4), c + Vector2(s * 0.15, s * 0.0)], Palette.WOOD)
+			&"crank_gatling":
+				for k in 3:
+					draw_rect(Rect2(c + Vector2(-s * 1.2, -s * 0.35 + k * s * 0.12), Vector2(s * 1.2, s * 0.07)), Palette.METAL, true)
+				draw_rect(Rect2(c + Vector2(-s * 0.05, -s * 0.45), Vector2(s * 0.6, s * 0.5)), Color("#D6A74A").darkened(0.1), true)
+				draw_circle(c + Vector2(s * 0.25, -s * 0.6), s * 0.25, Palette.METAL.darkened(0.2))
+				draw_line(c + Vector2(s * 0.55, -s * 0.2), c + Vector2(s * 0.75, s * 0.35), dark, 3.0)
+				draw_circle(c + Vector2(s * 0.8, s * 0.4), s * 0.1, Palette.WOOD)
 			&"corn":
 				_poly([c + Vector2(0, -s), c + Vector2(s * 0.4, -s * 0.2), c + Vector2(s * 0.25, s * 0.8), c + Vector2(-s * 0.25, s * 0.8), c + Vector2(-s * 0.4, -s * 0.2)], Color("#F5D140"))
 				_poly([c + Vector2(-s * 0.25, s * 0.9), c + Vector2(-s * 0.6, -s * 0.1), c + Vector2(-s * 0.1, s * 0.4)], Palette.CACTUS)
