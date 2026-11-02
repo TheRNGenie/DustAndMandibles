@@ -425,7 +425,8 @@ func _update_fall(delta: float) -> void:
 			respawn()
 		return
 	if not _falling:
-		if global_position.y < WorldLayout.CANYON_FALL_Y:
+		# Swinging or reeling on the grapple dips below the lip: that's not a fall.
+		if global_position.y < WorldLayout.CANYON_FALL_Y and not (grapple != null and grapple.is_active()):
 			_falling = true
 			_fall_t = 0.0
 			fell_into_canyon.emit(0.0)

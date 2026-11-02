@@ -964,27 +964,37 @@ func _arch_test() -> void:
 	for i in 30:
 		await get_tree().physics_frame
 	var player := world.call("local_player") as Player
-	player.global_position = Bug.cliffs.plateau_point(WorldLayout.WEST, 1.0, 49.0) + Vector3.UP * 0.3
-	await get_tree().physics_frame
-	var from := player.global_position + Vector3.UP * 1.6
-	var q := PhysicsRayQueryParameters3D.create(from, from + Vector3(0.6, 1.0, 0.0).normalized() * Grapple.RANGE, Grapple.MASK, [player.get_rid()])
-	var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
-	if hit.is_empty():
-		print("[arch] nothing overhead within %d m" % int(Grapple.RANGE))
-		get_tree().quit()
-		return
-	print("[arch] hook hits %s, %.1f m up" % [(hit["collider"] as Node).name, (hit["position"] as Vector3).y - player.global_position.y])
 	var g := player.grapple
 	g.test_mode = true
 	player.hotbar_use_grapple()
-	Input.action_press("alt_fire")
-	player.velocity = Vector3(6.0, 4.0, 0.0)
-	g.attach(Grapple.Mode.SWING, hit["position"])
-	var start := player.global_position
-	for i in 120:
+	# From the west lip: aim at each arch where it passes over the far (east)
+	# rim, pull across (left click), let go and see where you land.
+	for z: float in [-17.0, 20.0]:
+		player.respawn()
+		player.set("_fall_left", -1.0)
+		player.global_position = Bug.cliffs.plateau_point(WorldLayout.WEST, 1.0, z) + Vector3.UP * 0.3
+		player.velocity = Vector3.ZERO
 		await get_tree().physics_frame
-	Input.action_release("alt_fire")
-	print("[arch] swung %.1f m out over the canyon (x %.1f -> %.1f)" % [player.global_position.distance_to(start), start.x, player.global_position.x])
+		var from := player.global_position + Vector3.UP * 1.6
+		var aim := Vector3(WorldLayout.HALF_GAP + 9.0, from.y + 30.0, z) - from
+		var q := PhysicsRayQueryParameters3D.create(from, from + aim.normalized() * Grapple.RANGE, Grapple.MASK, [player.get_rid()])
+		var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
+		if hit.is_empty():
+			print("[arch] z %.0f: nothing to hook within %d m" % [z, int(Grapple.RANGE)])
+			continue
+		var p: Vector3 = hit["position"]
+		print("[arch] z %.0f: hook hits %s at x %.1f, %.1f m up, %.1f m away" % [z, (hit["collider"] as Node).name, p.x, p.y - player.global_position.y, from.distance_to(p)])
+		g.attach(Grapple.Mode.PULL, p)
+		var t := 0.0
+		while g.is_active() and t < 4.0:
+			await get_tree().physics_frame
+			t += get_physics_process_delta_time()
+		var t2 := 0.0
+		while not player.is_on_floor() and t2 < 6.0:
+			await get_tree().physics_frame
+			t2 += get_physics_process_delta_time()
+		print("[arch] z %.0f: pulled for %.1f s, landed at x %.1f, y %.1f (%s)" % [z, t, player.global_position.x, player.global_position.y,
+				"on the far plateau" if player.global_position.x > WorldLayout.HALF_GAP and player.global_position.y > WorldLayout.CLIFF_HEIGHT - 1.0 else "NOT across"])
 	get_tree().quit()
 
 

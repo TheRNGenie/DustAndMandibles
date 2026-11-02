@@ -7,7 +7,7 @@ extends Node3D
 ## Jump also lets go. Runs on the owning peer; other peers see the rope through
 ## a small RPC. Doesn't work while you're already plummeting into the canyon.
 
-const RANGE := 50.0
+const RANGE := 60.0
 const PULL_SPEED := 26.0
 const PULL_ACCEL := 90.0
 const PULL_MAX_TIME := 2.5
@@ -15,6 +15,7 @@ const ARRIVE_DIST := 2.2
 ## Shortest rope you can swing on (so you don't wrap around the anchor).
 const MIN_ROPE := 2.0
 const COOLDOWN := 0.35
+const SWING_EXTRA_GRAVITY := 1.2
 const MASK := WorldLayout.LAYER_WORLD | WorldLayout.LAYER_STRUCTURE
 
 enum Mode { NONE, PULL, SWING }
@@ -120,7 +121,9 @@ func _pull(delta: float) -> bool:
 	var to := anchor - (player.global_position + Vector3.UP * 0.9)
 	if to.length() < ARRIVE_DIST or _pull_t > PULL_MAX_TIME or Input.is_action_just_pressed("jump"):
 		# Arrive with a little hop so you land on top of ledges.
-		player.velocity = player.velocity * 0.35 + Vector3.UP * 4.5
+		# Keep some of the flight's momentum, so a pull carries you over a rim.
+		var flat := Vector3(player.velocity.x, 0.0, player.velocity.z)
+		player.velocity = flat * 0.5 + Vector3.UP * 4.5
 		_release()
 		return true
 	var want := to.normalized() * PULL_SPEED
@@ -135,17 +138,23 @@ func _swing(delta: float) -> bool:
 			player.velocity.y += 3.0
 		_release()
 		return false
+	# Snappier, game-feel swings: extra pull downward while on the rope, so long
+	# ropes don't swing in slow motion.
+	player.velocity.y -= 9.8 * SWING_EXTRA_GRAVITY * delta
 	# Gravity and air control already ran; now keep the rope taut.
 	var pos := player.global_position + Vector3.UP * 0.9
 	var off := pos - anchor
 	var dist := off.length()
-	if dist > _rope_len and dist > 0.001:
-		var n := off / dist
-		var radial := player.velocity.dot(n)
-		if radial > 0.0:
-			player.velocity -= n * radial # no stretching the rope
-		# Pull back onto the rope length (spread over a few ticks).
-		player.velocity -= n * (dist - _rope_len) * 0.5 / maxf(delta, 0.001)
+	# Where this tick's velocity would take us; if that's past the rope's length,
+	# steer onto the circle instead, keeping the speed (so swings don't bleed
+	# energy and you can actually make it across).
+	var next := pos + player.velocity * delta
+	var off2 := next - anchor
+	if off2.length() > _rope_len and dist > 0.001:
+		var proj := anchor + off2.normalized() * _rope_len
+		var steer := (proj - pos) / maxf(delta, 0.001)
+		var speed := player.velocity.length()
+		player.velocity = steer.normalized() * speed if steer.length() > 0.001 else steer
 	# Forward/back pumps the swing a little.
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	if input != Vector2.ZERO:

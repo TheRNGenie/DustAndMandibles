@@ -228,7 +228,13 @@ func _add_arches(parent: Node3D, rock: Material) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 909
 	var st := MeshKit.begin()
-	# Spanning arches: feet set back on each plateau.
+	# Two great arches right over the play area, feet behind each build grid
+	# (and clear of the houses, windmill, water tower and scrap heap), crowns
+	# about 35 m above the plateaus: hook one from the lip and swing across.
+	# They sit either side of the zip line and well north of the airship.
+	ArchBuilder.arch(st, rng, plateau_point(0, 41.0, -24.0) - Vector3(0, 2.0, 0), plateau_point(1, 41.0, -10.0) - Vector3(0, 2.0, 0), 30.0, 6.0, 2.8)
+	ArchBuilder.arch(st, rng, plateau_point(0, 40.0, 26.0) - Vector3(0, 2.0, 0), plateau_point(1, 40.0, 14.0) - Vector3(0, 2.0, 0), 33.0, 6.0, 2.8)
+	# Spanning arches further north: feet set back on each plateau.
 	ArchBuilder.arch(st, rng, plateau_point(0, 9.0, 46.0) - Vector3(0, 1.5, 0), plateau_point(1, 9.0, 52.0) - Vector3(0, 1.5, 0), 26.0, 5.5, 2.6)
 	ArchBuilder.arch(st, rng, plateau_point(0, 14.0, 80.0) - Vector3(0, 1.5, 0), plateau_point(1, 11.0, 72.0) - Vector3(0, 1.5, 0), 19.0, 5.0, 2.4)
 	# A smaller arch on each plateau, off the build grid.
