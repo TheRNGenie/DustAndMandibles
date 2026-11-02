@@ -32,6 +32,11 @@ var _map: Array = []
 var _hips_bone := -1
 var _hips_rest := Vector3.ZERO
 var _feet: Array = []
+var _first_person := false
+## First person: bones folded to nothing. Everything from the chest up (the head
+## would block the view; the first-person hands replace the arms), so looking
+## down you see your belt, legs and boots, the way first-person bodies usually work.
+const FP_HIDDEN := ["Spine"]
 var _ankle_rest := 0.0
 var _rig: DummyRig
 var _scene: Node3D
@@ -45,6 +50,7 @@ static func has_model(outfit: StringName) -> bool:
 ## Builds the model inside `rig` (call after the rig's pivots exist).
 func setup(rig: DummyRig, outfit: StringName, first_person: bool) -> void:
 	_rig = rig
+	_first_person = first_person
 	var path: String = MODELS[outfit]
 	# Shown as made in Meshy (its own materials); --toon puts the game's cel shading on instead.
 	var native := not GameState.has_flag("--toon")
@@ -59,9 +65,9 @@ func setup(rig: DummyRig, outfit: StringName, first_person: bool) -> void:
 	skel = _scene.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
 	for mi: MeshInstance3D in _scene.find_children("*", "MeshInstance3D", true, false):
 		if native:
-			# Exactly as made in Meshy: its own PBR material and maps.
-			if first_person:
-				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+			# Exactly as made in Meshy: its own PBR material and maps. In first
+			# person you see your own body when you look down (head and arms
+			# folded away: the first-person arms hold the gun).
 			continue
 		var src := mi.get_active_material(0) as BaseMaterial3D
 		var m := ShaderMaterial.new()
@@ -72,8 +78,6 @@ func setup(rig: DummyRig, outfit: StringName, first_person: bool) -> void:
 		m.next_pass = Materials.outline(0.005)
 		mi.material_override = m
 		materials.append(m)
-		if first_person:
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 
 
 ## Maps the rig's pivots to bones once everything is in the tree.
@@ -155,6 +159,12 @@ func apply() -> void:
 			var off := _rig._hips.position - Vector3(0, RIG_HIP_Y, 0)
 			origin = _hips_rest + sk_from_rig * off
 		skel.set_bone_global_pose(b, Transform3D(target.orthonormalized(), origin))
+	if _first_person:
+		for bn: String in FP_HIDDEN:
+			var hb := skel.find_bone(bn)
+			if hb >= 0:
+				var tp := skel.get_bone_global_pose(hb)
+				skel.set_bone_global_pose(hb, Transform3D(tp.basis.scaled(Vector3.ONE * 0.001), tp.origin))
 	# Keep the boots out of the ground: if the lower foot ends up below where it
 	# stands at rest (hips dipping on a stride or a landing), lift the whole body.
 	if _hips_bone >= 0 and _feet.size() == 2 and _feet[0] >= 0 and _feet[1] >= 0:

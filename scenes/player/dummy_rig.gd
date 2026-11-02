@@ -137,7 +137,8 @@ func build(team: Color, is_first_person: bool, dummy_look: Dictionary = {}) -> v
 		_gun_mi.visible = false
 		for mi: MeshInstance3D in [head_mi, torso, pelvis, tails]:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-		position.z = 0.06
+		# Set back a little so looking down shows the chest and legs, not the inside of them.
+		position.z = 0.12
 	_model = null
 	var outfit := StringName(str(look.get("outfit")))
 	if ModelBody.has_model(outfit) and not GameState.has_flag("--oldbody"):
