@@ -36,7 +36,9 @@ var _first_person := false
 ## First person: bones folded to nothing. Everything from the chest up (the head
 ## would block the view; the first-person hands replace the arms), so looking
 ## down you see your belt, legs and boots, the way first-person bodies usually work.
-const FP_HIDDEN := ["Spine"]
+## How much of the model's own (A-pose) arm spread a lowered arm keeps.
+const HANG_KEEP := 0.22
+const FP_HIDDEN := ["Neck", "LeftShoulder", "RightShoulder"]
 var _ankle_rest := 0.0
 var _rig: DummyRig
 var _scene: Node3D
@@ -139,13 +141,14 @@ func apply() -> void:
 		if m[4]:
 			# Arms: point each bone where the rig's limb points (so elbows bend the
 			# way the rig bends them, whatever the model's bone roll), keeping the
-			# model's own relaxed hang when the arm is down.
+			# model's own hang (a little of it) when the arm is down.
 			var side := "L" if skel.get_bone_name(b).begins_with("Left") else "R"
 			if not raise.has(side):
 				var down := (p_rig * Vector3.DOWN).normalized()
 				raise[side] = smoothstep(0.25, 0.9, down.angle_to(Vector3.DOWN))
 				var model_hang := ((m[3] as Basis) * Vector3.UP).normalized()
-				hang[side] = Basis().slerp(_rotation_between(Vector3.DOWN, model_hang), 1.0 - float(raise[side]))
+				# Only a little of the model's A-pose spread, so arms hang by the sides.
+				hang[side] = Basis().slerp(_rotation_between(Vector3.DOWN, model_hang), HANG_KEEP * (1.0 - float(raise[side])))
 			var want := p_rig * ((hang[side] as Basis) * Vector3.DOWN)
 			var rest_m: Basis = m[3]
 			var rest_dir := (rest_m * Vector3.UP).normalized()
