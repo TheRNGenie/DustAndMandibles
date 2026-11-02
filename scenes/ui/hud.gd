@@ -16,6 +16,7 @@ var feed: HudFeed
 var hotbar: HudHotbar
 var build_menu: HudBuildMenu
 var threat: HudThreatAlert
+var title_card: HudTitleCard
 
 const PHASE_NAMES := {
 	GameState.Phase.LOBBY: "Waiting for riders",
@@ -38,6 +39,8 @@ func _ready() -> void:
 	add_child(HudWavePreview.new())
 	threat = HudThreatAlert.new()
 	add_child(threat)
+	title_card = HudTitleCard.new()
+	add_child(title_card)
 	_speed_lines = SpeedLines.new()
 	_speed_lines.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_speed_lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -123,6 +126,7 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 	feed.bind_player(player, bugs, builds)
 	build_menu.bind(player.build_mode)
 	threat.player = player
+	title_card.player = player
 	player.gun.ammo_changed.connect(_on_ammo_changed)
 	player.gun.hit_confirmed.connect(func(weak: bool) -> void: (_crosshair as Crosshair).flash(weak))
 	player.gun.reload_started.connect(func(_d: float) -> void: _ammo_label.text = "Reloading")

@@ -173,6 +173,15 @@ func _ready() -> void:
 					best2 = w
 			print("[arch] crown near z-17: %s  near z20: %s  cliff top %.1f" % [str(best), str(best2), WorldLayout.CLIFF_HEIGHT])
 		get_tree().quit()
+	elif GameState.flag_value("--titleview") != "":
+		for i in 40:
+			await get_tree().process_frame
+		var hud := world.get("hud") as Hud
+		hud.title_card.show_card("WAVE 7", "They're coming up the walls", Palette.GLOW_YELLOW)
+		await get_tree().create_timer(0.6).timeout
+		get_viewport().get_texture().get_image().save_png(GameState.flag_value("--titleview"))
+		print("[title] saved")
+		get_tree().quit()
 	elif GameState.flag_value("--pingview") != "":
 		_ping_view(GameState.flag_value("--pingview"))
 	elif GameState.flag_value("--threatview") != "":
