@@ -15,6 +15,11 @@ const SHELF: Array[Dictionary] = [
 	{"kind": "upgrade", "id": &"coach_shotgun"},
 	{"kind": "upgrade", "id": &"blunderbuss"},
 	{"kind": "upgrade", "id": &"crank_gatling"},
+	{"kind": "mods", "id": &"revolver"},
+	{"kind": "mods", "id": &"lever_rifle"},
+	{"kind": "mods", "id": &"coach_shotgun"},
+	{"kind": "mods", "id": &"blunderbuss"},
+	{"kind": "mods", "id": &"crank_gatling"},
 ]
 
 ## Host: what every peer owns, peer_id -> {weapon id: level}.
@@ -83,7 +88,7 @@ func menu_tagline() -> String:
 
 
 func menu_tabs() -> Array:
-	return ["Guns", "Upgrades"]
+	return ["Guns", "Upgrades", "Workshop mods"]
 
 
 func menu_items(tab: int) -> Array:
@@ -116,24 +121,43 @@ func menu_items(tab: int) -> Array:
 			out.append({"id": "upgrade:%s" % id, "name": "%s  (level %d)" % [w.display_name, level], "icon": id,
 					"desc": "+25% damage and a faster reload per level.", "price": "" if maxed else "%d chitin" % cost,
 					"price_ok": chitin >= cost, "disabled": why, "buttons": [[&"buy", "Upgrade"]]})
+		elif tab == 2 and item["kind"] == "mods":
+			# Only guns you carry, so the list stays short.
+			if not gun.owns(id):
+				continue
+			var code := gun.code_of(id)
+			var mods := WeaponMods.list(id)
+			for i in mods.size():
+				var m: Dictionary = mods[i]
+				var fitted := WeaponMods.has_mod(code, i)
+				out.append({"id": "mod:%s:%d" % [id, i], "name": "%s: %s" % [w.display_name, m["name"]], "icon": id,
+						"desc": str(m["desc"]), "price": "" if fitted else "%d chitin" % int(m["cost"]),
+						"price_ok": chitin >= int(m["cost"]), "disabled": "Fitted." if fitted else "",
+						"buttons": [[&"buy", "Fit it"]]})
+	if tab == 2 and out.is_empty():
+		out.append({"id": "", "name": "Nothing to work on", "icon": &"hammer", "desc": "Mods are fitted to the guns you carry.",
+				"price": "", "price_ok": true, "disabled": "Buy a gun first.", "buttons": []})
 	return out
 
 
 func menu_press(id: Variant, _action: StringName) -> void:
 	var parts := str(id).split(":")
+	if parts.size() < 2:
+		return
+	var slot := int(parts[2]) if parts.size() > 2 else -1
 	if multiplayer.is_server():
-		_buy(multiplayer.get_unique_id(), parts[0], StringName(parts[1]))
+		_buy(multiplayer.get_unique_id(), parts[0], StringName(parts[1]), slot)
 	else:
-		_request_buy.rpc_id(1, parts[0], StringName(parts[1]))
+		_request_buy.rpc_id(1, parts[0], StringName(parts[1]), slot)
 
 
 @rpc("any_peer", "reliable")
-func _request_buy(kind: String, id: StringName) -> void:
+func _request_buy(kind: String, id: StringName, slot: int = -1) -> void:
 	if multiplayer.is_server():
-		_buy(multiplayer.get_remote_sender_id(), kind, id)
+		_buy(multiplayer.get_remote_sender_id(), kind, id, slot)
 
 
-func _buy(peer_id: int, kind: String, id: StringName) -> void:
+func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
 	var w := Gun.weapon(id)
 	if w == null:
 		return
@@ -150,11 +174,18 @@ func _buy(peer_id: int, kind: String, id: StringName) -> void:
 			Economy.notify(peer_id, "Your three weapon slots are full. Drop one first (Q).")
 			return
 		cost = w.price_chitin
-	else:
-		if not owned.has(id) or int(owned[id]) >= w.upgrade_costs.size():
+	elif kind == "mod":
+		var mods := WeaponMods.list(id)
+		if not owned.has(id) or slot < 0 or slot >= mods.size() or WeaponMods.has_mod(int(owned[id]), slot):
 			return
-		cost = w.upgrade_costs[int(owned[id])]
-		level = int(owned[id]) + 1
+		cost = int(mods[slot]["cost"])
+		level = WeaponMods.with_mod(int(owned[id]), slot)
+	else:
+		var lvl := WeaponMods.level(int(owned[id])) if owned.has(id) else 99
+		if lvl >= w.upgrade_costs.size():
+			return
+		cost = w.upgrade_costs[lvl]
+		level = int(owned[id]) + 1 # bumps the level bits, keeps the mods
 	if not Economy.spend(payer, {&"chitin": cost}):
 		Economy.notify(peer_id, "That costs %d chitin. Sell vegetables at the vendor or kill armoured bugs." % cost)
 		return

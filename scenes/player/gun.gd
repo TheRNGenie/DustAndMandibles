@@ -121,8 +121,31 @@ func _ready() -> void:
 	equip(&"revolver")
 
 
+## Upgrade level (0-2) of a weapon you own.
 func level_of(id: StringName) -> int:
+	return WeaponMods.level(code_of(id))
+
+
+## Level and mods packed together (see WeaponMods); what travels with the gun.
+func code_of(id: StringName) -> int:
 	return int(owned.get(id, 0))
+
+
+# Effective stats of the gun in hand, with its mods.
+func mag_size() -> int:
+	return def.mag_size + WeaponMods.add(def.id, code_of(def.id), "mag") if def != null else 0
+
+
+func fire_interval() -> float:
+	return def.fire_interval * WeaponMods.mult(def.id, code_of(def.id), "fire_interval")
+
+
+func reload_time() -> float:
+	return def.reload_time * WeaponMods.mult(def.id, code_of(def.id), "reload")
+
+
+func spin_up_time() -> float:
+	return def.spin_up * WeaponMods.mult(def.id, code_of(def.id), "spin_up")
 
 
 func owns(id: StringName) -> bool:
@@ -139,7 +162,7 @@ func equip(id: StringName) -> void:
 	holding = &""
 	_item_mi.visible = false
 	_hand.visible = false
-	ammo = int(_ammo_by_weapon.get(id, def.mag_size))
+	ammo = int(_ammo_by_weapon.get(id, mag_size()))
 	_stage = Reload.NONE
 	_open = 0.0
 	_cycle = 1.0
@@ -148,7 +171,7 @@ func equip(id: StringName) -> void:
 	var muzzle_z := -0.28 if id == &"revolver" else -0.62
 	_flash.position = Vector3(0, 0.02, muzzle_z)
 	_flash_light.position = Vector3(0, 0.02, muzzle_z - 0.05)
-	ammo_changed.emit(ammo, def.mag_size)
+	ammo_changed.emit(ammo, mag_size())
 	loadout_changed.emit()
 
 
@@ -190,16 +213,26 @@ func grant(id: StringName, level: int) -> void:
 	loadout_changed.emit()
 
 
-## Damage per pellet for a weapon at an upgrade level (same formula on every peer).
-static func damage_for(id: StringName, level: int) -> float:
-	return weapon(id).damage * (1.0 + 0.25 * level)
+## Damage per pellet for a weapon with its level and mods (same formula on every peer).
+static func damage_for(id: StringName, code: int) -> float:
+	return weapon(id).damage * (1.0 + 0.25 * WeaponMods.level(code)) * WeaponMods.mult(id, code, "damage")
 
 
-## The ray directions for one shot. Shotguns scatter pellets from a shared seed.
-static func shot_dirs(id: StringName, dir: Vector3, seed_value: int) -> Array[Vector3]:
+static func range_for(id: StringName, code: int) -> float:
+	return weapon(id).range * WeaponMods.mult(id, code, "range")
+
+
+static func pierce_for(id: StringName, code: int) -> bool:
+	return weapon(id).pierce_armor or WeaponMods.flag(id, code, "pierce")
+
+
+## The ray directions for one shot. Shotguns scatter pellets from a shared seed;
+## single-bullet guns with a spread wobble one ray from the same seed.
+static func shot_dirs(id: StringName, dir: Vector3, seed_value: int, code: int = 0) -> Array[Vector3]:
 	var d := weapon(id)
 	var out: Array[Vector3] = []
-	if d.pellets <= 1:
+	var pellets := d.pellets + WeaponMods.add(id, code, "pellets")
+	if pellets <= 1 and d.spread_deg <= 0.0:
 		out.append(dir.normalized())
 		return out
 	var rng := RandomNumberGenerator.new()
@@ -207,10 +240,10 @@ static func shot_dirs(id: StringName, dir: Vector3, seed_value: int) -> Array[Ve
 	var up := Vector3.UP if absf(dir.normalized().dot(Vector3.UP)) < 0.95 else Vector3.RIGHT
 	var right := dir.cross(up).normalized()
 	var real_up := right.cross(dir).normalized()
-	var spread := tan(deg_to_rad(d.spread_deg))
+	var spread := tan(deg_to_rad(d.spread_deg * WeaponMods.mult(id, code, "spread")))
 	if seed_value & 1:
 		spread *= AIM_SPREAD # odd seed = the shooter was aiming
-	for i in d.pellets:
+	for i in maxi(pellets, 1):
 		var a := rng.randf() * TAU
 		var r := sqrt(rng.randf()) * spread
 		out.append((dir.normalized() + right * cos(a) * r + real_up * sin(a) * r).normalized())
@@ -226,7 +259,7 @@ func _process(delta: float) -> void:
 	_cooldown = maxf(_cooldown - delta, 0.0)
 	if def != null and def.automatic:
 		var want := 1.0 if trigger_held and holding == &"" and _stage == Reload.NONE else 0.0
-		spin = move_toward(spin, want, delta / maxf(def.spin_up if want > 0.0 else def.spin_up * 2.0, 0.05))
+		spin = move_toward(spin, want, delta / maxf(spin_up_time() if want > 0.0 else spin_up_time() * 2.0, 0.05))
 	else:
 		spin = 0.0
 	_advance_reload(delta)
@@ -238,7 +271,7 @@ func _process(delta: float) -> void:
 	_kick = move_toward(_kick, 0.0, delta * 6.0)
 	_open = move_toward(_open, 1.0 if (_stage == Reload.OPEN or _stage == Reload.LOAD) else 0.0, delta / 0.3)
 	if def != null:
-		_cycle = minf(_cycle + delta / maxf(def.fire_interval * 0.8, 0.1), 1.0)
+		_cycle = minf(_cycle + delta / maxf(fire_interval() * 0.8, 0.1), 1.0)
 	_drum_angle = move_toward(_drum_angle, _drum_target, delta * 9.0)
 	var vm := _models.get(def.id) as ViewModel if def != null else null
 	if vm != null:
@@ -257,14 +290,14 @@ func _times() -> Vector3:
 	var k := pow(0.85, level_of(def.id))
 	match def.id:
 		&"lever_rifle":
-			return Vector3(0.3, def.reload_time * 0.2, 0.35) * k
+			return Vector3(0.3, reload_time() * 0.2, 0.35) * k
 		&"coach_shotgun":
-			return Vector3(0.35, def.reload_time * 0.25, 0.3) * k
+			return Vector3(0.35, reload_time() * 0.25, 0.3) * k
 		&"blunderbuss":
-			return Vector3(0.4, def.reload_time * 0.6, 0.4) * k
+			return Vector3(0.4, reload_time() * 0.6, 0.4) * k
 		&"crank_gatling":
-			return Vector3(0.45, def.reload_time * 0.6, 0.4) * k
-	return Vector3(0.35, def.reload_time * 0.3, 0.3) * k
+			return Vector3(0.45, reload_time() * 0.6, 0.4) * k
+	return Vector3(0.35, reload_time() * 0.3, 0.3) * k
 
 
 func _advance_reload(delta: float) -> void:
@@ -280,17 +313,17 @@ func _advance_reload(delta: float) -> void:
 			if def.id == &"coach_shotgun":
 				(_models[def.id] as ViewModel).eject_shells()
 				ammo = 0
-				ammo_changed.emit(ammo, def.mag_size)
+				ammo_changed.emit(ammo, mag_size())
 			_begin(Reload.LOAD, times.y)
 		Reload.LOAD:
 			# The gatling swaps a whole drum at once.
-			ammo = def.mag_size if def.id == &"crank_gatling" else mini(ammo + 1, def.mag_size)
+			ammo = mag_size() if def.id == &"crank_gatling" else mini(ammo + 1, mag_size())
 			_loaded_this_reload += 1
-			ammo_changed.emit(ammo, def.mag_size)
+			ammo_changed.emit(ammo, mag_size())
 			Audio.play_at(&"reload", global_position, -10.0)
 			if def.id == &"revolver":
 				_drum_target += TAU / 6.0
-			if ammo < def.mag_size:
+			if ammo < mag_size():
 				_begin(Reload.LOAD, times.y)
 			else:
 				_begin(Reload.CLOSE, times.z)
@@ -331,7 +364,7 @@ func trigger(camera: Camera3D) -> bool:
 		reload()
 		return false
 	ammo -= 1
-	_cooldown = def.fire_interval
+	_cooldown = fire_interval()
 	_kick = 1.0 + def.shake
 	if def.id == &"revolver":
 		_drum_target += TAU / 6.0
@@ -341,7 +374,7 @@ func trigger(camera: Camera3D) -> bool:
 	_flash.rotation.z = randf() * TAU
 	_flash_light.light_energy = 2.5
 	_flash_left = 0.05
-	ammo_changed.emit(ammo, def.mag_size)
+	ammo_changed.emit(ammo, mag_size())
 	Audio.play_at(def.sound, global_position, -2.0)
 	var p := get_parent().get_parent().get_parent() as Player
 	if p != null:
@@ -360,11 +393,12 @@ func set_aiming(on: bool) -> void:
 func zoom_factor() -> float:
 	if def == null:
 		return 1.0
-	return lerpf(1.0, float(AIM_ZOOM.get(def.id, 1.3)), aim)
+	var zoom := float(AIM_ZOOM.get(def.id, 1.3)) * WeaponMods.mult(def.id, code_of(def.id), "zoom")
+	return lerpf(1.0, zoom, aim)
 
 
 func reload() -> void:
-	if holding != &"" or def == null or _stage != Reload.NONE or ammo == def.mag_size:
+	if holding != &"" or def == null or _stage != Reload.NONE or ammo == mag_size():
 		return
 	var times := _times()
 	_loaded_this_reload = 0
@@ -372,7 +406,7 @@ func reload() -> void:
 	_begin(Reload.OPEN, CATCH_TIME if _catching else times.x)
 	if _catching:
 		Audio.play_at(&"reload", global_position, -4.0)
-	var rounds := def.mag_size if def.id == &"coach_shotgun" else (1 if def.id == &"crank_gatling" else def.mag_size - ammo)
+	var rounds := mag_size() if def.id == &"coach_shotgun" else (1 if def.id == &"crank_gatling" else mag_size() - ammo)
 	reload_started.emit(times.x + times.y * rounds + times.z)
 	Audio.play_at(&"reload", global_position, -6.0)
 

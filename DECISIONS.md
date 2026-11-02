@@ -142,3 +142,11 @@ Assumptions and changes from the design doc, newest last.
    - **Blunderbuss** (45 chitin): a bell-mouthed flintlock. One shot of 14 pellets at 20 damage each (the coach gun fires 9 at 14), wide spread, 32 m range, a heavy kick and its own flintlock-boom sound. The reload is a 2.4 s muzzle-load: muzzle up, powder horn in, ram it home.
    - **Crank Gatling** (60 chitin): a six-barrel hand-cranked gatling with a top drum. It's the first automatic weapon (`WeaponDef.automatic`, `spin_up`): hold fire, the barrels and crank wind up for about 0.45 s, then it fires about 14 rounds a second (7 damage each) until the 60-round drum runs dry. The reload swaps the whole drum.
    `--guntest` checks the single shot and reload, and the wind-up.
+115. **Gunsmith workshop mods (Logan: more variety in weapon upgrades):** on top of the two +25%-damage level upgrades, every gun has three one-off mods in a new "Workshop mods" tab at the gunsmith (data/weapon_mods.gd). Each changes how the gun handles:
+   - **Revolver:** hair trigger (fires a third faster), speed loader (reloads nearly twice as fast), hollow points (+20% damage, pierce armour).
+   - **Lever rifle:** long barrel (+15% damage, 1.5x range), magazine tube extension (+4 rounds), brass scope (1.8x aim zoom).
+   - **Coach gun:** full choke (tighter, longer), heavy buckshot (+3 pellets), sawn-off (faster, wider).
+   - **Blunderbuss:** nail charge (+6 pellets), flared bell (+20% damage, wider), paper cartridges (reloads 40% faster).
+   - **Crank Gatling:** greased gears (winds up 60% quicker), big drum (+40 rounds), water jacket (fires 25% faster and tighter).
+
+   A gun's level and mods travel together as one int (bits 0-1 the level, 2-4 the mods), so a dropped, picked-up or chest-stored gun keeps its work. The host uses its own record of the gun for every shot rather than trusting the shooter. Single-bullet guns with a spread (the gatling) now actually wobble. The hotbar shows a star per mod. Unit-tested (tests/test_weapon_mods.gd), and `--guntest` buys a mod and an upgrade in game.

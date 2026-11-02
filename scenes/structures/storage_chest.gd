@@ -126,8 +126,9 @@ func menu_items(tab: int) -> Array:
 			if id == &"":
 				continue
 			var lvl := p.gun.level_of(id)
+			var fitted := WeaponMods.names(id, p.gun.code_of(id))
 			out.append({"id": "w:" + String(id), "name": Gun.weapon(id).display_name + (" +%d" % lvl if lvl > 0 else ""), "icon": id,
-					"desc": "In your weapon slots.", "price": "", "price_ok": true,
+					"desc": "In your weapon slots." + (" Mods: %s." % fitted if fitted != "" else ""), "price": "", "price_ok": true,
 					"disabled": "" if weapons.size() < MAX_WEAPONS else "The chest's weapon rack is full.",
 					"buttons": [[&"store", "Store"]]})
 		for item: StringName in ITEMS:
@@ -137,9 +138,10 @@ func menu_items(tab: int) -> Array:
 					"buttons": [[&"store1", "Store 1"], [&"storeall", "Store all"]]})
 	else:
 		for id: StringName in weapons:
-			var lvl := int(weapons[id])
+			var lvl := WeaponMods.level(int(weapons[id]))
+			var fitted := WeaponMods.names(id, int(weapons[id]))
 			out.append({"id": "w:" + String(id), "name": Gun.weapon(id).display_name + (" +%d" % lvl if lvl > 0 else ""), "icon": id,
-					"desc": "Stored in the chest.", "price": "", "price_ok": true, "disabled": "",
+					"desc": "Stored in the chest." + (" Mods: %s." % fitted if fitted != "" else ""), "price": "", "price_ok": true, "disabled": "",
 					"buttons": [[&"take", "Take"]]})
 		for item: StringName in ITEMS:
 			var n := int(items.get(item, 0))
@@ -165,7 +167,7 @@ func menu_press(id: Variant, action: StringName) -> void:
 	var what := StringName(key.substr(2))
 	if kind == "w" and action == &"store":
 		# Take it out of your hands here, then let the host file it.
-		var level := p.gun.level_of(what)
+		var level := p.gun.code_of(what)
 		p.gun.remove_weapon(what)
 		_send(&"store_weapon", what, level)
 	elif kind == "w" and action == &"take":

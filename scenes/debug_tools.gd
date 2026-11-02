@@ -863,4 +863,20 @@ func _gun_test() -> void:
 			first_shot = (Time.get_ticks_msec() - t0) / 1000.0
 	gun.trigger_held = false
 	print("[guns] gatling: first shot after %.2f s of cranking, ammo after 2 s held: %d/%d" % [first_shot, gun.ammo, gun.def.mag_size])
+	# Gunsmith mods: fit the revolver's hair trigger, then a level upgrade, and check both stick.
+	var shop: GunShop = null
+	for n: Node in get_tree().get_nodes_in_group("structures"):
+		if n is GunShop:
+			shop = n
+	if shop == null:
+		shop = get_tree().root.find_child("GunShop*", true, false) as GunShop
+	Economy.earn(player.cliff_id, {&"chitin": 200})
+	gun.equip(&"revolver")
+	var before := gun.fire_interval()
+	if shop != null:
+		shop._buy(multiplayer.get_unique_id(), "mod", &"revolver", 0)
+		shop._buy(multiplayer.get_unique_id(), "upgrade", &"revolver")
+	await get_tree().physics_frame
+	print("[guns] revolver mods: code %d, level %d, hair trigger %s, interval %.3f -> %.3f, shop found %s" % [gun.code_of(&"revolver"),
+			gun.level_of(&"revolver"), WeaponMods.has_mod(gun.code_of(&"revolver"), 0), before, gun.fire_interval(), shop != null])
 	get_tree().quit()

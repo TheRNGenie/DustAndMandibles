@@ -96,8 +96,8 @@ func slot_info(i: int) -> Dictionary:
 		info["label"] = Gun.weapon(id).display_name.split(" ")[0] if id != &"coach_shotgun" else "Shotgun"
 		info["selected"] = player.gun.holding == &"" and player.gun.def != null and player.gun.def.id == id
 		var lvl := player.gun.level_of(id)
-		if lvl > 0:
-			info["count"] = "+%d" % lvl
+		var mods := WeaponMods.count(player.gun.code_of(id))
+		info["count"] = ("+%d" % lvl if lvl > 0 else "") + "*".repeat(mods)
 	else:
 		info["label"] = NAMES.get(id, String(id))
 		info["count"] = "" if id == &"grapple" or id == &"lighter" else "x%d" % Economy.amount(_cliff(), id)
