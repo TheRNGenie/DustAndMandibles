@@ -11,9 +11,10 @@ G=$R/guns
 mkdir -p "$G"
 rm -f $R/*.jpg $R/*.jpg.import $G/*.jpg $G/*.jpg.import $R/*.png $R/*.png.import $G/*.png $G/*.png.import
 
-rig() { "$B" --background --factory-startup --python tools/rig/autorig.py -- "$1" "$2" 2>&1 | grep -E "autorig\] (wrote|bones)|Error|Traceback" || true; }
-hat() { "$B" --background --factory-startup --python tools/rig/prep_prop.py -- "$1" "$2" --size "$3" --max-tris 10000 2>&1 | grep -E "\[prop\] wrote|Error|Traceback" || true; }
-gun() { "$B" --background --factory-startup --python tools/rig/prep_gun.py -- "$@" 2>&1 | grep -E "\[gun\] wrote|Error|Traceback" || true; }
+# "As sent": full detail and Meshy's own texture maps (Logan's call, 2026-11-02).
+rig() { "$B" --background --factory-startup --python tools/rig/autorig.py -- "$1" "$2" --max-tris 300000 --keep-maps 2>&1 | grep -E "autorig\] (wrote|bones)|Error|Traceback" || true; }
+hat() { "$B" --background --factory-startup --python tools/rig/prep_prop.py -- "$1" "$2" --size "$3" --max-tris 80000 2>&1 | grep -E "\[prop\] wrote|Error|Traceback" || true; }
+gun() { "$B" --background --factory-startup --python tools/rig/prep_gun.py -- "$@" --max-tris 200000 --keep-maps 2>&1 | grep -E "\[gun\] wrote|Error|Traceback" || true; }
 
 rig "$(ls $M/*Cowboy_Crash_Test_Dum*.glb)" $R/dummy_vest.glb
 rig "$(ls $M/*Orange_Cowboy_Dummy*.glb)" $R/dummy_duster.glb

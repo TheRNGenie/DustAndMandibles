@@ -45,16 +45,24 @@ static func has_model(outfit: StringName) -> bool:
 ## Builds the model inside `rig` (call after the rig's pivots exist).
 func setup(rig: DummyRig, outfit: StringName, first_person: bool) -> void:
 	_rig = rig
-	var packed: PackedScene = _cache.get(outfit)
+	var path: String = MODELS[outfit]
+	# Shown as made in Meshy (its own materials); --toon puts the game's cel shading on instead.
+	var native := not GameState.has_flag("--toon")
+	var packed: PackedScene = _cache.get(path)
 	if packed == null:
-		packed = load(MODELS[outfit])
-		_cache[outfit] = packed
+		packed = load(path)
+		_cache[path] = packed
 	_scene = packed.instantiate() as Node3D
 	# The models face +Z out of Blender; the rig faces -Z.
 	_scene.rotation.y = PI
 	add_child(_scene)
 	skel = _scene.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
 	for mi: MeshInstance3D in _scene.find_children("*", "MeshInstance3D", true, false):
+		if native:
+			# Exactly as made in Meshy: its own PBR material and maps.
+			if first_person:
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+			continue
 		var src := mi.get_active_material(0) as BaseMaterial3D
 		var m := ShaderMaterial.new()
 		m.shader = TOON_TEX
@@ -161,6 +169,10 @@ static func hat(id: StringName, first_person: bool) -> Node3D:
 	var n := packed.instantiate() as Node3D
 	n.position.y = float(HATS[id][1])
 	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+		if first_person:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		if not GameState.has_flag("--toon"):
+			continue
 		var src := mi.get_active_material(0) as BaseMaterial3D
 		var m := ShaderMaterial.new()
 		m.shader = TOON_TEX

@@ -5,7 +5,12 @@ are capped at `max_size`."""
 import bpy
 
 
-def slim_textures(max_size=2048):
+def slim_textures(max_size=2048, keep_maps=False):
+    if keep_maps:
+        for img in bpy.data.images:
+            if img.size[0] > max_size:
+                img.scale(max_size, int(max_size * img.size[1] / img.size[0]))
+        return
     for mat in bpy.data.materials:
         if not mat.use_nodes:
             continue

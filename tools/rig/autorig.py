@@ -41,6 +41,9 @@ def args():
         if a[i] == "--preview":
             opts["preview"] = a[i + 1]
             i += 2
+        elif a[i] == "--keep-maps":
+            opts["keep_maps"] = True
+            i += 1
         elif a[i] == "--turn":
             opts["turn"] = True
             i += 1
@@ -403,7 +406,7 @@ def main():
     print("[autorig] bones with (almost) no weights:", empty)
     if o["preview"]:
         preview(rig, o["preview"])
-    slim_textures(2048)
+    slim_textures(2048 if o.get("keep_maps") else 2048, bool(o.get("keep_maps")))
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(export_image_format="JPEG", export_jpeg_quality=90, filepath=o["out"], export_format="GLB", use_selection=True, export_skins=True, export_animations=False)
     print("[autorig] wrote", o["out"])

@@ -26,6 +26,8 @@ static func has(id: StringName, part: String = "body") -> bool:
 ## A fresh node for `id`'s `part` with the toon look (null if there's no model).
 static func make(id: StringName, part: String = "body", outline: float = 0.004, shadows: bool = false) -> Node3D:
 	var path := "%s%s_%s.glb" % [DIR, id, part]
+	# As made in Meshy (its own materials); --toon puts the cel shading on instead.
+	var native := not GameState.has_flag("--toon")
 	if not ResourceLoader.exists(path):
 		return null
 	var packed: PackedScene = _cache.get(path)
@@ -34,6 +36,9 @@ static func make(id: StringName, part: String = "body", outline: float = 0.004, 
 		_cache[path] = packed
 	var n := packed.instantiate() as Node3D
 	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+		if native:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			continue
 		var src := mi.get_active_material(0) as BaseMaterial3D
 		var m := ShaderMaterial.new()
 		m.shader = ModelBody.TOON_TEX

@@ -37,6 +37,10 @@ def opts():
             o["mirror"] = True
             i += 1
             continue
+        if k == "--keep-maps":
+            o["keep_maps"] = True
+            i += 1
+            continue
         if k == "--no-turn":
             o["turn"] = False
             i += 1
@@ -111,7 +115,7 @@ def main():
         bm.to_mesh(obj.data)
         bm.free()
     obj.data.update()
-    slim_textures(1024)
+    slim_textures(2048 if o.get("keep_maps") else 1024, bool(o.get("keep_maps")))
     info = {}
     # Cut out the moving parts.
     for name, box in o["parts"]:

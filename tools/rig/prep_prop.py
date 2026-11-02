@@ -63,7 +63,7 @@ def main():
         d.ratio = o["max_tris"] / tris
         bpy.ops.object.modifier_apply(modifier=d.name)
     print("[prop] triangles:", sum(len(p.vertices) - 2 for p in body.data.polygons), "scale", round(s, 4))
-    slim_textures(1024)
+    slim_textures(2048, True)  # as sent: keep every map
     if o["preview"]:
         scene = bpy.context.scene
         cam = bpy.data.objects.new("cam", bpy.data.cameras.new("c"))
