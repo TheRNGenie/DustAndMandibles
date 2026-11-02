@@ -147,6 +147,15 @@ func menu_items(tab: int) -> Array:
 			out.append({"id": "upgrade:whip", "name": "Bullwhip  (level %d)" % lvl, "icon": &"planks",
 					"desc": "+25% lash damage per level.", "price": "" if maxed else "%d chitin" % cost,
 					"price_ok": chitin >= cost, "disabled": "Fully upgraded." if maxed else "", "buttons": [[&"buy", "Upgrade"]]})
+			var gold_why := ""
+			if WeaponMods.is_golden(wc):
+				gold_why = "It already shines."
+			elif not WeaponMods.can_gild(wc):
+				gold_why = "Max the whip's level and fit all three workshop mods first."
+			out.append({"id": "gild:whip", "name": "THE GOLDEN WHIP", "icon": &"planks",
+					"desc": "Gild the whole lash in gold: +60% damage, 15% more reach, lashes 20% quicker. The gunsmith's masterpiece.",
+					"price": "" if WeaponMods.is_golden(wc) else "%d chitin" % WeaponMods.GOLDEN_COST,
+					"price_ok": chitin >= WeaponMods.GOLDEN_COST, "disabled": gold_why, "buttons": [[&"buy", "Gild it"]]})
 		elif tab == 2:
 			var mods := WeaponMods.list(&"whip")
 			for i in mods.size():
@@ -243,7 +252,12 @@ func _buy_whip(peer_id: int, kind: String, slot: int) -> void:
 	var c := int(whips.get(peer_id, 0))
 	var cost := 0
 	var next := c
-	if kind == "mod":
+	if kind == "gild":
+		if not WeaponMods.can_gild(c):
+			return
+		cost = WeaponMods.GOLDEN_COST
+		next = c | WeaponMods.GOLDEN_BIT
+	elif kind == "mod":
 		var mods := WeaponMods.list(&"whip")
 		if slot < 0 or slot >= mods.size() or WeaponMods.has_mod(c, slot):
 			return
@@ -264,7 +278,10 @@ func _buy_whip(peer_id: int, kind: String, slot: int) -> void:
 		_set_whip(next)
 	else:
 		_set_whip.rpc_id(peer_id, next)
-	Economy.notify(peer_id, "Bullwhip: %s." % ("level %d" % WeaponMods.level(next) if kind != "mod" else WeaponMods.names(&"whip", next & ~c)))
+	if kind == "gild":
+		Economy.notify(peer_id, "The gunsmith hands you THE GOLDEN WHIP.")
+	else:
+		Economy.notify(peer_id, "Bullwhip: %s." % ("level %d" % WeaponMods.level(next) if kind != "mod" else WeaponMods.names(&"whip", next & ~c)))
 	_sold.rpc()
 
 

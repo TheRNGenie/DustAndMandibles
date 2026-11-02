@@ -407,6 +407,8 @@ func _take_screenshot(path: String) -> void:
 		player.rotation.x = 0.0
 		player.head.rotation.x = -0.45
 		(home.get_node("Chest") as StorageChest).set("_peek", 30.0)
+	if GameState.has_flag("--goldwhip") and player != null:
+		player.whip.code = 2 | 4 | 8 | 16 | WeaponMods.GOLDEN_BIT
 	if GameState.has_flag("--lashing") and player != null:
 		# Keep lashing the whip so screenshots catch it mid-swing.
 		var lt := Timer.new()
@@ -1058,4 +1060,9 @@ func _whip_test() -> void:
 	player.whip.lash()
 	await get_tree().create_timer(0.5).timeout
 	print("[whip] upgraded (code %d, %s): hp %.0f -> %.0f" % [player.whip.code, WeaponMods.names(&"whip", player.whip.code), hp2, bug.health.hp])
+	shop._buy(multiplayer.get_unique_id(), "mod", &"whip", 0)
+	shop._buy(multiplayer.get_unique_id(), "mod", &"whip", 2)
+	shop._buy(multiplayer.get_unique_id(), "gild", &"whip")
+	await get_tree().physics_frame
+	print("[whip] golden: %s, lash damage %.0f, reach %.1f m" % [WeaponMods.is_golden(player.whip.code), Whip.damage_for(player.whip.code), Whip.reach_for(player.whip.code)])
 	get_tree().quit()

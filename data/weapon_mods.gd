@@ -12,6 +12,19 @@ extends RefCounted
 
 ## Chitin per whip level.
 const WHIP_LEVEL_COSTS: Array[int] = [10, 25]
+## The whip's capstone: once it has both levels and all three mods, the
+## gunsmith can gild it. Bit 5 of the code.
+const GOLDEN_BIT := 1 << 5
+const GOLDEN_COST := 60
+
+
+static func is_golden(code: int) -> bool:
+	return code & GOLDEN_BIT != 0
+
+
+## Everything else on the whip is done, so it can be gilded.
+static func can_gild(code: int) -> bool:
+	return level(code) >= WHIP_LEVEL_COSTS.size() and count(code) >= 3 and not is_golden(code)
 
 const MODS: Dictionary = {
 	&"revolver": [

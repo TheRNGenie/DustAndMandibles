@@ -19,7 +19,12 @@ const SEG_LEN := 0.32
 
 var player: Player
 ## Level and mods (WeaponMods code); set by the gunsmith.
-var code := 0
+var code := 0:
+	set(value):
+		var was_gold := WeaponMods.is_golden(code)
+		code = value
+		if is_inside_tree() and WeaponMods.is_golden(code) != was_gold:
+			_build_look()
 var _cd := 0.0
 var _t := -1.0
 var _move := 0
@@ -30,12 +35,26 @@ var _segs: Array[MeshInstance3D] = []
 
 
 func _ready() -> void:
+	_build_look()
+
+
+## (Re)builds the hand, handle and lash: plaited leather, or all gold once gilded.
+func _build_look() -> void:
+	for c in get_children():
+		c.queue_free()
+	_segs.clear()
+	var gold := WeaponMods.is_golden(code)
 	var mat := Materials.toon(0.006)
 	_hand = MeshInstance3D.new()
 	var st := MeshKit.begin()
 	WeaponBuilder.fist(st, Vector3.ZERO, Vector3(0, 0, -1), Vector3(-1, 0.4, 0), DummyLook.paint(Settings.look))
 	# Braided leather handle with a brass cap.
-	WeaponBuilder.rod(st, Vector3(0, 0, 0.06), Vector3(0, 0, -0.16), 0.014, 0.012, 8, Color("#5C351D"))
+	WeaponBuilder.rod(st, Vector3(0, 0, 0.06), Vector3(0, 0, -0.16), 0.014, 0.012, 8, Color("#E8B83A") if gold else Color("#5C351D"))
+	if gold:
+		# Engraved rings and a ruby in the pommel.
+		for z: float in [-0.12, -0.04, 0.03]:
+			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0, z)), 0.016, 0.016, 0.006, 8, Color("#FFF0A0"))
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0, 0.085)), Vector3.ONE * 0.012, 3, 6, Color("#E0283C"), 0.0, null, 0.4)
 	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0, 0.07)), 0.017, 0.017, 0.02, 8, Color("#D6A74A"))
 	WeaponBuilder.sleeve(st, Vector3(-0.01, -0.03, 0.05), Vector3(-0.09, -0.2, 0.3), Settings.look)
 	_hand.mesh = MeshKit.finish(st)
@@ -49,7 +68,9 @@ func _ready() -> void:
 		var seg := MeshKit.begin()
 		# Plaited brown leather, a pale cracker at the very tip.
 		var col := Color("#6B4226").lerp(Color("#8A5A34"), float(i % 2)) if i < SEGMENTS - 1 else Color("#E8DCC0")
-		MeshKit.add_cylinder(seg, Transform3D(), r, r * 0.9, SEG_LEN, 6, col)
+		if gold:
+			col = Color("#E8B83A").lerp(Color("#FFE27A"), float(i % 2)) if i < SEGMENTS - 1 else Color("#FFF6D0")
+		MeshKit.add_cylinder(seg, Transform3D(), r, r * 0.9, SEG_LEN, 6, col, false, 0.25 if gold else 0.0)
 		mi.mesh = MeshKit.finish(seg)
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -73,7 +94,7 @@ func can_lash() -> bool:
 func lash() -> void:
 	if not can_lash():
 		return
-	_cd = COOLDOWN * WeaponMods.mult(&"whip", code, "fire_interval")
+	_cd = COOLDOWN * WeaponMods.mult(&"whip", code, "fire_interval") * (0.8 if WeaponMods.is_golden(code) else 1.0)
 	_t = 0.0
 	_hit_done = false
 	var pick := randi() % 3
@@ -142,18 +163,20 @@ func _pose(k: float) -> void:
 		var ang := _handle_angle(ki) * (1.0 + float(i) * 0.04)
 		var dir_local := (Basis(axis, ang) * Vector3(0, 0, -1)).normalized()
 		var dir := (cam_xf.basis * dir_local).normalized()
-		var next := p + dir * SEG_LEN * WeaponMods.mult(&"whip", code, "reach")
-		_segs[i].global_transform = Transform3D(MeshKit.basis_from_y(dir), (p + next) * 0.5)
+		var stretch := reach_for(code) / REACH
+		var next := p + dir * SEG_LEN * stretch
+		_segs[i].global_transform = Transform3D(MeshKit.basis_from_y(dir) * Basis.from_scale(Vector3(1.0, stretch * 1.05, 1.0)), (p + next) * 0.5)
 		p = next
 
 
 ## Lash stats for a whip code (level and mods).
 static func damage_for(c: int) -> float:
-	return DAMAGE * (1.0 + 0.25 * WeaponMods.level(c)) * WeaponMods.mult(&"whip", c, "damage")
+	var gold := 1.6 if WeaponMods.is_golden(c) else 1.0
+	return DAMAGE * (1.0 + 0.25 * WeaponMods.level(c)) * WeaponMods.mult(&"whip", c, "damage") * gold
 
 
 static func reach_for(c: int) -> float:
-	return REACH * WeaponMods.mult(&"whip", c, "reach")
+	return REACH * WeaponMods.mult(&"whip", c, "reach") * (1.15 if WeaponMods.is_golden(c) else 1.0)
 
 
 static func stun_for(c: int) -> float:
