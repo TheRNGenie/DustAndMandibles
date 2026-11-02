@@ -205,18 +205,17 @@ const HINGE := Vector3(0, -0.004, -0.055)
 ## support hand holds, and the wrist or grip the trigger hand wraps [centre, grip axis].
 const LEFT_FIST: Dictionary = {&"revolver": Vector3(-0.022, -0.075, 0.07), &"lever_rifle": Vector3(-0.004, -0.022, -0.194),
 	&"coach_shotgun": Vector3(-0.004, -0.03, -0.25), &"blunderbuss": Vector3(-0.004, -0.068, -0.215),
-	&"crank_gatling": Vector3(-0.066, 0.03, -0.12)}
+	&"crank_gatling": Vector3(-0.108, -0.076, -0.203)}
 const RIGHT_GRIP: Dictionary = {&"lever_rifle": [Vector3(0.004, -0.046, 0.114), Vector3(0, 0.55, -0.83)],
 	&"coach_shotgun": [Vector3(0.004, -0.075, 0.112), Vector3(0, 0.75, -0.66)],
-	&"blunderbuss": [Vector3(0.004, -0.064, 0.12), Vector3(0, 0.6, -0.8)]}
+	&"blunderbuss": [Vector3(0.004, -0.064, 0.12), Vector3(0, 0.6, -0.8)],
+	&"crank_gatling": [Vector3(0.004, -0.082, -0.078), Vector3(0, 0.86, -0.52)]}
 const LOAD_POINT: Dictionary = {&"revolver": Vector3(0.022, 0.03, 0.03), &"lever_rifle": Vector3(0.026, -0.004, -0.04),
 	&"coach_shotgun": Vector3(0.0, 0.02, -0.09), &"blunderbuss": Vector3(0.0, 0.05, -0.44),
 	&"crank_gatling": Vector3(0.0, 0.1, 0.03)}
 ## Crank Gatling: barrel spin axis origin and the crank's pivot (gun space).
 const GATLING_AXIS := Vector3(0, 0.0, -0.05)
 const GATLING_CRANK := Vector3(0.06, 0.0, 0.04)
-## The crank handle on the Meshy Gatling, where the right hand holds it.
-const GATLING_KNOB := Vector3(0.12, -0.058, -0.192)
 
 
 static func lever_rifle() -> ArrayMesh:
@@ -376,10 +375,11 @@ static func gun(id: StringName) -> ArrayMesh:
 ## `along` the direction the fingers wrap around (the grip's axis), `back` points
 ## to the back of the hand. Four jointed fingers curl round the grip, the thumb
 ## locks over them, with black rubber knuckles and a painted calibration dot.
-static func fist(st: SurfaceTool, at: Vector3, along: Vector3, back: Vector3, paint: Color) -> void:
+static func fist(st: SurfaceTool, at: Vector3, along: Vector3, back: Vector3, paint: Color, right: bool = false) -> void:
 	var up := along.normalized()
 	var out := (back - up * back.dot(up)).normalized()
-	var side := up.cross(out).normalized()
+	# A right hand is the mirror image of a left: its fingers curl round the other way.
+	var side := up.cross(out).normalized() * (-1.0 if right else 1.0)
 	var basis := Basis(side, up, out)
 	var joint := Color("#26262C")
 	# Back of the hand: a moulded shell with a target dot.
@@ -451,16 +451,12 @@ static func arm_right(id: StringName, look: Dictionary = {}) -> ArrayMesh:
 	var paint := DummyLook.paint(look)
 	var st := MeshKit.begin()
 	match id:
-		&"lever_rifle", &"coach_shotgun", &"blunderbuss":
+		&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling":
 			var g: Vector3 = RIGHT_GRIP[id][0]
-			fist(st, g, RIGHT_GRIP[id][1], Vector3(1, 0.2, 0.1), paint)
+			fist(st, g, RIGHT_GRIP[id][1], Vector3(1, 0.2, 0.1), paint, true)
 			sleeve(st, g + Vector3(0.026, -0.045, 0.04), g + Vector3(0.116, -0.3, 0.4), look)
-		&"crank_gatling":
-			# On the crank handle at the side of the gear housing.
-			fist(st, GATLING_KNOB, Vector3(1, 0, 0), Vector3(0, -0.3, 1), paint)
-			sleeve(st, GATLING_KNOB + Vector3(0.025, -0.04, 0.04), Vector3(0.18, -0.35, 0.32), look)
 		_:
-			fist(st, Vector3(0.003, -0.05, 0.07), Vector3(0, 0.95, -0.35), Vector3(1, 0.1, 0.25), paint)
+			fist(st, Vector3(0.003, -0.05, 0.07), Vector3(0, 0.95, -0.35), Vector3(1, 0.1, 0.25), paint, true)
 			sleeve(st, Vector3(0.025, -0.1, 0.11), Vector3(0.1, -0.33, 0.45), look)
 	return MeshKit.finish(st)
 
@@ -479,10 +475,10 @@ static func arm_left(id: StringName, look: Dictionary = {}, local: bool = false)
 			fist(st, o + lf, Vector3(0, 0, -1), Vector3(-0.7, -1, 0), paint)
 			sleeve(st, o + lf + Vector3(-0.031, -0.049, 0.04), o + lf + Vector3(-0.196, -0.284, 0.28), look)
 		&"crank_gatling":
-			# Left hand over the barrel housing, steadying it.
+			# Left hand on the crank handle, turning it.
 			var lf: Vector3 = LEFT_FIST[id]
-			fist(st, o + lf, Vector3(0, 0, -1), Vector3(-1, 0.4, 0), paint)
-			sleeve(st, o + lf + Vector3(-0.02, -0.04, 0.03), o + Vector3(-0.24, -0.3, 0.1), look)
+			fist(st, o + lf, Vector3(1, 0, 0), Vector3(0, -0.2, 1), paint)
+			sleeve(st, o + lf + Vector3(-0.03, -0.045, 0.04), o + lf + Vector3(-0.17, -0.3, 0.3), look)
 		_:
 			fist(st, o + Vector3(-0.022, -0.075, 0.07), Vector3(0, 0.6, -0.8), Vector3(-1, -0.3, 0.2), paint)
 			sleeve(st, o + Vector3(-0.05, -0.11, 0.1), o + Vector3(-0.22, -0.34, 0.36), look)
@@ -493,7 +489,7 @@ static func arm_left(id: StringName, look: Dictionary = {}, local: bool = false)
 static func item_arm(_team: Color, look: Dictionary = {}) -> ArrayMesh:
 	look = DummyLook.clean(look)
 	var st := MeshKit.begin()
-	fist(st, Vector3(0.0, -0.06, 0.03), Vector3(0, 1, 0), Vector3(1, 0, 0.3), DummyLook.paint(look))
+	fist(st, Vector3(0.0, -0.06, 0.03), Vector3(0, 1, 0), Vector3(1, 0, 0.3), DummyLook.paint(look), true)
 	sleeve(st, Vector3(0.02, -0.11, 0.06), Vector3(0.12, -0.34, 0.4), look)
 	return MeshKit.finish(st)
 

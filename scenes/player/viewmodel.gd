@@ -25,6 +25,7 @@ var _round: MeshInstance3D
 var _flyer: MeshInstance3D
 var _mat: Material
 var _team: Color
+var _posture := 0.0
 
 
 func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) -> void:
@@ -94,7 +95,7 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 func _use_model(body: MeshInstance3D) -> void:
 	body.mesh = null
 	add_child(GunModels.make(id))
-	for pair: Array in [[lever, "lever"], [barrels, "barrels"], [spinner, "barrels"]]:
+	for pair: Array in [[lever, "lever"], [barrels, "barrels"], [spinner, "barrels"], [crank, "crank"]]:
 		var node: Node3D = pair[0]
 		if node == null:
 			continue
@@ -105,11 +106,9 @@ func _use_model(body: MeshInstance3D) -> void:
 			node.position = GunModels.pivot(id, pair[1])
 			part.position = -node.position
 			node.add_child(part)
-	# The model's cylinder and crank are part of its body (they don't turn).
+	# The model's cylinder is part of its body (it doesn't turn).
 	if drum != null:
 		drum.visible = false
-	if crank != null:
-		crank.visible = false
 
 
 func set_look(look: Dictionary) -> void:
@@ -136,6 +135,7 @@ static func _ease(t: float) -> float:
 func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: float, round_index: int = 0,
 		catch_t: float = -1.0) -> void:
 	var e := _ease(open)
+	_posture = e
 	match id:
 		&"revolver":
 			transform = Transform3D(Basis.from_euler(Vector3(0.35 * e, 0.3 * e, 0.95 * e)), Vector3(-0.07, 0.06, 0.04) * e)
@@ -237,6 +237,11 @@ func turn_crank(amount: float, delta: float) -> void:
 	_spin_angle += amount * 26.0 * delta
 	spinner.rotation.z = _spin_angle
 	crank.rotation.x = -_spin_angle * 0.5
+	# The left hand stays on the crank handle and goes round with it (unless it's
+	# off fetching a new drum).
+	if left != null and _posture < 0.02:
+		var rest: Vector3 = WeaponBuilder.LEFT_FIST[id]
+		left.position = crank.position + crank.basis * (rest - crank.position)
 
 
 ## Where the round goes, in this node's parent space (the gun's resting frame).

@@ -13,7 +13,8 @@ const DIR := "res://assets/rigged/guns/"
 const PIVOTS := {
 	"lever_rifle_lever": Vector3(0.0, -0.045, -0.012),
 	"coach_shotgun_barrels": Vector3(0.0, -0.023, -0.087),
-	"crank_gatling_barrels": Vector3(0.0023, 0.0074, -0.05),
+	"crank_gatling_barrels": Vector3(0.004, 0.0147, -0.3),
+	"crank_gatling_crank": Vector3(-0.07, 0.015, -0.221),
 	"zippo_lid": Vector3(0.019, 0.0395, 0.0),
 }
 static var _cache: Dictionary = {}
