@@ -135,9 +135,50 @@ def landmarks(body):
     torso = [v for v in slice_x(vs, sh_z - 0.03 * H, sh_z) if abs(v.x) < 0.16 * H]
     sh_x = max((abs(v.x) for v in torso), default=0.12 * H) * 0.8
     hip_x = 0.055 * H
+
+    def centre(z0, z1, side, x_min=0.0):
+        pts = [v for v in vs if z0 <= v.z < z1 and v.x * side > x_min]
+        if not pts:
+            return None
+        return Vector((sum(v.x for v in pts) / len(pts), sum(v.y for v in pts) / len(pts), (z0 + z1) * 0.5))
+
+    # Legs: follow each leg's actual centre line (feet may stand wide or narrow).
+    legs = {}
+    for side in (1.0, -1.0):
+        thigh = centre(crotch - 0.06 * H, crotch - 0.02 * H, side) or Vector((side * hip_x, 0, crotch))
+        knee = centre(0.25 * H, 0.29 * H, side) or Vector((side * hip_x, 0, 0.27 * H))
+        ankle = centre(0.05 * H, 0.08 * H, side) or Vector((side * hip_x, 0, 0.06 * H))
+        foot = [v for v in vs if v.z < 0.05 * H and v.x * side > 0]
+        toe = min(foot, key=lambda v: v.y) if foot else ankle + Vector((0, -0.09 * H, -0.05 * H))
+        legs[side] = {"top": Vector((thigh.x, thigh.y, crotch + 0.04 * H)), "knee": knee, "ankle": ankle,
+                      "toe": Vector((ankle.x, toe.y, 0.015 * H))}
+    # Arms: the outermost vertices on each side, sliced from the shoulder down to the hand.
+    arms = {}
+    for side in (1.0, -1.0):
+        hand = right_hand if side > 0 else left_hand
+        hand = Vector((hand.x, hand.y, hand.z))
+        sh = Vector((side * sh_x, 0, sh_z))
+        mid_z = (sh.z + hand.z) * 0.5
+        sl = [v for v in vs if abs(v.z - mid_z) < 0.02 * H and v.x * side > 0]
+        if sl:
+            edge = max(v.x * side for v in sl)
+            arm_pts = [v for v in sl if v.x * side > edge - 0.06 * H]
+            elbow = Vector((sum(v.x for v in arm_pts) / len(arm_pts), sum(v.y for v in arm_pts) / len(arm_pts), mid_z))
+        else:
+            elbow = (sh + hand) * 0.5
+        wz = hand.z + (sh.z - hand.z) * 0.12 if abs(hand.z - sh.z) > 0.1 * H else hand.z
+        sw = [v for v in vs if abs(v.z - wz) < 0.015 * H and v.x * side > 0]
+        if sw:
+            edge = max(v.x * side for v in sw)
+            wp = [v for v in sw if v.x * side > edge - 0.05 * H]
+            wrist = Vector((sum(v.x for v in wp) / len(wp), sum(v.y for v in wp) / len(wp), wz))
+        else:
+            wrist = sh + (hand - sh) * 0.88
+        arms[side] = {"sh": sh, "elbow": elbow, "wrist": wrist, "hand": hand}
     return {
         "H": H, "crotch": crotch, "neck": neck, "sh_z": sh_z, "sh_x": sh_x, "hip_x": hip_x,
         "hand_r": Vector((right_hand.x, 0, right_hand.z)), "hand_l": Vector((left_hand.x, 0, left_hand.z)),
+        "legs": legs, "arms": arms,
     }
 
 
@@ -166,21 +207,15 @@ def build_armature(L):
     bone("Head", (0, 0, L["neck"] + 0.03 * H), (0, 0, H), "Neck", True)
     # Blender front is -Y, so the character's left is +X.
     for side, s in (("Left", 1.0), ("Right", -1.0)):
-        hand = L["hand_r"] if s > 0 else L["hand_l"]
-        sh = Vector((s * L["sh_x"], 0, L["sh_z"]))
-        bone(f"{side}Shoulder", (s * 0.02 * H, 0, L["sh_z"]), sh, "Chest")
-        wrist = sh + (hand - sh) * 0.88
-        elbow = sh + (wrist - sh) * 0.5 + Vector((0, 0.015 * H, 0))   # a hint of bend, backwards
-        bone(f"{side}UpperArm", sh, elbow, f"{side}Shoulder", True)
-        bone(f"{side}LowerArm", elbow, wrist, f"{side}UpperArm", True)
-        bone(f"{side}Hand", wrist, hand, f"{side}LowerArm", True)
-        top = Vector((s * L["hip_x"], 0, hip_z))
-        ankle = Vector((s * L["hip_x"] * 1.05, 0.0, 0.06 * H))
-        knee = (top + ankle) * 0.5 + Vector((0, -0.012 * H, 0))       # knees bend forward
-        bone(f"{side}UpperLeg", top, knee, "Hips")
-        bone(f"{side}LowerLeg", knee, ankle, f"{side}UpperLeg", True)
-        toe = Vector((s * L["hip_x"] * 1.05, -0.09 * H, 0.015 * H))
-        bone(f"{side}Foot", ankle, toe, f"{side}LowerLeg", True)
+        A = L["arms"][s]
+        bone(f"{side}Shoulder", (s * 0.02 * H, 0, L["sh_z"]), A["sh"], "Chest")
+        bone(f"{side}UpperArm", A["sh"], A["elbow"], f"{side}Shoulder", True)
+        bone(f"{side}LowerArm", A["elbow"], A["wrist"], f"{side}UpperArm", True)
+        bone(f"{side}Hand", A["wrist"], A["hand"], f"{side}LowerArm", True)
+        G = L["legs"][s]
+        bone(f"{side}UpperLeg", G["top"], G["knee"], "Hips")
+        bone(f"{side}LowerLeg", G["knee"], G["ankle"], f"{side}UpperLeg", True)
+        bone(f"{side}Foot", G["ankle"], G["toe"], f"{side}LowerLeg", True)
     bpy.ops.object.mode_set(mode="OBJECT")
     return rig
 
@@ -205,18 +240,37 @@ def skin(body, rig, L):
         "Right_leg": ["RightUpperLeg", "RightLowerLeg", "RightFoot", "Hips"],
     }
     groups = {name: body.vertex_groups.new(name=name) for name in bones}
+
+    def _arm_d(p, side):
+        return min(_seg_dist(p, *bones[side + n]) for n in ("UpperArm", "LowerArm", "Hand"))
+
+    def _leg_d(p, side):
+        return min(_seg_dist(p, *bones[side + n]) for n in ("UpperLeg", "LowerLeg", "Foot"))
+
+    def _trunk_d(p):
+        return min(_seg_dist(p, *bones[n]) for n in ("Hips", "Spine", "Chest")) - 0.06 * H
     arm_x = L["sh_x"] * 0.92
     for v in body.data.vertices:
         p = v.co
         side = "Left" if p.x > 0 else "Right"
-        if p.z > L["crotch"] - 0.02 * H and abs(p.x) > arm_x and p.z < L["neck"]:
-            chain = chains[side + "_arm"]
-        elif p.z < L["crotch"] + 0.02 * H:
+        near_arm = abs(p.x) > 0.6 * L["sh_x"] and p.z > 0.25 * H and _arm_d(p, side) < min(_leg_d(p, side), _trunk_d(p))
+        is_leg = not near_arm and p.z < L["crotch"] + 0.02 * H
+        if is_leg:
             chain = chains[side + "_leg"]
+        elif near_arm or (p.z < L["neck"] and abs(p.x) > 0.45 * L["sh_x"] and _arm_d(p, side) < _trunk_d(p)):
+            chain = chains[side + "_arm"]
         else:
             chain = chains["trunk"]
         d = sorted((_seg_dist(p, *bones[n]), n) for n in chain)
         best, name = d[0]
+        if is_leg and name != "Hips":
+            # Loose cloth hanging away from the leg (coat tails, chaps, fringe) swings
+            # partly with the hips, like a skirt, instead of being dragged by the knee.
+            loose = min(max((best - 0.055 * H) / (0.05 * H), 0.0), 0.85)
+            if loose > 0.0:
+                groups[name].add([v.index], 1.0 - loose, "REPLACE")
+                groups["Hips"].add([v.index], loose, "REPLACE")
+                continue
         groups[name].add([v.index], 1.0, "REPLACE")
         # Blend toward a second bone that is nearly as close (soft joints).
         if len(d) > 1 and d[1][0] < best + 0.03 * H:
@@ -287,7 +341,10 @@ def main():
         body.data.update()
     normalise(body)
     L = landmarks(body)
-    print("[autorig] landmarks:", {k: (round(v, 3) if isinstance(v, float) else tuple(round(c, 3) for c in v)) for k, v in L.items()})
+    print("[autorig] landmarks:", {k: round(v, 3) for k, v in L.items() if isinstance(v, float)})
+    for s in (1.0, -1.0):
+        print("[autorig]  leg", s, {k: tuple(round(c, 2) for c in v) for k, v in L["legs"][s].items()})
+        print("[autorig]  arm", s, {k: tuple(round(c, 2) for c in v) for k, v in L["arms"][s].items()})
     tris = reduce(body, o["max_tris"])
     print("[autorig] triangles:", tris)
     rig = build_armature(L)
@@ -301,8 +358,13 @@ def main():
     print("[autorig] bones with (almost) no weights:", empty)
     if o["preview"]:
         preview(rig, o["preview"])
+    # Textures: 2K is plenty for a character the size of a player.
+    for img in bpy.data.images:
+        if img.size[0] > 2048:
+            img.scale(2048, int(2048 * img.size[1] / img.size[0]))
+            print("[autorig] texture", img.name, "->", tuple(img.size))
     bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.export_scene.gltf(filepath=o["out"], export_format="GLB", use_selection=True, export_skins=True, export_animations=False)
+    bpy.ops.export_scene.gltf(export_image_format="JPEG", export_jpeg_quality=90, filepath=o["out"], export_format="GLB", use_selection=True, export_skins=True, export_animations=False)
     print("[autorig] wrote", o["out"])
 
 
