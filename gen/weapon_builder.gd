@@ -22,6 +22,91 @@ const ALONG_Z := Basis(Vector3.RIGHT, PI * 0.5)
 
 # ------------------------------------------------------------------ helpers
 
+## A smoothly lofted piece of woodwork (gunstocks, forends) through stations of
+## [centre, half height, half width]. Rounded-square cross sections, smooth
+## normals, both ends capped. Grain is suggested by a slightly darker belly.
+static func loft(st: SurfaceTool, stations: Array, col: Color, segs: int = 16) -> void:
+	var rings: Array = []
+	var norms: Array = []
+	var n := stations.size()
+	for i in n:
+		var c: Vector3 = stations[i][0]
+		var hh: float = stations[i][1]
+		var hw: float = stations[i][2]
+		var prev: Vector3 = stations[maxi(i - 1, 0)][0]
+		var next: Vector3 = stations[mini(i + 1, n - 1)][0]
+		var tan := (next - prev).normalized()
+		var side := tan.cross(Vector3.UP).normalized()
+		if side.length() < 0.5:
+			side = Vector3.RIGHT
+		var up := side.cross(tan).normalized()
+		var ring: Array[Vector3] = []
+		var nring: Array[Vector3] = []
+		for s in segs:
+			var a := TAU * float(s) / segs
+			var ca := cos(a)
+			var sa := sin(a)
+			# Superellipse: squarer than an oval, like carved walnut.
+			var x := signf(ca) * pow(absf(ca), 0.7)
+			var y := signf(sa) * pow(absf(sa), 0.7)
+			ring.append(c + side * x * hw + up * y * hh)
+			nring.append((side * ca / maxf(hw, 0.001) + up * sa / maxf(hh, 0.001)).normalized())
+		rings.append(ring)
+		norms.append(nring)
+	var belly := col.darkened(0.08)
+	for i in n - 1:
+		for s in segs:
+			var s1 := (s + 1) % segs
+			var a: Vector3 = rings[i][s]
+			var b: Vector3 = rings[i][s1]
+			var c2: Vector3 = rings[i + 1][s1]
+			var d: Vector3 = rings[i + 1][s]
+			var cc := MeshKit.vcol(belly if sin(TAU * float(s) / segs) < -0.3 else col)
+			var na: Vector3 = norms[i][s]
+			var nb: Vector3 = norms[i][s1]
+			var nc: Vector3 = norms[i + 1][s1]
+			var nd: Vector3 = norms[i + 1][s]
+			MeshKit.tri(st, a, b, c2, na, nb, nc, cc, (na + nb + nc).normalized())
+			MeshKit.tri(st, a, c2, d, na, nc, nd, cc, (na + nc + nd).normalized())
+	for e in [0, n - 1]:
+		var c: Vector3 = stations[e][0]
+		var other: Vector3 = stations[1 if e == 0 else n - 2][0]
+		var out := (c - other).normalized()
+		var cc := MeshKit.vcol(col.darkened(0.12))
+		for s in segs:
+			MeshKit.tri(st, c, rings[e][s], rings[e][(s + 1) % segs], out, out, out, cc, out)
+
+
+## A buttplate shaped to the last station of a loft (a thin shell just behind it).
+static func buttplate(st: SurfaceTool, stations: Array, col: Color) -> void:
+	var last: Array = stations[stations.size() - 1]
+	var prev: Array = stations[stations.size() - 2]
+	var dir := ((last[0] as Vector3) - (prev[0] as Vector3)).normalized()
+	loft(st, [[(last[0] as Vector3) - dir * 0.001, float(last[1]) * 1.02, float(last[2]) * 1.04],
+			[(last[0] as Vector3) + dir * 0.006, float(last[1]) * 1.02, float(last[2]) * 1.04]], col, 16)
+
+
+## Engraved scrollwork on a flat side: a pair of curling vines around `c`,
+## on the plane facing `n`, `size` across.
+static func scroll(st: SurfaceTool, c: Vector3, n: Vector3, size: float, col: Color) -> void:
+	var nn := n.normalized()
+	var u := Vector3.UP if absf(nn.dot(Vector3.UP)) < 0.9 else Vector3.FORWARD
+	var right := u.cross(nn).normalized()
+	var up := nn.cross(right).normalized()
+	for side: float in [-1.0, 1.0]:
+		var pts: Array = []
+		var radii: Array = []
+		for k in 14:
+			var f := float(k) / 13.0
+			var ang := f * TAU * 1.15 * side
+			var r := size * 0.5 * (1.0 - f * 0.8)
+			var centre := c + right * side * size * 0.22
+			pts.append(centre + (right * cos(ang) + up * sin(ang)) * r + nn * 0.0006)
+			radii.append(size * 0.022)
+		MeshKit.tube(st, pts, radii, 4, col)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), c + nn * 0.0008), Vector3.ONE * size * 0.06, 3, 6, col)
+
+
 ## A cylinder running from a to b (any direction).
 static func rod(st: SurfaceTool, a: Vector3, b: Vector3, r0: float, r1: float, segs: int, col: Color) -> void:
 	var dir := b - a
@@ -68,6 +153,7 @@ static func revolver_body() -> ArrayMesh:
 	for side: float in [-1.0, 1.0]:
 		screw(st, Vector3(side * 0.017, 0.022, 0.02), side)
 		screw(st, Vector3(side * 0.017, 0.0, 0.04), side)
+		scroll(st, Vector3(side * 0.0172, 0.008, 0.022), Vector3(side, 0, 0), 0.034, Color("#C8CED6"))
 	# Hammer with a knurled spur.
 	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.35), Vector3(0, 0.045, 0.05)), Vector3(0.011, 0.03, 0.014), BLUED_DARK)
 	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.9), Vector3(0, 0.062, 0.063)), Vector3(0.016, 0.006, 0.02), STEEL)
@@ -171,16 +257,22 @@ static func rifle_body() -> ArrayMesh:
 	# Hammer, trigger, and the loop lever.
 	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.9), Vector3(0, 0.036, 0.068)), Vector3(0.008, 0.022, 0.01), BLUED_DARK)
 	bent(st, [Vector3(0, -0.016, 0.01), Vector3(0, -0.03, 0.016), Vector3(0, -0.036, 0.024)], 0.0028, STEEL)
-	# Walnut forend around the magazine.
-	rod(st, Vector3(0, 0.008, -0.08), Vector3(0, 0.008, -0.3), 0.021, 0.019, 10, WALNUT)
-	# Wrist and buttstock with a crescent buttplate.
-	rod(st, Vector3(0, 0.0, 0.065), Vector3(0, -0.03, 0.16), 0.0165, 0.018, 10, WALNUT)
-	var stock_a := Vector3(0, -0.03, 0.16)
-	var stock_b := Vector3(0, -0.055, 0.43)
-	MeshKit.add_box(st, Transform3D(MeshKit.basis_from_y((stock_b - stock_a).normalized()).rotated(Vector3.RIGHT, 0.0), (stock_a + stock_b) * 0.5 + Vector3(0, -0.01, 0)),
-			Vector3(0.034, (stock_b - stock_a).length(), 0.065), WALNUT)
-	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.1), stock_b + Vector3(0, -0.012, 0.03)), Vector3(0.036, 0.1, 0.03), WALNUT)
-	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.1), stock_b + Vector3(0, -0.012, 0.047)), Vector3(0.038, 0.104, 0.006), BLUED_DARK)
+	# Walnut forend around the magazine, with a steel cap.
+	loft(st, [[Vector3(0, 0.006, -0.075), 0.019, 0.018], [Vector3(0, 0.004, -0.12), 0.022, 0.02], [Vector3(0, 0.004, -0.26), 0.021, 0.019],
+			[Vector3(0, 0.006, -0.3), 0.017, 0.016]], WALNUT, 14)
+	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0.008, -0.304)), 0.018, 0.018, 0.008, 12, BLUED_DARK)
+	# Wrist, comb and buttstock in one carved piece, a crescent steel buttplate.
+	var stock := [[Vector3(0, 0.004, 0.06), 0.022, 0.016], [Vector3(0, -0.006, 0.11), 0.017, 0.0155], [Vector3(0, -0.018, 0.17), 0.021, 0.016],
+		[Vector3(0, -0.03, 0.26), 0.036, 0.018], [Vector3(0, -0.04, 0.36), 0.048, 0.019], [Vector3(0, -0.048, 0.43), 0.055, 0.0195]]
+	loft(st, stock, WALNUT)
+	buttplate(st, stock, BLUED_DARK)
+	# Checkering on the wrist.
+	for k in 5:
+		for side: float in [-1.0, 1.0]:
+			MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, 0.5 if k % 2 == 0 else -0.5), Vector3(side * 0.0158, -0.008, 0.095 + k * 0.012)), Vector3(0.001, 0.022, 0.0016), WALNUT_DARK)
+	# Engraved receiver sides.
+	for side: float in [-1.0, 1.0]:
+		scroll(st, Vector3(side * 0.0187, 0.016, -0.005), Vector3(side, 0, 0), 0.04, BRASS.darkened(0.3))
 	return MeshKit.finish(st)
 
 
@@ -204,7 +296,8 @@ static func shotgun_barrels() -> ArrayMesh:
 		MeshKit.add_cylinder(st, Transform3D(ALONG_Z, o + Vector3(side * 0.0172, 0.022, -0.059)), 0.0125, 0.0125, 0.003, 10, Color("#1A1A1E"))
 	MeshKit.add_box(st, Transform3D(Basis(), o + Vector3(0, 0.039, -0.29)), Vector3(0.012, 0.006, 0.46), BLUED_DARK)
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(), o + Vector3(0, 0.044, -0.51)), Vector3.ONE * 0.003, 3, 6, BRASS)
-	rod(st, o + Vector3(0, 0.0, -0.065), o + Vector3(0, 0.0, -0.22), 0.026, 0.022, 10, WALNUT_DARK)
+	loft(st, [[o + Vector3(0, 0.002, -0.062), 0.022, 0.026], [o + Vector3(0, -0.002, -0.1), 0.026, 0.03], [o + Vector3(0, 0.0, -0.2), 0.024, 0.028],
+			[o + Vector3(0, 0.004, -0.225), 0.018, 0.024]], WALNUT_DARK, 14)
 	return MeshKit.finish(st)
 
 
@@ -226,11 +319,12 @@ static func shotgun_action() -> ArrayMesh:
 	# Pistol grip, stock and butt plate in dark walnut.
 	rod(st, Vector3(0, -0.002, 0.05), Vector3(0, -0.06, 0.12), 0.019, 0.021, 10, WALNUT_DARK)
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, -0.066, 0.122)), Vector3(0.021, 0.01, 0.022), 4, 8, BLUED_DARK)
-	var a := Vector3(0, -0.01, 0.1)
-	var b := Vector3(0, -0.075, 0.33)
-	MeshKit.add_box(st, Transform3D(MeshKit.basis_from_y((b - a).normalized()), (a + b) * 0.5), Vector3(0.04, (b - a).length(), 0.07), WALNUT_DARK)
-	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.12), b + Vector3(0, -0.01, 0.03)), Vector3(0.042, 0.11, 0.03), WALNUT_DARK)
-	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.12), b + Vector3(0, -0.01, 0.047)), Vector3(0.044, 0.114, 0.006), Color("#2A1A12"))
+	var stock := [[Vector3(0, 0.01, 0.045), 0.026, 0.022], [Vector3(0, -0.002, 0.1), 0.021, 0.019], [Vector3(0, -0.02, 0.17), 0.032, 0.02],
+		[Vector3(0, -0.04, 0.25), 0.046, 0.021], [Vector3(0, -0.058, 0.33), 0.056, 0.022], [Vector3(0, -0.064, 0.36), 0.058, 0.0222]]
+	loft(st, stock, WALNUT_DARK)
+	buttplate(st, stock, Color("#2A1A12"))
+	for side: float in [-1.0, 1.0]:
+		scroll(st, Vector3(side * 0.0268, 0.012, 0.005), Vector3(side, 0, 0), 0.034, Color("#E8C870"))
 	return MeshKit.finish(st)
 
 
@@ -299,8 +393,7 @@ static func fist(st: SurfaceTool, at: Vector3, along: Vector3, back: Vector3, pa
 			radii.append(r * lerpf(1.0, 0.82, float(k) / 5.0))
 		MeshKit.tube(st, pts, radii, 7, paint.darkened(0.04 * (f % 2)))
 		# Rubber knuckle and middle joint.
-		MeshKit.add_ellipsoid(st, Transform3D(basis, pts[0]), Vector3.ONE * r * 1.12, 4, 8, joint)
-		MeshKit.add_ellipsoid(st, Transform3D(basis, pts[3]), Vector3.ONE * r * 1.02, 3, 6, joint)
+		MeshKit.add_ellipsoid(st, Transform3D(basis, pts[0] + out * 0.002), Vector3.ONE * r * 0.92, 4, 8, joint)
 	# Thumb: from the heel of the palm, over the curled fingers.
 	var t0 := g + up * 0.036 + side * 0.018 + out * 0.004
 	MeshKit.tube(st, [t0, t0 + up * 0.006 - side * 0.012 - out * 0.012, t0 + up * 0.004 - side * 0.03 - out * 0.022],
@@ -537,7 +630,8 @@ static func blunderbuss() -> ArrayMesh:
 	for z: float in [-0.08, -0.2, -0.32]:
 		MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0.012, z)), 0.022 + (-z) * 0.012, 0.022 + (-z) * 0.012, 0.008, 12, BLUED_DARK)
 	# Walnut forestock under the barrel, ramrod beneath.
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, -0.012, -0.15)), Vector3(0.03, 0.024, 0.26), WALNUT)
+	loft(st, [[Vector3(0, -0.006, -0.02), 0.016, 0.017], [Vector3(0, -0.01, -0.06), 0.017, 0.018], [Vector3(0, -0.01, -0.26), 0.014, 0.017],
+			[Vector3(0, -0.006, -0.285), 0.01, 0.014]], WALNUT, 14)
 	rod(st, Vector3(0, -0.028, -0.02), Vector3(0, -0.028, -0.3), 0.0035, 0.0035, 6, WALNUT_DARK)
 	# Flintlock: lock plate, cock with flint, frizzen and pan.
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.019, 0.006, 0.02)), Vector3(0.006, 0.026, 0.07), STEEL)
@@ -547,11 +641,11 @@ static func blunderbuss() -> ArrayMesh:
 	bent(st, [Vector3(0, -0.014, 0.03), Vector3(0, -0.03, 0.036)], 0.0028, STEEL)
 	bent(st, arc(Vector3(0, -0.018, 0.045), 0.024, -0.3 * PI, -1.1 * PI, 8), 0.0035, BRASS)
 	# Stubby stock with a brass butt plate.
-	var a := Vector3(0, -0.006, 0.05)
-	var b := Vector3(0, -0.07, 0.27)
-	MeshKit.add_box(st, Transform3D(MeshKit.basis_from_y((b - a).normalized()), (a + b) * 0.5), Vector3(0.04, (b - a).length(), 0.075), WALNUT)
-	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.15), b + Vector3(0, -0.01, 0.03)), Vector3(0.044, 0.11, 0.03), WALNUT)
-	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.15), b + Vector3(0, -0.01, 0.047)), Vector3(0.046, 0.114, 0.006), BRASS)
+	var stock := [[Vector3(0, 0.004, 0.0), 0.02, 0.02], [Vector3(0, -0.004, 0.06), 0.02, 0.018], [Vector3(0, -0.018, 0.12), 0.03, 0.019],
+		[Vector3(0, -0.04, 0.2), 0.046, 0.021], [Vector3(0, -0.058, 0.28), 0.058, 0.023], [Vector3(0, -0.062, 0.3), 0.06, 0.0232]]
+	loft(st, stock, WALNUT)
+	buttplate(st, stock, BRASS)
+	scroll(st, Vector3(0.0225, 0.006, 0.02), Vector3(1, 0, 0), 0.03, BRASS)
 	return MeshKit.finish(st)
 
 
@@ -570,11 +664,17 @@ static func powder_horn() -> ArrayMesh:
 ## left, and a drum magazine on top. The barrels and crank are separate parts.
 static func gatling_body() -> ArrayMesh:
 	var st := MeshKit.begin()
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0, 0.04)), Vector3(0.09, 0.08, 0.14), BRASS.darkened(0.1))
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0, 0.04)), Vector3(0.092, 0.03, 0.12), BLUED_DARK)
-	for side: float in [-1.0, 1.0]:
-		for k in 3:
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(side * 0.046, 0.03, 0.0 + k * 0.04)), Vector3.ONE * 0.004, 3, 6, BRASS.lightened(0.2))
+	# Turned brass housing (the gear case), with steel bands and rivet rows.
+	MeshKit.lathe(st, Transform3D(ALONG_Z, Vector3(0, 0, 0.04)), [Vector2(0.042, -0.072), Vector2(0.047, -0.064), Vector2(0.048, 0.05),
+			Vector2(0.044, 0.066), Vector2(0.03, 0.072), Vector2(0.0, 0.074)], 20, BRASS.darkened(0.1))
+	for z: float in [-0.015, 0.04, 0.095]:
+		MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0, z)), 0.0495, 0.0495, 0.008, 20, BLUED_DARK)
+		for k in 10:
+			var a := TAU * k / 10.0
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(cos(a) * 0.05, sin(a) * 0.05, z)), Vector3.ONE * 0.0032, 3, 6, BRASS.lightened(0.25))
+	# Maker's plate on the side.
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.048, 0.0, 0.068)), Vector3(0.002, 0.026, 0.04), Color("#E8C870"))
+	scroll(st, Vector3(0.0495, 0.0, 0.068), Vector3(1, 0, 0), 0.024, BRASS.darkened(0.35))
 	# Front bearing plate where the barrels turn.
 	MeshKit.add_cylinder(st, Transform3D(ALONG_Z, Vector3(0, 0, -0.035)), 0.05, 0.05, 0.02, 14, BLUED)
 	# Carry handle and the left side grip.
