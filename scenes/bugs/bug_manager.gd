@@ -14,11 +14,15 @@ static var smoke_override := -1
 var vfx: VfxPool
 var _spawner: MultiplayerSpawner
 var _next_id := 0
+static var instance: BugManager
+var _next_loot := 0
+var _loot: Dictionary = {} # loot id -> LootDrop (every peer)
 ## Burning chili patches: {cliff, center, radius, dps, left, source, source_cliff}
 var _fires: Array[Dictionary] = []
 
 
 func _ready() -> void:
+	instance = self
 	_spawner = MultiplayerSpawner.new()
 	_spawner.name = "BugSpawner"
 	add_child(_spawner)
@@ -96,6 +100,17 @@ func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 	var loot := {&"scrap": bug.def.scrap_drop, &"chitin": bug.def.chitin_drop * Weather.chitin_mult(GameState.weather)}
 	Economy.earn(bug.cliff_id, loot)
 	_corpse.rpc(get_path_to(bug))
+	# Bugs that made it up off the cliff wall leave something to loot.
+	var was := bug.died_in
+	if was == Bug.State.BREACHING or was == Bug.State.CRESTING or (was == Bug.State.FLYING and _over_plateau(bug)):
+		_next_loot += 1
+		var extra := maxi(bug.def.chitin_drop, 1) + int(bug.def.size)
+		var at := bug.global_position
+		if was != Bug.State.FLYING:
+			at.y = Bug.cliffs.ground_height_at(bug.cliff_id, at) if Bug.cliffs != null else at.y
+		else:
+			at.y = Bug.cliffs.ground_height_at(bug.cliff_id, at) if Bug.cliffs != null else at.y - 3.0
+		_spawn_loot.rpc(_next_loot, at, extra, bug.def.display_name, bug.def.shell_color)
 	_pop.rpc(bug.global_position, bug.def.shell_color, float(bug.spec["scale"]))
 	_announce_kill.rpc(bug.def.display_name, bug.cliff_id, source, source_cliff, bug.def.scrap_drop)
 	bug.queue_free()
@@ -256,3 +271,58 @@ func separate() -> void:
 				b.climb_y = clampf(b.climb_y + push[i].y, 0.0, WorldLayout.CLIFF_HEIGHT - 0.05)
 			else:
 				b.ground_pos += Vector3(push[i].x, 0.0, push[i].y)
+
+
+# ------------------------------------------------------------------ loot
+
+func _over_plateau(bug: Bug) -> bool:
+	return absf(bug.global_position.x) > WorldLayout.HALF_GAP + 1.0
+
+
+@rpc("authority", "call_local", "reliable")
+func _spawn_loot(id: int, at: Vector3, chitin: int, bug_name: String, shell: Color) -> void:
+	var drop := LootDrop.new()
+	drop.loot_id = id
+	drop.chitin = chitin
+	drop.bug_name = bug_name
+	drop.color = shell
+	drop.name = "Loot%d" % id
+	get_parent().add_child(drop)
+	drop.global_position = at
+	_loot[id] = drop
+
+
+## Local player pressed E on a loot heap.
+func request_loot(id: int) -> void:
+	if multiplayer.is_server():
+		_take_loot(multiplayer.get_unique_id(), id)
+	else:
+		_request_loot.rpc_id(1, id)
+
+
+@rpc("any_peer", "reliable")
+func _request_loot(id: int) -> void:
+	if multiplayer.is_server():
+		_take_loot(multiplayer.get_remote_sender_id(), id)
+
+
+func _take_loot(peer_id: int, id: int) -> void:
+	var drop := _loot.get(id) as LootDrop
+	if drop == null or not is_instance_valid(drop):
+		return
+	var cid := NetworkManager.cliff_of(peer_id) if NetworkManager.is_online() else WorldLayout.WEST
+	for n: Node in get_tree().get_nodes_in_group("players"):
+		if n.get_multiplayer_authority() == peer_id:
+			cid = (n as Player).cliff_id
+	Economy.earn(cid, {&"chitin": drop.chitin})
+	Economy.notify(peer_id, "Looted the %s: +%d chitin." % [drop.bug_name.to_lower(), drop.chitin])
+	_remove_loot.rpc(id)
+
+
+@rpc("authority", "call_local", "reliable")
+func _remove_loot(id: int) -> void:
+	var drop := _loot.get(id) as LootDrop
+	_loot.erase(id)
+	if drop != null and is_instance_valid(drop):
+		Audio.play_at(&"coin", drop.global_position, -4.0)
+		drop.queue_free()

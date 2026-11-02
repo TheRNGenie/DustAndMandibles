@@ -398,10 +398,15 @@ func _check_brood() -> void:
 			brood_burst.call(self)
 
 
+## What the bug was doing when it died (for loot: only plateau kills drop it).
+var died_in := -1
+
+
 func _on_died(source: String, source_cliff: int) -> void:
 	if def.behavior == BugDef.Behavior.BROOD and not brood_done:
 		brood_done = true
 		if brood_burst.is_valid():
 			brood_burst.call(self)
+	died_in = state
 	state = State.DEAD
 	died.emit(self, source, source_cliff)

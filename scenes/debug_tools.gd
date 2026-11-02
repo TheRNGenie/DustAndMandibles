@@ -26,6 +26,8 @@ func _ready() -> void:
 		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
+	elif GameState.has_flag("--loottest"):
+		_loot_test()
 	elif GameState.has_flag("--archtest"):
 		_arch_test()
 	elif GameState.has_flag("--slidetest"):
@@ -972,4 +974,35 @@ func _arch_test() -> void:
 		await get_tree().physics_frame
 	Input.action_release("alt_fire")
 	print("[arch] swung %.1f m out over the canyon (x %.1f -> %.1f)" % [player.global_position.distance_to(start), start.x, player.global_position.x])
+	get_tree().quit()
+
+
+## --loottest: kills one beetle on the west plateau and one on the cliff face;
+## only the plateau kill should leave loot. Loots it and logs chitin.
+func _loot_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	var bm := world.get("bugs") as BugManager
+	var pos := Bug.cliffs.plateau_point(WorldLayout.WEST, 12.0, 6.0)
+	bm.spawn_at(&"rattler_beetle", WorldLayout.WEST, 2, 6.0, 0.0, Bug.State.BREACHING, pos)
+	bm.spawn_group(&"rattler_beetle", 1, WorldLayout.WEST, 3, 20.0)
+	for i in 10:
+		await get_tree().physics_frame
+	for n: Node in get_tree().get_nodes_in_group("bugs"):
+		(n as Bug).health.take_damage(99999.0, "test")
+	for i in 10:
+		await get_tree().physics_frame
+	var heaps := get_tree().get_nodes_in_group("loot")
+	print("[loot] heaps after killing one plateau bug and one climber: %d" % heaps.size())
+	if heaps.is_empty():
+		get_tree().quit()
+		return
+	var drop := heaps[0] as LootDrop
+	var before := Economy.amount(player.cliff_id, &"chitin")
+	print("[loot] prompt: %s" % drop.interact_prompt())
+	drop.local_interact(false)
+	for i in 5:
+		await get_tree().physics_frame
+	print("[loot] chitin %d -> %d, heaps left %d" % [before, Economy.amount(player.cliff_id, &"chitin"), get_tree().get_nodes_in_group("loot").size()])
 	get_tree().quit()
