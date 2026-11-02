@@ -375,7 +375,7 @@ static func gun(id: StringName) -> ArrayMesh:
 ## `along` the direction the fingers wrap around (the grip's axis), `back` points
 ## to the back of the hand. Four jointed fingers curl round the grip, the thumb
 ## locks over them, with black rubber knuckles and a painted calibration dot.
-static func fist(st: SurfaceTool, at: Vector3, along: Vector3, back: Vector3, paint: Color, right: bool = false) -> void:
+static func fist(st: SurfaceTool, at: Vector3, along: Vector3, back: Vector3, paint: Color, right: bool = false, wrist_ribs: bool = true) -> void:
 	var up := along.normalized()
 	var out := (back - up * back.dot(up)).normalized()
 	# A right hand is the mirror image of a left: its fingers curl round the other way.
@@ -407,8 +407,25 @@ static func fist(st: SurfaceTool, at: Vector3, along: Vector3, back: Vector3, pa
 			[0.011, 0.0105, 0.009], 7, paint)
 	MeshKit.add_ellipsoid(st, Transform3D(basis, t0), Vector3.ONE * 0.0115, 4, 8, joint)
 	# Ribbed rubber wrist.
+	if wrist_ribs:
+		for k in 3:
+			MeshKit.add_ellipsoid(st, Transform3D(basis, at - up * (0.05 + k * 0.011) + out * 0.008), Vector3(0.027, 0.007, 0.025), 4, 12, joint)
+
+
+## A whole forearm and hand: the fist at `at` and the forearm running back to
+## `elbow`, joined by a ribbed rubber wrist that points along the forearm, so
+## the hand always sits on the end of the arm.
+static func arm(st: SurfaceTool, at: Vector3, along: Vector3, back: Vector3, elbow: Vector3, look: Dictionary, right: bool = false) -> void:
+	var paint := DummyLook.paint(look)
+	fist(st, at, along, back, paint, right, false)
+	var dir := (elbow - at).normalized()
+	# The heel of the hand, where the wrist comes out of the fist.
+	var heel := at + dir * 0.034
+	var b := MeshKit.basis_from_y(dir)
 	for k in 3:
-		MeshKit.add_ellipsoid(st, Transform3D(basis, at - up * (0.05 + k * 0.011) + out * 0.008), Vector3(0.027, 0.007, 0.025), 4, 12, joint)
+		MeshKit.add_cylinder(st, Transform3D(b, heel + dir * (0.006 + k * 0.012)), 0.025 - k * 0.001, 0.025 - k * 0.001, 0.008, 12, Color("#26262C"))
+	MeshKit.add_cylinder(st, Transform3D(b, heel + dir * 0.018), 0.021, 0.021, 0.036, 12, Color("#1C1C20"))
+	sleeve(st, heel + dir * 0.03, elbow, look)
 
 
 ## The forearm from the wrist back out of view: a coat sleeve with the duster
@@ -453,11 +470,9 @@ static func arm_right(id: StringName, look: Dictionary = {}) -> ArrayMesh:
 	match id:
 		&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling":
 			var g: Vector3 = RIGHT_GRIP[id][0]
-			fist(st, g, RIGHT_GRIP[id][1], Vector3(1, 0.2, 0.1), paint, true)
-			sleeve(st, g + Vector3(0.026, -0.045, 0.04), g + Vector3(0.116, -0.3, 0.4), look)
+			arm(st, g, RIGHT_GRIP[id][1], Vector3(1, 0.2, 0.1), g + Vector3(0.116, -0.3, 0.4), look, true)
 		_:
-			fist(st, Vector3(0.003, -0.05, 0.07), Vector3(0, 0.95, -0.35), Vector3(1, 0.1, 0.25), paint, true)
-			sleeve(st, Vector3(0.025, -0.1, 0.11), Vector3(0.1, -0.33, 0.45), look)
+			arm(st, Vector3(0.003, -0.05, 0.07), Vector3(0, 0.95, -0.35), Vector3(1, 0.1, 0.25), Vector3(0.1, -0.33, 0.45), look, true)
 	return MeshKit.finish(st)
 
 
@@ -472,16 +487,13 @@ static func arm_left(id: StringName, look: Dictionary = {}, local: bool = false)
 		&"lever_rifle", &"coach_shotgun", &"blunderbuss":
 			# Cupping the forend from below.
 			var lf: Vector3 = LEFT_FIST[id]
-			fist(st, o + lf, Vector3(0, 0, -1), Vector3(-0.7, -1, 0), paint)
-			sleeve(st, o + lf + Vector3(-0.031, -0.049, 0.04), o + lf + Vector3(-0.196, -0.284, 0.28), look)
+			arm(st, o + lf, Vector3(0, 0, -1), Vector3(-0.7, -1, 0), o + lf + Vector3(-0.196, -0.284, 0.28), look)
 		&"crank_gatling":
 			# Left hand on the crank handle, turning it.
 			var lf: Vector3 = LEFT_FIST[id]
-			fist(st, o + lf, Vector3(1, 0, 0), Vector3(0, -0.2, 1), paint)
-			sleeve(st, o + lf + Vector3(-0.03, -0.045, 0.04), o + lf + Vector3(-0.17, -0.3, 0.3), look)
+			arm(st, o + lf, Vector3(1, 0, 0), Vector3(0, -0.2, 1), o + lf + Vector3(-0.17, -0.3, 0.3), look)
 		_:
-			fist(st, o + Vector3(-0.022, -0.075, 0.07), Vector3(0, 0.6, -0.8), Vector3(-1, -0.3, 0.2), paint)
-			sleeve(st, o + Vector3(-0.05, -0.11, 0.1), o + Vector3(-0.22, -0.34, 0.36), look)
+			arm(st, o + Vector3(-0.022, -0.075, 0.07), Vector3(0, 0.6, -0.8), Vector3(-1, -0.3, 0.2), o + Vector3(-0.22, -0.34, 0.36), look)
 	return MeshKit.finish(st)
 
 
@@ -489,8 +501,7 @@ static func arm_left(id: StringName, look: Dictionary = {}, local: bool = false)
 static func item_arm(_team: Color, look: Dictionary = {}) -> ArrayMesh:
 	look = DummyLook.clean(look)
 	var st := MeshKit.begin()
-	fist(st, Vector3(0.0, -0.06, 0.03), Vector3(0, 1, 0), Vector3(1, 0, 0.3), DummyLook.paint(look), true)
-	sleeve(st, Vector3(0.02, -0.11, 0.06), Vector3(0.12, -0.34, 0.4), look)
+	arm(st, Vector3(0.0, -0.06, 0.03), Vector3(0, 1, 0), Vector3(1, 0, 0.3), Vector3(0.12, -0.34, 0.4), look, true)
 	return MeshKit.finish(st)
 
 

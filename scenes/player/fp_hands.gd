@@ -93,9 +93,7 @@ func refresh(look: Dictionary) -> void:
 static func hand_mesh(look: Dictionary, side: float) -> ArrayMesh:
 	look = DummyLook.clean(look)
 	var st := MeshKit.begin()
-	WeaponBuilder.fist(st, Vector3.ZERO, Vector3(side, 0, 0), Vector3(0, 1, 0.2), DummyLook.paint(look), side > 0.0)
-	# A long forearm, so its far end is always out of view below the screen.
-	WeaponBuilder.sleeve(st, Vector3(side * 0.005, -0.01, 0.05), Vector3(side * 0.16, -0.42, 0.5), look)
+	WeaponBuilder.arm(st, Vector3.ZERO, Vector3(side, 0, 0), Vector3(0, 1, 0.2), Vector3(side * 0.16, -0.42, 0.5), look, side > 0.0)
 	return MeshKit.finish(st)
 
 

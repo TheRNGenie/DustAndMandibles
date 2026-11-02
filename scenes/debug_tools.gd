@@ -692,6 +692,9 @@ func _take_screenshot(path: String) -> void:
 				vc.position = target + Vector3(0.1, 0.05, -0.8)
 			"left":
 				vc.position = target + Vector3(-0.8, 0.05, 0.0)
+			"close":
+				target = Vector3(0.2, -0.24, -0.45)
+				vc.position = target + Vector3(0.32, 0.06, 0.12)
 			_:
 				vc.position = target + Vector3(0.8, 0.05, 0.0)
 		vc.look_at(player.camera.to_global(target), player.camera.global_basis.y)
