@@ -411,6 +411,15 @@ func _shot_posse() -> void:
 	var c := base + Vector3(0, 1.0, 0)
 	_dur = 2.0
 	_keys = [[0.0, c + Vector3(-5.2, 0.4, 0.2), c], [2.0, c + Vector3(-5.2, 0.4, 0.2), c]]
+	# --closeup=N frames dummy N from the waist up (--closeup=N,back from behind).
+	var cu := GameState.flag_value("--closeup")
+	if cu != "":
+		var i := int(cu.get_slice(",", 0))
+		var back := cu.ends_with("back")
+		var r: Node3D = _rigs[i][0]
+		var f := r.global_position + Vector3(0, 1.45, 0)
+		var eye := f + Vector3(1.9 if back else -1.9, 0.15, 0.25)
+		_keys = [[0.0, eye, f], [2.0, eye, f]]
 
 
 ## Close look at a one-storey homestead's porch (flag, rocking chair, flower boxes).

@@ -173,3 +173,92 @@ static func basis_from_y(y_dir: Vector3) -> Basis:
 	var x := ref.cross(y).normalized()
 	var z := x.cross(y).normalized()
 	return Basis(x, y, z)
+
+
+## A smooth turned shape (like a lathe): `profile` is a list of Vector2(radius, y)
+## from bottom to top, spun round the Y axis of xf. `squash` scales the X and Z
+## radii (for oval cross-sections). Normals are smoothed along the profile.
+static func lathe(st: SurfaceTool, xf: Transform3D, profile: Array, segments: int, color: Color,
+		squash: Vector2 = Vector2.ONE, glow: float = 0.0) -> void:
+	var col := vcol(color, glow)
+	var nbas := _normal_basis(xf)
+	var n_rows := profile.size()
+	var rings: Array = []
+	var norms: Array = []
+	# Profiles may run top-down (limbs) or bottom-up; normals must point out either way.
+	var flip := -1.0 if (profile[n_rows - 1] as Vector2).y < (profile[0] as Vector2).y else 1.0
+	for r in n_rows:
+		var pr: Vector2 = profile[r]
+		var prev: Vector2 = profile[maxi(r - 1, 0)]
+		var next: Vector2 = profile[mini(r + 1, n_rows - 1)]
+		var tangent := next - prev
+		# Outward normal of the profile curve in (radius, y): rotate the tangent.
+		var pn := Vector2(tangent.y, -tangent.x).normalized() * flip if tangent.length() > 0.00001 else Vector2(1, 0)
+		var ring: Array[Vector3] = []
+		var nring: Array[Vector3] = []
+		for s in segments:
+			var u := TAU * float(s) / float(segments)
+			var dir := Vector3(cos(u) * squash.x, 0.0, sin(u) * squash.y)
+			ring.append(xf * Vector3(dir.x * pr.x, pr.y, dir.z * pr.x))
+			var nd := Vector3(cos(u) / maxf(squash.x, 0.001), 0.0, sin(u) / maxf(squash.y, 0.001)).normalized()
+			nring.append((nbas * (nd * pn.x + Vector3(0, pn.y, 0))).normalized())
+		rings.append(ring)
+		norms.append(nring)
+	for r in n_rows - 1:
+		for s in segments:
+			var s1 := (s + 1) % segments
+			var a: Vector3 = rings[r][s]
+			var b: Vector3 = rings[r][s1]
+			var c: Vector3 = rings[r + 1][s1]
+			var d: Vector3 = rings[r + 1][s]
+			var na: Vector3 = norms[r][s]
+			var nb: Vector3 = norms[r][s1]
+			var nc: Vector3 = norms[r + 1][s1]
+			var nd2: Vector3 = norms[r + 1][s]
+			tri(st, a, c, b, na, nc, nb, col, (na + nb + nc).normalized())
+			tri(st, a, d, c, na, nd2, nc, col, (na + nc + nd2).normalized())
+
+
+## A smooth tube through `points` (world/mesh space) with a radius per point,
+## for hair locks, straps, ropes and curved horns. Round, with end caps.
+static func tube(st: SurfaceTool, points: Array, radii: Array, segments: int, color: Color, glow: float = 0.0) -> void:
+	var col := vcol(color, glow)
+	var n := points.size()
+	if n < 2:
+		return
+	var rings: Array = []
+	var norms: Array = []
+	var prev_side := Vector3.ZERO
+	for i in n:
+		var p: Vector3 = points[i]
+		var t: Vector3 = (points[mini(i + 1, n - 1)] as Vector3) - (points[maxi(i - 1, 0)] as Vector3)
+		t = t.normalized() if t.length() > 0.00001 else Vector3.UP
+		var side := prev_side
+		if side == Vector3.ZERO or absf(side.dot(t)) > 0.95:
+			side = t.cross(Vector3.UP if absf(t.dot(Vector3.UP)) < 0.9 else Vector3.RIGHT).normalized()
+		side = (side - t * side.dot(t)).normalized()
+		prev_side = side
+		var up := t.cross(side).normalized()
+		var r: float = radii[mini(i, radii.size() - 1)]
+		var ring: Array[Vector3] = []
+		var nring: Array[Vector3] = []
+		for s in segments:
+			var u := TAU * float(s) / float(segments)
+			var d := side * cos(u) + up * sin(u)
+			ring.append(p + d * r)
+			nring.append(d)
+		rings.append(ring)
+		norms.append(nring)
+	for i in n - 1:
+		for s in segments:
+			var s1 := (s + 1) % segments
+			tri(st, rings[i][s], rings[i + 1][s1], rings[i][s1], norms[i][s], norms[i + 1][s1], norms[i][s1], col, norms[i][s])
+			tri(st, rings[i][s], rings[i + 1][s], rings[i + 1][s1], norms[i][s], norms[i + 1][s], norms[i + 1][s1], col, norms[i][s])
+	# Rounded-ish end caps (fans).
+	for e: int in [0, n - 1]:
+		var c: Vector3 = points[e]
+		var tt: Vector3 = ((points[mini(e + 1, n - 1)] as Vector3) - (points[maxi(e - 1, 0)] as Vector3)).normalized()
+		var cap_n := -tt if e == 0 else tt
+		for s in segments:
+			var s1 := (s + 1) % segments
+			tri(st, c, rings[e][s], rings[e][s1], cap_n, cap_n, cap_n, col, cap_n)
