@@ -464,3 +464,21 @@ func _shot_houses() -> void:
 	var look := home.to_global(Vector3(0.5, 6.0 if not plain else 2.5, 0.0))
 	_dur = 3.0
 	_keys = [[0.0, eye, look], [3.0, eye, look]]
+
+
+## Looking down the wild canyon past the play area. --view=0 from the rim
+## looking north, 1 a high aerial view south, 2 low over the canyon floor.
+func _shot_canyon() -> void:
+	_set_time(16.5)
+	var v := int(GameState.flag_value("--view"))
+	var eye := Vector3(-12.0, 72.0, 70.0)
+	var look := Vector3(0.0, 40.0, 260.0)
+	match v:
+		1:
+			eye = Vector3(30.0, 150.0, -60.0)
+			look = Vector3(0.0, 30.0, -320.0)
+		2:
+			eye = Vector3(0.0, 14.0, 95.0)
+			look = Vector3(10.0, 22.0, 220.0)
+	_dur = 3.0
+	_keys = [[0.0, eye, look], [3.0, eye, look]]

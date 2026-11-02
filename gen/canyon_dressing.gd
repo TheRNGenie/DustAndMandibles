@@ -97,7 +97,7 @@ static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerat
 		var z := rng.randf_range(-190.0, 190.0)
 		if absf(z - OasisBuilder.CENTER_Z) < 16.0:
 			continue
-		var x := rng.randf_range(-13.0, 13.0)
+		var x := cliffs.floor_x(rng.randf_range(-13.0, 13.0), z)
 		var y := cliffs.floor_height(x, z)
 		var h := rng.randf_range(4.0, 11.0)
 		var segs := rng.randi_range(3, 5)
@@ -111,8 +111,8 @@ static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerat
 		MeshKit.add_ellipsoid(rock, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at + Vector3(0, r * 0.3, 0)), Vector3(r * 1.5, r * 0.55, r * 1.3), 5, 9, Color("#8A4A32"), 0.15, rng)
 	# Dead trees: twisted grey trunks with forked branches.
 	for i in 12:
-		var x := rng.randf_range(-15.0, 15.0)
 		var z := rng.randf_range(-190.0, 190.0)
+		var x := cliffs.floor_x(rng.randf_range(-15.0, 15.0), z)
 		var y := cliffs.floor_height(x, z)
 		var base := Vector3(x, y, z)
 		var top := base + Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(2.5, 4.5), rng.randf_range(-0.6, 0.6))
@@ -141,7 +141,7 @@ static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerat
 	# Cracked mud in the dry wash: dark polygons along the meander.
 	for i in 140:
 		var z := rng.randf_range(-190.0, 190.0)
-		var x := 6.0 * sin(z * 0.035) + rng.randf_range(-2.5, 2.5)
+		var x := cliffs.floor_x(6.0 * sin(z * 0.035) + rng.randf_range(-2.5, 2.5), z)
 		var at := Vector3(x, cliffs.floor_height(x, z) + 0.05, z)
 		var s := rng.randf_range(0.5, 1.2)
 		var pts: Array[Vector3] = []

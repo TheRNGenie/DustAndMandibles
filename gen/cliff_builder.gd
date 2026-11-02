@@ -13,6 +13,9 @@ const FLOOR_HALF_X := 27.0
 
 var _noise: Array[FastNoiseLite] = []
 var _floor_noise := FastNoiseLite.new()
+## Beyond the play area the canyon stops being a straight trench: it meanders,
+## pinches and widens, and its walls get buttresses, jagged rims and mesas.
+var _wild := FastNoiseLite.new()
 
 
 func _init(seed_value: int = 1234) -> void:
@@ -24,13 +27,75 @@ func _init(seed_value: int = 1234) -> void:
 		_noise.append(n)
 	_floor_noise.seed = seed_value + 7
 	_floor_noise.frequency = 0.05
+	_wild.seed = seed_value + 31
+	_wild.frequency = 1.0
+	_wild.fractal_octaves = 2
+
+
+# ---------------------------------------------------------------- the wild canyon
+
+## 0 inside the play area, rising to 1 a short way past it. Everything below
+## only changes the canyon where this is above 0, so gameplay is untouched.
+func wildness(z: float) -> float:
+	return smoothstep(WorldLayout.WORLD_HALF_Z, WorldLayout.WORLD_HALF_Z + 70.0, absf(z))
+
+
+## Sideways drift of the canyon's centre line (it bends left and right).
+func center_x(z: float) -> float:
+	var w := wildness(z)
+	if w <= 0.0:
+		return 0.0
+	return w * (42.0 * sin(z * 0.0105 + 0.7) + 16.0 * sin(z * 0.027 + 2.1) + 6.0 * _wild.get_noise_1d(z * 0.02))
+
+
+## How much wider (or narrower) than the play area the canyon is here.
+func width_scale(z: float) -> float:
+	return 1.0 + wildness(z) * (0.42 * _wild.get_noise_1d(z * 0.006 + 40.0) + 0.12)
+
+
+## Canyon-relative point -> world point (identity in the play area).
+func warp(p: Vector3) -> Vector3:
+	if wildness(p.z) <= 0.0:
+		return p
+	return Vector3(center_x(p.z) + p.x * width_scale(p.z), p.y, p.z)
+
+
+## World x -> canyon-relative x.
+func unwarp_x(x: float, z: float) -> float:
+	if wildness(z) <= 0.0:
+		return x
+	return (x - center_x(z)) / width_scale(z)
+
+
+## Canyon-relative x on the floor -> world x (for placing things on the floor).
+func floor_x(x: float, z: float) -> float:
+	return warp(Vector3(x, 0.0, z)).x
+
+
+## Buttresses: big rock fins that jut out of the far walls into the canyon,
+## stepped like eroded sandstone. Metres of protrusion at (y, z).
+func _buttress(cliff_id: int, y: float, z: float) -> float:
+	var k := _wild.get_noise_2d(z * 0.035 + cliff_id * 300.0, 7.0)
+	var fin := maxf(k - 0.15, 0.0) * 16.0
+	if fin <= 0.0:
+		return 0.0
+	# Narrower toward the top, in three stepped tiers, with a ragged edge.
+	var h := WorldLayout.CLIFF_HEIGHT
+	var tier := floorf(y / (h / 3.0))
+	var taper := 1.0 - tier * 0.28 - (y / h) * 0.15
+	return fin * maxf(taper, 0.0) + _noise[cliff_id].get_noise_2d(z * 0.6, y * 0.4) * 1.2 * minf(fin, 1.0)
 
 
 # ---------------------------------------------------------------- surface queries
 
 ## Lip wobble along the canyon (metres toward the canyon).
 func edge_offset(cliff_id: int, z: float) -> float:
-	return _noise[cliff_id].get_noise_2d(z * 0.05, 500.0) * 0.8
+	var w := wildness(z)
+	var jag := 0.0
+	if w > 0.0:
+		# A ragged, zig-zagging rim far from the play area.
+		jag = w * (_noise[cliff_id].get_noise_2d(z * 0.018, 900.0) * 7.0 + _noise[cliff_id].get_noise_2d(z * 0.11, 950.0) * 2.2)
+	return _noise[cliff_id].get_noise_2d(z * 0.05, 500.0) * 0.8 + jag
 
 
 ## How far (metres) the cliff face at height y sits toward the canyon from the nominal lip line.
@@ -44,7 +109,11 @@ func face_offset(cliff_id: int, y: float, z: float) -> float:
 		var t := (y - WorldLayout.UNDERSIDE_BOTTOM) / (WorldLayout.LIP_BAND_BOTTOM - WorldLayout.UNDERSIDE_BOTTOM)
 		prof = lerpf(-WorldLayout.OVERHANG, 0.0, t)
 	var below_lip := 1.0 - smoothstep(WorldLayout.ROUGH_TOP, WorldLayout.UNDERSIDE_BOTTOM + 0.6, y)
-	var rough := (n.get_noise_2d(z * 0.12, y * 0.12) * 1.0 + n.get_noise_2d(z * 0.5, y * 0.5) * 0.3) * below_lip
+	var w := wildness(z)
+	var rough := (n.get_noise_2d(z * 0.12, y * 0.12) * (1.0 + 2.2 * w) + n.get_noise_2d(z * 0.5, y * 0.5) * (0.3 + 0.9 * w)) * below_lip
+	if w > 0.0:
+		# Horizontal ledges where softer layers eroded, and buttresses.
+		rough += w * (sin(y * 0.55 + n.get_noise_1d(z * 0.05) * 3.0) * 0.9 + _buttress(cliff_id, y, z))
 	var lane := 0.0
 	for lz in WorldLayout.LANE_Z:
 		var dz := z - lz
@@ -58,7 +127,7 @@ func face_offset(cliff_id: int, y: float, z: float) -> float:
 ## World position on a cliff face.
 func face_point(cliff_id: int, y: float, z: float) -> Vector3:
 	var s := WorldLayout.side_sign(cliff_id)
-	return Vector3(s * (WorldLayout.HALF_GAP - face_offset(cliff_id, y, z)), y, z)
+	return warp(Vector3(s * (WorldLayout.HALF_GAP - face_offset(cliff_id, y, z)), y, z))
 
 
 ## Outward surface normal of a cliff face (pointing into the canyon).
@@ -73,7 +142,7 @@ func face_normal(cliff_id: int, y: float, z: float) -> Vector3:
 
 ## Plateau coordinates (d back from the lip, z) of a world position.
 func plateau_coords(cliff_id: int, pos: Vector3) -> Vector2:
-	return Vector2(WorldLayout.side_sign(cliff_id) * pos.x - WorldLayout.HALF_GAP, pos.z)
+	return Vector2(WorldLayout.side_sign(cliff_id) * unwarp_x(pos.x, pos.z) - WorldLayout.HALF_GAP, pos.z)
 
 
 ## Ground height under a world position on a plateau.
@@ -90,16 +159,29 @@ func plateau_height(cliff_id: int, d: float, z: float) -> float:
 	var side_hill := smoothstep(23.0, 36.0, absf(z)) * smoothstep(3.0, 12.0, d)
 	var hill_noise := 0.7 + 0.6 * (n.get_noise_2d(d * 0.03 + 50.0, z * 0.03) * 0.5 + 0.5)
 	var hills := maxf(back_hill, side_hill) * 8.0 * hill_noise
+	var w := wildness(z)
+	if w > 0.0:
+		# Out in the wilds: mesas and buttes with flat tops and steep sides,
+		# and a rim that rises and falls.
+		var m := _wild.get_noise_2d(d * 0.02 + cliff_id * 500.0, z * 0.02)
+		var mesa := smoothstep(0.18, 0.3, m) * (14.0 + 10.0 * _wild.get_noise_2d(d * 0.05, z * 0.05 + 70.0))
+		var swell := _wild.get_noise_2d(d * 0.01 + 900.0, z * 0.012) * 9.0
+		hills += w * (mesa * smoothstep(8.0, 22.0, d) + swell * smoothstep(0.0, 10.0, d))
 	return WorldLayout.CLIFF_HEIGHT + flat + hills
 
 
 func plateau_point(cliff_id: int, d: float, z: float) -> Vector3:
 	var s := WorldLayout.side_sign(cliff_id)
-	var e := edge_offset(cliff_id, z) * (1.0 - smoothstep(0.0, 4.0, d))
-	return Vector3(s * (WorldLayout.HALF_GAP - e + d), plateau_height(cliff_id, d, z), z)
+	var e := edge_offset(cliff_id, z) * (1.0 - smoothstep(0.0, 4.0 + 8.0 * wildness(z), d))
+	return warp(Vector3(s * (WorldLayout.HALF_GAP - e + d), plateau_height(cliff_id, d, z), z))
 
 
+## Canyon floor height under a world position.
 func floor_height(x: float, z: float) -> float:
+	return _raw_floor(unwarp_x(x, z), z)
+
+
+func _raw_floor(x: float, z: float) -> float:
 	var meander := 6.0 * sin(z * 0.035)
 	var dx := x - meander
 	var riverbed := -1.2 * exp(-dx * dx / 12.0)
@@ -131,9 +213,60 @@ func build(parent: Node3D) -> void:
 		var span := Vector2(minf(a, b), maxf(a, b))
 		var tag := "N" if side > 0.0 else "S"
 		for cid in 2:
-			_add_visual(parent, "FarPlateau%d%s" % [cid, tag], _build_plateau(cid, span, FAR_STEP, FAR_STEP, 140.0), rock)
-			_add_visual(parent, "FarFace%d%s" % [cid, tag], _build_face(cid, span, FAR_STEP, 2.0), rock)
+			_add_visual(parent, "FarPlateau%d%s" % [cid, tag], _build_plateau(cid, span, FAR_STEP, 3.0, 140.0), rock)
+			_add_visual(parent, "FarFace%d%s" % [cid, tag], _build_face(cid, span, 2.5, 1.6), rock)
 		_add_visual(parent, "FarFloor%s" % tag, _build_floor(span, FAR_STEP), floor_mat)
+	_add_visual(parent, "FarRocks", _wild_rocks(), rock)
+
+
+## Out past the play area: rock spires and toppled boulders on the canyon floor,
+## and pinnacles and balanced rocks along the rims.
+func _wild_rocks() -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var st := MeshKit.begin()
+	var cols := [Palette.ROCK_A, Palette.ROCK_B, Palette.ROCK_C, Color("#B85A3A"), Color("#D99A62")]
+	for i in 70:
+		var side := -1.0 if i % 2 == 0 else 1.0
+		var z := side * rng.randf_range(WorldLayout.WORLD_HALF_Z + 25.0, FAR_Z - 40.0)
+		var rel := rng.randf_range(-16.0, 16.0)
+		var base := warp(Vector3(rel, _raw_floor(rel, z) - 0.5, z))
+		var h := rng.randf_range(10.0, 34.0)
+		var r := rng.randf_range(2.0, 4.5)
+		_spire(st, rng, base, h, r, cols[rng.randi() % cols.size()] as Color)
+	for i in 50:
+		var side := -1.0 if i % 2 == 0 else 1.0
+		var z := side * rng.randf_range(WorldLayout.WORLD_HALF_Z + 30.0, FAR_Z - 40.0)
+		var cid := i % 2
+		var d := rng.randf_range(4.0, 40.0)
+		var base := plateau_point(cid, d, z) - Vector3(0, 0.6, 0)
+		_spire(st, rng, base, rng.randf_range(5.0, 18.0), rng.randf_range(1.2, 3.2), cols[rng.randi() % cols.size()] as Color)
+	for i in 90:
+		var side := -1.0 if i % 2 == 0 else 1.0
+		var z := side * rng.randf_range(WorldLayout.WORLD_HALF_Z + 10.0, FAR_Z - 20.0)
+		var rel := rng.randf_range(-20.0, 20.0)
+		var s := rng.randf_range(1.5, 6.0)
+		var at := warp(Vector3(rel, _raw_floor(rel, z) + s * 0.3, z))
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at), Vector3(s * 1.2, s * 0.8, s), 5, 9, cols[rng.randi() % cols.size()] as Color, 0.25, rng)
+	return MeshKit.finish(st)
+
+
+## A stacked, weathered stone spire with a wider cap (a hoodoo or a pinnacle).
+func _spire(st: SurfaceTool, rng: RandomNumberGenerator, base: Vector3, h: float, r: float, col: Color) -> void:
+	var segs := rng.randi_range(4, 7)
+	var at := base
+	for k in segs:
+		var seg_h := h / segs
+		var t := float(k) / segs
+		var rr := r * lerpf(1.15, 0.55, t) * rng.randf_range(0.8, 1.15)
+		var c := col.darkened(0.12 * float(k % 2)).lightened(rng.randf() * 0.06)
+		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU).rotated(Vector3.BACK, rng.randf_range(-0.06, 0.06)), at + Vector3(0, seg_h * 0.5, 0)),
+				rr * 0.9, rr, seg_h, 8, c)
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(), at + Vector3(0, seg_h, 0)), Vector3(rr * 1.1, seg_h * 0.12, rr * 1.1), 3, 8, c.darkened(0.15), 0.2, rng)
+		at += Vector3(rng.randf_range(-0.35, 0.35), seg_h, rng.randf_range(-0.35, 0.35))
+	# Cap stone, sometimes a big balanced boulder.
+	var cap := r * rng.randf_range(0.9, 1.6)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at + Vector3(0, cap * 0.35, 0)), Vector3(cap * 1.3, cap * 0.6, cap * 1.1), 5, 9, col.darkened(0.2), 0.2, rng)
 
 
 func _add_visual(parent: Node3D, node_name: String, mesh: ArrayMesh, mat: Material) -> void:
@@ -212,7 +345,7 @@ func _build_floor(span: Vector2, step: float) -> ArrayMesh:
 	while x <= FLOOR_HALF_X + 0.001:
 		var row: Array[Vector3] = []
 		for z in zs:
-			row.append(Vector3(x, floor_height(x, z), z))
+			row.append(warp(Vector3(x, _raw_floor(x, z), z)))
 		grid.append(row)
 		x += step
 	return _grid_mesh(grid, Vector3.UP)
