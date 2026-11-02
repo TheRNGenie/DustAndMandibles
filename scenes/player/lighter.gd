@@ -24,13 +24,18 @@ var _lid: Node3D
 var _flame: MeshInstance3D
 var _light: OmniLight3D
 var _side_hinge := false
+## A quick flick of the wrist that snaps the lid open (seconds left).
+var _flick := 0.0
+const FLICK_TIME := 0.32
 
 
 func _ready() -> void:
 	_model = Node3D.new()
-	_model.position = Vector3(0.012, -0.085, -0.035)
-	_model.scale = Vector3.ONE * 1.35
-	_model.rotation = Vector3(0.15, -0.35, 0.05)
+	# Standing up out of the top of the fist, hinge side to the right, a touch
+	# turned toward you so the lid and the flame are easy to see.
+	_model.position = Vector3(0.0, -0.05, 0.0)
+	_model.scale = Vector3.ONE * 1.6
+	_model.rotation = Vector3(0.1, 0.35, 0.0)
 	add_child(_model)
 	var mat := Materials.toon(0.004)
 	var body := MeshInstance3D.new()
@@ -91,11 +96,26 @@ func _process(delta: float) -> void:
 		elif holding and not GameState.menu_open and not player.is_downed() \
 				and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or player.grapple.test_mode):
 			if Input.is_action_just_pressed("alt_fire"):
+				if not is_open:
+					_flick = FLICK_TIME
 				_set_state.rpc(not is_open, false)
 			elif Input.is_action_just_pressed("fire") and is_open:
 				_set_state.rpc(true, not lit)
-	# Lid swings open on its hinge; the flame flickers; the light breathes.
-	_lid_t = move_toward(_lid_t, 1.0 if is_open else 0.0, delta * LID_SPEED)
+	# Held up close and a little higher than other items.
+	if mine and holding:
+		player.gun.item_pos = Vector3(-0.07, 0.07, 0.1)
+		# The flick: a sharp twist of the wrist and back; the lid flies open mid-flick.
+		_flick = maxf(_flick - delta, 0.0)
+		var k := 1.0 - _flick / FLICK_TIME if _flick > 0.0 else 1.0
+		var shake := sin(k * PI) * (1.0 - k * 0.3) if _flick > 0.0 else 0.0
+		player.gun.item_rot = Vector3(-0.25 * shake, 0.0, -0.9 * shake)
+	elif mine:
+		player.gun.item_pos = Vector3.ZERO
+		player.gun.item_rot = Vector3.ZERO
+	# Lid swings open on its hinge (after the flick has thrown it); the flame
+	# flickers; the light breathes.
+	var lid_open := is_open and _flick < FLICK_TIME * 0.55
+	_lid_t = move_toward(_lid_t, 1.0 if lid_open else 0.0, delta * (LID_SPEED * 2.0 if lid_open else LID_SPEED))
 	var e := _lid_t * _lid_t * (3.0 - 2.0 * _lid_t)
 	if _side_hinge:
 		_lid.rotation.z = -e * 2.4

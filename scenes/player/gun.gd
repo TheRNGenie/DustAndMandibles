@@ -108,6 +108,10 @@ var _land_vel := 0.0
 var _air_feel := 0.0
 ## 1 right after switching weapons: the new one comes up from below.
 var _raise := 0.0
+## Extra hand movement for held items (the lighter's flick), and where an item
+## is held relative to the gun's rest spot.
+var item_rot := Vector3.ZERO
+var item_pos := Vector3.ZERO
 ## 0..1: the gun is lowered out of the way while your hands do something else.
 var lowered := 0.0
 var _lower_target := 0.0
@@ -340,8 +344,9 @@ func _process(delta: float) -> void:
 	var aim_pos: Vector3 = AIM_POS.get(def.id, REST_POS) if def != null else REST_POS
 	_feel_step(delta)
 	var off := _feel_offset()
-	position = REST_POS.lerp(aim_pos, aim) + Vector3(0, 0, _kick * 0.06 * (1.0 - aim * 0.5)) + off[0]
-	rotation = Vector3(_kick * 0.5, 0, 0) + off[1]
+	var held := holding != &"" and holding != &"none"
+	position = REST_POS.lerp(aim_pos, aim) + Vector3(0, 0, _kick * 0.06 * (1.0 - aim * 0.5)) + off[0] + (item_pos if held else Vector3.ZERO)
+	rotation = Vector3(_kick * 0.5, 0, 0) + off[1] + (item_rot if held else Vector3.ZERO)
 
 
 ## Player: how you're moving this frame (speed m/s, sprinting, on the ground, sliding).
