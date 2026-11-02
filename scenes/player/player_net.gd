@@ -227,6 +227,35 @@ static var _rock_mesh: ArrayMesh
 
 
 ## Owner: lob a rock. Everyone sees it fly; the thrower decides what it hits.
+## Owner: a whip lash landed its crack. The host works out what it caught.
+func melee(origin: Vector3, dir: Vector3, crack: int) -> void:
+	_crack_fx.rpc(crack)
+	if multiplayer.is_server():
+		_server_melee(origin, dir)
+	else:
+		_request_melee.rpc_id(1, origin, dir)
+
+
+@rpc("any_peer", "reliable")
+func _request_melee(origin: Vector3, dir: Vector3) -> void:
+	if multiplayer.is_server() and multiplayer.get_remote_sender_id() == player.get_multiplayer_authority():
+		# Ignore lashes from far away from where the host sees the player.
+		if origin.distance_to(player.global_position) < 4.0:
+			_server_melee(origin, dir)
+
+
+func _server_melee(origin: Vector3, dir: Vector3) -> void:
+	for b in Whip.targets(player.get_tree(), origin, dir, [player.get_rid()]):
+		b.receive_hit(Whip.DAMAGE, b.global_position, dir, false, 1.0, player.display_name(), player.cliff_id)
+		if b.is_alive():
+			b.status.root(Whip.STUN)
+
+
+@rpc("any_peer", "call_local", "unreliable")
+func _crack_fx(crack: int) -> void:
+	Audio.play_at(StringName("whip_crack_%d" % (clampi(crack, 0, 2) + 1)), player.global_position + Vector3.UP * 1.5, -2.0)
+
+
 func throw_rock(origin: Vector3, vel: Vector3) -> void:
 	_spawn_rock.rpc(origin, vel)
 

@@ -482,6 +482,29 @@ def blunderbuss_shot(rng):
     return echo(out, [0.35, 0.8], [0.25, 0.12], 700)
 
 
+def whip_crack(rng, variant):
+    """A bullwhip: a rising whoosh as the lash rolls out, then the tip breaks
+    the sound barrier with a sharp N-wave crack and a little slap-back."""
+    whoosh_len = [0.22, 0.16, 0.28][variant]
+    n = int(SR * (whoosh_len + 0.5))
+    t = t_axis(n / SR)
+    out = np.zeros(n)
+    w_n = int(SR * whoosh_len)
+    tw = t_axis(whoosh_len)
+    whoosh = bandpass(rng.standard_normal(w_n), 400, 2500) * (tw / whoosh_len) ** 2 * 0.35
+    out[:w_n] += whoosh
+    # The crack: a very short N-wave, bright and harsh.
+    c_len = int(SR * [0.004, 0.003, 0.005][variant])
+    nwave = np.linspace(1.0, -1.0, c_len)
+    crack = np.concatenate([nwave, np.zeros(int(SR * 0.002))])
+    crack = crack + highpass(rng.standard_normal(len(crack)), 3000) * 0.3
+    tail_n = int(SR * 0.08)
+    tail = highpass(rng.standard_normal(tail_n), [2500, 3500, 2000][variant]) * env(tail_n, 0.0003, 0.012)
+    place(out, crack * 1.6, whoosh_len)
+    place(out, tail * 0.8, whoosh_len + 0.002)
+    return echo(out, [0.12, 0.3], [0.18, 0.07], 2200)
+
+
 def thunder(rng):
     """A close lightning strike: a sharp crack, then a long rolling rumble."""
     length = 3.5
@@ -536,6 +559,8 @@ def main():
     save("zippo_close", zippo_close(rng), 0.6)
     save("zippo_strike", zippo_strike(rng), 0.6)
     save("blunderbuss", blunderbuss_shot(rng), 0.95)
+    for v in range(3):
+        save(f"whip_crack_{v + 1}", whip_crack(rng, v), 0.9)
 
 
 if __name__ == "__main__":

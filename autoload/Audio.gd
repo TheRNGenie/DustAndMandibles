@@ -8,7 +8,7 @@ const NAMES: Array[StringName] = [&"revolver", &"gatling_1", &"gatling_2", &"gat
 	&"dynamite", &"skitter", &"beetle_hiss", &"spider_screech", &"bug_pop", &"bell", &"build",
 	&"coin", &"acid_spit", &"hit_tick", &"armor_ping", &"homestead_hit", &"reload", &"pluck", &"guitar_smash", &"thunder",
 	&"lever_rifle", &"shotgun", &"repeater", &"sharpshooter", &"harpoon", &"scattergun", &"water_blast",
-	&"mortar", &"lobber", &"cannon", &"rustle", &"water_pour", &"zippo_open", &"zippo_close", &"zippo_strike", &"blunderbuss"]
+	&"mortar", &"lobber", &"cannon", &"rustle", &"water_pour", &"zippo_open", &"zippo_close", &"zippo_strike", &"blunderbuss", &"whip_crack_1", &"whip_crack_2", &"whip_crack_3"]
 const POOL_3D := 32
 const POOL_UI := 8
 const PITCH_VARIATION := 0.08

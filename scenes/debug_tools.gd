@@ -26,6 +26,8 @@ func _ready() -> void:
 		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
+	elif GameState.has_flag("--whiptest"):
+		_whip_test()
 	elif GameState.has_flag("--loottest"):
 		_loot_test()
 	elif GameState.has_flag("--archtest"):
@@ -405,6 +407,13 @@ func _take_screenshot(path: String) -> void:
 		player.rotation.x = 0.0
 		player.head.rotation.x = -0.45
 		(home.get_node("Chest") as StorageChest).set("_peek", 30.0)
+	if GameState.has_flag("--lashing") and player != null:
+		# Keep lashing the whip so screenshots catch it mid-swing.
+		var lt := Timer.new()
+		lt.wait_time = 0.8
+		lt.autostart = true
+		add_child(lt)
+		lt.timeout.connect(func() -> void: player.whip.lash())
 	if GameState.has_flag("--lighter") and player != null:
 		player.gun.hold_item(&"lighter")
 		player.lighter.debug_light()
@@ -1005,4 +1014,37 @@ func _loot_test() -> void:
 	for i in 5:
 		await get_tree().physics_frame
 	print("[loot] chitin %d -> %d, heaps left %d" % [before, Economy.amount(player.cliff_id, &"chitin"), get_tree().get_nodes_in_group("loot").size()])
+	get_tree().quit()
+
+
+## --whiptest: a rattler beetle stands 4 m in front of the player on the plateau;
+## lashes three times and logs its health, stun and which swings played.
+func _whip_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	var bm := world.get("bugs") as BugManager
+	player.global_position = Bug.cliffs.plateau_point(WorldLayout.WEST, 10.0, 8.0) + Vector3.UP * 0.3
+	var target := Bug.cliffs.plateau_point(WorldLayout.WEST, 10.0, 12.0)
+	bm.spawn_at(&"rattler_beetle", WorldLayout.WEST, 2, 12.0, 0.0, Bug.State.BREACHING, target)
+	for i in 5:
+		await get_tree().physics_frame
+	var bug: Bug = null
+	for n: Node in get_tree().get_nodes_in_group("bugs"):
+		bug = n as Bug
+		bug.speed_mult = 0.0
+	player.look_at(bug.global_position, Vector3.UP)
+	player.rotation.x = 0.0
+	player.rotation.z = 0.0
+	player.head.rotation.x = -0.1
+	var moves: Array[int] = []
+	for k in 3:
+		var hp := bug.health.hp
+		player.whip.lash()
+		moves.append(player.whip.get("_move"))
+		var t0 := Time.get_ticks_msec()
+		while Time.get_ticks_msec() - t0 < 500:
+			await get_tree().physics_frame
+		print("[whip] lash %d (swing %d): hp %.0f -> %.0f, stunned %s" % [k + 1, moves[k], hp, bug.health.hp, bug.status.is_rooted()])
+		await get_tree().create_timer(0.4).timeout
 	get_tree().quit()

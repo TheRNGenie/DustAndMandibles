@@ -67,6 +67,7 @@ var _vy_smooth := 0.0
 @onready var vitals: PlayerVitals = $Vitals
 var grapple: Grapple
 var lighter: Lighter
+var whip: Whip
 ## Set by the world for the local player.
 var build_mode: BuildMode
 
@@ -84,6 +85,10 @@ func _ready() -> void:
 	grapple.player = self
 	grapple.position = Vector3(0.22, -0.2, -0.4)
 	camera.add_child(grapple)
+	whip = Whip.new()
+	whip.name = "Whip"
+	whip.player = self
+	camera.add_child(whip)
 	lighter = Lighter.new()
 	lighter.name = "Lighter"
 	lighter.player = self
@@ -149,6 +154,10 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("melee") and not GameState.menu_open and not vitals.downed and whip != null:
+		whip.lash()
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("throw_rock") and not GameState.menu_open and not vitals.downed and _rock_cd <= 0.0:
 		_rock_cd = ROCK_COOLDOWN
 		net.throw_rock(camera.global_position - camera.global_transform.basis.z * 0.4 + camera.global_transform.basis.x * 0.15,
