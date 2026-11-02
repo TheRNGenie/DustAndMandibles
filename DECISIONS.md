@@ -158,3 +158,7 @@ Assumptions and changes from the design doc, newest last.
    - **Plateaus:** they rise into flat-topped mesas and buttes, with a rolling rim.
    - **Rocks:** 70 stone spires and hoodoos with cap stones stand on the canyon floor, 50 pinnacles line the rims, and 90 boulders lie scattered around.
    Every surface query (`face_point`, `plateau_point`, `floor_height`) goes through the same warp, so canyon dressing, webs and rocks sit on the bent canyon. The far meshes are denser for the detail, and the 80-bug stress test is still about 120 fps. `--trailer=canyon --view=0|1|2` frames it.
+119. **Stone arches as grapple points (Logan's request):** natural sandstone arches (gen/arch_builder.gd) are built as banded, lumpy rock bands that are fat at the feet, thin at the crown, with drips under the span and rubble round the feet. All of these are solid (LAYER_WORLD), so the grapple hooks onto them:
+   - Two span the canyon over the play area, north of the turret lanes (feet at z of about 46-52 and 72-80, crowns about 85-90 m up) and well clear of the airship's southern approach.
+   - One more stands on each plateau beside the build grid.
+   Five more span the wild canyon further out as scenery. From the west lip under the first arch, a hook catches it about 26 m up and the swing carries you 14 m out over the canyon (`--archtest`). `--trailer=arches` frames them.

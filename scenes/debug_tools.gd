@@ -26,6 +26,8 @@ func _ready() -> void:
 		_scaffold_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
+	elif GameState.has_flag("--archtest"):
+		_arch_test()
 	elif GameState.has_flag("--slidetest"):
 		_slide_test()
 	elif GameState.has_flag("--guntest"):
@@ -940,4 +942,34 @@ func _slide_test() -> void:
 	while Time.get_ticks_msec() - t0 < 3500:
 		await get_tree().physics_frame
 	print("[slide] after 3.5 s: stacks %d" % player.hop_stacks)
+	get_tree().quit()
+
+
+## --archtest: from the west lip under the first arch, aims the grapple straight
+## up at it, swings for 2 s and logs what the hook hit.
+func _arch_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	player.global_position = Bug.cliffs.plateau_point(WorldLayout.WEST, 1.0, 49.0) + Vector3.UP * 0.3
+	await get_tree().physics_frame
+	var from := player.global_position + Vector3.UP * 1.6
+	var q := PhysicsRayQueryParameters3D.create(from, from + Vector3(0.6, 1.0, 0.0).normalized() * Grapple.RANGE, Grapple.MASK, [player.get_rid()])
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty():
+		print("[arch] nothing overhead within %d m" % int(Grapple.RANGE))
+		get_tree().quit()
+		return
+	print("[arch] hook hits %s, %.1f m up" % [(hit["collider"] as Node).name, (hit["position"] as Vector3).y - player.global_position.y])
+	var g := player.grapple
+	g.test_mode = true
+	player.hotbar_use_grapple()
+	Input.action_press("alt_fire")
+	player.velocity = Vector3(6.0, 4.0, 0.0)
+	g.attach(Grapple.Mode.SWING, hit["position"])
+	var start := player.global_position
+	for i in 120:
+		await get_tree().physics_frame
+	Input.action_release("alt_fire")
+	print("[arch] swung %.1f m out over the canyon (x %.1f -> %.1f)" % [player.global_position.distance_to(start), start.x, player.global_position.x])
 	get_tree().quit()

@@ -482,3 +482,13 @@ func _shot_canyon() -> void:
 			look = Vector3(10.0, 22.0, 220.0)
 	_dur = 3.0
 	_keys = [[0.0, eye, look], [3.0, eye, look]]
+
+
+## The stone arches over the play area, from the west plateau.
+func _shot_arches() -> void:
+	_set_time(17.0)
+	var cl := Bug.cliffs
+	var eye := cl.plateau_point(WorldLayout.WEST, 24.0, -5.0) + Vector3(0, 6.0, 0)
+	var look := Vector3(0.0, 72.0, 58.0)
+	_dur = 3.0
+	_keys = [[0.0, eye, look], [3.0, eye, look]]

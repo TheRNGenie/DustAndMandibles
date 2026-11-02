@@ -217,6 +217,31 @@ func build(parent: Node3D) -> void:
 			_add_visual(parent, "FarFace%d%s" % [cid, tag], _build_face(cid, span, 2.5, 1.6), rock)
 		_add_visual(parent, "FarFloor%s" % tag, _build_floor(span, FAR_STEP), floor_mat)
 	_add_visual(parent, "FarRocks", _wild_rocks(), rock)
+	_add_arches(parent, rock)
+
+
+## Stone arches. Two span the canyon over the play area (north of the turret
+## lanes and well clear of the airship's southern approach), one stands on each
+## plateau beside the play area, all solid for grapple hooks; more span the
+## wild canyon further out.
+func _add_arches(parent: Node3D, rock: Material) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 909
+	var st := MeshKit.begin()
+	# Spanning arches: feet set back on each plateau.
+	ArchBuilder.arch(st, rng, plateau_point(0, 9.0, 46.0) - Vector3(0, 1.5, 0), plateau_point(1, 9.0, 52.0) - Vector3(0, 1.5, 0), 26.0, 5.5, 2.6)
+	ArchBuilder.arch(st, rng, plateau_point(0, 14.0, 80.0) - Vector3(0, 1.5, 0), plateau_point(1, 11.0, 72.0) - Vector3(0, 1.5, 0), 19.0, 5.0, 2.4)
+	# A smaller arch on each plateau, off the build grid.
+	ArchBuilder.arch(st, rng, plateau_point(0, 40.0, -62.0) - Vector3(0, 1.0, 0), plateau_point(0, 46.0, -40.0) - Vector3(0, 1.0, 0), 13.0, 3.6, 1.8)
+	ArchBuilder.arch(st, rng, plateau_point(1, 38.0, 44.0) - Vector3(0, 1.0, 0), plateau_point(1, 44.0, 66.0) - Vector3(0, 1.0, 0), 12.0, 3.4, 1.7)
+	_add_static(parent, "Arches", MeshKit.finish(st), rock)
+	# Far arches (scenery only).
+	var far := MeshKit.begin()
+	for z: float in [-210.0, 190.0, -360.0, 330.0, 480.0]:
+		var dz := rng.randf_range(-12.0, 12.0)
+		ArchBuilder.arch(far, rng, plateau_point(0, rng.randf_range(6.0, 16.0), z - dz) - Vector3(0, 2.0, 0),
+				plateau_point(1, rng.randf_range(6.0, 16.0), z + dz) - Vector3(0, 2.0, 0), rng.randf_range(16.0, 30.0), 6.0, 2.8)
+	_add_visual(parent, "FarArches", MeshKit.finish(far), rock)
 
 
 ## Out past the play area: rock spires and toppled boulders on the canyon floor,
