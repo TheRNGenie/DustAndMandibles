@@ -86,6 +86,10 @@ func is_solo() -> bool:
 func _process(delta: float) -> void:
 	if phase == Phase.LOBBY or phase == Phase.GAME_OVER or phase == Phase.WAVE:
 		return
+	# The build phase has no clock: it lasts until everyone has readied up (G).
+	# Automated runs (--fast) keep a timer so they can play themselves.
+	if phase == Phase.BUILD and not has_flag("--fast"):
+		return
 	time_left = maxf(time_left - delta, 0.0)
 	if multiplayer.is_server() and time_left <= 0.0:
 		_advance()

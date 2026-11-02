@@ -165,6 +165,8 @@ func _update_phase_label() -> void:
 		_phase_label.text = title
 	elif GameState.phase == GameState.Phase.WAVE:
 		_phase_label.text = "Wave %d  -  %s  -  %d bugs left" % [GameState.wave, title, get_tree().get_nodes_in_group("bugs").size()]
+	elif GameState.phase == GameState.Phase.BUILD and not GameState.has_flag("--fast"):
+		_phase_label.text = "Wave %d  -  %s  -  Ready %d/%d" % [GameState.wave, title, GameState.skip_votes, maxi(NetworkManager.players.size(), 1)]
 	else:
 		_phase_label.text = "Wave %d  -  %s  -  %d:%02d" % [GameState.wave, title, secs / 60, secs % 60]
 
@@ -179,7 +181,7 @@ func _flash_phase() -> void:
 func _update_hint() -> void:
 	match GameState.phase:
 		GameState.Phase.BUILD:
-			_hint_label.text = "Build up your partner's defenses. Press G when ready (%d/%d)" % [
+			_hint_label.text = "Build up your partner's defenses. The wave comes when everyone presses G (%d/%d ready)" % [
 				GameState.skip_votes, maxi(NetworkManager.players.size(), 1)]
 		GameState.Phase.WARNING:
 			_hint_label.text = "A wave is coming! Get back to your own cliff."
