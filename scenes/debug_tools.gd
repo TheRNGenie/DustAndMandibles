@@ -222,6 +222,39 @@ func _ready() -> void:
 			print("[tunnel] t %.0f%s" % [k * 2.0, line])
 			await get_tree().create_timer(2.0).timeout
 		get_tree().quit()
+	elif GameState.has_flag("--crawltest"):
+		# A rattler beetle climbing up through a column of mites on the west wall.
+		for i in 20:
+			await get_tree().process_frame
+		var bm := world.get("bugs") as BugManager
+		for k in 6:
+			bm.spawn_at(&"dust_mite", WorldLayout.WEST, 2, 0.0, 14.0 + k * 1.2, Bug.State.CLIMBING, Vector3.ZERO)
+		bm.spawn_at(&"rattler_beetle", WorldLayout.WEST, 2, 0.0, 6.0, Bug.State.CLIMBING, Vector3.ZERO)
+		var max_crouch := 0.0
+		var max_ride := 0.0
+		var beetle_y0 := 6.0
+		for f in 720:
+			await get_tree().physics_frame
+			for n: Node in get_tree().get_nodes_in_group("bugs"):
+				var b := n as Bug
+				if b.def.id == &"dust_mite":
+					# Hold the mites in place on the wall (as if clinging) so the beetle reaches them.
+					if not b.has_meta("pin"):
+						b.set_meta("pin", b.climb_y)
+					b.climb_y = float(b.get_meta("pin"))
+					max_crouch = maxf(max_crouch, b.crouch)
+				else:
+					max_ride = maxf(max_ride, b.ride)
+		var beetle: Bug = null
+		var spread := 0.0
+		for n: Node in get_tree().get_nodes_in_group("bugs"):
+			var b := n as Bug
+			if b.def.id == &"rattler_beetle":
+				beetle = b
+			else:
+				spread = maxf(spread, absf(b.lane_z))
+		print("[crawl] beetle climbed %.1f -> %.1f m; mites ducked up to %.2f, beetle rode up to %.2f m, mites edged aside up to %.1f m" % [beetle_y0, beetle.climb_y, max_crouch, max_ride, spread])
+		get_tree().quit()
 	elif GameState.has_flag("--steptest"):
 		for i in 20:
 			await get_tree().process_frame

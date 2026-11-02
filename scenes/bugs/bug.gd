@@ -38,6 +38,10 @@ var _face: BugFace
 var state: int = State.CLIMBING
 var climb_y: float = 0.0
 var lane_z: float = 0.0
+## Ducked flat to let a much bigger bug crawl over (0..1), and how high this bug
+## is riding up over a smaller one (m). Set by BugManager.separate().
+var crouch := 0.0
+var ride := 0.0
 var ground_pos: Vector3 = Vector3.ZERO
 var crest_t: float = 0.0
 
@@ -105,7 +109,7 @@ func _ready() -> void:
 
 func _make_synchronizer() -> MultiplayerSynchronizer:
 	var cfg := SceneReplicationConfig.new()
-	for p: String in [".:state", ".:climb_y", ".:lane_z", ".:ground_pos", ".:crest_t", ".:cliff_id", "Health:hp"]:
+	for p: String in [".:state", ".:climb_y", ".:lane_z", ".:ground_pos", ".:crest_t", ".:cliff_id", ".:crouch", ".:ride", "Health:hp"]:
 		var path := NodePath(p)
 		cfg.add_property(path)
 		cfg.property_set_spawn(path, true)
@@ -142,6 +146,8 @@ func _physics_process(delta: float) -> void:
 		status.tick(delta)
 		_think(delta)
 	var target := target_transform()
+	# Riding up over a small bug, or ducked flat under a big one.
+	target.origin += target.basis.y * (ride - float(spec["clearance"]) * 0.55 * crouch)
 	if not _placed or multiplayer.is_server():
 		global_transform = target
 		_placed = true
@@ -206,7 +212,9 @@ func _animate_body(delta: float, spd: float) -> void:
 	var s := float(spec["scale"])
 	var breathe := sin(_anim_t * 2.2) * 0.03
 	var stride := clampf(spd * 0.4, 0.0, 1.0)
-	_body.scale = Vector3(s * (1.0 - breathe * 0.5), s * (1.0 + breathe), s * (1.0 - breathe * 0.3))
+	# Ducking: squashed flat and a little wider, legs splayed (the leg rig follows the body).
+	var duck := 1.0 - 0.45 * crouch
+	_body.scale = Vector3(s * (1.0 - breathe * 0.5) * (1.0 + 0.12 * crouch), s * (1.0 + breathe) * duck, s * (1.0 - breathe * 0.3) * (1.0 + 0.08 * crouch))
 	_body.position = Vector3(0, absf(sin(_anim_t * (6.0 + spd * 2.0))) * 0.05 * s * stride, 0)
 	_body.rotation = Vector3(sin(_anim_t * (3.0 + spd)) * 0.04 * stride, 0, sin(_anim_t * (6.0 + spd * 2.0)) * 0.03 * stride)
 	_face.transform = _body.transform.scaled_local(Vector3.ONE / s) if s > 0.0 else Transform3D()

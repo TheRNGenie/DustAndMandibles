@@ -24,3 +24,18 @@ func test_apart_bugs_are_left_alone() -> void:
 func test_stacked_bugs_still_separate() -> void:
 	var p := BugCrowd.pushes([Vector2(2, 2), Vector2(2, 2)] as Array[Vector2], [1.0, 1.0] as Array[float], [1.0, 1.0] as Array[float])
 	assert_true(p[0].length() > 0.1 and p[1].length() > 0.1)
+
+
+func test_much_bigger_bug_crawls_over() -> void:
+	var w_big := BugCrowd.weight(3.0)
+	var w_small := BugCrowd.weight(1.0)
+	var r := BugCrowd.resolve([Vector2(0, 0), Vector2(0.4, 0)] as Array[Vector2], [1.5, 0.5] as Array[float], [w_big, w_small] as Array[float])
+	assert_true(float(r["crouch"][1]) > 0.5)
+	assert_true(float(r["ride"][0]) > 0.2)
+	assert_true((r["push"][0] as Vector2).length() < 0.001)
+
+
+func test_similar_bugs_still_shove() -> void:
+	var r := BugCrowd.resolve([Vector2(0, 0), Vector2(1, 0)] as Array[Vector2], [1.0, 0.9] as Array[float], [BugCrowd.weight(1.2), BugCrowd.weight(1.0)] as Array[float])
+	assert_true(float(r["crouch"][1]) == 0.0)
+	assert_true((r["push"][1] as Vector2).length() > 0.1)

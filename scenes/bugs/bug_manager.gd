@@ -247,6 +247,11 @@ func _draw_spit(from: Vector3, to: Vector3, flight: float) -> void:
 func separate() -> void:
 	var groups: Dictionary = {} # surface key -> Array[Bug]
 	for c in get_children():
+		var lone := c as Bug
+		if lone != null:
+			lone.crouch = move_toward(lone.crouch, 0.0, 0.1)
+			lone.ride = move_toward(lone.ride, 0.0, 0.05)
+	for c in get_children():
 		var b := c as Bug
 		if b == null or not b.is_alive() or b.is_hidden():
 			continue
@@ -274,7 +279,12 @@ func separate() -> void:
 			pos.append(Vector2(b.lane_z, b.climb_y) if key < 10 else Vector2(b.ground_pos.x, b.ground_pos.z))
 			rad.append(float(b.spec["body_radius"]) * 0.85)
 			wt.append(BugCrowd.weight(b.def.size, b.def.behavior == BugDef.Behavior.BOSS))
-		var push := BugCrowd.pushes(pos, rad, wt)
+		var res := BugCrowd.resolve(pos, rad, wt)
+		var push: Array[Vector2] = res["push"]
+		for i in bugs.size():
+			var b: Bug = bugs[i]
+			b.crouch = move_toward(b.crouch, float(res["crouch"][i]), 0.25)
+			b.ride = move_toward(b.ride, float(res["ride"][i]), 0.08)
 		for i in bugs.size():
 			if push[i] == Vector2.ZERO:
 				continue
