@@ -216,8 +216,10 @@ func _bug_tunnels() -> ArrayMesh:
 	for cid in 2:
 		var s := WorldLayout.side_sign(cid)
 		var out := Vector3(-s, 0, 0) # from the cliff into the canyon
-		for lane_z: float in WorldLayout.LANE_Z:
-			var m := tunnel_mouth(cid, lane_z)
+		for tn: Array in WorldLayout.TUNNELS:
+			if int(tn[0]) != cid:
+				continue
+			var m := tunnel_mouth(cid, float(tn[1]))
 			var w := rng.randf_range(4.4, 5.4)
 			var h := rng.randf_range(3.6, 4.3)
 			# The hole: nested dark arches, blackest at the back, so it reads as deep.

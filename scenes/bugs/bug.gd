@@ -243,7 +243,7 @@ func _think(delta: float) -> void:
 			# foot of the cliff it will climb.
 			var goal := cliffs.tunnel_mouth(cliff_id, lane_z)
 			var to := Vector3(goal.x - ground_pos.x, 0.0, goal.z - ground_pos.z)
-			var step := def.walk_speed * 1.6 * speed() * delta
+			var step := def.walk_speed * 2.2 * speed() * delta
 			if to.length() <= step + 0.4:
 				state = State.CLIMBING
 				climb_y = 0.0

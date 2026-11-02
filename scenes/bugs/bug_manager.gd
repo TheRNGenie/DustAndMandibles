@@ -33,18 +33,24 @@ func _ready() -> void:
 
 
 ## Host only: spawns `count` bugs of a type at the bottom of a lane.
+var _tunnel_spin := 0
+
+
 func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y: float = 0.0) -> void:
 	if not multiplayer.is_server():
 		return
+	_tunnel_spin += 1
 	var cfg := Defs.WAVE_CONFIG
 	for i in count:
 		if alive_count() >= cfg.max_active_bugs:
 			return
 		# Out of one of the five tunnels, each bug makes for its own spot at the
 		# foot of the wall and picks its own way up from there.
-		var tunnel_z := WorldLayout.LANE_Z[lane] + randf_range(-1.2, 1.2)
+		# Out of a tunnel down the canyon (a group's lane picks which), then up the
+		# floor into the play area to its own spot at the foot of the wall.
+		var tunnel: Array = WorldLayout.TUNNELS[(lane * 3 + cliff * 5 + _tunnel_spin) % WorldLayout.TUNNELS.size()]
 		var half := WorldLayout.PLATEAU_WIDTH * 0.5 - 2.0
-		var z := clampf(tunnel_z + randf_range(-9.0, 9.0), -half, half)
+		var z := clampf(WorldLayout.LANE_Z[lane] + randf_range(-9.0, 9.0), -half, half)
 		var y := start_y - float(i) * 0.9 # stagger groups so they climb in a column
 		var st := Bug.State.CLIMBING
 		var pos := Vector3.ZERO
@@ -52,8 +58,8 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 		# and cross the canyon floor first (unless a test starts them up the face).
 		if start_y <= 0.0:
 			st = Bug.State.CROSSING
-			var other := WorldLayout.other_cliff(cliff)
-			pos = Bug.cliffs.tunnel_mouth(other, tunnel_z) + Vector3(WorldLayout.side_sign(other) * (1.2 + float(i) * 1.5), 0, 0)
+			var wall := int(tunnel[0])
+			pos = Bug.cliffs.tunnel_mouth(wall, float(tunnel[1])) + Vector3(WorldLayout.side_sign(wall) * (1.2 + float(i) * 1.5), 0, 0)
 		match Defs.bug(bug_id).behavior:
 			BugDef.Behavior.BURROWER:
 				# Tunnels in: pops up somewhere inside the plateau, never climbs.

@@ -546,8 +546,9 @@ func _shot_enclosure() -> void:
 ## crawling out of them (--killat style: bugs spawn after a moment).
 func _shot_tunnels() -> void:
 	_set_time(14.0)
-	var eye := Vector3(-8.0, 9.0, -22.0)
-	var look := Vector3(22.0, 1.5, -2.0)
+	# Down the canyon to the north end, where tunnels open in both walls.
+	var eye := Vector3(0.0, 10.0, 30.0)
+	var look := Vector3(0.0, 2.0, 66.0)
 	if GameState.flag_value("--view") == "1":
 		# Looking across at the west wall with a wave on it.
 		eye = Vector3(12.0, 48.0, 34.0)

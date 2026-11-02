@@ -14,6 +14,10 @@ const PLATEAU_WIDTH := 40.0 # along Z
 const PLATEAU_DEPTH := 30.0 # away from the lip
 const CELL := 2.0
 const LANE_Z: Array[float] = [-16.0, -8.0, 0.0, 8.0, 16.0]
+## Bug tunnels: down the canyon past both ends of the play area, in the foot of
+## either wall ([cliff the tunnel is in, z]). Bugs crawl out and walk up the
+## canyon floor into the play area before they climb.
+const TUNNELS: Array = [[0, -62.0], [1, -68.0], [0, -76.0], [1, -58.0], [0, 60.0], [1, 66.0], [0, 74.0], [1, 56.0]]
 const LEDGE_Y: Array[float] = [10.0, 20.0, 30.0, 40.0, 50.0]
 
 ## Terrain extent (bigger than the playable area so the canyon reads as a landscape).
