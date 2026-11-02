@@ -216,7 +216,7 @@ const LOAD_POINT: Dictionary = {&"revolver": Vector3(0.022, 0.03, 0.03), &"lever
 const GATLING_AXIS := Vector3(0, 0.0, -0.05)
 const GATLING_CRANK := Vector3(0.06, 0.0, 0.04)
 ## The crank handle on the Meshy Gatling, where the right hand holds it.
-const GATLING_KNOB := Vector3(0.125, -0.095, -0.2)
+const GATLING_KNOB := Vector3(0.12, -0.058, -0.192)
 
 
 static func lever_rifle() -> ArrayMesh:

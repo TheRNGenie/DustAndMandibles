@@ -531,6 +531,24 @@ func _take_screenshot(path: String) -> void:
 		lt.timeout.connect(func() -> void: player.whip.lash())
 	if GameState.flag_value("--hold") != "" and player != null:
 		player.gun.hold_item(StringName(GameState.flag_value("--hold")))
+	if GameState.flag_value("--vmcam") != "" and player != null:
+		# Look at the first-person gun and hands from outside: side, top or front.
+		var vc := Camera3D.new()
+		vc.fov = 40.0
+		vc.near = 0.01
+		player.camera.add_child(vc)
+		var target := Vector3(0.12, -0.2, -0.45)
+		match GameState.flag_value("--vmcam"):
+			"top":
+				vc.position = target + Vector3(0.0, 0.75, 0.05)
+			"front":
+				vc.position = target + Vector3(0.1, 0.05, -0.8)
+			"left":
+				vc.position = target + Vector3(-0.8, 0.05, 0.0)
+			_:
+				vc.position = target + Vector3(0.8, 0.05, 0.0)
+		vc.look_at(player.camera.to_global(target), player.camera.global_basis.y)
+		vc.current = true
 	if GameState.has_flag("--lighter") and player != null:
 		player.gun.hold_item(&"lighter")
 		player.lighter.debug_light()

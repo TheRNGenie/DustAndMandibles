@@ -249,10 +249,9 @@ func hold_item(id: StringName) -> void:
 		_item_mi.add_child(model)
 		# Put the part you hold in the fist: the launcher's grip, the bucket's rope handle.
 		if model_id == &"grapple":
-			model.position = Vector3(0.0, 0.014, 0.067)
-			model.rotation.x = -0.25
+			model.position = Vector3(-0.019, 0.027, 0.068)
 		elif model_id == &"bucket":
-			model.position = Vector3(0.0, -0.15, 0.03)
+			model.position = Vector3(0.0, -0.115, 0.03)
 	else:
 		_item_mi.mesh = WeaponBuilder.held_item(id) if id != &"none" else null
 	_item_mi.visible = id != &"none"
