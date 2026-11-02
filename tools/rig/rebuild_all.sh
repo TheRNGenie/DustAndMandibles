@@ -33,8 +33,8 @@ gun "$(ls $M/*Winchester_1873_Rifle*.glb)" $G lever_rifle --fit z --min -0.022,-
 gun "$(ls $M/*Coach_Shotgun*.glb)" $G coach_shotgun --fit z --min -0.035,-0.123,-0.525 --max 0.035,0.056,0.377 --shift 0,-0.033,0 \
 	--part barrels:-0.06,0.06,-0.3,0.3,-0.6,-0.085
 gun "$(ls $M/*Flintlock_Blunderbuss*.glb)" $G blunderbuss --fit z --min -0.045,-0.123,-0.445 --max 0.045,0.056,0.318 --shift 0,-0.028,0
-gun "$(ls $M/*Handheld_Crank_Gatlin*.glb)" $G crank_gatling --fit z --min -0.084,-0.10,-0.44 --max 0.12,0.114,0.12 --mirror --shift 0,-0.02,0 \
-	--part barrels:-0.06,0.08,-0.04,0.04,-0.45,-0.24 --part stock:-0.2,0.2,-0.055,0.2,0.03,0.2
+# Crank on the left (turned by the left hand), stock cut off, centred on the barrels.
+gun "$(ls $M/*Handheld_Crank_Gatlin*.glb)" $G crank_gatling --fit z --min -0.084,-0.10,-0.44 --max 0.12,0.114,0.12 --shift -0.028,-0.02,0 	--part stock:-0.2,0.2,-0.055,0.2,0.03,0.2 --part barrels:-0.06,0.06,-0.04,0.07,-0.45,-0.246 --part crank:-0.2,-0.058,-0.1,0.04,-0.25,-0.178
 rm -f $G/crank_gatling_stock.glb
 gun "$(ls $M/*Grappling_Hook_Pistol*.glb)" $G grapple --fit z --min -0.037,-0.129,-0.276 --max 0.061,0.017,-0.008
 gun "$(ls $M/*Wooden_Water_Bucket*.glb)" $G bucket --fit y --min -0.09,-0.125,-0.104 --max 0.09,0.095,0.064
