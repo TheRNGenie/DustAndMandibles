@@ -2,7 +2,7 @@ class_name DummyLook
 extends RefCounted
 ## Player customization: what your crash-test dummy wears. A look is a plain
 ## Dictionary {slot: option id}, saved in Settings and sent to the other player.
-## To add an option, add it here and draw it in DummyRig._mesh().
+## To add an option, add it here and draw it in DummyBuilder.
 
 ## slot -> [label, [[option id, option label], ...]]. The first option is the default.
 const SLOTS: Dictionary = {

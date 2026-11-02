@@ -91,7 +91,10 @@ func _update_interact(delta: float) -> void:
 		_prompt = ""
 	if Input.is_action_just_pressed("interact"):
 		_hold = HOLD_REPEAT
+		var act := Player.action_for(target)
 		target.call("local_interact", false)
+		if act[0] != &"" and not (player.fp_hands != null and player.fp_hands.is_playing()):
+			player.act(act[0], act[1])
 	elif Input.is_action_pressed("interact"):
 		_hold -= delta
 		if _hold <= 0.0:

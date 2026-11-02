@@ -15,6 +15,8 @@ var _lanes: MeshInstance3D
 
 func _ready() -> void:
 	instance = self
+	if GameState.flag_value("--act") != "":
+		_act_shot(GameState.flag_value("--act"))
 	var shot := GameState.flag_value("--shot")
 	if shot != "":
 		_take_screenshot(shot)
@@ -83,6 +85,21 @@ func _ready() -> void:
 		_stress(int(GameState.flag_value("--stress")))
 	elif GameState.flag_value("--stairtest") != "":
 		_stair_test(int(GameState.flag_value("--stairtest")))
+
+
+## --act=harvest@0.5[:prop]: the local player acts it out in first person, held
+## at that moment, for screenshots of the interaction animations.
+func _act_shot(spec: String) -> void:
+	for i in 30:
+		await get_tree().process_frame
+	var pl := world.call("local_player") as Player
+	var id := StringName(spec.get_slice("@", 0))
+	var rest := spec.get_slice("@", 1) if spec.contains("@") else "0.5"
+	var prop := StringName(rest.get_slice(":", 1)) if rest.contains(":") else &""
+	pl.head.rotation.x = -0.25
+	pl.act(id, prop)
+	pl.fp_hands.freeze = float(rest.get_slice(":", 0))
+	pl.rig.action_freeze = pl.fp_hands.freeze
 
 
 ## --stairtest=N: builds an N-storey house, walks the local player up every flight

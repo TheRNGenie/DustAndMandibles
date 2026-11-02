@@ -47,6 +47,10 @@ func _process(delta: float) -> void:
 	_arm.rotation.x = sin(_arm_t / 0.4 * PI) * 0.9
 
 
+func ui_anim() -> StringName:
+	return &"slots"
+
+
 func ui_title() -> String:
 	return "Slot Machine"
 

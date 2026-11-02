@@ -9,6 +9,10 @@ var _wheel: MeshInstance3D
 var _t := SPIN_TIME
 
 
+func ui_anim() -> StringName:
+	return &"roulette"
+
+
 func ui_title() -> String:
 	return "Roulette"
 

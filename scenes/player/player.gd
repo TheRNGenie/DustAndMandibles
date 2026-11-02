@@ -37,6 +37,10 @@ var _slide_left := 0.0
 var _mantling := false
 var _fall_left := -1.0
 var _bob_t := 0.0
+var _feel_floor := true
+var _feel_vy := 0.0
+var _cam_land := 0.0
+var _cam_land_vel := 0.0
 var _capsule: CapsuleShape3D
 var _shake := 0.0
 ## Ladder volumes the player is inside (the airship's rope ladder): forward climbs.
@@ -60,6 +64,8 @@ const CLIMB_SPEED := 4.5
 @onready var net: PlayerNet = $Net
 @onready var body: MeshInstance3D = $Body
 var rig: DummyRig
+## First-person hands for interactions (owner only).
+var fp_hands: FpHands
 var _remote_sliding := false
 var _last_pos := Vector3.ZERO
 var _last_y := 0.0
@@ -104,6 +110,10 @@ func _ready() -> void:
 		cigarette.name = "Cigarette"
 		cigarette.player = self
 		camera.add_child(cigarette)
+		fp_hands = FpHands.new()
+		fp_hands.name = "FpHands"
+		fp_hands.gun = gun
+		camera.add_child(fp_hands)
 		camera.current = true
 		if GameState.flag_value("--shot") == "": # automated screenshots ignore the mouse
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -135,6 +145,53 @@ func set_remote_pose(sliding: bool) -> void:
 	_remote_sliding = sliding
 
 
+## Owner: act out using something (see DummyActions), in first person and
+## on your body for everyone else.
+func act(id: StringName, prop: StringName = &"") -> void:
+	if id == &"" or not is_multiplayer_authority():
+		return
+	if fp_hands != null:
+		fp_hands.play(id, prop)
+	rig.play_action(id)
+	_act_remote.rpc(id)
+
+
+@rpc("authority", "call_remote", "unreliable")
+func _act_remote(id: StringName) -> void:
+	rig.play_action(id)
+
+
+## What using `target` looks like: [move, prop held]. Empty move = nothing to act.
+static func action_for(target: Object) -> Array:
+	if target is CropPlot:
+		var plot := target as CropPlot
+		match plot.growth.stage:
+			CropGrowth.Stage.EMPTY:
+				return [&"plant", &"seed"]
+			CropGrowth.Stage.RIPE:
+				return [&"harvest", &"crop"]
+		return [&"water", &"water"]
+	if target is WaterSource:
+		return [&"pump", &""]
+	if target is SalvagePile:
+		return [&"salvage", &""] if (target as SalvagePile).available else [&"", &""]
+	if target is LootDrop:
+		return [&"loot", &""]
+	if target is StorageChest:
+		return [&"chest", &""]
+	if target is HouseLedger:
+		return [&"ledger", &""]
+	if target is GunShop or target is VendorCart:
+		return [&"buy", &""]
+	if target is WeaponPickup:
+		return [&"pickup", &""]
+	if target is ZipHandle:
+		return [&"zip", &""]
+	if target is Turret or target is StructureNode or target is ScaffoldNode:
+		return [&"hammer", &""]
+	return [&"", &""]
+
+
 ## Remote players: a quick bright flash on the body when they fire.
 func flash_body() -> void:
 	rig.flash()
@@ -150,6 +207,7 @@ func _process(delta: float) -> void:
 	var vy := (global_position.y - _last_y) / maxf(delta, 0.0001)
 	_last_y = global_position.y
 	_vy_smooth = lerpf(_vy_smooth, vy, clampf(delta * 10.0, 0.0, 1.0))
+	rig.move_local = global_basis.inverse() * (moved / maxf(delta, 0.0001))
 	rig.animate(delta, minf(speed, 12.0), sliding, head.rotation.x, _vy_smooth if not is_on_floor() or not is_multiplayer_authority() else 0.0)
 
 
@@ -173,6 +231,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var sens := Settings.mouse_sensitivity / gun.zoom_factor()
 		var y_sign := -1.0 if Settings.invert_y else 1.0
 		rotate_y(-motion.relative.x * sens)
+		gun.look_delta += motion.relative
 		head.rotation.x = clampf(head.rotation.x - motion.relative.y * sens * y_sign, -1.5, 1.5)
 	elif event is InputEventMouseButton and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not GameState.menu_open \
 			and not (build_mode != null and build_mode.menu_open):
@@ -538,7 +597,19 @@ func _update_camera(delta: float, sprinting: bool) -> void:
 	if is_on_floor() and not _sliding and speed > 0.5:
 		_bob_t += delta * speed * 1.6
 	var bob := sin(_bob_t) * 0.035 * clampf(speed / SPRINT_SPEED, 0.0, 1.0)
+	# Landing: the view dips and springs back.
+	if is_on_floor() and not _feel_floor and _feel_vy < -4.0:
+		var hard := clampf((-_feel_vy - 4.0) / 10.0, 0.0, 1.0)
+		_cam_land_vel -= 0.6 + hard * 1.6
+		gun.land(0.3 + hard * 0.7)
+	_feel_floor = is_on_floor()
+	_feel_vy = velocity.y
+	_cam_land_vel += (-_cam_land * 110.0 - _cam_land_vel * 13.0) * delta
+	_cam_land += _cam_land_vel * delta
+	gun.feel(speed, sprinting, is_on_floor(), _sliding, delta)
 	head.position.y = lerpf(head.position.y, eye + bob, clampf(delta * 14.0, 0.0, 1.0))
+	camera.position.y = _cam_land * 0.08
+	camera.rotation.x = -fp_hands.dip if fp_hands != null else 0.0
 	var target_fov := Settings.fov
 	if _sliding:
 		target_fov += 12.0

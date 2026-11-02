@@ -411,6 +411,15 @@ func _shot_posse() -> void:
 	var c := base + Vector3(0, 1.0, 0)
 	_dur = 2.0
 	_keys = [[0.0, c + Vector3(-5.2, 0.4, 0.2), c], [2.0, c + Vector3(-5.2, 0.4, 0.2), c]]
+	# --posseact=harvest@0.5: all four act it out, held at that moment.
+	var pa := GameState.flag_value("--posseact")
+	if pa != "":
+		for r: Array in _rigs:
+			var rig: DummyRig = r[0]
+			r[1] = 0.0
+			r[3] = 0.0
+			rig.play_action(StringName(pa.get_slice("@", 0)))
+			rig.action_freeze = float(pa.get_slice("@", 1)) if pa.contains("@") else 0.5
 	# --closeup=N frames dummy N from the waist up (--closeup=N,back from behind).
 	var cu := GameState.flag_value("--closeup")
 	if cu != "":
@@ -419,6 +428,9 @@ func _shot_posse() -> void:
 		var r: Node3D = _rigs[i][0]
 		var f := r.global_position + Vector3(0, 1.45, 0)
 		var eye := f + Vector3(1.9 if back else -1.9, 0.15, 0.25)
+		if cu.ends_with("side"):
+			f = r.global_position + Vector3(0, 0.85, 0)
+			eye = f + Vector3(-0.6, 0.35, 3.6)
 		_keys = [[0.0, eye, f], [2.0, eye, f]]
 
 

@@ -61,6 +61,8 @@ static func part(name: String, team: Color, look: Dictionary) -> ArrayMesh:
 			_thigh(st, paint, -1.0 if name == "thigh_l" else 1.0)
 		"shin":
 			_shin(st, paint, look)
+		"foot":
+			_foot(st, paint, look)
 		"upper_arm":
 			_upper_arm(st, paint, str(look.get("outfit")))
 		"forearm":
@@ -545,21 +547,27 @@ static func _thigh(st: SurfaceTool, paint: Color, side: float) -> void:
 static func _shin(st: SurfaceTool, paint: Color, look: Dictionary) -> void:
 	if DummyLook.has_boots(look):
 		limb(st, -0.03, -SHIN * 0.45, 0.062, 0.06, 0.008, paint)
-		_boot(st)
+		_boot_shaft(st)
 	else:
 		limb(st, -0.03, -SHIN + 0.05, 0.064, 0.05, 0.014, paint)
 		MeshKit.lathe(st, Transform3D(), [Vector2(0.052, -SHIN + 0.05), Vector2(0.058, -SHIN + 0.035), Vector2(0.05, -SHIN + 0.02)], SEG, JOINT)
-		# A blocky test-dummy foot with a black rubber sole.
+
+
+## The foot hangs off the ankle pivot (at -SHIN), so it can roll heel to toe.
+static func _foot(st: SurfaceTool, paint: Color, look: Dictionary) -> void:
+	if DummyLook.has_boots(look):
+		_boot_foot(st)
+	else:
 		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, -SHIN - 0.005, -0.045)), Vector3(0.052, 0.04, 0.115), 7, 16, paint)
 		MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, -SHIN - 0.04, -0.045)), Vector3(0.1, 0.02, 0.23), JOINT)
 		for i in 4:
 			MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, -SHIN - 0.05, -0.13 + i * 0.06)), Vector3(0.1, 0.008, 0.02), JOINT_HI)
 
 
-static func _boot(st: SurfaceTool) -> void:
+static func _boot_shaft(st: SurfaceTool) -> void:
 	var top := -SHIN * 0.42
 	# Shaft with a scalloped top, pull tabs and decorative stitching.
-	MeshKit.lathe(st, Transform3D(), [Vector2(0.06, -SHIN + 0.04), Vector2(0.064, -SHIN * 0.75), Vector2(0.07, top - 0.01), Vector2(0.075, top)], SEG, BOOT, Vector2(1.0, 1.1))
+	MeshKit.lathe(st, Transform3D(), [Vector2(0.06, -SHIN + 0.0), Vector2(0.062, -SHIN + 0.04), Vector2(0.064, -SHIN * 0.75), Vector2(0.07, top - 0.01), Vector2(0.075, top)], SEG, BOOT, Vector2(1.0, 1.1))
 	for s: float in [-1.0, 1.0]:
 		MeshKit.tube(st, [Vector3(s * 0.073, top - 0.005, 0), Vector3(s * 0.078, top + 0.04, 0.002), Vector3(s * 0.074, top + 0.05, 0.004)], [0.01, 0.009, 0.006], 5, BOOT_HI)
 	for i in 3:
@@ -569,7 +577,11 @@ static func _boot(st: SurfaceTool) -> void:
 			var a := lerpf(PI * 1.15, PI * 1.85, float(k) / 8.0)
 			pts.append(Vector3(cos(a) * 0.069, y + sin(float(k) * 1.4) * 0.012, sin(a) * 0.076))
 		MeshKit.tube(st, pts, _const(0.0028, 8), 4, STITCH)
-	# Foot: toe box, instep, raised heel, dark sole and welt.
+
+
+static func _boot_foot(st: SurfaceTool) -> void:
+	# Foot: ankle cuff, toe box, instep, raised heel, dark sole and welt.
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, -SHIN + 0.01, 0.0)), Vector3(0.064, 0.05, 0.07), 6, 14, BOOT)
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.RIGHT, 0.08), Vector3(0, -SHIN - 0.005, -0.06)), Vector3(0.055, 0.045, 0.13), 8, 18, BOOT)
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, -SHIN - 0.0, -0.165)), Vector3(0.04, 0.03, 0.04), 6, 12, BOOT_HI)
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, -SHIN - 0.05, -0.06)), Vector3(0.105, 0.016, 0.26), SOLE)

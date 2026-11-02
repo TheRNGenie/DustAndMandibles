@@ -55,6 +55,21 @@ var _look_t := 3.0
 var _look_yaw := 0.0
 var _head_yaw := 0.0
 var _wobble_vel := Vector3.ZERO
+var _ankles: Array[Node3D] = []
+var _land := 0.0
+var _accel := 0.0
+var _last_speed := 0.0
+var _strafe := 0.0
+var _idle_t := 0.0
+var _fidget_t := 0.0
+## Velocity in the body's own frame (set by the owner before animate()).
+var move_local := Vector3.ZERO
+## The interaction being acted out (DummyActions), and how far into it we are.
+var action: StringName = &""
+var action_t := 0.0
+var _action_w := 0.0
+## Debug screenshots: hold the action at this point (0..1); -1 plays normally.
+var action_freeze := -1.0
 ## NPC use: the right arm hangs and swings instead of aiming.
 var relaxed := false
 ## 0..1: raises the right arm and waves (shopkeepers greeting you).
@@ -71,6 +86,7 @@ func build(team: Color, is_first_person: bool, dummy_look: Dictionary = {}) -> v
 	_shins.clear()
 	_shoulders.clear()
 	_elbows.clear()
+	_ankles.clear()
 	_mat = Materials.toon_unique(0.022)
 	_hips = _pivot(self, Vector3(0, 0.95, 0))
 	var pelvis := _part(_hips, "pelvis")
@@ -86,6 +102,10 @@ func build(team: Color, is_first_person: bool, dummy_look: Dictionary = {}) -> v
 		_part(thigh, "thigh_l" if i == 0 else "thigh_r")
 		var shin := _pivot(thigh, Vector3(0, -THIGH, 0))
 		_part(shin, "shin")
+		var ankle := _pivot(shin, Vector3(0, -SHIN, 0))
+		var foot := _part(ankle, "foot")
+		foot.position = Vector3(0, SHIN, 0)
+		_ankles.append(ankle)
 		_thighs.append(thigh)
 		_shins.append(shin)
 		var shoulder := _pivot(_torso, Vector3(side * 0.25, 0.46, 0))
@@ -136,67 +156,155 @@ func knock(dir: Vector3, strength: float) -> void:
 
 
 ## Called every frame. speed = horizontal speed (m/s); pitch = aim pitch (radians);
-## vy = vertical speed (m/s), for jump and fall poses.
+## vy = vertical speed (m/s), for jump and fall poses. Set `move_local` first
+## (velocity in the body's own frame) so strafing and backpedalling read right.
+## Front is -Z: a positive X turn swings a limb forward, a knee bends negative.
 func animate(delta: float, speed: float, sliding: bool, pitch: float, vy: float = 0.0) -> void:
 	if _hips == null:
 		return
 	_life += delta
-	_slide = move_toward(_slide, 1.0 if sliding else 0.0, delta * 6.0)
+	var dt := clampf(delta, 0.0, 0.1)
+	_slide = move_toward(_slide, 1.0 if sliding else 0.0, dt * 6.0)
 	var air_target := clampf(absf(vy) / 4.0, 0.0, 1.0) if absf(vy) > 1.5 else 0.0
-	_air = move_toward(_air, air_target, delta * 5.0)
+	# Landing: a squash when the air pose ends.
+	if _air > 0.45 and air_target == 0.0:
+		_land = maxf(_land, _air)
+	_air = move_toward(_air, air_target, dt * 5.0)
+	_land = move_toward(_land, 0.0, dt * 3.2)
+	# Acceleration lean (smoothed).
+	_accel = lerpf(_accel, (speed - _last_speed) / maxf(dt, 0.001), clampf(dt * 4.0, 0.0, 1.0))
+	_last_speed = speed
+	var lean := clampf(_accel * 0.012, -0.12, 0.12)
 	var k := clampf(speed / 6.0, 0.0, 1.6) * (1.0 - _air)
+	# Which way the legs walk: forward, back or sideways (hips turn into a strafe).
+	var mv := Vector2(move_local.x, -move_local.z)
+	var dir := 1.0
+	var strafe_yaw := 0.0
+	if mv.length() > 0.5:
+		dir = -1.0 if mv.y < -0.2 * absf(mv.x) else 1.0
+		strafe_yaw = clampf(atan2(-mv.x, absf(mv.y) + 0.001) * dir, -0.75, 0.75) if absf(mv.x) > 0.3 else 0.0
+	_strafe = lerpf(_strafe, strafe_yaw if k > 0.05 else 0.0, clampf(dt * 6.0, 0.0, 1.0))
 	if speed > 0.3:
-		_phase += delta * (4.0 + speed * 0.9)
+		_phase += dt * (4.2 + speed * 0.85)
 	else:
-		_phase = lerpf(_phase, roundf(_phase / PI) * PI, clampf(delta * 6.0, 0.0, 1.0))
-	# Idle: breathing, a slow weight shift, now and then a look around.
+		_phase = lerpf(_phase, roundf(_phase / PI) * PI, clampf(dt * 6.0, 0.0, 1.0))
+	# Idle: breathing, a slow weight shift, now and then a look around or a fidget.
 	var idle := clampf(1.0 - speed / 1.5, 0.0, 1.0) * (1.0 - _slide) * (1.0 - _air)
 	var breathe := sin(_life * 1.9) * 0.012 * idle
 	var shift := sin(_life * 0.5) * 0.04 * idle
-	_look_t -= delta
+	_look_t -= dt
 	if _look_t <= 0.0:
 		_look_t = randf_range(3.0, 7.0)
 		_look_yaw = randf_range(-0.6, 0.6) if randf() < 0.6 else 0.0
-	_head_yaw = lerpf(_head_yaw, _look_yaw * idle, clampf(delta * 3.0, 0.0, 1.0))
+	_head_yaw = lerpf(_head_yaw, _look_yaw * idle, clampf(dt * 3.0, 0.0, 1.0))
+	_idle_t = _idle_t + dt if idle > 0.9 and action == &"" else 0.0
+	if _idle_t > 9.0 and _fidget_t <= 0.0:
+		_fidget_t = 2.2
+		_idle_t = randf_range(-6.0, 0.0)
+	_fidget_t = maxf(_fidget_t - dt, 0.0)
+	var fidget := sin(clampf(1.0 - _fidget_t / 2.2, 0.0, 1.0) * PI) if _fidget_t > 0.0 else 0.0
+	fidget = smoothstep(0.0, 0.35, fidget)
+	var land := sin(clampf(_land, 0.0, 1.0) * PI * 0.5)
+	# ---------------------------------------------------------------- legs
 	for i in 2:
-		var s := sin(_phase + float(i) * PI)
-		var thigh := s * 0.6 * k
-		var shin := maxf(-cos(_phase + float(i) * PI), 0.0) * 1.0 * k
-		# Airborne: knees up (rising) or legs dangling and kicking (falling).
-		var air_thigh := -0.9 if vy > 0.0 else -0.3 + sin(_life * 9.0 + i * PI) * 0.35
-		var air_shin := 1.3 if vy > 0.0 else 0.4 + cos(_life * 9.0 + i * PI) * 0.3
-		_thighs[i].rotation.x = lerpf(lerpf(thigh, air_thigh, _air), -1.35, _slide)
-		_shins[i].rotation.x = lerpf(lerpf(shin, air_shin, _air), 0.1, _slide)
-		_thighs[i].rotation.z = (shift if i == 1 else -shift) * 0.5
-	# Right arm (index 1) aims the gun. A long gun pulls the left hand onto the forend.
-	_shoulders[1].rotation.x = -1.35 - pitch * 0.9
-	_elbows[1].rotation.x = -0.15
+		var p := _phase + float(i) * PI
+		var s := sin(p)
+		var c := cos(p)
+		var thigh := s * 0.58 * k * dir + 0.06 * k
+		var knee := -(maxf(c * dir, 0.0) * 1.15 + 0.14) * k
+		# Airborne: knees tucked (rising) or legs dangling and kicking (falling).
+		var air_thigh := 0.95 - i * 0.35 if vy > 0.0 else 0.3 + sin(_life * 9.0 + i * PI) * 0.35
+		var air_shin := -1.35 + i * 0.3 if vy > 0.0 else -0.4 - cos(_life * 9.0 + i * PI) * 0.3
+		# Slide: lead leg out straight, the other folded under (a baseball slide).
+		var slide_thigh := 1.4 if i == 0 else 0.75
+		var slide_shin := -0.12 if i == 0 else -1.5
+		var th := lerpf(lerpf(thigh, air_thigh, _air), slide_thigh, _slide)
+		var sh := lerpf(lerpf(knee, air_shin, _air), slide_shin, _slide)
+		# Landing squash: knees give.
+		th += 0.35 * land
+		sh -= 0.75 * land
+		_thighs[i].rotation = Vector3(th, -_strafe * 0.25, (shift if i == 1 else -shift) * 0.5 + (0.05 if i == 1 else -0.05) * _air)
+		_shins[i].rotation.x = sh
+		# Feet: level with the ground, heel strike in front, toe-off behind.
+		var heel := maxf(s * dir, 0.0) * 0.3 * k * maxf(-c * dir + 0.3, 0.0)
+		var toe := -maxf(-s * dir, 0.0) * 0.55 * k * maxf(c * dir + 0.2, 0.0)
+		var flat := -(th + sh) * (1.0 - _air * 0.5)
+		var air_foot := -0.35 if vy < 0.0 else 0.2
+		_ankles[i].rotation.x = lerpf(lerpf(flat + heel + toe, air_foot, _air), -0.2 if i == 0 else 0.4, _slide)
+	# ---------------------------------------------------------------- body
+	var bob := (absf(cos(_phase)) - 0.6) * 0.05 * k
+	var hip_y := 0.95 - 0.035 * k + bob + breathe * 0.5 - 0.17 * land
+	_hips.position = Vector3(shift + sin(_phase) * 0.03 * k, lerpf(hip_y, 0.48, _slide), 0)
+	var hip_twist := sin(_phase) * 0.14 * k * dir
+	_hips.rotation = Vector3(_wobble.x, _wobble.y + hip_twist + _strafe, _wobble.z + cos(_phase) * 0.04 * k)
+	var torso_x := -0.09 * k - lean + breathe - 0.18 * land
+	_torso.rotation = Vector3(lerpf(torso_x, 0.42, _slide), -hip_twist * 1.6 - _strafe * 0.8, -shift * 0.6 - cos(_phase) * 0.035 * k)
+	_torso.scale = Vector3(1.0 + breathe, 1.0 + breathe * 0.6 - land * 0.04, 1.0 + breathe)
+	var want := -0.22 * k - absf(sin(_phase * 2.0)) * 0.08 * k - 0.6 * _air * (1.0 if vy < 0.0 else 0.25) + 0.25 * land
+	_tail_swing = lerpf(_tail_swing, want, clampf(dt * 6.0, 0.0, 1.0))
+	_tails.rotation = Vector3(lerpf(_tail_swing, -0.95, _slide), -hip_twist * 0.5, sin(_life * 2.3) * 0.03 * (1.0 - idle * 0.5))
+	# ---------------------------------------------------------------- arms
+	var aim := PI * 0.5 + clampf(pitch, -1.2, 1.2) * 0.9
+	var run_bob := sin(_phase * 2.0) * 0.05 * k
+	# Gun arm (right, index 1): out front along your aim, settling with the stride.
+	var r_sh := Vector3(aim + run_bob - _torso.rotation.x, 0.0, 0.0)
+	var r_el := 0.12
 	if relaxed:
-		var hang := sin(_phase) * 0.55 * k + breathe * 2.0
-		_shoulders[1].rotation.x = lerpf(hang - 0.1, -2.7, wave)
-		_elbows[1].rotation.x = lerpf(-0.3, -0.35 + sin(_life * 11.0) * 0.45, wave)
+		var hang := -sin(_phase) * 0.55 * k + breathe * 2.0 + 0.08
+		r_sh = Vector3(lerpf(hang, 2.75, wave), 0.0, lerpf(0.08, 0.35, wave))
+		r_el = lerpf(0.3 + k * 0.4, 0.4 + sin(_life * 11.0) * 0.45, wave)
 	var two_hands := 1.0 if _weapon in [&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling"] else 0.0
-	_two = move_toward(_two, two_hands, delta * 4.0)
-	var swing := -sin(_phase) * 0.55 * k
+	_two = move_toward(_two, two_hands * (1.0 - _slide * 0.5), dt * 4.0)
+	# Free arm (left, index 0): swings against the left leg, elbow bent to run.
+	var swing := -sin(_phase) * 0.6 * k * dir
 	var flail := sin(_life * 11.0) * 0.6 * _air * (1.0 if vy < 0.0 else 0.3)
-	_shoulders[0].rotation.x = lerpf(lerpf(swing - 0.1 + flail, -1.45 - pitch * 0.9, _two), -0.6, _slide)
-	_elbows[0].rotation.x = lerpf(-0.35 - k * 0.25, -0.5, _two)
-	_shoulders[0].rotation.y = lerpf(0.0, -0.55, _two)
-	# Hips bob and sway with the stride; the torso twists against the legs.
-	_hips.position = Vector3(shift + sin(_phase) * 0.025 * k, lerpf(0.95 + absf(sin(_phase)) * 0.035 * k + breathe * 0.5, 0.48, _slide), 0)
-	_torso.rotation = Vector3(lerpf(-0.08 * k + breathe, 0.45, _slide), sin(_phase) * 0.12 * k, -shift * 0.6)
-	_torso.scale = Vector3(1.0 + breathe, 1.0 + breathe * 0.6, 1.0 + breathe)
-	_head.rotation = Vector3(clampf(pitch, -0.7, 0.7) - _torso.rotation.x, _head_yaw - _torso.rotation.y, 0.0)
-	var want := 0.25 * k + sin(_phase * 2.0) * 0.06 * k + 0.5 * _air * (1.0 if vy < 0.0 else 0.2)
-	_tail_swing = lerpf(_tail_swing, want, clampf(delta * 6.0, 0.0, 1.0))
-	_tails.rotation.x = lerpf(_tail_swing, 0.9, _slide)
+	var l_sh := Vector3(swing + 0.05 + flail * 0.4, 0.0, -0.06 - _air * 0.7 - 0.25 * land)
+	var l_el := 0.25 + k * 0.55 + maxf(swing, 0.0) * 0.6
+	# Two-handed guns: the left hand comes across onto the forend.
+	l_sh = l_sh.lerp(Vector3(aim - 0.05 - _torso.rotation.x, -0.55, -0.05), _two)
+	l_el = lerpf(l_el, 0.55, _two)
+	# Slide: free hand trails down to the ground.
+	l_sh = l_sh.lerp(Vector3(-0.5, 0.0, -0.55), _slide * (1.0 - _two))
+	# Idle fidget: touch the hat brim.
+	l_sh = l_sh.lerp(Vector3(2.35, 0.25, -0.35), fidget * (1.0 - _two))
+	l_el = lerpf(l_el, 2.0, fidget * (1.0 - _two))
+	_shoulders[1].rotation = r_sh + Vector3(0, 0, absf(_wobble.x) * 1.5)
+	_elbows[1].rotation = Vector3(r_el, 0, 0)
+	_shoulders[0].rotation = l_sh + Vector3(0, 0, -absf(_wobble.z) * 2.0)
+	_elbows[0].rotation = Vector3(l_el, 0, 0)
+	# Head follows your aim and glances around; nods into the fidget.
+	_head.rotation = Vector3(clampf(pitch, -0.7, 0.7) - _torso.rotation.x - 0.12 * fidget, _head_yaw - _torso.rotation.y - _hips.rotation.y * 0.6, 0.0)
+	_apply_action(dt)
 	# Wobble spring (damped): floppy dummy reaction to hits.
-	_wobble_vel += (-_wobble * 60.0 - _wobble_vel * 7.0) * delta
-	_wobble += _wobble_vel * delta
-	_hips.rotation = Vector3(_wobble.x, _wobble.y, _wobble.z)
+	_wobble_vel += (-_wobble * 60.0 - _wobble_vel * 7.0) * dt
+	_wobble += _wobble_vel * dt
 	_head.rotation.z = -_wobble.z * 1.4
-	_shoulders[0].rotation.z = -absf(_wobble.z) * 2.0 - 0.05 - _air * 0.6
-	_shoulders[1].rotation.z = absf(_wobble.x) * 1.5 + (0.35 * wave if relaxed else 0.0)
+
+
+## Act out an interaction (harvest, plant, slots...). See DummyActions.
+func play_action(id: StringName) -> void:
+	if not DummyActions.has(id):
+		return
+	action = id
+	action_t = 0.0
+
+
+func _apply_action(dt: float) -> void:
+	# Hands are busy: the gun goes away while acting (third person only).
+	if not first_person:
+		_gun_mi.visible = action == &""
+	if action == &"":
+		return
+	action_t += dt
+	var dur := DummyActions.duration(action)
+	if action_freeze >= 0.0:
+		action_t = action_freeze * dur
+	if action_t >= dur:
+		action = &""
+		return
+	# Ease in over 0.15 s and out over the last 0.2 s.
+	_action_w = minf(smoothstep(0.0, 0.15, action_t), 1.0 - smoothstep(dur - 0.25, dur, action_t))
+	DummyActions.pose(self, action, action_t / dur, _action_w)
 
 
 ## A quick bright flash (firing).
@@ -221,25 +329,6 @@ func _part(parent: Node3D, part: String) -> MeshInstance3D:
 	return mi
 
 
-static func _taper(st: SurfaceTool, a: Vector3, b: Vector3, r0: float, r1: float, col: Color, segs: int = 12) -> void:
-	WeaponBuilder.rod(st, a, b, r0, r1, segs, col)
-	MeshKit.add_ellipsoid(st, Transform3D(Basis(), a), Vector3.ONE * r0, 5, segs, col)
-	MeshKit.add_ellipsoid(st, Transform3D(Basis(), b), Vector3.ONE * r1, 5, segs, col)
-
-
-## The crash-test marker: a disc quartered dark and light, facing +Y of xf.
-static func marker(st: SurfaceTool, xf: Transform3D, r: float) -> void:
-	var n := (xf.basis * Vector3.UP).normalized()
-	var c := xf.origin
-	var segs := 16
-	for i in segs:
-		var a0 := TAU * float(i) / segs
-		var a1 := TAU * float(i + 1) / segs
-		var col := MeshKit.vcol(MARK_DARK if (i * 4 / segs) % 2 == 0 else MARK_LIGHT)
-		MeshKit.tri(st, c, xf * (Vector3(cos(a0), 0.0, sin(a0)) * r), xf * (Vector3(cos(a1), 0.0, sin(a1)) * r), n, n, n, col, n)
-	MeshKit.add_cylinder(st, Transform3D(xf.basis, c - n * 0.002), r + 0.006, r + 0.006, 0.004, 16, MARK_DARK)
-
-
 ## Builds (and caches per team colour and look) each body part. Front is -Z.
 static func _mesh(part: String, team: Color, look: Dictionary) -> ArrayMesh:
 	var key := "%s|%s|%s" % [part, team.to_html(), DummyLook.key(look)]
@@ -249,116 +338,3 @@ static func _mesh(part: String, team: Color, look: Dictionary) -> ArrayMesh:
 	var mesh := DummyBuilder.part(part, team, look)
 	_meshes[key] = mesh
 	return mesh
-
-
-## Clothes over the chest: vest, duster, poncho, lawman; then the neck and bandolier.
-static func _torso_outfit(st: SurfaceTool, outfit: String, team: Color, look: Dictionary) -> void:
-	match outfit:
-		"vest", "lawman":
-			for side: float in [-1.0, 1.0]:
-				MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, side * 0.25), Vector3(side * 0.1, 0.26, -0.06)), Vector3(0.13, 0.36, 0.16), VEST)
-			MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.26, 0.07)), Vector3(0.36, 0.38, 0.08), VEST)
-			for i in 3:
-				MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(-0.05, 0.16 + i * 0.08, -0.14)), Vector3.ONE * 0.009, 3, 6, BRASS)
-			if outfit == "lawman":
-				# Six-point star on the chest.
-				for k in 2:
-					var star := Basis(Vector3.BACK, k * PI / 3.0) * Basis(Vector3.RIGHT, PI * 0.5)
-					MeshKit.add_cylinder(st, Transform3D(star, Vector3(0.09, 0.34, -0.15)), 0.045, 0.045, 0.008, 3, Palette.METAL.lightened(0.3))
-				MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.09, 0.34, -0.155)), Vector3.ONE * 0.012, 3, 6, BRASS)
-		"duster":
-			for side: float in [-1.0, 1.0]:
-				MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, side * 0.2), Vector3(side * 0.15, 0.24, 0.02)), Vector3(0.12, 0.5, 0.25), COAT)
-				MeshKit.add_box(st, Transform3D(Basis(Vector3.FORWARD, side * 0.35).rotated(Vector3.UP, side * 0.25), Vector3(side * 0.12, 0.42, -0.11)), Vector3(0.06, 0.2, 0.02), COAT_DARK)
-			MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.24, 0.11)), Vector3(0.38, 0.5, 0.04), COAT)
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.46, 0.02)), Vector3(0.27, 0.07, 0.15), 5, 14, COAT)
-		"poncho":
-			# A wool poncho draped over the shoulders, striped in team colour.
-			MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.36, 0)), 0.1, 0.3, 0.32, 16, Color("#C8A878"))
-			for i in 3:
-				MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.24 + i * 0.05, 0)), 0.275 - i * 0.04, 0.267 - i * 0.04, 0.02, 16, team if i % 2 == 0 else Color("#3A2416"))
-	match str(look.get("neck")):
-		"bandana":
-			MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.53, 0)), 0.075, 0.07, 0.05, 12, team)
-			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI), Vector3(0, 0.48, -0.08)), 0.05, 0.0, 0.08, 4, team.darkened(0.1))
-		"bolo":
-			MeshKit.add_limb(st, Vector3(-0.02, 0.53, -0.06), Vector3(0, 0.4, -0.13), 0.004, BELT, 4)
-			MeshKit.add_limb(st, Vector3(0.02, 0.53, -0.06), Vector3(0, 0.4, -0.13), 0.004, BELT, 4)
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.44, -0.135)), Vector3(0.022, 0.026, 0.008), 4, 8, Color("#3FA8A0"))
-	if DummyLook.has_bandolier(look):
-		var b := Basis(Vector3.FORWARD, 0.6)
-		MeshKit.add_box(st, Transform3D(b, Vector3(0, 0.27, -0.13)), Vector3(0.06, 0.62, 0.02), BELT)
-		MeshKit.add_box(st, Transform3D(b, Vector3(0, 0.27, 0.13)), Vector3(0.06, 0.62, 0.02), BELT)
-		for i in 7:
-			MeshKit.add_ellipsoid(st, Transform3D(b, Vector3(0, 0.27, -0.14) + b * Vector3(0, -0.24 + i * 0.08, 0)), Vector3(0.012, 0.02, 0.012), 3, 6, BRASS)
-
-
-## Hat, hair, facial hair and a bandana mask, on the head.
-static func _head_extras(st: SurfaceTool, look: Dictionary, team: Color, hair: Color) -> void:
-	match str(look.get("hair")):
-		"mullet":
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3(0, 0.0, 0.1)), Vector3(0.1, 0.12, 0.05), 5, 10, hair)
-		"ponytail":
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.12, 0.08)), Vector3(0.1, 0.06, 0.06), 4, 8, hair)
-			_taper(st, Vector3(0, 0.1, 0.12), Vector3(0, -0.08, 0.17), 0.028, 0.018, hair, 8)
-		"long":
-			for i in 7:
-				var a := -1.1 + i * 0.37
-				_taper(st, Vector3(sin(a) * 0.1, 0.12, cos(a) * 0.09 + 0.02), Vector3(sin(a) * 0.13, -0.1, cos(a) * 0.12 + 0.03), 0.03, 0.02, hair, 8)
-		"mohawk":
-			for i in 6:
-				MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, -0.3 + i * 0.12), Vector3(0, 0.2, -0.08 + i * 0.035)), 0.016, 0.0, 0.11, 5, hair)
-	var lip := Vector3(0, 0.035, -0.115)
-	match str(look.get("facial")):
-		"handlebar":
-			for s: float in [-1.0, 1.0]:
-				_taper(st, lip, lip + Vector3(s * 0.05, -0.006, 0.01), 0.013, 0.01, hair, 8)
-				_taper(st, lip + Vector3(s * 0.05, -0.006, 0.01), lip + Vector3(s * 0.075, 0.02, 0.02), 0.009, 0.004, hair, 6)
-		"horseshoe":
-			for s: float in [-1.0, 1.0]:
-				_taper(st, lip + Vector3(s * 0.015, 0, 0), lip + Vector3(s * 0.04, -0.005, 0.01), 0.011, 0.01, hair, 8)
-				_taper(st, lip + Vector3(s * 0.04, -0.005, 0.01), lip + Vector3(s * 0.045, -0.07, 0.02), 0.01, 0.008, hair, 8)
-		"walrus":
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(), lip + Vector3(0, -0.01, 0.003)), Vector3(0.06, 0.025, 0.02), 4, 10, hair)
-		"pencil":
-			MeshKit.add_box(st, Transform3D(Basis(), lip + Vector3(0, 0.002, 0.004)), Vector3(0.06, 0.006, 0.01), hair)
-		"goatee":
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, -0.035, -0.105)), Vector3(0.03, 0.04, 0.025), 4, 8, hair)
-			MeshKit.add_box(st, Transform3D(Basis(), lip), Vector3(0.05, 0.01, 0.012), hair)
-		"beard":
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, -0.02, -0.06)), Vector3(0.1, 0.08, 0.08), 5, 12, hair)
-			MeshKit.add_box(st, Transform3D(Basis(), lip), Vector3(0.07, 0.014, 0.016), hair)
-		"chops":
-			for s: float in [-1.0, 1.0]:
-				MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(s * 0.085, 0.02, -0.04)), Vector3(0.025, 0.06, 0.04), 4, 8, hair)
-	if str(look.get("neck")) == "mask":
-		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.02, -0.01)), Vector3(0.113, 0.068, 0.12), 6, 14, team)
-		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI), Vector3(0, -0.05, -0.085)), 0.055, 0.0, 0.07, 4, team.darkened(0.1))
-	match str(look.get("hat")):
-		"cattleman":
-			_hat(st, team, 0.13, 0.115, 0.27, 0.55, true)
-		"ten_gallon":
-			_hat(st, team, 0.2, 0.12, 0.31, 0.45, true)
-		"gambler":
-			_hat(st, team, 0.1, 0.12, 0.25, 0.0, false)
-		"bowler":
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.2, 0)), Vector3(0.115, 0.1, 0.125), 6, 14, Color("#2A2422"))
-			MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.17, 0)), 0.122, 0.122, 0.025, 14, team)
-			MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.155, 0)), 0.165, 0.16, 0.014, 16, Color("#2A2422"))
-		"sombrero":
-			MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.27, 0)), 0.11, 0.07, 0.17, 14, Color("#D8B46A"))
-			MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.2, 0)), 0.115, 0.115, 0.03, 14, team)
-			MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.18, 0)), 0.45, 0.4, 0.02, 20, Color("#D8B46A"))
-			MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.2, 0)), 0.46, 0.46, 0.02, 20, Color("#B8944A"))
-
-
-## A cowboy hat: crown height, crown radius, brim radius, brim curl, pinched top.
-static func _hat(st: SurfaceTool, team: Color, crown_h: float, crown_r: float, brim_r: float, curl: float, pinch: bool) -> void:
-	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.19 + crown_h * 0.5, 0)), crown_r, crown_r * 0.86, crown_h, 14, HAT)
-	if pinch:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.19 + crown_h - 0.006, 0.005)), Vector3(0.05, 0.03, crown_r * 1.5), HAT_DARK)
-	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.205, 0)), crown_r + 0.003, crown_r + 0.003, 0.03, 14, team)
-	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.188, 0)), brim_r, brim_r - 0.02, 0.018, 18, HAT)
-	if curl > 0.0:
-		for side: float in [-1.0, 1.0]:
-			MeshKit.add_box(st, Transform3D(Basis(Vector3.FORWARD, side * curl), Vector3(side * (brim_r - 0.035), 0.215, 0)), Vector3(0.08, 0.016, brim_r * 1.1), HAT)

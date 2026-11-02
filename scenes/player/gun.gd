@@ -94,6 +94,23 @@ var _item_mi: MeshInstance3D
 var _hand: MeshInstance3D
 var _arms: Dictionary = {}
 var _team := Palette.TEAM_WEST
+# ---- first-person feel (fed by Player every frame)
+## Mouse movement since last frame (pixels), for the gun lagging behind your look.
+var look_delta := Vector2.ZERO
+var _sway := Vector2.ZERO
+var _sway_vel := Vector2.ZERO
+var _bob_phase := 0.0
+var _move := 0.0
+var _sprint := 0.0
+var _slide_feel := 0.0
+var _land := 0.0
+var _land_vel := 0.0
+var _air_feel := 0.0
+## 1 right after switching weapons: the new one comes up from below.
+var _raise := 0.0
+## 0..1: the gun is lowered out of the way while your hands do something else.
+var lowered := 0.0
+var _lower_target := 0.0
 
 
 ## Rebuilds the first-person hands for a new outfit (dummy paint, coat sleeves).
@@ -191,6 +208,7 @@ func equip(id: StringName) -> void:
 	_cycle = 1.0
 	for k: StringName in _models:
 		(_models[k] as Node3D).visible = k == id
+	_raise = 1.0
 	var muzzle_z := -0.28 if id == &"revolver" else -0.62
 	_flash.position = Vector3(0, 0.02, muzzle_z)
 	_flash_light.position = Vector3(0, 0.02, muzzle_z - 0.05)
@@ -223,6 +241,7 @@ func hold_item(id: StringName) -> void:
 	_item_mi.mesh = WeaponBuilder.held_item(id) if id != &"none" else null
 	_item_mi.visible = id != &"none"
 	_hand.visible = id != &"none"
+	_raise = 1.0
 	loadout_changed.emit()
 
 
@@ -304,8 +323,71 @@ func _process(delta: float) -> void:
 		vm.turn_crank(spin, delta)
 	aim = move_toward(aim, 1.0 if aiming else 0.0, delta * 7.0)
 	var aim_pos: Vector3 = AIM_POS.get(def.id, REST_POS) if def != null else REST_POS
-	position = REST_POS.lerp(aim_pos, aim) + Vector3(0, 0, _kick * 0.06 * (1.0 - aim * 0.5))
-	rotation = Vector3(_kick * 0.5, 0, 0)
+	_feel_step(delta)
+	var off := _feel_offset()
+	position = REST_POS.lerp(aim_pos, aim) + Vector3(0, 0, _kick * 0.06 * (1.0 - aim * 0.5)) + off[0]
+	rotation = Vector3(_kick * 0.5, 0, 0) + off[1]
+
+
+## Player: how you're moving this frame (speed m/s, sprinting, on the ground, sliding).
+func feel(speed: float, sprinting: bool, on_floor: bool, sliding: bool, delta: float) -> void:
+	var k := clampf(speed / 9.5, 0.0, 1.0) if on_floor and not sliding else 0.0
+	_move = lerpf(_move, k, clampf(delta * 8.0, 0.0, 1.0))
+	if on_floor and speed > 0.5 and not sliding:
+		_bob_phase += delta * (5.0 + speed * 0.75)
+	_sprint = move_toward(_sprint, 1.0 if sprinting and not aiming else 0.0, delta * 5.0)
+	_slide_feel = move_toward(_slide_feel, 1.0 if sliding else 0.0, delta * 6.0)
+	_air_feel = move_toward(_air_feel, 0.0 if on_floor else 1.0, delta * 4.0)
+
+
+## Player: you just landed; `strength` 0..1 from how hard.
+func land(strength: float) -> void:
+	_land_vel -= clampf(strength, 0.0, 1.0) * 6.0
+
+
+func set_lowered(on: bool) -> void:
+	_lower_target = 1.0 if on else 0.0
+
+
+func _feel_step(delta: float) -> void:
+	var dt := clampf(delta, 0.0, 0.05)
+	# Look sway: a spring pulled by mouse movement, so the gun trails your view.
+	var pull := look_delta * 0.0016 * (1.0 - aim * 0.75)
+	look_delta = Vector2.ZERO
+	_sway_vel += (-_sway * 140.0 - _sway_vel * 16.0) * dt - pull * 60.0
+	_sway += _sway_vel * dt
+	_sway = _sway.clamp(Vector2(-0.12, -0.12), Vector2(0.12, 0.12))
+	# Landing: a damped dip.
+	_land_vel += (-_land * 120.0 - _land_vel * 14.0) * dt
+	_land += _land_vel * dt
+	_raise = move_toward(_raise, 0.0, dt * 3.6)
+	lowered = move_toward(lowered, _lower_target, dt * 5.0)
+
+
+## [position offset, rotation offset] from sway, bob, sprint, landing, switching.
+func _feel_offset() -> Array:
+	var calm := 1.0 - aim * 0.85
+	var bob_x := sin(_bob_phase) * 0.012 * _move * calm
+	var bob_y := -absf(cos(_bob_phase)) * 0.011 * _move * calm
+	var pos := Vector3(bob_x + _sway.x * 0.18, bob_y + _sway.y * 0.15 + _land * 0.03, 0.0)
+	var rot := Vector3(_sway.y * 0.6 + _land * 0.12, _sway.x * 0.8, -_sway.x * 0.9 + sin(_bob_phase) * 0.02 * _move * calm)
+	# Sprint: carried low and canted across the chest.
+	pos += Vector3(-0.03, -0.05, 0.03) * _sprint
+	rot += Vector3(-0.28, 0.42, 0.22) * _sprint
+	# Slide: tucked in and tilted.
+	pos += Vector3(-0.02, -0.02, 0.02) * _slide_feel
+	rot += Vector3(0.0, 0.0, 0.32) * _slide_feel
+	# In the air: the gun floats up a touch.
+	pos.y += 0.012 * _air_feel
+	# Switching: rises from below with a little roll.
+	var r := _raise * _raise
+	pos += Vector3(0.02, -0.28, 0.06) * r
+	rot += Vector3(-0.7, 0.0, 0.35) * r
+	# Lowered while the hands work.
+	var l := smoothstep(0.0, 1.0, lowered)
+	pos += Vector3(0.05, -0.36, 0.1) * l
+	rot += Vector3(-0.9, 0.2, 0.4) * l
+	return [pos, rot]
 
 
 ## Times for this gun: tipping in, each round, closing up (faster with upgrades).

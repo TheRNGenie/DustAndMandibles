@@ -48,7 +48,17 @@ func ui_actions() -> Array:
 	return []
 
 
+## The move your dummy makes when you play: deal cards by default.
+func ui_anim() -> StringName:
+	return &"cards"
+
+
 func ui_act(action: StringName, choice: int, bet: int) -> void:
+	var world := get_tree().current_scene
+	if world != null and world.has_method("local_player"):
+		var me: Player = world.call("local_player")
+		if me != null:
+			me.act(ui_anim(), &"")
 	if multiplayer.is_server():
 		_act(multiplayer.get_unique_id(), action, choice, bet)
 	else:

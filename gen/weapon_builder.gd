@@ -271,32 +271,70 @@ static func gun(id: StringName) -> ArrayMesh:
 
 # ------------------------------------------------------------------ first-person arms
 
-## A dummy's mitten hand closed around a grip. `at` is the middle of the fist,
+## A dummy's hand closed around a grip. `at` is the middle of the fist,
 ## `along` the direction the fingers wrap around (the grip's axis), `back` points
-## to the back of the hand.
+## to the back of the hand. Four jointed fingers curl round the grip, the thumb
+## locks over them, with black rubber knuckles and a painted calibration dot.
 static func fist(st: SurfaceTool, at: Vector3, along: Vector3, back: Vector3, paint: Color) -> void:
 	var up := along.normalized()
-	var out := back.normalized()
+	var out := (back - up * back.dot(up)).normalized()
 	var side := up.cross(out).normalized()
 	var basis := Basis(side, up, out)
-	MeshKit.add_ellipsoid(st, Transform3D(basis, at + out * 0.012), Vector3(0.028, 0.045, 0.022), 5, 10, paint)
-	# Mitten fingers wrapping the far side, a thumb over the top.
-	MeshKit.add_ellipsoid(st, Transform3D(basis, at - out * 0.016), Vector3(0.024, 0.042, 0.016), 5, 10, paint.darkened(0.08))
-	MeshKit.add_limb(st, at + up * 0.03 + side * 0.016 + out * 0.008, at + up * 0.03 - side * 0.006 - out * 0.016, 0.009, paint, 6)
-	# Black rubber wrist joint.
-	MeshKit.add_ellipsoid(st, Transform3D(basis, at - up * 0.05 + out * 0.008), Vector3(0.026, 0.02, 0.026), 4, 10, Color("#26262C"))
+	var joint := Color("#26262C")
+	# Back of the hand: a moulded shell with a target dot.
+	MeshKit.add_ellipsoid(st, Transform3D(basis, at + out * 0.016 + side * 0.004), Vector3(0.03, 0.046, 0.017), 6, 14, paint)
+	MeshKit.add_ellipsoid(st, Transform3D(basis, at + out * 0.031 + side * 0.004), Vector3(0.009, 0.009, 0.003), 3, 8, Color("#F2C230"))
+	MeshKit.add_ellipsoid(st, Transform3D(basis, at + out * 0.0325 + side * 0.004), Vector3(0.0045, 0.0045, 0.002), 3, 8, Color("#1E1E22"))
+	# Grip centre the fingers wrap round.
+	var g := at - out * 0.008
+	for f in 4:
+		var h := -0.03 + f * 0.02
+		var r := 0.0092 if f < 3 else 0.0078
+		var pts: Array = []
+		var radii: Array = []
+		for k in 6:
+			var a := lerpf(0.25, PI - 0.15, float(k) / 5.0)
+			var rad := lerpf(0.031, 0.022, float(k) / 5.0)
+			pts.append(g + up * h + (out * cos(a) - side * sin(a)) * rad)
+			radii.append(r * lerpf(1.0, 0.82, float(k) / 5.0))
+		MeshKit.tube(st, pts, radii, 7, paint.darkened(0.04 * (f % 2)))
+		# Rubber knuckle and middle joint.
+		MeshKit.add_ellipsoid(st, Transform3D(basis, pts[0]), Vector3.ONE * r * 1.12, 4, 8, joint)
+		MeshKit.add_ellipsoid(st, Transform3D(basis, pts[3]), Vector3.ONE * r * 1.02, 3, 6, joint)
+	# Thumb: from the heel of the palm, over the curled fingers.
+	var t0 := g + up * 0.036 + side * 0.018 + out * 0.004
+	MeshKit.tube(st, [t0, t0 + up * 0.006 - side * 0.012 - out * 0.012, t0 + up * 0.004 - side * 0.03 - out * 0.022],
+			[0.011, 0.0105, 0.009], 7, paint)
+	MeshKit.add_ellipsoid(st, Transform3D(basis, t0), Vector3.ONE * 0.0115, 4, 8, joint)
+	# Ribbed rubber wrist.
+	for k in 3:
+		MeshKit.add_ellipsoid(st, Transform3D(basis, at - up * (0.05 + k * 0.011) + out * 0.008), Vector3(0.027, 0.007, 0.025), 4, 12, joint)
 
 
-## The forearm from the wrist back out of view: a coat sleeve with the duster,
-## otherwise the bare painted dummy arm.
+## The forearm from the wrist back out of view: a coat sleeve with the duster
+## (cuff, buttons and a fold), a pressed shirt for the lawman, otherwise the
+## painted dummy arm with a calibration band and a bolted elbow.
 static func sleeve(st: SurfaceTool, wrist: Vector3, elbow: Vector3, look: Dictionary) -> void:
 	var dir := (elbow - wrist).normalized()
-	if str(look.get("outfit")) == "duster":
-		rod(st, wrist + dir * 0.01, elbow, 0.038, 0.058, 12, SLEEVE)
-		MeshKit.add_cylinder(st, Transform3D(MeshKit.basis_from_y(dir), wrist + dir * 0.02), 0.04, 0.04, 0.02, 12, SLEEVE_DARK)
+	var b := MeshKit.basis_from_y(dir)
+	var outfit := str(look.get("outfit"))
+	if outfit == "duster":
+		rod(st, wrist + dir * 0.01, elbow, 0.04, 0.06, 16, SLEEVE)
+		MeshKit.add_cylinder(st, Transform3D(b, wrist + dir * 0.025), 0.044, 0.046, 0.04, 16, SLEEVE_DARK)
+		for k in 2:
+			var bp := wrist + dir * (0.02 + k * 0.022) + b.z * 0.045
+			MeshKit.add_cylinder(st, Transform3D(MeshKit.basis_from_y(b.z), bp), 0.006, 0.006, 0.004, 8, Color("#2A1A12"))
+		MeshKit.add_cylinder(st, Transform3D(b, wrist + dir * 0.16), 0.052, 0.054, 0.012, 16, SLEEVE_DARK)
+	elif outfit == "lawman":
+		rod(st, wrist + dir * 0.01, elbow, 0.034, 0.05, 16, Color("#E8E0CC"))
+		MeshKit.add_cylinder(st, Transform3D(b, wrist + dir * 0.022), 0.038, 0.038, 0.03, 16, Color("#C8BCA0"))
+		MeshKit.add_cylinder(st, Transform3D(MeshKit.basis_from_y(b.z), wrist + dir * 0.022 + b.z * 0.039), 0.005, 0.005, 0.004, 8, BRASS)
 	else:
-		rod(st, wrist + dir * 0.01, elbow, 0.03, 0.044, 12, DummyLook.paint(look))
-		MeshKit.add_cylinder(st, Transform3D(MeshKit.basis_from_y(dir), wrist + dir * 0.17), 0.04, 0.04, 0.012, 12, Color("#26262C"))
+		var paint := DummyLook.paint(look)
+		rod(st, wrist + dir * 0.01, elbow, 0.03, 0.046, 16, paint)
+		MeshKit.add_cylinder(st, Transform3D(b, wrist + dir * 0.12), 0.039, 0.04, 0.012, 16, Color("#1E1E22"))
+		MeshKit.add_cylinder(st, Transform3D(b, wrist + dir * 0.14), 0.041, 0.042, 0.008, 16, Color("#F2C230"))
+		MeshKit.add_ellipsoid(st, Transform3D(b, elbow), Vector3.ONE * 0.05, 5, 12, Color("#26262C"))
 
 
 ## Both arms holding gun `id` (first person). Same space as the gun mesh.

@@ -69,6 +69,10 @@ func _process(delta: float) -> void:
 		ui_changed.emit()
 
 
+func ui_anim() -> StringName:
+	return &"roulette"
+
+
 func ui_title() -> String:
 	return "Prize Wheel"
 
