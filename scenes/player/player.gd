@@ -27,6 +27,9 @@ const SLIDE_HEIGHT := 1.0
 const EYE_STAND := 1.62
 const EYE_SLIDE := 0.85
 const RESPAWN_DELAY := 3.0
+## Additions: sitting on a campfire log (see scenes/extras/campfire.gd).
+const EYE_SEATED := 1.05
+var seated := false
 
 @export var cliff_id: int = WorldLayout.WEST
 
@@ -129,7 +132,7 @@ func _ready() -> void:
 
 
 func is_sliding() -> bool:
-	return _sliding
+	return _sliding or seated # seated by a campfire reads as a crouch to others
 
 
 func is_downed() -> bool:
@@ -250,7 +253,7 @@ func _process(delta: float) -> void:
 		raw_vel = Vector3(velocity.x, 0.0, velocity.z)
 	_body_vel = _body_vel.lerp(raw_vel, clampf(delta * (30.0 if is_multiplayer_authority() else 8.0), 0.0, 1.0))
 	var speed := _body_vel.length()
-	var sliding := _sliding if is_multiplayer_authority() else _remote_sliding
+	var sliding := (_sliding or seated) if is_multiplayer_authority() else _remote_sliding
 	var vy := (global_position.y - _last_y) / maxf(delta, 0.0001)
 	_last_y = global_position.y
 	_vy_smooth = lerpf(_vy_smooth, vy, clampf(delta * 10.0, 0.0, 1.0))
@@ -289,6 +292,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	if _mantling:
+		return
+	if seated:
+		# Additions hook: sitting at a campfire (Campfire moves you and stands you up).
+		velocity = Vector3.ZERO
+		_update_camera(delta, false)
 		return
 	if _zip_line != null:
 		_ride_zip(delta)
@@ -354,7 +362,7 @@ func _physics_process(delta: float) -> void:
 	elif _sliding:
 		_process_slide(delta)
 	else:
-		var target_speed := SPRINT_SPEED if sprinting else WALK_SPEED
+		var target_speed := SPRINT_SPEED * vitals.sprint_mult() if sprinting else WALK_SPEED
 		target_speed += SLIDE_HOP_SPEED * hop_stacks
 		if cigarette != null:
 			target_speed *= cigarette.speed_multiplier()
@@ -643,8 +651,28 @@ func respawn() -> void:
 
 # ------------------------------------------------------------------ camera feel
 
+var _sway_t := 0.0
+## Gun recoil still to ease back down (radians of pitch) and how fast.
+var _recoil_back := 0.0
+var _recoil_rate := 0.0
+
+
+## Owner: a shot kicks the view up (and a touch sideways); most of it eases back.
+## Shots follow the camera, so fast follow-ups from kicky guns land high.
+func add_recoil(pitch_deg: float, yaw_deg: float, recover: float) -> void:
+	pitch_deg *= Perks.local_less(&"steady_hand") # Perk: Steady Hand
+	yaw_deg *= Perks.local_less(&"steady_hand")
+	var up := deg_to_rad(pitch_deg)
+	head.rotation.x = clampf(head.rotation.x + up, -1.5, 1.5)
+	rotate_y(deg_to_rad(randf_range(-yaw_deg, yaw_deg)))
+	_recoil_back += up * 0.75
+	_recoil_rate = _recoil_back / maxf(recover, 0.05)
+
+
 func _update_camera(delta: float, sprinting: bool) -> void:
 	var eye := EYE_SLIDE if _sliding else EYE_STAND
+	if seated:
+		eye = EYE_SEATED
 	var speed := Vector2(velocity.x, velocity.z).length()
 	if is_on_floor() and not _sliding and speed > 0.5:
 		_bob_t += delta * speed * 1.6
@@ -663,6 +691,15 @@ func _update_camera(delta: float, sprinting: bool) -> void:
 	head.position.y = lerpf(head.position.y, eye + bob, clampf(delta * 14.0, 0.0, 1.0))
 	camera.position.y = _cam_land * 0.08
 	camera.rotation.x = -fp_hands.dip if fp_hands != null else 0.0
+	# Hungry or thirsty: a slow, slight wander in your aim (shots follow the camera).
+	var sway := vitals.sway() if vitals != null else 0.0
+	_sway_t += delta
+	if _recoil_back > 0.0:
+		var down := minf(_recoil_back, _recoil_rate * delta)
+		_recoil_back -= down
+		head.rotation.x = clampf(head.rotation.x - down, -1.5, 1.5)
+	camera.rotation.x += sin(_sway_t * 0.9) * cos(_sway_t * 0.37) * 0.006 * sway
+	camera.rotation.y = sin(_sway_t * 0.63 + 1.3) * 0.008 * sway
 	var target_fov := Settings.fov
 	if _sliding:
 		target_fov += 12.0

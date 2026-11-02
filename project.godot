@@ -21,6 +21,7 @@ GameState="*res://autoload/GameState.gd"
 Economy="*res://autoload/Economy.gd"
 WaveDirector="*res://autoload/WaveDirector.gd"
 Audio="*res://autoload/Audio.gd"
+Perks="*res://autoload/Perks.gd"
 
 [debug]
 

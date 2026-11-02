@@ -173,6 +173,37 @@ func _ready() -> void:
 					best2 = w
 			print("[arch] crown near z-17: %s  near z20: %s  cliff top %.1f" % [str(best), str(best2), WorldLayout.CLIFF_HEIGHT])
 		get_tree().quit()
+	elif GameState.flag_value("--iconview") != "":
+		for i in 20:
+			await get_tree().process_frame
+		var ids := [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"corn", &"prickly_pear", &"chili", &"herbs", &"water", &"grapple", &"lighter"]
+		var texs := {}
+		for id: StringName in ids:
+			texs[id] = IconStudio.item(self, id)
+		for i in 10:
+			await get_tree().process_frame
+		for id: StringName in ids:
+			if texs[id] != null:
+				(texs[id] as Texture2D).get_image().save_png("%s/%s.png" % [GameState.flag_value("--iconview"), id])
+			else:
+				print("[icon] no icon for ", id)
+		print("[icon] saved")
+		get_tree().quit()
+	elif GameState.flag_value("--mapview") != "":
+		for i in 40:
+			await get_tree().process_frame
+		_autobuild()
+		var bmv := world.get("bugs") as BugManager
+		for i in 12:
+			bmv.spawn_group(&"dust_mite", 1, i % 2, i % 5, float(i % 4) * 12.0 + 5.0)
+		Pings.instance.call("_send", 1)
+		await get_tree().create_timer(2.0).timeout
+		var hud := world.get("hud") as Hud
+		hud.overview.visible = true
+		await get_tree().create_timer(1.5).timeout
+		get_viewport().get_texture().get_image().save_png(GameState.flag_value("--mapview"))
+		print("[map] saved")
+		get_tree().quit()
 	elif GameState.flag_value("--titleview") != "":
 		for i in 40:
 			await get_tree().process_frame
@@ -996,12 +1027,21 @@ func _stress(count: int) -> void:
 		var proc := 0.0
 		var phys := 0.0
 		var n := 0
+		var gaps: Array[float] = []
+		var last := Time.get_ticks_usec()
 		while Time.get_ticks_msec() - t0 < 2000:
 			await get_tree().process_frame
+			var now := Time.get_ticks_usec()
+			gaps.append(float(now - last) / 1000.0)
+			last = now
 			proc += Performance.get_monitor(Performance.TIME_PROCESS)
 			phys += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
 			n += 1
 		var fps := float(Engine.get_frames_drawn() - frames) / 2.0
+		gaps.sort()
+		# Worst frame and the 1%-low frame time (the slowest 1% of frames).
+		print("[stress]   frame ms: median %.1f  1%%-low %.1f  worst %.1f  bug update %.0f us" % [
+			gaps[gaps.size() / 2], gaps[int(gaps.size() * 0.99)], gaps[gaps.size() - 1], BugManager._avg_us])
 		print("[stress] bugs %d  fps %.0f  process %.2f ms  physics %.2f ms  draw calls %d  objects %d  nodes %d" % [
 			get_tree().get_nodes_in_group("bugs").size(), fps if fps > 0 else float(n) / 2.0, proc / n * 1000.0, phys / n * 1000.0,
 			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),

@@ -30,8 +30,10 @@ const REMAPPABLE: Dictionary = {
 	"melee": "Quick melee (whip)",
 	"ready_up": "Ready (skip build phase)",
 	"ping": "Ping (hold for the ping wheel)",
+	"overview_map": "Canyon map",
 	"emote": "Emote (tap: tip hat, hold: wheel)",
 	"photo_mode": "Photo mode (hide HUD, free camera)",
+	"build_camera": "Build mode: raised view",
 	"debug_overlay": "Debug overlay",
 }
 

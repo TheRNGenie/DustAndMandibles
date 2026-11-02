@@ -18,6 +18,7 @@ var _loaded_peers: Dictionary = {}
 var _env: Environment
 var _sun: DirectionalLight3D
 var _started := false
+var saver: RunSaver
 
 
 func _ready() -> void:
@@ -55,6 +56,11 @@ func _ready() -> void:
 	builds.name = "Builds"
 	builds.cliffs = cliffs
 	add_child(builds)
+	# Additions: coverage table, wanted posters, corpse piles, campfires.
+	var extras := WorldExtras.new()
+	extras.name = "Extras"
+	extras.cliffs = cliffs
+	add_child(extras)
 	Turret.bug_manager = bugs
 	Turret.vfx = vfx
 	StructureNode.vfx = vfx
@@ -85,6 +91,12 @@ func _ready() -> void:
 	NetworkManager.server_closed.connect(_return_to_menu)
 	NetworkManager.player_left.connect(_on_player_left)
 	print("World ready: %d nodes" % get_tree().get_node_count())
+
+	# [Foundation hook] autosaves the run each build phase (host) and resumes saved runs.
+	saver = RunSaver.new()
+	saver.name = "RunSaver"
+	saver.world = self
+	add_child(saver)
 
 	if multiplayer.is_server():
 		_on_peer_loaded(1)
@@ -125,7 +137,11 @@ func _on_peer_loaded(id: int) -> void:
 		_spawn_cpu()
 	else:
 		Economy.shared = false # no CPU this run: separate stockpiles again
-	GameState.start_run()
+	# [Foundation hook] Continue last run: rebuild the saved run instead of a new one.
+	var resume := RunSave.pending
+	RunSave.pending = {}
+	if not saver.resume(resume):
+		GameState.start_run()
 
 
 ## Host: the CPU partner takes the empty cliff and the team shares one pool.
@@ -200,7 +216,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if GameState.menu_open:
 		return
 	if event.is_action_pressed("ready_up"):
-		GameState.vote_skip()
+		GameState.toggle_ready()
 
 
 # ------------------------------------------------------------------ environment

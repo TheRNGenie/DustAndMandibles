@@ -11,6 +11,9 @@ var _speed_lines: SpeedLines
 var _crosshair: Control
 var _phase_label: Label
 var _hint_label: Label
+## "[G] not yet" under the plaque while the ready countdown runs.
+var _cancel_row: HBoxContainer
+var _cancel_key := ""
 var status: HudStatus
 var feed: HudFeed
 var hotbar: HudHotbar
@@ -18,6 +21,7 @@ var build_menu: HudBuildMenu
 var threat: HudThreatAlert
 var title_card: HudTitleCard
 var summary: HudWaveSummary
+var overview: HudOverviewMap
 var tallies: TurretTallies
 var tutorial: HudTutorial
 var photo: PhotoMode
@@ -47,6 +51,8 @@ func _ready() -> void:
 	add_child(title_card)
 	summary = HudWaveSummary.new()
 	add_child(summary)
+	overview = HudOverviewMap.new()
+	add_child(overview)
 	# These two sit beside the HUD in the world, not in it: the tallies need a
 	# fixed path for their RPCs, and photo mode must stay up while the HUD hides.
 	tallies = TurretTallies.new()
@@ -129,6 +135,12 @@ func _ready() -> void:
 	_hint_label.add_theme_font_size_override("font_size", 14)
 	_hint_label.add_theme_color_override("font_color", Palette.BONE.darkened(0.2))
 	plaque.add_child(_hint_label)
+	_cancel_row = HBoxContainer.new()
+	_cancel_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_cancel_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cancel_row.visible = false
+	plaque.add_child(_cancel_row)
+	GameState.ready_countdown_changed.connect(func(_s: float) -> void: _update_hint())
 	GameState.phase_changed.connect(func(_p: GameState.Phase) -> void: _flash_phase())
 	GameState.skip_votes_changed.connect(func(_v: int, _n: int) -> void: _update_hint())
 
@@ -149,10 +161,12 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 	threat.player = player
 	title_card.player = player
 	summary.bind(bugs, player.cliff_id)
+	overview.player = player
 	tallies.bind(bugs)
 	tutorial.player = player
 	player.gun.ammo_changed.connect(_on_ammo_changed)
 	player.gun.hit_confirmed.connect(func(weak: bool) -> void: (_crosshair as Crosshair).flash(weak))
+	(_crosshair as Crosshair).grapple = player.grapple
 	player.gun.reload_started.connect(func(_d: float) -> void: _ammo_label.text = "Reloading")
 	_speed_lines.player = player
 	# Hitting the canyon floor: hard cut to black over the guitar smash, then
@@ -195,6 +209,8 @@ func _update_phase_label() -> void:
 		_phase_label.text = title
 	elif GameState.phase == GameState.Phase.WAVE:
 		_phase_label.text = "Wave %d  -  %s  -  %d bugs left" % [GameState.wave, title, get_tree().get_nodes_in_group("bugs").size()]
+	elif GameState.phase == GameState.Phase.BUILD and GameState.ready_countdown >= 0.0:
+		_phase_label.text = "Wave %d  -  Riding in %d" % [GameState.wave, int(ceilf(GameState.ready_countdown))]
 	elif GameState.phase == GameState.Phase.BUILD and not GameState.has_flag("--fast"):
 		_phase_label.text = "Wave %d  -  %s  -  Ready %d/%d" % [GameState.wave, title, GameState.skip_votes, maxi(NetworkManager.players.size(), 1)]
 	else:
@@ -211,7 +227,12 @@ func _flash_phase() -> void:
 func _update_hint() -> void:
 	match GameState.phase:
 		GameState.Phase.BUILD:
-			_hint_label.text = "Build for your partner  ·  press %s when ready" % KeyHints.key_for("ready_up")
+			if GameState.ready_countdown >= 0.0:
+				_hint_label.text = "Everyone's ready. The bugs are coming"
+			elif GameState.is_ready_local():
+				_hint_label.text = "You're ready  ·  press %s to take it back" % KeyHints.key_for("ready_up")
+			else:
+				_hint_label.text = "Build for your partner  ·  press %s when ready" % KeyHints.key_for("ready_up")
 		GameState.Phase.WARNING:
 			_hint_label.text = "A wave is coming. Get back to your cliff"
 		GameState.Phase.WAVE:
@@ -219,6 +240,13 @@ func _update_hint() -> void:
 		_:
 			_hint_label.text = ""
 	_hint_label.visible = _hint_label.text != ""
+	var counting := GameState.phase == GameState.Phase.BUILD and GameState.ready_countdown >= 0.0
+	if counting and _cancel_key != KeyHints.key_for("ready_up"):
+		_cancel_key = KeyHints.key_for("ready_up")
+		for c: Node in _cancel_row.get_children():
+			c.queue_free()
+		_cancel_row.add_child(KeyHints.hint(_cancel_key, "not yet"))
+	_cancel_row.visible = counting
 
 
 func _on_ammo_changed(current: int, max_ammo: int) -> void:
@@ -254,6 +282,12 @@ class Crosshair extends Control:
 	var _crit_side := 1.0
 	var _crit_sfx: AudioStreamPlayer
 	var _crit_cd := 0.0
+	## With the grapple out: a cooldown ring, and the cross turns green when the
+	## aimed point is within rope length (grey when it's out of reach).
+	var grapple: Grapple
+	var _hooking := false
+	var _hook_cd := 0.0
+	var _hook_ok := false
 
 	func _ready() -> void:
 		if ResourceLoader.exists(CRIT_SOUND):
@@ -277,6 +311,15 @@ class Crosshair extends Control:
 
 	func _process(delta: float) -> void:
 		_crit_cd -= delta
+		var hooking := grapple != null and is_instance_valid(grapple) and grapple.aiming()
+		if hooking or _hooking:
+			var cd := grapple.cooldown_fraction() if hooking else 0.0
+			var ok := hooking and grapple.aim_in_range()
+			if hooking != _hooking or cd != _hook_cd or ok != _hook_ok:
+				_hooking = hooking
+				_hook_cd = cd
+				_hook_ok = ok
+				queue_redraw()
 		if marker > 0.0 or _crit > 0.0:
 			marker = maxf(marker - delta * (3.5 if marker_weak else 5.0), 0.0)
 			_crit = maxf(_crit - delta * 2.2, 0.0)
@@ -311,8 +354,19 @@ class Crosshair extends Control:
 			draw_rect(tag, Color(Palette.OUTLINE, 0.75 * a))
 			draw_rect(tag, Color(Palette.GLOW_YELLOW, a), false, 1.5)
 			draw_string(font, at, "CRIT", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(Palette.GLOW_YELLOW, a))
+		var cross := Palette.BONE
+		if _hooking:
+			cross = Palette.ACID_GREEN if _hook_ok else Palette.METAL.lightened(0.25)
+			if _hook_cd > 0.0:
+				# Cooldown: an arc that empties clockwise from the top.
+				var end := -PI * 0.5 + TAU * _hook_cd
+				draw_arc(c, 16.0, -PI * 0.5, end, 32, Palette.OUTLINE, 5.0, true)
+				draw_arc(c, 16.0, -PI * 0.5, end, 32, Palette.BONE, 2.5, true)
+			elif _hook_ok:
+				draw_arc(c, 16.0, 0.0, TAU, 32, Color(Palette.OUTLINE, 0.6), 4.0, true)
+				draw_arc(c, 16.0, 0.0, TAU, 32, Color(Palette.ACID_GREEN, 0.8), 2.0, true)
 		for pass_i in 2:
-			var col := Palette.OUTLINE if pass_i == 0 else Palette.BONE
+			var col := Palette.OUTLINE if pass_i == 0 else cross
 			var w := 4.0 if pass_i == 0 else 2.0
 			draw_line(c + Vector2(-10, 0), c + Vector2(-4, 0), col, w)
 			draw_line(c + Vector2(4, 0), c + Vector2(10, 0), col, w)

@@ -71,7 +71,7 @@ func _use(peer_id: int) -> void:
 	if take <= 0:
 		return
 	stored -= take
-	Economy.earn(payer, {&"water": take})
+	Economy.earn(payer, {&"water": take + roundi(Perks.amount(peer_id, &"deep_well"))}) # Perk: Deep Well
 	_sync.rpc(stored, working)
 	_fx.rpc()
 

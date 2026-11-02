@@ -186,10 +186,10 @@ func fire(origin: Vector3, dir: Vector3) -> void:
 	var seed_value := randi() & ~1
 	if gun.aim > 0.6:
 		seed_value |= 1 # aimed shots spread less (see Gun.shot_dirs)
-	var dmg := Gun.damage_for(id, level)
 	var muzzle := gun.muzzle_global()
 	for d in Gun.shot_dirs(id, dir, seed_value, level):
 		var hit := gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, level))
+		var dmg := Gun.damage_at(id, level, origin.distance_to(hit["position"])) if not hit.is_empty() else Gun.damage_for(id, level)
 		gun.show_impact(hit, d, true, dmg) # client-side prediction
 		var end: Vector3 = hit["position"] if not hit.is_empty() else origin + d * Gun.range_for(id, level)
 		gun.draw_tracer(id, muzzle, end)
@@ -216,10 +216,20 @@ func _request_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, se
 
 ## Host: applies damage for every pellet, then tells every other peer to draw the shot.
 func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, seed_value: int) -> void:
-	var dmg := Gun.damage_for(id, level)
+	var def := Gun.weapon(id)
 	for d in Gun.shot_dirs(id, dir.normalized(), seed_value, level):
 		var hit := player.gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, level))
+		if hit.is_empty():
+			continue
+		# Per-gun roles: shotguns lose punch with distance; the Gatling pins bugs down.
+		var dmg := Gun.damage_at(id, level, origin.distance_to(hit["position"]))
+		dmg *= Perks.gun_hit_mult(player.get_multiplayer_authority(), hit) # Perk: Heavy Slugs / Marksman
 		Gun.apply_hit_result(hit, d, dmg, Gun.pierce_for(id, level), player.display_name(), player.cliff_id)
+		if def.suppress_slow < 1.0:
+			var hb := hit["collider"] as Hitbox
+			var bug := hb.target as Bug if hb != null else null
+			if bug != null and is_instance_valid(bug) and bug.is_alive():
+				bug.status.slow(def.suppress_slow, def.suppress_time)
 	_fire_fx.rpc(origin, dir, id, seed_value, level)
 
 
@@ -271,7 +281,7 @@ func _server_melee(origin: Vector3, dir: Vector3) -> void:
 	# The host's own record of this player's whip.
 	var c := int(GunShop.whips.get(player.get_multiplayer_authority(), 0))
 	for b in Whip.targets(player.get_tree(), origin, dir, [player.get_rid()], Whip.reach_for(c)):
-		b.receive_hit(Whip.damage_for(c), b.global_position, dir, false, 1.0, player.display_name(), player.cliff_id)
+		b.receive_hit(Whip.damage_for(c) * Perks.more(player.get_multiplayer_authority(), &"whip_hand"), b.global_position, dir, false, 1.0, player.display_name(), player.cliff_id) # Perk: Whip Hand
 		if b.is_alive():
 			b.status.root(Whip.stun_for(c))
 

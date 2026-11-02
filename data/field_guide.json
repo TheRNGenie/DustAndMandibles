@@ -205,5 +205,35 @@
         "Expensive: save it for blood moons."
       ]
     }
+  },
+  "crops": {
+    "corn": {
+      "lore": "Sweet canyon corn. Grows like a weed and keeps a rancher fed.",
+      "tips": [
+        "Plant it between waves for quick scrap at the market.",
+        "Left click with corn out to eat it when your belly growls."
+      ]
+    },
+    "prickly_pear": {
+      "lore": "A stubborn cactus fruit. Takes its time, but it's food, water and medicine in one.",
+      "tips": [
+        "Eating a pear heals a little and quenches thirst.",
+        "The pads give back more water than they drink."
+      ]
+    },
+    "firecracker_chili": {
+      "lore": "Hot enough to light a fuse. The Chili Mortar won't fire without it.",
+      "tips": [
+        "Keep a stock before building a Chili Mortar: every shot burns one.",
+        "The market pays chitin for chilies, the only crop that does."
+      ]
+    },
+    "herbs": {
+      "lore": "Desert sage, dried and bundled. Better than any snake-oil tonic.",
+      "tips": [
+        "Carry a few into every wave: a dose heals 50 HP.",
+        "Herbs fetch the most scrap per unit at the market."
+      ]
+    }
   }
 }

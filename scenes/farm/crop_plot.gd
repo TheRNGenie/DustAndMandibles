@@ -13,9 +13,10 @@ const PLANT_SCALE := 1.45
 ## Seed order for F (cycle) on an empty plot.
 const SEEDS: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs"]
 
-## The seed resource each crop needs (bought from the airship market for scrap).
-const SEED_RES: Dictionary = {&"corn": &"seed_corn", &"prickly_pear": &"seed_prickly_pear",
-	&"firecracker_chili": &"seed_chili", &"herbs": &"seed_herbs"}
+## The seed resource each crop needs (bought from the airship market for scrap):
+## CropDef.seed_item, via Defs.seed_of. [Foundation: was a dictionary here]
+static func seed_res(crop_id: StringName) -> StringName:
+	return Defs.seed_of(crop_id)
 
 ## The seed this player has picked for empty plots (local, shared by all plots).
 static var selected_seed := 0
@@ -93,7 +94,7 @@ func _process(delta: float) -> void:
 	var before := growth.stage
 	var w := GameState.weather
 	var temp_rate := Weather.crop_temp_rate(GameState.temperature())
-	growth.tick(delta * GameState.growth_scale() * temp_rate, Weather.crop_rate(w) if Weather.is_rain(w) else 0.0, Weather.frost_rate(w))
+	growth.tick(delta * GameState.growth_scale() * temp_rate * Perks.cliff_more(cliff_id, &"green_thumb"), Weather.crop_rate(w) if Weather.is_rain(w) else 0.0, Weather.frost_rate(w)) # Perk: Green Thumb
 	_sync_t -= delta
 	if growth.stage != before or (growth.stage == CropGrowth.Stage.GROWING and _sync_t <= 0.0):
 		_sync_t = SYNC_INTERVAL
@@ -115,7 +116,7 @@ func cycle_option() -> void:
 
 func interact_prompt() -> String:
 	if growth.stage == CropGrowth.Stage.EMPTY:
-		var have := Economy.amount(_local_cliff(), SEED_RES[seed_def().id])
+		var have := Economy.amount(_local_cliff(), seed_res(seed_def().id))
 		if have <= 0:
 			return "Out of %s seeds\nBuy more at the airship market\nF: change seed" % seed_def().display_name
 		return "%s seeds: %d\nE: plant   F: change seed" % [seed_def().display_name, have]
@@ -150,7 +151,7 @@ func _use(peer_id: int, seed_id: StringName) -> void:
 			var def := Defs.crop(seed_id)
 			if def == null:
 				return
-			if not Economy.spend(payer, {SEED_RES[seed_id]: 1}):
+			if not Economy.spend(payer, {seed_res(seed_id): 1}):
 				Economy.notify(peer_id, "No %s seeds. Buy them at the airship market for scrap." % def.display_name.to_lower())
 				return
 			crop_def = def
@@ -163,7 +164,7 @@ func _use(peer_id: int, seed_id: StringName) -> void:
 			else:
 				Economy.notify(peer_id, "No water left. Fix the well or build a rain catcher.")
 		CropGrowth.Stage.RIPE:
-			Economy.earn(payer, growth.harvest())
+			Economy.earn(payer, Perks.bumper_harvest(peer_id, growth.harvest())) # Perk: Bumper Crop
 			_fx.rpc(&"rustle")
 	_broadcast()
 

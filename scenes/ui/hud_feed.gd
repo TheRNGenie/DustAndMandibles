@@ -13,6 +13,7 @@ var _card: HudPromptCard
 var _prompt_text := ""
 var _over: PanelContainer
 var _over_label: Label
+var _keep_going: Button
 var _build_mode: BuildMode
 var _boss_box: VBoxContainer
 var _boss_bar: ProgressBar
@@ -28,7 +29,7 @@ func _ready() -> void:
 	_feed.anchor_right = 1.0
 	_feed.offset_left = -700
 	_feed.offset_right = -24
-	_feed.offset_top = 90
+	_feed.offset_top = 90 # pushed below the wave preview while it shows (_process)
 	_feed.alignment = BoxContainer.ALIGNMENT_BEGIN
 	add_child(_feed)
 
@@ -49,6 +50,12 @@ func _ready() -> void:
 	_over.add_child(col)
 	_over_label = UiStyle.label("", 26)
 	col.add_child(_over_label)
+	col.add_child(BrandsReport.new()) # Perk: Brands earned this run
+	# After a win: keep the waves coming past the last one (host decides).
+	_keep_going = UiStyle.button("Keep going (endless)")
+	_keep_going.visible = false
+	_keep_going.pressed.connect(func() -> void: GameState.continue_endless())
+	col.add_child(_keep_going)
 	var back := UiStyle.button("Back to main menu")
 	back.pressed.connect(func() -> void:
 		NetworkManager.leave()
@@ -82,6 +89,12 @@ func _ready() -> void:
 	GameState.phase_changed.connect(func(p: GameState.Phase) -> void:
 		if p == GameState.Phase.WARNING:
 			Audio.play_ui(&"bell")
+		if p != GameState.Phase.GAME_OVER and _over.visible:
+			# Endless mode picked up after the win screen: back to the game.
+			_over.visible = false
+			GameState.menu_open = false
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			add_line("Endless! The waves keep coming. How long can you hold?", Palette.GLOW_YELLOW)
 		)
 	GameState.weather_changed.connect(func(k: int) -> void:
 		if k != Weather.Kind.CLEAR or GameState.phase == GameState.Phase.WARNING:
@@ -97,6 +110,12 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 
 
 func _process(_delta: float) -> void:
+	# The feed sits under the wave preview card when that's up in the corner.
+	var top := 90.0
+	for c in get_parent().get_children():
+		if c is HudWavePreview and (c as Control).visible:
+			top = (c as Control).position.y + (c as Control).size.y + 10.0
+	_feed.offset_top = top
 	if _build_mode != null and _build_mode.active and not _build_mode.menu_open:
 		var hud := get_parent() as Hud
 		var icon: Texture2D = hud.build_menu.icon_for(_build_mode.selected_id()) if hud != null else null
@@ -126,16 +145,37 @@ func _update_boss_bar() -> void:
 
 
 func add_line(text: String, color: Color = Palette.BONE) -> void:
+	# The same line again (e.g. a turret on a killing spree): bump a "x3" count
+	# on the last line instead of stacking copies.
+	if _feed.get_child_count() > 0:
+		var last := _feed.get_child(_feed.get_child_count() - 1) as Label
+		if last != null and last.get_meta("base", "") == text:
+			var n := int(last.get_meta("count", 1)) + 1
+			last.set_meta("count", n)
+			last.text = "%s  x%d" % [text, n]
+			last.modulate.a = 1.0
+			_fade_later(last)
+			return
 	var l := _outlined(text, 16, color)
+	l.set_meta("base", text)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_feed.add_child(l)
 	while _feed.get_child_count() > FEED_LINES:
 		_feed.get_child(0).queue_free()
 		_feed.remove_child(_feed.get_child(0))
+	_fade_later(l)
+
+
+## (Re)starts a feed line's countdown to fade out.
+func _fade_later(l: Label) -> void:
+	var old: Variant = l.get_meta("tween") if l.has_meta("tween") else null
+	if old is Tween and (old as Tween).is_valid():
+		(old as Tween).kill()
 	var tw := l.create_tween()
 	tw.tween_interval(FEED_LIFETIME)
 	tw.tween_property(l, "modulate:a", 0.0, 0.6)
 	tw.tween_callback(l.queue_free)
+	l.set_meta("tween", tw)
 
 
 func _on_bug_killed(bug_name: String, bug_cliff: int, source: String, source_cliff: int, loot: Dictionary) -> void:

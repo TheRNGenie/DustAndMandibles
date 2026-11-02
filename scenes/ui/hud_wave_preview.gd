@@ -12,10 +12,11 @@ func _ready() -> void:
 	sb.content_margin_bottom = 6
 	add_theme_stylebox_override("panel", sb)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	anchor_left = 0.5
-	anchor_right = 0.5
-	grow_horizontal = Control.GROW_DIRECTION_BOTH
-	offset_top = 84
+	# Top-right corner, under the partner's homestead bar (out of the middle).
+	anchor_left = 1.0
+	anchor_right = 1.0
+	grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	offset_top = 66
 	visible = false
 	WaveDirector.wave_previewed.connect(func(_m: Array) -> void: _rebuild())
 	GameState.phase_changed.connect(func(_p: GameState.Phase) -> void: _rebuild())
@@ -55,9 +56,9 @@ func _rebuild() -> void:
 	var head := KeyHints.text(head_text, 12, Palette.BONE.darkened(0.3))
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(head)
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 16)
+	# A narrow column in the corner: one bug type per line.
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(row)
 	for i in mini(mix.size(), MAX_KINDS):
@@ -69,7 +70,7 @@ func _rebuild() -> void:
 		var icon := TextureRect.new()
 		# Rendered under the HUD, not this panel (which clears its children).
 		icon.texture = IconStudio.bug(get_parent(), id)
-		icon.custom_minimum_size = Vector2(40, 40)
+		icon.custom_minimum_size = Vector2(30, 30)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -92,5 +93,5 @@ func _rebuild() -> void:
 ## Fits the content and centres the panel under the plaque.
 func _center() -> void:
 	size = get_combined_minimum_size()
-	offset_left = -size.x * 0.5
-	offset_right = size.x * 0.5
+	offset_right = -20.0
+	offset_left = -20.0 - size.x

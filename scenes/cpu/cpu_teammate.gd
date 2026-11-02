@@ -186,7 +186,7 @@ func _farm_task() -> bool:
 
 func _seed_for() -> StringName:
 	for seed_id: StringName in CropPlot.SEEDS:
-		var res: StringName = CropPlot.SEED_RES[seed_id]
+		var res: StringName = CropPlot.seed_res(seed_id)
 		if Economy.amount(cliff_id, res) > 0 and Economy.cpu_can_spend(display_name, {res: 1}):
 			return seed_id
 	return &""
@@ -219,7 +219,7 @@ func _farm(plot: CropPlot, act: String) -> void:
 			var seed_id := _seed_for()
 			if seed_id != &"":
 				plot.call("_use", -1, seed_id)
-				Economy.cpu_record(display_name, {CropPlot.SEED_RES[seed_id]: 1})
+				Economy.cpu_record(display_name, {CropPlot.seed_res(seed_id): 1})
 
 
 ## What it has picked and not yet put in the chest.
@@ -436,16 +436,9 @@ func _shoot(b: Bug) -> void:
 	if not hit:
 		return
 	var weak := _rng.randf() < float(_q["weak"])
-	var boxes: Array[Hitbox] = []
-	for c in b.get_children():
-		if c is Hitbox:
-			boxes.append(c)
-	if boxes.is_empty():
-		return
-	boxes.sort_custom(func(x: Hitbox, y: Hitbox) -> bool: return x.multiplier > y.multiplier)
-	var box: Hitbox = boxes[0] if weak else boxes[boxes.size() - 1]
 	var dmg := Gun.weapon(&"revolver").damage
-	box.apply_hit(dmg, aim, (aim - muzzle).normalized(), false, display_name, cliff_id)
+	# [Foundation] one hitbox per bug: a weak-spot hit is just the weak multiplier.
+	b.receive_hit(dmg, aim, (aim - muzzle).normalized(), false, WeakSpot.MULTIPLIER if weak else 1.0, display_name, cliff_id)
 	_hits += 1
 
 

@@ -12,3 +12,9 @@ extends Resource
 ## What a harvest adds to the stockpile, e.g. {&"corn": 3}.
 @export var harvest: Dictionary = {}
 @export var color: Color = Color.WHITE
+## The seed item it's planted from (bought at the airship market), e.g. &"seed_corn".
+@export var seed_item: StringName = &""
+## What this crop is FOR, one short line (field guide, seed shop). Each crop has a job:
+## corn is fast cheap scrap, pear is slow but heals, chili is mortar ammo and sells
+## for chitin, herbs are medicine.
+@export var role: String = ""

@@ -174,7 +174,9 @@ func _ready() -> void:
 	add_child(wheel)
 	# Card tables and the roulette wheel.
 	var tables: Array = [[BlackjackTable.new(), "Blackjack", Vector3(3.2, 0, -3.0)], [BaccaratTable.new(), "Baccarat", Vector3(-3.2, 0, -3.0)],
-		[RouletteTable.new(), "Roulette", Vector3(0.0, 0, -8.5)]]
+		[RouletteTable.new(), "Roulette", Vector3(0.0, 0, -8.5)],
+		# Additions: shell game and beetle racing, mid-deck between the card tables and the market.
+		[ShellGame.new(), "ShellGame", Vector3(3.2, 0, 2.6)], [BeetleRace.new(), "BeetleRace", Vector3(-3.2, 0, 2.6)]]
 	for t: Array in tables:
 		var table := t[0] as CasinoTable
 		table.name = t[1]
@@ -220,9 +222,36 @@ const RING_Y := 0.9
 const RING_OUT := 1.6
 
 
+## [Gameplay] The ring is only out (grapple-able) in the build phase: at the
+## warning bell it's hauled up over the rail and stays up until the wave is held.
+static var ring_up := false
+var _ring_rig: Node3D
+var _ring_body: StaticBody3D
+var _ring_glow: OmniLight3D
+const RING_HAUL := Vector3(0, 3.2, -2.6)
+
+
+func _on_phase(p: GameState.Phase) -> void:
+	var up := p == GameState.Phase.WARNING or p == GameState.Phase.WAVE
+	if up == ring_up:
+		return
+	ring_up = up
+	_ring_body.collision_layer = 0 if up else WorldLayout.LAYER_STRUCTURE
+	_ring_glow.visible = not up
+	var tw := _ring_rig.create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(_ring_rig, "position", RING_HAUL if up else Vector3.ZERO, 2.5)
+	if up:
+		Economy.notice.emit("The Lucky Mandible hauls up its boarding ring until the wave is held.")
+	elif GameState.phase == GameState.Phase.BUILD and GameState.wave > 1:
+		Economy.notice.emit("The Lucky Mandible lowers its boarding ring: the market's open.")
+
+
 ## A big brass ring on a post at the stern gap in the railing: hook it with the
 ## grapple (left click) and the pull lands you on the deck.
 func _add_boarding_ring() -> void:
+	_ring_rig = Node3D.new()
+	_ring_rig.name = "RingRig"
+	add_child(_ring_rig)
 	var at := Vector3(0, RING_Y, AirshipBuilder.DECK_L * 0.5 + RING_OUT)
 	var st := MeshKit.begin()
 	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, RING_Y * 0.5 - 0.1, AirshipBuilder.DECK_L * 0.5 + RING_OUT)), 0.06, 0.08, RING_Y + 0.2, 10, Palette.WOOD_DARK)
@@ -237,17 +266,22 @@ func _add_boarding_ring() -> void:
 	var ring := MeshInstance3D.new()
 	ring.mesh = MeshKit.finish(st)
 	ring.material_override = Materials.toon(0.02)
-	add_child(ring)
+	_ring_rig.add_child(ring)
 	var glow := OmniLight3D.new()
 	glow.light_color = Palette.GLOW_YELLOW
 	glow.light_energy = 1.5
 	glow.omni_range = 6.0
 	glow.position = at + Vector3(0, 0.45, 0.3)
-	add_child(glow)
+	_ring_rig.add_child(glow)
+	_ring_glow = glow
 	var body := StaticBody3D.new()
 	body.name = "BoardingRing"
 	body.collision_layer = WorldLayout.LAYER_STRUCTURE
-	add_child(body)
+	_ring_rig.add_child(body)
+	_ring_body = body
+	ring_up = false
+	GameState.phase_changed.connect(_on_phase)
+	_on_phase.call_deferred(GameState.phase)
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(1.1, 1.1, 0.3)

@@ -14,11 +14,15 @@ var _lobby_box: VBoxContainer
 var _solo_btn: Button
 var _auto_ready := false
 var _settings: PauseMenu
+var _ledger: LedgerScreen # Perk: Rancher's Ledger screen
 
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	GameState.reset()
+	# [Foundation] --continue (tests): resume the saved run on the automatic start.
+	if GameState.has_flag("--continue"):
+		RunSave.pending = RunSave.read()
 	_build_ui()
 	NetworkManager.players_changed.connect(_refresh)
 	NetworkManager.connected_to_host.connect(_on_connected)
@@ -27,6 +31,8 @@ func _ready() -> void:
 	var flag_name := GameState.flag_value("--name")
 	if flag_name != "":
 		_name_edit.text = flag_name
+	if GameState.flag_value("--port") != "": # Perk (test aid): pick the port for --host / --join
+		_port_edit.text = GameState.flag_value("--port")
 	if not NetworkManager.pending_join.is_empty():
 		var pj := NetworkManager.pending_join
 		NetworkManager.pending_join = {}
@@ -79,8 +85,16 @@ func _build_ui() -> void:
 	_connect_box = VBoxContainer.new()
 	_connect_box.add_theme_constant_override("separation", 8)
 	col.add_child(_connect_box)
+	# [Foundation] Continue the autosaved run (host it; start alone, with a CPU, or wait for a partner).
+	var saved := RunSave.read()
+	if not saved.is_empty():
+		var cont := _button("Continue last run (wave %d)" % int(saved["wave"]))
+		cont.pressed.connect(func() -> void: _on_continue())
+		_connect_box.add_child(cont)
 	var host_btn := _button("Host game (west cliff)")
-	host_btn.pressed.connect(_on_host)
+	host_btn.pressed.connect(func() -> void:
+		RunSave.pending = {}
+		_on_host())
 	_connect_box.add_child(host_btn)
 	var row := HBoxContainer.new()
 	_ip_edit = _line_edit("Host IP or invite", NetworkManager.DEFAULT_ADDRESS)
@@ -93,6 +107,7 @@ func _build_ui() -> void:
 	var join_btn := _button("Join game (east cliff)")
 	join_btn.pressed.connect(_on_join)
 	_connect_box.add_child(join_btn)
+	_connect_box.add_child(_ledger_button()) # Perk
 	var settings_btn := _button("Settings")
 	settings_btn.pressed.connect(func() -> void: _settings.open())
 	_connect_box.add_child(settings_btn)
@@ -121,8 +136,10 @@ func _build_ui() -> void:
 	_solo_btn = _button("Start alone (testing)")
 	_solo_btn.pressed.connect(func() -> void: NetworkManager.start_game())
 	_lobby_box.add_child(_solo_btn)
+	_lobby_box.add_child(_ledger_button()) # Perk
 	var leave_btn := _button("Leave")
 	leave_btn.pressed.connect(func() -> void:
+		RunSave.pending = {}
 		NetworkManager.leave()
 		_show_connect(""))
 	_lobby_box.add_child(leave_btn)
@@ -133,6 +150,16 @@ func _build_ui() -> void:
 	_settings = PauseMenu.new()
 	_settings.in_main_menu = true
 	add_child(_settings)
+	_ledger = LedgerScreen.new() # Perk
+	add_child(_ledger)
+	Perks.loadouts_changed.connect(_refresh)
+
+
+# Perk: opens the Rancher's Ledger (perks, loadout, wardrobe items).
+func _ledger_button() -> Button:
+	var b := _button("Rancher's Ledger")
+	b.pressed.connect(func() -> void: _ledger.open())
+	return b
 
 
 ## Debug/test launches go straight into a solo game, no menu clicks
@@ -153,6 +180,22 @@ func _on_host() -> void:
 		NetworkManager.set_ready.call_deferred(true)
 	if GameState.has_flag("--solo") or _test_launch():
 		NetworkManager.start_game.call_deferred()
+
+
+## [Foundation] Host the saved run: the lobby starts it from its saved wave.
+func _on_continue() -> void:
+	var saved := RunSave.read()
+	if saved.is_empty():
+		_show_connect("The saved run couldn't be read.")
+		return
+	_on_host()
+	if not NetworkManager.is_online():
+		return
+	RunSave.pending = saved
+	if int(saved["cpu_quality"]) >= 0:
+		NetworkManager.set_cpu(int(saved["cpu_quality"]))
+	_status.text = "Continuing your run at wave %d. Start alone or with the CPU, or wait for your partner." % int(saved["wave"])
+	_refresh()
 
 
 func _on_join() -> void:
@@ -203,7 +246,7 @@ func _refresh() -> void:
 		var p: Dictionary = NetworkManager.players[id]
 		var cliff := "West" if int(p["cliff"]) == WorldLayout.WEST else "East"
 		var tick := "[ready]" if bool(p["ready"]) else "[not ready]"
-		lines.append("%s cliff: %s %s" % [cliff, str(p["name"]), tick])
+		lines.append("%s cliff: %s %s%s" % [cliff, str(p["name"]), tick, Perks.roster_note(id)]) # Perk: perk count
 	if NetworkManager.has_cpu():
 		var cpu_side := "West" if NetworkManager.cpu_cliff() == WorldLayout.WEST else "East"
 		lines.append("%s cliff: %s (CPU, %s) [ready]" % [cpu_side, CpuTeammate.NAME, NetworkManager.CPU_QUALITY_NAMES[NetworkManager.cpu_quality]])

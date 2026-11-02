@@ -75,3 +75,62 @@ func test_blackjack_odd_bet_blackjack_rounds_down() -> void:
 	assert_eq(CasinoRules.bj_payout([1, 13], [10, 9], 5), 12)
 	assert_eq(CasinoRules.bj_payout([1, 13], [1, 12], 5), 5, "both blackjack push")
 	assert_eq(CasinoRules.bj_payout([10, 5, 9], [10, 7], 5), 0, "player bust loses even if dealer busts later")
+
+
+func test_shell_game_is_fair_with_small_edge() -> void:
+	for bet: int in [10, 20, 50, 100]:
+		var rtp := CasinoRules.shell_return_rate(bet)
+		assert_true(rtp < 1.0, "shell %d returns %.3f" % [bet, rtp])
+		assert_true(rtp > 0.92, "shell %d returns only %.3f" % [bet, rtp])
+	assert_eq(CasinoRules.shell_payout(1, 1, 100), 285)
+	assert_eq(CasinoRules.shell_payout(0, 2, 100), 0)
+
+
+func test_shell_pea_is_uniform() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var counts := [0, 0, 0]
+	for i in 9000:
+		counts[CasinoRules.shell_pea(rng)] += 1
+	for c: int in counts:
+		assert_true(absf(c / 9000.0 - 1.0 / 3.0) < 0.03, "cup share %d" % c)
+
+
+func test_race_odds_sum_and_edge() -> void:
+	var total := 0.0
+	for b: Array in CasinoRules.RACE_BEETLES:
+		total += float(b[1])
+	assert_almost(total, 1.0)
+	for i in CasinoRules.RACE_BEETLES.size():
+		for bet: int in [10, 20, 50, 100]:
+			var rtp := CasinoRules.race_return_rate(i, bet)
+			assert_true(rtp < 1.0, "beetle %d at %d returns %.3f" % [i, bet, rtp])
+			assert_true(rtp > 0.88, "beetle %d at %d returns only %.3f" % [i, bet, rtp])
+	# Long shots pay more than favourites.
+	assert_true(CasinoRules.race_multiplier(3) > CasinoRules.race_multiplier(0))
+
+
+func test_race_winner_follows_odds() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var wins := [0, 0, 0, 0]
+	var n := 20000
+	for i in n:
+		wins[CasinoRules.race_winner(rng.randf())] += 1
+	for i in 4:
+		assert_true(absf(wins[i] / float(n) - float(CasinoRules.RACE_BEETLES[i][1])) < 0.015, "beetle %d won %d" % [i, wins[i]])
+
+
+func test_race_animation_finishes_in_order() -> void:
+	var times := CasinoRules.race_finish_times(2, 5.0, 99)
+	for i in 4:
+		if i != 2:
+			assert_true(times[i] > times[2], "winner crosses first")
+	assert_almost(CasinoRules.race_progress(0, 0.0, 5.0, 1), 0.0)
+	assert_almost(CasinoRules.race_progress(0, 5.0, 5.0, 1), 1.0)
+	# Monotonic enough to read as a race: never runs backwards much.
+	var last := 0.0
+	for k in 50:
+		var p := CasinoRules.race_progress(1, k * 0.1, 5.0, 3)
+		assert_true(p >= last - 0.05)
+		last = p

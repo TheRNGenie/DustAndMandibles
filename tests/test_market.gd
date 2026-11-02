@@ -38,8 +38,10 @@ func test_unknown_items_are_worthless() -> void:
 
 
 func test_seed_costs_a_third_of_the_harvest_value() -> void:
-	# Corn: 3 corn x 10 scrap = 30 scrap; a third is 10.
-	assert_eq(MarketPrices.seed_price(Defs.crop(&"corn")), 10)
+	# Herbs: 2 herbs x 22 scrap = 44 scrap; a third is 15.
+	assert_eq(MarketPrices.seed_price(Defs.crop(&"herbs")), 15)
+	# Corn is the cheap crop: a fixed 8 scrap per seed.
+	assert_eq(MarketPrices.seed_price(Defs.crop(&"corn")), 8)
 	# Chili is a fixed 20 scrap per seed (Logan's call).
 	assert_eq(MarketPrices.seed_price(Defs.crop(&"firecracker_chili")), 20)
 

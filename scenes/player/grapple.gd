@@ -16,7 +16,8 @@ const PULL_MAX_TIME := 2.5
 const ARRIVE_DIST := 2.2
 ## Shortest rope you can swing on (so you don't wrap around the anchor).
 const MIN_ROPE := 2.0
-const COOLDOWN := 0.35
+## Seconds after a miss or letting go before the hook can fly again (ring on the crosshair).
+const COOLDOWN := 0.4
 const SWING_EXTRA_GRAVITY := 1.2
 ## Reeling in while swinging (hold left click): metres of rope per second, and
 ## the extra pull toward the hook.
@@ -72,6 +73,34 @@ func is_active() -> bool:
 	return mode != Mode.NONE
 
 
+## For the crosshair: 0 = ready, 1 = just fired.
+func cooldown_fraction() -> float:
+	return clampf(_cd / COOLDOWN, 0.0, 1.0)
+
+
+## For the crosshair: the launcher's out and idle (show the ring and range tint).
+func aiming() -> bool:
+	return player != null and _holding() and mode == Mode.NONE and not player.is_downed()
+
+
+## For the crosshair: something hookable sits within rope length where you're aiming.
+## One ray, at most once a physics tick, only while the launcher's out.
+func aim_in_range() -> bool:
+	var f := Engine.get_physics_frames()
+	if f != _aim_frame:
+		_aim_frame = f
+		var cam := player.camera
+		var from := cam.global_position
+		var q := PhysicsRayQueryParameters3D.create(from, from - cam.global_transform.basis.z * RANGE, MASK, [player.get_rid()])
+		var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
+		_aim_ok = not hit.is_empty() and not (Airship.ring_up and _on_airship(hit["collider"] as Node))
+	return _aim_ok
+
+
+var _aim_frame := -1
+var _aim_ok := false
+
+
 func _holding() -> bool:
 	return player.gun.holding == &"grapple"
 
@@ -119,6 +148,10 @@ func _launch(new_mode: Mode) -> void:
 	if hit.is_empty():
 		Economy.notice.emit("Nothing to hook onto there (range %d m)." % int(RANGE))
 		return
+	# The casino ship hauls its ring up during waves: no hooking the ship then.
+	if Airship.ring_up and _on_airship(hit["collider"] as Node):
+		Economy.notice.emit("The ship's boarding ring is up until the wave is held.")
+		return
 	anchor = hit["position"]
 	mode = new_mode
 	_pull_t = 0.0
@@ -127,6 +160,14 @@ func _launch(new_mode: Mode) -> void:
 	_pull_limit = maxf(PULL_MAX_TIME, _rope_len / PULL_SPEED * 1.5 + 0.6)
 	Audio.play_at(&"hook_bite", anchor, -2.0)
 	_show_rope.rpc(anchor)
+
+
+static func _on_airship(n: Node) -> bool:
+	while n != null:
+		if n is Airship:
+			return true
+		n = n.get_parent()
+	return false
 
 
 func _pull(delta: float) -> bool:
@@ -199,6 +240,7 @@ func _release() -> void:
 	if mode == Mode.NONE:
 		return
 	mode = Mode.NONE
+	_cd = COOLDOWN
 	_show_rope.rpc(null)
 
 

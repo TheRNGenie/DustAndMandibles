@@ -9,7 +9,8 @@ const BASE: Dictionary = {&"corn": 10.0, &"prickly_pear": 16.0, &"chili": 5.0, &
 ## What each vegetable is paid in.
 const CURRENCY: Dictionary = {&"corn": &"scrap", &"prickly_pear": &"scrap", &"chili": &"chitin", &"herbs": &"scrap"}
 ## Fixed seed prices (scrap) that override the one-third rule.
-const SEED_OVERRIDE: Dictionary = {&"firecracker_chili": 20}
+## Corn is the cheap, quick crop: its seeds are a bargain.
+const SEED_OVERRIDE: Dictionary = {&"firecracker_chili": 20, &"corn": 8}
 const MIN_MULT := 0.5
 const MAX_MULT := 1.5
 ## Each unit sold lowers that vegetable's price by this much (fraction of base).
@@ -23,7 +24,7 @@ const SEED_FRACTION := 1.0 / 3.0
 
 
 ## Scrap price of one seed: a third of the crop's average return (harvest yield x
-## base price), in scrap. Corn: 3 corn x 10 scrap = 30 scrap -> 10.
+## base price), in scrap. Herbs: 2 herbs x 22 scrap = 44 scrap -> 15.
 static func seed_price(crop: CropDef) -> int:
 	if SEED_OVERRIDE.has(crop.id):
 		return int(SEED_OVERRIDE[crop.id])

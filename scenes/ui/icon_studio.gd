@@ -92,3 +92,72 @@ static func _render(host: Node, key: String, parts: Array, yaw_deg: float) -> vo
 	sun.rotation = Vector3(deg_to_rad(-50), deg_to_rad(30), 0)
 	vp.add_child(sun)
 	_cache[key] = {"vp": vp, "tex": vp.get_texture()}
+
+
+## A hotbar item rendered from what you actually hold: the Meshy gun, bucket,
+## grapple or Zippo where there's a model, else the code-built held item. Seen
+## from the side (barrel to the left), a little from above.
+static func item(host: Node, id: StringName) -> Texture2D:
+	var key := "item:%s" % id
+	if _cache.has(key) and is_instance_valid(_cache[key]["vp"]):
+		return _cache[key]["tex"]
+	var model_id: StringName = {&"water": &"bucket", &"lighter": &"zippo"}.get(id, id)
+	var node: Node3D = GunModels.whole(model_id, 0.0, false) if GunModels.has(model_id) else null
+	if node == null:
+		var mesh := WeaponBuilder.held_item(id)
+		if mesh == null:
+			return null
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.material_override = Materials.toon(0.004)
+		node = mi
+	_render_node(host, key, node, 70.0 if model_id == &"bucket" else (25.0 if model_id == &"zippo" else 90.0))
+	return _cache[key]["tex"]
+
+
+## Renders a whole node (models with their own materials) framed to fit. The
+## framing waits one frame so imported models have their final transforms.
+static func _render_node(host: Node, key: String, node: Node3D, yaw_deg: float) -> void:
+	var vp := SubViewport.new()
+	vp.size = Vector2i(160, 160)
+	vp.own_world_3d = true
+	vp.transparent_bg = true
+	vp.msaa_3d = Viewport.MSAA_4X
+	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	host.add_child(vp)
+	var root := Node3D.new()
+	vp.add_child(root)
+	root.add_child(node)
+	root.rotation.y = deg_to_rad(yaw_deg)
+	var cam := Camera3D.new()
+	cam.fov = 30.0
+	cam.near = 0.005
+	vp.add_child(cam)
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CLEAR_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color.WHITE
+	env.ambient_light_energy = 0.8
+	cam.environment = env
+	var sun := DirectionalLight3D.new()
+	sun.rotation = Vector3(deg_to_rad(-45), deg_to_rad(35), 0)
+	sun.light_energy = 1.3
+	vp.add_child(sun)
+	_cache[key] = {"vp": vp, "tex": vp.get_texture()}
+	host.get_tree().process_frame.connect(func() -> void:
+		if not is_instance_valid(vp):
+			return
+		var aabb := AABB()
+		var first := true
+		for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+			if mi.mesh == null or not mi.is_visible_in_tree():
+				continue
+			var box := mi.global_transform * mi.mesh.get_aabb()
+			aabb = box if first else aabb.merge(box)
+			first = false
+		var center := aabb.get_center()
+		var radius := maxf(aabb.size.length() * 0.5, 0.02)
+		var dist := radius / sin(deg_to_rad(cam.fov * 0.5)) * 0.95
+		cam.position = center + Vector3(0, 0.35, 1.0).normalized() * dist
+		cam.look_at(center)
+		vp.render_target_update_mode = SubViewport.UPDATE_ONCE, CONNECT_ONE_SHOT)

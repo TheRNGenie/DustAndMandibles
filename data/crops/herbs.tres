@@ -6,7 +6,9 @@
 script = ExtResource("1_def")
 id = &"herbs"
 display_name = "Sage herbs"
-grow_time = 200.0
+grow_time = 210.0
 water_cost = 1
 harvest = {&"herbs": 2}
 color = Color(0.55, 0.78, 0.45, 1)
+role = "Medicine: left click with herbs out heals 50 HP. Sells well, but you will want a few on hand."
+seed_item = &"seed_herbs"

@@ -1,5 +1,5 @@
 class_name LegRig
-extends Node3D
+extends Node
 ## Procedural bug legs, every one in one piece: a short coxa from inside the body
 ## to the hip ball, a thigh, a knee ball, a shin and a pointed claw. Knees come
 ## from analytic 2-bone IK. With IK on, each foot stays planted on the surface
@@ -55,6 +55,14 @@ func setup(leg_spec: Dictionary) -> void:
 	_seg_mesh = seg
 	_ball_mesh_r = ball
 	_claw_mesh_r = claw
+	# Read the spec once: the per-tick update below runs for hundreds of bugs.
+	_a = float(spec["upper"])
+	_b = float(spec["lower"])
+	_thick = float(spec["thick"])
+	_ik = bool(spec["ik"])
+	for leg: Dictionary in spec["legs"]:
+		_hips.append(leg["hip"])
+		_rests.append(leg["rest"])
 	for i in (spec["legs"] as Array).size():
 		_feet.append(Vector3.ZERO)
 		_step_from.append(Vector3.ZERO)
@@ -62,6 +70,12 @@ func setup(leg_spec: Dictionary) -> void:
 		_step_t.append(1.0)
 
 
+var _a := 0.0
+var _b := 0.0
+var _thick := 0.0
+var _ik := false
+var _hips := PackedVector3Array()
+var _rests := PackedVector3Array()
 var _seg_mesh: Mesh
 var _ball_mesh_r: Mesh
 var _claw_mesh_r: Mesh
@@ -96,9 +110,12 @@ func _exit_tree() -> void:
 		arr.clear()
 
 
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_VISIBILITY_CHANGED and is_inside_tree():
-		_shown = is_visible_in_tree()
+## Shows or hides every leg (a plain Node: the bug calls this, e.g. when it burrows).
+func set_shown(on: bool) -> void:
+	if on == _shown:
+		return
+	_shown = on
+	if is_inside_tree() and not _coxa.is_empty():
 		if not _shown:
 			for arr: Array in [_coxa, _upper, _lower]:
 				for s: int in arr:
@@ -144,76 +161,103 @@ static func _claw_mesh(color: Color) -> ArrayMesh:
 	return _claw_meshes[key]
 
 
-## body: the bug's current global transform. project: Callable(point, up) -> surface point.
+## body: the bug's current global transform. project: Callable(point, up) -> surface
+## point, or an invalid Callable when the bug is on its cliff face (then a foot
+## target is just dropped onto the plane under the body, without a call).
 func update(delta: float, body: Transform3D, speed: float, project: Callable) -> void:
-	var legs: Array = spec["legs"]
-	if legs.is_empty() or _coxa.is_empty() or not _shown:
+	var n := _hips.size()
+	if n == 0 or _coxa.is_empty() or not _shown:
 		return
 	var up := body.basis.y.normalized()
-	var a := float(spec["upper"])
-	var b := float(spec["lower"])
-	var thick := float(spec["thick"])
-	if not spec["ik"]:
+	var a := _a
+	var b := _b
+	var thick := _thick
+	if not _ik:
 		# Small bugs: feet trace a walking loop (lift, sweep forward, plant, push back).
 		_phase += delta * (5.0 + speed * 7.0)
 		var fwd := -body.basis.z.normalized()
-		for i in legs.size():
-			var leg: Dictionary = legs[i]
-			var p := _phase + float(_group(i)) * PI
-			var lift := maxf(sin(p), 0.0) * a * 0.5
-			var sweep := cos(p) * a * 0.45 * clampf(speed + 0.3, 0.3, 1.0)
-			_feet[i] = body * (leg["rest"] as Vector3) + fwd * sweep + up * lift
-			_pose(i, body, leg, a, b, thick, up)
+		var sweep_k := a * 0.45 * clampf(speed + 0.3, 0.3, 1.0)
+		for i in n:
+			var p := _phase + float((i + (i / 2)) % 2) * PI
+			_feet[i] = body * _rests[i] + fwd * (cos(p) * sweep_k) + up * (maxf(sin(p), 0.0) * a * 0.5)
+			_pose(i, body, a, b, thick, up)
 		return
 	var stride := (a + b) * 0.45
+	var flat := not project.is_valid()
+	# On the face, feet land on the plane under the body.
+	var base := body.origin - up * _clearance
 	if not _initialized:
-		for i in legs.size():
-			_feet[i] = project.call(body * ((legs[i] as Dictionary)["rest"] as Vector3), up)
+		for i in n:
+			var r := body * _rests[i]
+			_feet[i] = r - up * (r - base).dot(up) if flat else project.call(r, up)
 		_initialized = true
-	var group_stepping := [false, false]
-	for i in legs.size():
+	var stepping0 := false
+	var stepping1 := false
+	for i in n:
 		if _step_t[i] < 1.0:
-			group_stepping[_group(i)] = true
-	for i in legs.size():
-		var leg: Dictionary = legs[i]
-		var hip := body * (leg["hip"] as Vector3)
-		var desired: Vector3 = project.call(body * (leg["rest"] as Vector3), up)
+			if (i + (i / 2)) % 2 == 0:
+				stepping0 = true
+			else:
+				stepping1 = true
+	for i in n:
+		var g := (i + (i / 2)) % 2
+		var r := body * _rests[i]
+		var desired: Vector3 = r - up * (r - base).dot(up) if flat else project.call(r, up)
 		if _step_t[i] < 1.0:
 			_step_t[i] = minf(_step_t[i] + delta / STEP_TIME, 1.0)
 			var t := _step_t[i]
 			var e := t * t * (3.0 - 2.0 * t) # ease in and out
 			_feet[i] = _step_from[i].lerp(_step_to[i], e) + up * sin(t * PI) * stride * 0.4
-		elif _feet[i].distance_to(desired) > stride and not group_stepping[1 - _group(i)]:
+		elif _feet[i].distance_to(desired) > stride and not (stepping0 if g == 1 else stepping1):
 			_step_from[i] = _feet[i]
 			_step_to[i] = _refine(desired, up) + (desired - _feet[i]).normalized() * stride * 0.3
 			_step_t[i] = 0.0
-			group_stepping[_group(i)] = true
-		elif _feet[i].distance_to(hip) > (a + b) * 1.4:
+			if g == 0:
+				stepping0 = true
+			else:
+				stepping1 = true
+		elif _feet[i].distance_to(body * _hips[i]) > (a + b) * 1.4:
 			_feet[i] = desired # teleported or fell behind: snap
-		_pose(i, body, leg, a, b, thick, up)
+		_pose(i, body, a, b, thick, up)
+
+
+## How far the body rides above the surface (for flat foot placement).
+var _clearance := 0.0
+
+
+func set_clearance(c: float) -> void:
+	_clearance = c
 
 
 ## Places every piece of leg i so it's one continuous limb from body to claw.
-func _pose(i: int, body: Transform3D, leg: Dictionary, a: float, b: float, thick: float, up: Vector3) -> void:
-	var hip_local: Vector3 = leg["hip"]
+func _pose(i: int, body: Transform3D, a: float, b: float, thick: float, up: Vector3) -> void:
+	var hip_local := _hips[i]
 	var hip := body * hip_local
-	# The coxa starts inside the body (toward the centre line), so the leg is attached.
-	var inner := body * Vector3(hip_local.x * 0.35, hip_local.y + thick * 0.5, hip_local.z)
-	var rest_local: Vector3 = leg["rest"]
 	var foot := _feet[i]
 	# Keep the foot within reach so the leg never comes apart.
 	var to := foot - hip
-	if to.length() > (a + b) * 0.98:
-		foot = hip + to.normalized() * (a + b) * 0.98
-	var knee := _knee(hip, foot, a, b, up, body.basis * (rest_local - hip_local))
+	var reach := (a + b) * 0.98
+	if to.length_squared() > reach * reach:
+		foot = hip + to.normalized() * reach
+	var knee := _knee(hip, foot, a, b, up, body.basis * (_rests[i] - hip_local))
 	_place(_seg_b, _upper[i], hip, knee, thick)
 	_place(_seg_b, _lower[i], knee, foot, thick * 0.8)
 	if not _lite:
+		# The coxa starts inside the body (toward the centre line), so the leg is attached.
+		var inner := body * Vector3(hip_local.x * 0.35, hip_local.y + thick * 0.5, hip_local.z)
 		_place(_seg_b, _coxa[i], inner, hip, thick * 1.3)
-		_ball(_ball_b, _hip_ball[i], hip, thick * 1.45)
-		_ball(_ball_b, _knee_ball[i], knee, thick * 1.15)
+		_ball_b.put(_hip_ball[i], Transform3D(Basis.from_scale(Vector3.ONE * (thick * 1.45)), hip))
+		_ball_b.put(_knee_ball[i], Transform3D(Basis.from_scale(Vector3.ONE * (thick * 1.15)), knee))
 	var dir := (foot - knee).normalized()
-	_claw_b.put(_claw[i], Transform3D(MeshKit.basis_from_y(-dir) * Basis.from_scale(Vector3(thick * 0.8, thick * 2.2, thick * 0.8)), foot + dir * thick * 1.1))
+	_claw_b.put(_claw[i], Transform3D(_basis_y(-dir, Vector3(thick * 0.8, thick * 2.2, thick * 0.8)), foot + dir * thick * 1.1))
+
+
+## MeshKit.basis_from_y(y) scaled by s, inline (y must be unit length).
+static func _basis_y(y: Vector3, s: Vector3) -> Basis:
+	var ref := Vector3.FORWARD if absf(y.y) > 0.95 else Vector3.UP
+	var x := ref.cross(y).normalized()
+	var z := x.cross(y)
+	return Basis(x * s.x, y * s.y, z * s.z)
 
 
 static func _group(i: int) -> int:
@@ -223,7 +267,7 @@ static func _group(i: int) -> int:
 
 ## Snaps a foot target onto real geometry with a short raycast along -up.
 func _refine(p: Vector3, up: Vector3) -> Vector3:
-	var space := get_world_3d().direct_space_state
+	var space := (get_parent() as Node3D).get_world_3d().direct_space_state
 	var q := PhysicsRayQueryParameters3D.create(p + up * 0.8, p - up * 1.2, WorldLayout.LAYER_WORLD)
 	var hit := space.intersect_ray(q)
 	return hit["position"] if not hit.is_empty() else p
@@ -247,8 +291,7 @@ static func _place(batch: LegBatch, slot: int, a: Vector3, b: Vector3, radius: f
 	var length := v.length()
 	if length < 0.001:
 		return
-	var basis := MeshKit.basis_from_y(v / length) * Basis.from_scale(Vector3(radius, length, radius))
-	batch.put(slot, Transform3D(basis, (a + b) * 0.5))
+	batch.put(slot, Transform3D(_basis_y(v / length, Vector3(radius, length, radius)), (a + b) * 0.5))
 
 
 static func _ball(batch: LegBatch, slot: int, at: Vector3, radius: float) -> void:

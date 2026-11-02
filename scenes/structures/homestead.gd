@@ -262,8 +262,9 @@ func buy(peer_id: int, index: int) -> void:
 	if why != "":
 		Economy.notify(peer_id, why)
 		return
-	if not Economy.spend(cliff_id, u["cost"]):
-		Economy.notify(peer_id, "Not enough for %s (%s)." % [str(u["name"]).to_lower(), cost_text(u["cost"])])
+	var cost := Perks.discount_cost(peer_id, &"carpenter", u["cost"]) # Perk: Carpenter
+	if not Economy.spend(cliff_id, cost):
+		Economy.notify(peer_id, "Not enough for %s (%s)." % [str(u["name"]).to_lower(), cost_text(cost)])
 		return
 	# Work out the new state and let _set_state apply it everywhere (the host
 	# included), so every peer sees the change and rebuilds the house.

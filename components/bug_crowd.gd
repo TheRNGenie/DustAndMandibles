@@ -43,41 +43,69 @@ static func resolve(pos: Array[Vector2], radius: Array[float], wt: Array[float])
 	var ride: Array[float] = []
 	ride.resize(pos.size())
 	ride.fill(0.0)
+	# Bucket the discs into CELL-sized cells, then visit each pair of
+	# neighbouring cells once (half the 3x3 stencil), so every close pair is
+	# checked exactly once: hundreds of bugs stay cheap.
 	var grid: Dictionary = {}
 	for i in pos.size():
 		var key := Vector2i(floori(pos[i].x / CELL), floori(pos[i].y / CELL))
-		if not grid.has(key):
-			grid[key] = []
-		(grid[key] as Array).append(i)
-	for i in pos.size():
-		var key := Vector2i(floori(pos[i].x / CELL), floori(pos[i].y / CELL))
-		for dx in range(-1, 2):
-			for dy in range(-1, 2):
-				var cell: Variant = grid.get(key + Vector2i(dx, dy))
-				if cell == null:
-					continue
-				for j: int in cell:
-					if j <= i:
-						continue
-					var d := pos[j] - pos[i]
-					var min_d := radius[i] + radius[j]
-					var dist := d.length()
-					if dist >= min_d:
-						continue
-					var n := d / dist if dist > 0.001 else Vector2(1, 0).rotated(float(i * 7 + j))
-					var overlap := (min_d - dist) * STIFFNESS
-					var big := i if wt[i] >= wt[j] else j
-					var small := j if big == i else i
-					if wt[big] >= wt[small] * OVER_RATIO:
-						# Over the top: the small one ducks and edges aside, the big one rides up.
-						var depth := clampf(1.0 - dist / min_d, 0.0, 1.0)
-						var k := smoothstep(0.0, 0.25, depth)
-						crouch[small] = maxf(crouch[small], k)
-						ride[big] = maxf(ride[big], radius[small] * 1.1 * k)
-						var away := n if small == j else -n
-						out[small] += away * overlap * YIELD_PUSH
-						continue
-					var total := wt[i] + wt[j]
-					out[i] -= n * overlap * (wt[j] / total)
-					out[j] += n * overlap * (wt[i] / total)
+		var cell: Variant = grid.get(key)
+		if cell == null:
+			grid[key] = [i]
+		else:
+			(cell as Array).append(i)
+	for key: Vector2i in grid:
+		var here: Array = grid[key]
+		var nh := here.size()
+		for a_i in nh:
+			var i: int = here[a_i]
+			var pi := pos[i]
+			var ri := radius[i]
+			for b_i in range(a_i + 1, nh):
+				var j: int = here[b_i]
+				var r := ri + radius[j]
+				if pi.distance_squared_to(pos[j]) < r * r:
+					_pair(mini(i, j), maxi(i, j), pos, radius, wt, out, crouch, ride)
+		for off: Vector2i in HALF_STENCIL:
+			var other: Variant = grid.get(key + off)
+			if other == null:
+				continue
+			for i: int in here:
+				var pi := pos[i]
+				var ri := radius[i]
+				for j: int in (other as Array):
+					var r := ri + radius[j]
+					if pi.distance_squared_to(pos[j]) < r * r:
+						_pair(mini(i, j), maxi(i, j), pos, radius, wt, out, crouch, ride)
 	return {"push": out, "crouch": crouch, "ride": ride}
+
+
+## The neighbouring cells visited from each cell (the other four are visited from them).
+const HALF_STENCIL: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)]
+
+
+## One pair (i < j): push apart by weight, or the small one ducks under the big one.
+static func _pair(i: int, j: int, pos: Array[Vector2], radius: Array[float], wt: Array[float],
+		out: Array[Vector2], crouch: Array[float], ride: Array[float]) -> void:
+	var d := pos[j] - pos[i]
+	var min_d := radius[i] + radius[j]
+	var dist2 := d.length_squared()
+	if dist2 >= min_d * min_d:
+		return
+	var dist := sqrt(dist2)
+	var n := d / dist if dist > 0.001 else Vector2(1, 0).rotated(float(i * 7 + j))
+	var overlap := (min_d - dist) * STIFFNESS
+	var big := i if wt[i] >= wt[j] else j
+	var small := j if big == i else i
+	if wt[big] >= wt[small] * OVER_RATIO:
+		# Over the top: the small one ducks and edges aside, the big one rides up.
+		var depth := clampf(1.0 - dist / min_d, 0.0, 1.0)
+		var k := smoothstep(0.0, 0.25, depth)
+		crouch[small] = maxf(crouch[small], k)
+		ride[big] = maxf(ride[big], radius[small] * 1.1 * k)
+		var away := n if small == j else -n
+		out[small] += away * overlap * YIELD_PUSH
+		return
+	var total := wt[i] + wt[j]
+	out[i] -= n * overlap * (wt[j] / total)
+	out[j] += n * overlap * (wt[i] / total)

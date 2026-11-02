@@ -12,6 +12,8 @@ var loot_id := 0
 var chitin := 1
 var bug_name := "bug"
 var color := Color.WHITE
+## Goods a thief stole and dropped here ({res: amount}); they go back to the stockpile.
+var stolen: Dictionary = {}
 var _t := 0.0
 var _mi: MeshInstance3D
 
@@ -67,6 +69,8 @@ func _process(delta: float) -> void:
 
 
 func interact_prompt() -> String:
+	if not stolen.is_empty():
+		return "E: Take back the stolen %s (+%d chitin)" % [Economy.describe(stolen), chitin]
 	return "E: Loot the %s (+%d chitin)" % [bug_name.to_lower(), chitin]
 
 

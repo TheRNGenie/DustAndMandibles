@@ -169,7 +169,7 @@ func menu_items(tab: int) -> Array:
 	if tab == 2 and out.is_empty():
 		out.append({"id": "", "name": "Nothing to work on", "icon": &"hammer", "desc": "Mods are fitted to the guns you carry.",
 				"price": "", "price_ok": true, "disabled": "Buy a gun first.", "buttons": []})
-	return out
+	return Perks.discount_menu(out, &"gunsmiths_friend", NetworkManager.cliff_of(multiplayer.get_unique_id())) # Perk: Gunsmith's Friend
 
 
 func menu_press(id: Variant, _action: StringName) -> void:
@@ -221,6 +221,7 @@ func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
 			return
 		cost = w.upgrade_costs[lvl]
 		level = int(owned[id]) + 1 # bumps the level bits, keeps the mods
+	cost = Perks.discount(peer_id, &"gunsmiths_friend", cost) # Perk: Gunsmith's Friend
 	if not Economy.spend(payer, {&"chitin": cost}):
 		Economy.notify(peer_id, "That costs %d chitin. Sell vegetables at the vendor or kill armoured bugs." % cost)
 		return
@@ -272,6 +273,7 @@ func _buy_whip(peer_id: int, kind: String, slot: int) -> void:
 		cost = WeaponMods.WHIP_LEVEL_COSTS[lvl]
 		next = c + 1
 	var payer := Economy.payer_cliff(peer_id, cliff_id)
+	cost = Perks.discount(peer_id, &"gunsmiths_friend", cost) # Perk: Gunsmith's Friend
 	if not Economy.spend(payer, {&"chitin": cost}):
 		Economy.notify(peer_id, "That costs %d chitin." % cost)
 		return

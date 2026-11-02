@@ -5,6 +5,8 @@ extends Node
 
 signal phase_changed(new_phase: Phase)
 signal skip_votes_changed(votes: int, needed: int)
+## Everyone readied: the wave rides in after a short countdown (-1 = no countdown).
+signal ready_countdown_changed(seconds: float)
 signal homestead_changed(cliff_id: int, hp: float, max_hp: float)
 signal game_over(won: bool, reason: String)
 
@@ -14,6 +16,9 @@ var phase: Phase = Phase.LOBBY
 var wave: int = 0
 var time_left: float = 0.0
 var skip_votes: int = 0
+## Seconds until the wave comes once everyone has readied; -1 while not counting.
+var ready_countdown: float = -1.0
+const READY_COUNTDOWN := 5.0
 var homestead_hp: Array[float] = [0.0, 0.0]
 ## Max HP per Homestead (reinforcing the house raises it).
 var homestead_max: Array[float] = [0.0, 0.0]
@@ -23,6 +28,8 @@ var storm := false
 var weather: int = Weather.Kind.CLEAR
 signal weather_changed(kind: int)
 var won := false
+## Past the last wave by choice: waves keep coming (and growing) with no end.
+var endless := false
 var end_reason := ""
 ## True while the pause menu (or another full-screen menu) is open: the local player stops.
 var menu_open: bool = false
@@ -69,7 +76,9 @@ func reset() -> void:
 	time_left = 0.0
 	_voters.clear()
 	skip_votes = 0
+	ready_countdown = -1.0
 	won = false
+	endless = false
 	storm = false
 	weather = Weather.Kind.CLEAR
 	end_reason = ""
@@ -87,6 +96,12 @@ func is_solo() -> bool:
 func _process(delta: float) -> void:
 	if phase == Phase.LOBBY or phase == Phase.GAME_OVER or phase == Phase.WAVE:
 		return
+	if phase == Phase.BUILD and ready_countdown >= 0.0:
+		ready_countdown = maxf(ready_countdown - delta, 0.0)
+		if multiplayer.is_server() and ready_countdown <= 0.0:
+			ready_countdown = -1.0
+			_advance()
+		return
 	# The build phase has no clock: it lasts until everyone has readied up (G).
 	# Automated runs (--fast) keep a timer so they can play themselves.
 	if phase == Phase.BUILD and not has_flag("--fast"):
@@ -98,17 +113,18 @@ func _process(delta: float) -> void:
 
 # ------------------------------------------------------------------ host side
 
-## Host only: begins wave 1's build phase.
-func start_run() -> void:
+## Host only: begins wave 1's build phase (or `first_wave`'s, resuming a saved run).
+func start_run(first_wave: int = 1) -> void: # [Foundation hook] first_wave for Continue last run
 	if not multiplayer.is_server():
 		return
 	reset()
 	Economy.reset()
 	GunShop.reset_loadouts()
 	_sync_homesteads_reliable.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
-	wave = 1
-	if has_flag("--debug") and flag_value("--startwave") != "":
-		wave = clampi(int(flag_value("--startwave")), 1, config().last_wave)
+	wave = maxi(first_wave, 1)
+	if first_wave <= 1 and has_flag("--debug") and flag_value("--startwave") != "":
+		wave = clampi(int(flag_value("--startwave")), 1, 999)
+		endless = wave > config().last_wave
 	_enter(Phase.BUILD)
 
 
@@ -135,7 +151,7 @@ func _advance() -> void:
 func end_wave() -> void:
 	if not multiplayer.is_server() or phase != Phase.WAVE:
 		return
-	if wave >= config().last_wave:
+	if wave >= config().last_wave and not endless:
 		_finish.rpc(true, "You held the canyon for %d waves!" % wave)
 		return
 	wave += 1
@@ -177,7 +193,10 @@ func _sync_phase(p: int, duration: float, w: int, kind: int) -> void:
 	time_left = duration
 	phase = p as Phase
 	skip_votes = 0
+	ready_countdown = -1.0
+	_local_ready = false
 	skip_votes_changed.emit(0, _needed_votes())
+	ready_countdown_changed.emit(-1.0)
 	phase_changed.emit(phase)
 
 
@@ -239,6 +258,22 @@ func _finish(did_win: bool, reason: String) -> void:
 	game_over.emit(did_win, reason)
 
 
+## Host: after the win screen, keep the waves coming past the last one (endless).
+func continue_endless() -> void:
+	if not multiplayer.is_server() or phase != Phase.GAME_OVER or not won:
+		return
+	_set_endless.rpc()
+	wave += 1
+	_enter(Phase.BUILD)
+
+
+@rpc("authority", "call_local", "reliable")
+func _set_endless() -> void:
+	endless = true
+	won = false
+	end_reason = ""
+
+
 ## Any player: vote to skip the rest of the build phase ("Ready").
 func vote_skip() -> void:
 	if phase != Phase.BUILD:
@@ -246,7 +281,51 @@ func vote_skip() -> void:
 	if multiplayer.is_server():
 		_add_vote(1)
 	else:
+		_local_ready = true
 		_request_vote.rpc_id(1)
+
+
+## The ready key (G): ready up, or take it back (also cancels a running countdown).
+func toggle_ready() -> void:
+	if phase != Phase.BUILD:
+		return
+	if multiplayer.is_server():
+		_toggle_vote(1)
+	else:
+		_local_ready = not _local_ready
+		_request_toggle.rpc_id(1)
+
+
+@rpc("any_peer", "reliable")
+func _request_toggle() -> void:
+	if multiplayer.is_server():
+		_toggle_vote(multiplayer.get_remote_sender_id())
+
+
+func _toggle_vote(id: int) -> void:
+	if phase != Phase.BUILD:
+		return
+	if _voters.has(id):
+		_voters.erase(id)
+		_sync_votes.rpc(_voters.size())
+		if ready_countdown >= 0.0:
+			_sync_countdown.rpc(-1.0)
+	else:
+		_add_vote(id)
+
+
+## True when this peer has readied (host knows; clients track their own press).
+func is_ready_local() -> bool:
+	return _voters.has(multiplayer.get_unique_id()) if multiplayer.is_server() else _local_ready
+
+
+var _local_ready := false
+
+
+@rpc("authority", "call_local", "reliable")
+func _sync_countdown(seconds: float) -> void:
+	ready_countdown = seconds
+	ready_countdown_changed.emit(seconds)
 
 
 ## Debug: skip straight to the next phase.
@@ -272,10 +351,13 @@ func _request_debug_skip() -> void:
 func _add_vote(id: int) -> void:
 	if phase != Phase.BUILD:
 		return
+	if _voters.has(id):
+		return
 	_voters[id] = true
 	_sync_votes.rpc(_voters.size())
-	if _voters.size() >= _needed_votes():
-		_advance()
+	if _voters.size() >= _needed_votes() and ready_countdown < 0.0:
+		# Everyone's ready: a short countdown anyone can call off with the ready key.
+		_sync_countdown.rpc(READY_COUNTDOWN * _time_scale())
 
 
 @rpc("authority", "call_local", "reliable")

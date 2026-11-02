@@ -32,7 +32,7 @@ func test_harvest_yields_and_clears() -> void:
 	assert_true(g.harvest().is_empty(), "not ripe yet")
 	g.tick(10000.0)
 	var out := g.harvest()
-	assert_eq(int(out.get(&"corn", 0)), 3)
+	assert_eq(int(out.get(&"corn", 0)), 4)
 	assert_eq(g.stage, CropGrowth.Stage.EMPTY)
 
 
@@ -51,7 +51,7 @@ func test_prickly_pear_gives_pears_and_water() -> void:
 	g.tick(10000.0)
 	var out := g.harvest()
 	assert_eq(int(out.get(&"prickly_pear", 0)), 2)
-	assert_eq(int(out.get(&"water", 0)), 1)
+	assert_eq(int(out.get(&"water", 0)), 2)
 
 
 func test_weevil_clears_growing_crop() -> void:
@@ -61,3 +61,43 @@ func test_weevil_clears_growing_crop() -> void:
 	g.tick(30.0)
 	g.clear()
 	assert_eq(g.stage, CropGrowth.Stage.EMPTY)
+
+
+# ---- each crop has a job (Gameplay helper) ----
+
+func test_corn_is_fastest_and_pear_slowest() -> void:
+	var corn := Defs.crop(&"corn")
+	for id: StringName in [&"prickly_pear", &"firecracker_chili", &"herbs"]:
+		assert_true(corn.grow_time < Defs.crop(id).grow_time, "corn ripens before %s" % id)
+		assert_true(Defs.crop(&"prickly_pear").grow_time >= Defs.crop(id).grow_time, "pear is the slowest")
+	assert_almost(corn.grow_time, 120.0)
+	assert_almost(Defs.crop(&"prickly_pear").grow_time, 300.0)
+
+
+func test_growth_times_hold_in_crop_growth() -> void:
+	for id: StringName in [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs"]:
+		var c := Defs.crop(id)
+		var g := CropGrowth.new()
+		g.plant(c)
+		g.water()
+		g.tick(c.grow_time - 1.0)
+		assert_true(g.stage != CropGrowth.Stage.RIPE, "%s not ripe a second early" % id)
+		g.tick(1.0)
+		assert_eq(g.stage, CropGrowth.Stage.RIPE, "%s ripe on time" % id)
+
+
+func test_corn_seeds_are_cheapest() -> void:
+	var corn := MarketPrices.seed_price(Defs.crop(&"corn"))
+	for id: StringName in [&"prickly_pear", &"firecracker_chili", &"herbs"]:
+		assert_true(corn < MarketPrices.seed_price(Defs.crop(id)), "corn seeds cheaper than %s" % id)
+
+
+func test_chili_feeds_the_mortar_and_sells_for_chitin() -> void:
+	assert_eq(int(Defs.turret(&"chili_mortar").ammo_cost.get(&"chili", 0)), 1)
+	assert_eq(MarketPrices.currency(&"chili"), &"chitin")
+	assert_true(Defs.crop(&"firecracker_chili").water_cost > Defs.crop(&"corn").water_cost, "chili is thirsty")
+
+
+func test_every_crop_has_a_role() -> void:
+	for id: StringName in [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs"]:
+		assert_true(Defs.crop(id).role != "", "%s has a role line" % id)

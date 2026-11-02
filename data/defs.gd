@@ -60,6 +60,18 @@ const CROPS: Dictionary = {
 	&"herbs": preload("res://data/crops/herbs.tres"),
 }
 
+## Player guns (the gun shop sells them; Gun.WEAPONS points here).
+const WEAPONS: Dictionary = {
+	&"revolver": preload("res://data/weapons/revolver.tres"),
+	&"lever_rifle": preload("res://data/weapons/lever_rifle.tres"),
+	&"coach_shotgun": preload("res://data/weapons/coach_shotgun.tres"),
+	&"blunderbuss": preload("res://data/weapons/blunderbuss.tres"),
+	&"crank_gatling": preload("res://data/weapons/crank_gatling.tres"),
+}
+
+## Every registry, by kind (the content test walks these: ids unique, files load).
+const REGISTRIES: Dictionary = {"bugs": BUGS, "turrets": TURRETS, "structures": STRUCTURES, "crops": CROPS, "weapons": WEAPONS}
+
 ## Build menu order: number keys 1-9 and 0, mouse wheel cycles through all.
 const BUILD_ORDER: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"water_cannon",
 	&"chili_mortar", &"dynamite_lobber", &"lasso_harpoon", &"scaffold", &"scattergun_post", &"sharpshooter_tower", &"barbed_wire", &"bear_trap",
@@ -111,6 +123,16 @@ static func structure(id: StringName) -> StructureDef:
 
 static func crop(id: StringName) -> CropDef:
 	return CROPS.get(id) as CropDef
+
+
+static func weapon(id: StringName) -> WeaponDef:
+	return WEAPONS.get(id) as WeaponDef
+
+
+## The seed item a crop is planted from ({} id -> &"" if unknown).
+static func seed_of(crop_id: StringName) -> StringName:
+	var c := crop(crop_id)
+	return c.seed_item if c != null else &""
 
 
 static func is_turret(id: StringName) -> bool:

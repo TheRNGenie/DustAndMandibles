@@ -3,11 +3,16 @@ extends Node
 ## The local player's health, downed state and "use" key. Health lives on the
 ## owning peer; the host sends damage to it with an RPC. At 0 HP you're downed for
 ## 15 s, then respawn at your Homestead: nobody sits out a whole wave.
-## There's no hunger or thirst; grown herbs work as medicine (hotbar slot 4).
+## Grown herbs work as medicine (hotbar slot 7).
+## Hunger and thirst never hurt you: they only nudge. Running low slows your
+## health regen and sprint a little and puts a slight sway in your aim. Eat a
+## crop (left click with corn, pear or chili out) or drink from the bucket.
 
 signal health_changed(hp: float, max_hp: float)
 signal downed_changed(downed: bool, seconds: float)
 signal prompt_changed(text: String)
+## Fullness 0..1 (1 = fed / watered). Emitted a few times a second.
+signal needs_changed(food: float, water: float)
 
 const MAX_HP := 100.0
 const DOWNED_TIME := 15.0
@@ -16,6 +21,18 @@ const REGEN_PER_SEC := 3.0
 const INTERACT_REACH := 3.5
 const HOLD_REPEAT := 0.3
 const HERB_HEAL := 50.0
+## Minutes from full to empty at a mild temperature (heat speeds thirst up).
+const HUNGER_MINUTES := 22.0
+const THIRST_MINUTES := 16.0
+## Below this a need starts to nudge (and its HUD icon shows).
+const NEED_LOW := 0.35
+## What each thing you can eat or drink restores (food, water, hp).
+const FEEDS := {
+	&"corn": [0.45, 0.0, 0.0],
+	&"prickly_pear": [0.3, 0.2, 20.0],
+	&"chili": [0.35, -0.05, 0.0],
+	&"water": [0.0, 0.7, 0.0],
+}
 
 var hp := MAX_HP
 var downed := false
@@ -23,6 +40,10 @@ var _downed_left := 0.0
 var _since_hit := 99.0
 var _hold := 0.0
 var _prompt := ""
+var food := 1.0
+var water := 1.0
+var _warned := {}
+var _needs_t := 0.0
 
 @onready var player: Player = get_parent() as Player
 
@@ -41,10 +62,65 @@ func _process(delta: float) -> void:
 			health_changed.emit(hp, MAX_HP)
 		return
 	_since_hit += delta
+	_tick_needs(delta)
 	if _since_hit > REGEN_DELAY and hp < MAX_HP:
-		hp = minf(hp + REGEN_PER_SEC * delta, MAX_HP)
+		hp = minf(hp + REGEN_PER_SEC * regen_mult() * delta, MAX_HP)
 		health_changed.emit(hp, MAX_HP)
 	_update_interact(delta)
+
+
+func _tick_needs(delta: float) -> void:
+	if GameState.phase == GameState.Phase.LOBBY or GameState.phase == GameState.Phase.GAME_OVER:
+		return
+	var per_sec := delta / 60.0 * GameState.growth_scale()
+	per_sec *= Perks.local_less(&"trail_rations") # Perk: Trail Rations
+	food = maxf(food - per_sec / HUNGER_MINUTES, 0.0)
+	water = maxf(water - per_sec / THIRST_MINUTES * Weather.thirst_rate(GameState.temperature()), 0.0)
+	_needs_t -= delta
+	if _needs_t <= 0.0:
+		_needs_t = 0.25
+		needs_changed.emit(food, water)
+		_warn(&"water", water, "You're parched: aim's getting shaky. Drink from the bucket (8, left click).")
+		_warn(&"food", food, "Your belly's growling: you're slower to heal. Eat a crop (left click with it out).")
+
+
+func _warn(id: StringName, v: float, text: String) -> void:
+	if v < NEED_LOW and not _warned.get(id, false):
+		_warned[id] = true
+		Economy.notice.emit(text)
+	elif v > NEED_LOW + 0.1:
+		_warned[id] = false
+
+
+## 0 when fine, rising to 1 as a need empties below NEED_LOW.
+static func need_strain(v: float) -> float:
+	return clampf((NEED_LOW - v) / NEED_LOW, 0.0, 1.0)
+
+
+## Health regen (your "wind") multiplier: hunger and thirst each take up to 30%.
+func regen_mult() -> float:
+	return 1.0 - 0.3 * need_strain(food) - 0.3 * need_strain(water)
+
+
+## Sprint speed multiplier: up to 8% slower when both run dry.
+func sprint_mult() -> float:
+	return (1.0 - 0.04 * need_strain(food) - 0.04 * need_strain(water)) * Perks.local_more(&"fleet_foot") # Perk: Fleet Foot
+
+
+## Aim sway amount 0..1 (thirst counts most).
+func sway() -> float:
+	return clampf(need_strain(water) * 0.7 + need_strain(food) * 0.3, 0.0, 1.0)
+
+
+## Owner: eat or drink what's in your hand (host spends 1 from the stockpile).
+func eat_or_drink(kind: StringName) -> void:
+	if downed or not FEEDS.has(kind):
+		return
+	var f: Array = FEEDS[kind]
+	if food > 0.97 and water > 0.97 and float(f[2]) <= 0.0:
+		Economy.notice.emit("You're not hungry or thirsty.")
+		return
+	player.net.request_consume(kind)
 
 
 ## Owner: use one herb from the stockpile to heal (host checks the stockpile).
@@ -55,8 +131,15 @@ func use_medicine() -> void:
 
 
 ## Owner: the host approved using an herb.
-func consumed(_kind: StringName) -> void:
-	hp = minf(hp + HERB_HEAL, MAX_HP)
+func consumed(kind: StringName) -> void:
+	if FEEDS.has(kind):
+		var f: Array = FEEDS[kind]
+		food = clampf(food + float(f[0]), 0.0, 1.0)
+		water = clampf(water + float(f[1]), 0.0, 1.0)
+		hp = minf(hp + float(f[2]), MAX_HP)
+		needs_changed.emit(food, water)
+	else:
+		hp = minf(hp + HERB_HEAL * Perks.local_more(&"herbalist"), MAX_HP) # Perk: Herbalist
 	health_changed.emit(hp, MAX_HP)
 	Audio.play_ui(&"herb_eat", -4.0)
 
@@ -65,12 +148,13 @@ func consumed(_kind: StringName) -> void:
 func apply_damage(amount: float) -> void:
 	if downed or (GameState.god_mode and GameState.debug_enabled()):
 		return
+	amount *= Perks.local_less(&"tough_hide") # Perk: Tough Hide
 	hp = maxf(hp - amount, 0.0)
 	_since_hit = 0.0
 	health_changed.emit(hp, MAX_HP)
 	if hp <= 0.0:
 		downed = true
-		_downed_left = DOWNED_TIME
+		_downed_left = DOWNED_TIME * Perks.local_less(&"back_in_saddle") # Perk: Back in the Saddle
 		downed_changed.emit(true, _downed_left)
 
 

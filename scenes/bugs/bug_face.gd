@@ -4,7 +4,9 @@ extends Node3D
 ##   pupils that follow the nearest player, and blinks;
 ##   chunky black eyebrows that frown harder as you get close (and scowl when shot);
 ##   mandibles that chatter (faster when angry), antennae that twitch and sway;
-##   buzzing wings for fliers; and, for the rare smoker, a cigarette.
+##   and, for the rare smoker, a cigarette. (Fliers' wings are batched by Bug.)
+## Only the nearest few bugs wear a face (BugManager.assign_detail hands them
+## out); faces go back to a pool per bug kind when a bug walks away or dies.
 
 const BROW := Color("#1A1412")
 const PUPIL := Color("#120C0A")
@@ -17,7 +19,6 @@ var _eye_r: Array[float] = []
 var _lids: Array[Node3D] = []
 var _mandibles: Array[Node3D] = []
 var _antennae: Array[Node3D] = []
-var _wings: Array[Node3D] = []
 var _cig: Node3D
 var _ember: OmniLight3D
 var _bug: Node3D
@@ -32,8 +33,25 @@ var _anger := 0.0
 var _seed := 0.0
 
 
+## Face part meshes by bug kind and part, built once (a new face is then just nodes).
+static var _meshes: Dictionary = {}
+var _kind := ""
+
+
+## The cached mesh for `part`, or null (then build it and pass it to _keep).
+func _cached(part: String) -> Mesh:
+	return _meshes.get(_kind + "|" + part) if _kind != "" else null
+
+
+func _keep(part: String, mesh: Mesh) -> Mesh:
+	if _kind != "":
+		_meshes[_kind + "|" + part] = mesh
+	return mesh
+
+
 func setup(bug: Node3D, spec: Dictionary, smoker: bool) -> void:
 	_bug = bug
+	_kind = String((bug as Bug).def.id) if bug is Bug and (bug as Bug).def != null else ""
 	_seed = randf() * 100.0
 	_blink_t = randf_range(1.0, 4.0)
 	var eyes: Dictionary = spec.get("eyes", {})
@@ -74,25 +92,30 @@ func setup(bug: Node3D, spec: Dictionary, smoker: bool) -> void:
 			var pivot := Node3D.new()
 			pivot.position = center + Vector3(side * maxf(spread - _r * 0.9, _r * 0.3), _r * 1.45, -_r * 0.55)
 			add_child(pivot)
-			var st := MeshKit.begin()
-			MeshKit.add_box(st, Transform3D(Basis(), Vector3(side * _r * 1.35, 0, 0)), Vector3(_r * 3.0, _r * 0.8, _r * 0.9), BROW)
-			_mi(pivot, MeshKit.finish(st), mat)
+			var brow := _cached("brow%d" % side)
+			if brow == null:
+				var st := MeshKit.begin()
+				MeshKit.add_box(st, Transform3D(Basis(), Vector3(side * _r * 1.35, 0, 0)), Vector3(_r * 3.0, _r * 0.8, _r * 0.9), BROW)
+				brow = _keep("brow%d" % side, MeshKit.finish(st))
+			_mi(pivot, brow, mat)
 			pivot.set_meta("side", side)
 			_brows.append(pivot)
 	if not face.is_empty():
 		_build_mandibles(face, mat)
 		_build_antennae(face, mat)
-		if bool(face.get("wings", false)):
-			_build_wings()
 	if smoker and not eyes.is_empty():
 		var mouth: Vector3 = face.get("mouth", eyes["center"] + Vector3(0, -_r * 1.9, -_r * 0.6))
 		_add_cigarette(mouth + Vector3(float(eyes["spread"]) * 0.5, 0, -_r * 0.2))
 
 
 static func _ball(col: Color, glow: float = 0.0) -> ArrayMesh:
+	var key := "ball|%s|%.2f" % [col.to_html(), glow]
+	if _meshes.has(key):
+		return _meshes[key]
 	var st := MeshKit.begin()
 	MeshKit.add_ellipsoid(st, Transform3D(), Vector3.ONE, 4, 8, col, 0.0, null, glow)
-	return MeshKit.finish(st)
+	_meshes[key] = MeshKit.finish(st)
+	return _meshes[key]
 
 
 func _mi(parent: Node3D, mesh: Mesh, mat: Material) -> MeshInstance3D:
@@ -117,14 +140,17 @@ func _build_mandibles(face: Dictionary, mat: Material) -> void:
 		var pivot := Node3D.new()
 		pivot.position = mouth + Vector3(side * m * 0.55, 0, 0)
 		add_child(pivot)
-		var st := MeshKit.begin()
-		var a := Vector3.ZERO
-		var b := Vector3(side * m * 0.15, -m * 0.1, -m * 0.75)
-		var c := Vector3(-side * m * 0.45, -m * 0.15, -m * 1.15)
-		MeshKit.add_limb(st, a, b, m * 0.2, col, 6)
-		MeshKit.add_limb(st, b, c, m * 0.13, col.lightened(0.1), 6)
-		MeshKit.add_cylinder(st, Transform3D(MeshKit.basis_from_y((c - b).normalized()), c + (c - b).normalized() * m * 0.12), m * 0.1, 0.0, m * 0.25, 5, Palette.BONE)
-		_mi(pivot, MeshKit.finish(st), mat)
+		var mesh := _cached("mandible%d" % side)
+		if mesh == null:
+			var st := MeshKit.begin()
+			var a := Vector3.ZERO
+			var b := Vector3(side * m * 0.15, -m * 0.1, -m * 0.75)
+			var c := Vector3(-side * m * 0.45, -m * 0.15, -m * 1.15)
+			MeshKit.add_limb(st, a, b, m * 0.2, col, 6)
+			MeshKit.add_limb(st, b, c, m * 0.13, col.lightened(0.1), 6)
+			MeshKit.add_cylinder(st, Transform3D(MeshKit.basis_from_y((c - b).normalized()), c + (c - b).normalized() * m * 0.12), m * 0.1, 0.0, m * 0.25, 5, Palette.BONE)
+			mesh = _keep("mandible%d" % side, MeshKit.finish(st))
+		_mi(pivot, mesh, mat)
 		pivot.set_meta("side", side)
 		_mandibles.append(pivot)
 
@@ -140,44 +166,18 @@ func _build_antennae(face: Dictionary, mat: Material) -> void:
 		var base := Node3D.new()
 		base.position = at + Vector3(side * length * 0.25, 0, 0)
 		add_child(base)
-		var st := MeshKit.begin()
-		var elbow := Vector3(side * length * 0.35, length * 0.5, -length * 0.3)
-		var tip := elbow + Vector3(side * length * 0.15, length * 0.2, -length * 0.55)
-		MeshKit.add_limb(st, Vector3.ZERO, elbow, length * 0.05, col, 5)
-		MeshKit.add_limb(st, elbow, tip, length * 0.035, col, 5)
-		MeshKit.add_ellipsoid(st, Transform3D(Basis(), tip), Vector3.ONE * length * 0.08, 3, 6, col.lightened(0.2))
-		_mi(base, MeshKit.finish(st), mat)
+		var mesh := _cached("antenna%d" % side)
+		if mesh == null:
+			var st := MeshKit.begin()
+			var elbow := Vector3(side * length * 0.35, length * 0.5, -length * 0.3)
+			var tip := elbow + Vector3(side * length * 0.15, length * 0.2, -length * 0.55)
+			MeshKit.add_limb(st, Vector3.ZERO, elbow, length * 0.05, col, 5)
+			MeshKit.add_limb(st, elbow, tip, length * 0.035, col, 5)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), tip), Vector3.ONE * length * 0.08, 3, 6, col.lightened(0.2))
+			mesh = _keep("antenna%d" % side, MeshKit.finish(st))
+		_mi(base, mesh, mat)
 		base.set_meta("side", side)
 		_antennae.append(base)
-
-
-## Four see-through wings that buzz (dragonfly bandits).
-func _build_wings() -> void:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.85, 0.95, 1.0, 0.45)
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	var st := MeshKit.begin()
-	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.7, 0, 0)), Vector3(0.7, 0.012, 0.16), 3, 10, Color(1, 1, 1))
-	for k in 4:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.35 + k * 0.25, 0.013, 0)), Vector3(0.01, 0.004, 0.24 - k * 0.04), Color(0.4, 0.5, 0.6))
-	var wing := MeshKit.finish(st)
-	var scale_k := (_bug as Bug).spec.get("scale", 1.0) as float if _bug is Bug else 1.0
-	for side: float in [-1.0, 1.0]:
-		for z: float in [-0.25, 0.1]:
-			var pivot := Node3D.new()
-			pivot.position = Vector3(side * 0.08, 0.12, z) * scale_k
-			add_child(pivot)
-			var mi := MeshInstance3D.new()
-			mi.mesh = wing
-			mi.material_override = mat
-			mi.scale = Vector3(side, 1.0, 1.0) * scale_k
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			pivot.add_child(mi)
-			pivot.set_meta("side", side)
-			pivot.set_meta("phase", 0.0 if z < 0 else 1.4)
-			_wings.append(pivot)
 
 
 func _add_cigarette(mouth: Vector3) -> void:
@@ -205,6 +205,59 @@ func _add_cigarette(mouth: Vector3) -> void:
 	add_child(_ember)
 
 
+# ------------------------------------------------------------------ pool
+
+## Spare faces by bug kind (and smoker), out of the tree.
+static var _pool: Dictionary = {}
+const POOL_PER_KIND := 12
+
+
+## A face for `bug` (from the pool when one is spare). Not yet in the tree.
+static func acquire(bug: Bug) -> BugFace:
+	var key := "%s|%d" % [bug.def.id, int(bug.smoker)]
+	var spare: Array = _pool.get(key, [])
+	var f: BugFace
+	while not spare.is_empty() and f == null:
+		var c: Object = spare.pop_back()
+		if is_instance_valid(c):
+			f = c as BugFace
+	if f == null:
+		f = BugFace.new()
+		f.setup(bug, bug.spec, bug.smoker)
+		f.set_meta("pool_key", key)
+	f._bug = bug
+	f._anger = 0.0
+	f._wince = 0.0
+	f._acc = 0.0
+	f.name = "Face"
+	return f
+
+
+## Takes the face off its bug and keeps it for the next bug of that kind.
+static func release(f: BugFace) -> void:
+	if f == null or not is_instance_valid(f):
+		return
+	if f.get_parent() != null:
+		f.get_parent().remove_child(f)
+	f._bug = null
+	var key: String = f.get_meta("pool_key", "")
+	var spare: Array = _pool.get(key, [])
+	if key == "" or spare.size() >= POOL_PER_KIND:
+		f.free()
+		return
+	spare.append(f)
+	_pool[key] = spare
+
+
+## Frees every pooled face (the world is going away).
+static func clear_pool() -> void:
+	for key: String in _pool:
+		for f: Object in _pool[key]:
+			if is_instance_valid(f):
+				f.free()
+	_pool.clear()
+
+
 ## Got shot: brows jump into a deep scowl, eyes squeeze, mandibles snap.
 func wince() -> void:
 	_wince = 1.0
@@ -221,8 +274,8 @@ func _process(frame_delta: float) -> void:
 	_acc += frame_delta
 	_skip += 1
 	var lod: int = (_bug as Bug).detail if _bug is Bug else 0
-	# Faces aren't drawn past 14 m (wings are), so they don't animate there either.
-	var unseen := _wings.is_empty() and _bug is Bug and (_bug as Bug).cam_dist > 15.0
+	# Faces aren't drawn past 14 m, so they don't animate there either.
+	var unseen := _bug is Bug and (_bug as Bug).cam_dist > 15.0
 	if lod >= 2 or unseen or (lod == 1 and _skip < 3):
 		return
 	_skip = 0
@@ -272,10 +325,6 @@ func _process(frame_delta: float) -> void:
 	for a in _antennae:
 		var side: float = a.get_meta("side")
 		a.rotation = Vector3(sin(_t * 2.1 + side + _seed) * 0.18 - twitch, side * sin(_t * 1.3 + _seed) * 0.15, side * twitch * 0.5)
-	# Wings buzz.
-	for w in _wings:
-		var side: float = w.get_meta("side")
-		w.rotation.z = side * sin(_t * 55.0 + float(w.get_meta("phase"))) * 0.55
 	if _cig != null:
 		_ember.light_energy = 0.35 + sin(_t * 5.0) * 0.15
 		_puff_t -= delta

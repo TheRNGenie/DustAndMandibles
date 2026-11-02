@@ -17,10 +17,14 @@ extends Resource
 @export var build_time_first: float = 300.0
 @export var build_time_last: float = 300.0
 @export var warning_time: float = 10.0
-@export var last_wave: int = 10
+## The run is won after this wave; players may then keep going (endless).
+@export var last_wave: int = 20
 @export var hp_multiplier: float = 1.0
-## Extra bug HP per wave after the first (0.08 = +8% per wave).
-@export var hp_per_wave: float = 0.08
+## Extra bug HP per wave after the first (0.10 = +10% per wave). Kept well under
+## count_growth: later waves are mostly MORE bugs, not spongier ones.
+@export var hp_per_wave: float = 0.10
+## Extra bug damage per wave after the first (0.10 = +10% per wave).
+@export var damage_per_wave: float = 0.10
 @export var homestead_hp: float = 500.0
 @export var start_scrap: int = 150
 @export var max_active_bugs: int = 750
@@ -64,6 +68,11 @@ func budget(w: int) -> float:
 ## Bug HP multiplier for wave w.
 func hp_scale(w: int) -> float:
 	return hp_multiplier * (1.0 + hp_per_wave * float(maxi(w - 1, 0)))
+
+
+## Bug damage multiplier for wave w (bites on structures and players).
+func damage_scale(w: int) -> float:
+	return 1.0 + damage_per_wave * float(maxi(w - 1, 0))
 
 
 func build_time(w: int) -> float:

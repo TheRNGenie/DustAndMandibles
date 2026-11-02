@@ -41,6 +41,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("fire") and player.gun.holding == &"herbs":
 		player.vitals.use_medicine()
+	elif event.is_action_pressed("fire") and PlayerVitals.FEEDS.has(player.gun.holding):
+		player.vitals.eat_or_drink(player.gun.holding)
 	if event.is_action_pressed("next_item") or event.is_action_pressed("prev_item"):
 		_scroll(1 if event.is_action_pressed("next_item") else -1)
 		get_viewport().set_input_as_handled()

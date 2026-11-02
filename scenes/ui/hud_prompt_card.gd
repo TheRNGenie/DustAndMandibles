@@ -43,7 +43,7 @@ func show_text(prompt: String) -> void:
 ## The build bar: what you're placing, its price, why it can't go here, keys.
 ## info: {"icon", "name", "cost", "afford", "status", "status_bad", "keys"}.
 func show_build(info: Dictionary) -> void:
-	var key := str(info.get("name")) + "|" + str(info.get("cost")) + "|" + str(info.get("afford")) + "|" + str(info.get("status")) + "|" + str(info.get("status_bad"))
+	var key := str(info.get("name")) + "|" + str(info.get("cost")) + "|" + str(info.get("afford")) + "|" + str(info.get("status")) + "|" + str(info.get("status_bad")) + "|" + str(info.get("keys"))
 	if key == _shown_key:
 		return
 	_shown_key = key

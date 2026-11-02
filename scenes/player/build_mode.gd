@@ -27,6 +27,9 @@ var _ok := false
 var _grid: MultiMeshInstance3D
 var _coverage: CoveragePreview
 var _grid_t := 0.0
+## Additions: how covered the far wall already is, and the raised build camera (Tab).
+var _heatmap: CoverageHeatmap
+var _build_cam: BuildCamera
 
 
 func _ready() -> void:
@@ -42,6 +45,11 @@ func _ready() -> void:
 	_coverage.cliffs = cliffs
 	# Lives in the world, not under the player (it spans the whole canyon).
 	get_tree().current_scene.add_child.call_deferred(_coverage)
+	_heatmap = CoverageHeatmap.new()
+	get_tree().current_scene.add_child.call_deferred(_heatmap)
+	_build_cam = BuildCamera.new()
+	_build_cam.player = player
+	add_child(_build_cam)
 	_refresh_ghost_mesh()
 	# Build-spot overlay: a tile on every cell you can use for the selected item.
 	_grid = MultiMeshInstance3D.new()
@@ -88,6 +96,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_act_on_target(&"demolish")
 	elif event.is_action_pressed("upgrade"):
 		_act_on_target(&"upgrade")
+	elif active and not menu_open and event.is_action_pressed("build_camera"):
+		_build_cam.set_raised(not _build_cam.raised)
+		get_viewport().set_input_as_handled()
 	elif active and not menu_open and event.is_action_pressed("next_item"):
 		_cycle(1)
 	elif active and not menu_open and event.is_action_pressed("prev_item"):
@@ -162,6 +173,11 @@ func toggle() -> void:
 func _set_active(on: bool) -> void:
 	if not on and _coverage != null:
 		_coverage.hide_preview()
+	if not on:
+		if _heatmap != null and _heatmap.is_inside_tree():
+			_heatmap.show_wall(-1)
+		if _build_cam != null:
+			_build_cam.set_raised(false)
 	active = on
 	if not on and menu_open:
 		close_menu()
@@ -217,7 +233,7 @@ func _process(delta: float) -> void:
 	var bm := BuildManager.instance
 	var mine := bm.may_build(multiplayer.get_unique_id(), _cliff)
 	var payer := _cliff if GameState.is_solo() else player.cliff_id
-	var affordable := Economy.can_afford(payer, {&"scrap": Defs.cost_of(selected_id())})
+	var affordable := Economy.can_afford(payer, {&"scrap": Perks.build_cost(multiplayer.get_unique_id(), selected_id())}) # Perk: build discounts
 	_ok = mine and bm.is_free_for(selected_id(), _cliff, _cell) and affordable
 	_ghost_mat.albedo_color = Color(0.4, 1.0, 0.4, 0.45) if _ok else Color(1.0, 0.3, 0.25, 0.45)
 
@@ -228,6 +244,8 @@ func _update_coverage() -> void:
 		return
 	if _coverage.cliffs == null:
 		_coverage.cliffs = cliffs
+	if _heatmap.is_inside_tree():
+		_heatmap.show_wall(WorldLayout.other_cliff(player.cliff_id) if active else -1)
 	var id := selected_id()
 	if not active or not _ghost.visible or not Defs.is_turret(id):
 		_coverage.hide_preview()
@@ -258,7 +276,7 @@ func _aim_house_mount(pos: Vector3) -> void:
 	_ghost.rotation.y = WorldLayout.facing_canyon_yaw(_cliff)
 	var bm := BuildManager.instance
 	var payer := _cliff if GameState.is_solo() else player.cliff_id
-	_ok = bm.may_build(multiplayer.get_unique_id(), _cliff) and bm.is_free_for(selected_id(), _cliff, _cell) 			and Economy.can_afford(payer, {&"scrap": Defs.cost_of(selected_id())})
+	_ok = bm.may_build(multiplayer.get_unique_id(), _cliff) and bm.is_free_for(selected_id(), _cliff, _cell) 			and Economy.can_afford(payer, {&"scrap": Perks.build_cost(multiplayer.get_unique_id(), selected_id())}) # Perk: build discounts
 	_ghost_mat.albedo_color = Color(0.4, 1.0, 0.4, 0.45) if _ok else Color(1.0, 0.3, 0.25, 0.45)
 
 
@@ -279,10 +297,11 @@ func build_info(icon: Texture2D) -> Dictionary:
 	elif not _ghost.visible:
 		status = "Aim at an open spot on your plateau"
 	return {
-		"icon": icon, "name": Defs.name_of(id), "cost": Defs.cost_of(id),
-		"afford": GameState.is_solo() or Economy.can_afford(payer, {&"scrap": Defs.cost_of(id)}),
+		"icon": icon, "name": Defs.name_of(id), "cost": Perks.build_cost(multiplayer.get_unique_id(), id), # Perk: build discounts
+		"afford": GameState.is_solo() or Economy.can_afford(payer, {&"scrap": Perks.build_cost(multiplayer.get_unique_id(), id)}), # Perk: build discounts
 		"status": status, "status_bad": bad,
-		"keys": [[KeyHints.key_for("fire"), "Place"], ["Wheel", "Next"], [KeyHints.key_for("build_menu"), "Catalog"], [KeyHints.key_for("alt_fire"), "Done"]],
+		"keys": [[KeyHints.key_for("fire"), "Place"], ["Wheel", "Next"], [KeyHints.key_for("build_menu"), "Catalog"],
+				[KeyHints.key_for("build_camera"), "Eye view" if _build_cam != null and _build_cam.raised else "Raised view"], [KeyHints.key_for("alt_fire"), "Done"]],
 	}
 
 
@@ -296,6 +315,10 @@ func _aim_hit() -> Dictionary:
 	var cam := player.camera
 	var from := cam.global_position
 	var to := from - cam.global_transform.basis.z * REACH
+	if _build_cam != null and _build_cam.raised:
+		# Raised view: aim through its crosshair, reaching past the extra distance.
+		from = _build_cam.global_position
+		to = from - _build_cam.global_transform.basis.z * (REACH + BuildCamera.BACK + 4.0)
 	var q := PhysicsRayQueryParameters3D.create(from, to, WorldLayout.LAYER_WORLD | WorldLayout.LAYER_STRUCTURE | WorldLayout.LAYER_TRAP)
 	q.exclude = [player.get_rid()]
 	return get_world_3d().direct_space_state.intersect_ray(q)

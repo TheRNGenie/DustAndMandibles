@@ -160,7 +160,7 @@ func _style_tab(b: Button, on: bool) -> void:
 
 
 func _tile(i: int, id: StringName, payer: int) -> Button:
-	var cost := Defs.cost_of(id)
+	var cost := Perks.build_cost(multiplayer.get_unique_id(), id) # Perk: build discounts
 	var affordable := GameState.is_solo() or Economy.can_afford(payer, {&"scrap": cost})
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
@@ -216,7 +216,7 @@ func _show_detail(id: StringName, payer: int) -> void:
 		for l: Label in [_detail_name, _detail_cost, _detail_desc, _detail_where]:
 			l.text = ""
 		return
-	var cost := Defs.cost_of(id)
+	var cost := Perks.build_cost(multiplayer.get_unique_id(), id) # Perk: build discounts
 	var affordable := GameState.is_solo() or Economy.can_afford(payer, {&"scrap": cost})
 	_detail_name.text = Defs.name_of(id)
 	_detail_cost.text = "%d scrap" % cost

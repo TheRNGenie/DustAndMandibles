@@ -1,6 +1,6 @@
 class_name FieldGuide
 extends RefCounted
-## The in-game wiki: guns, bugs and turrets, shown on the MenuScreen. Stats come
+## The in-game wiki: guns, bugs, turrets and crops, shown on the MenuScreen. Stats come
 ## straight from the game's data files; the words come from data/field_guide.json,
 ## so both stay up to date and easy to edit. Open with J or from the pause menu.
 
@@ -40,7 +40,7 @@ func menu_tagline() -> String:
 
 
 func menu_tabs() -> Array:
-	return ["Guns", "Bugs", "Turrets"]
+	return ["Guns", "Bugs", "Turrets", "Crops"]
 
 
 func menu_items(tab: int) -> Array:
@@ -53,6 +53,12 @@ func menu_items(tab: int) -> Array:
 				var stats := "Damage %d%s   |   %d rounds   |   %.1f s reload   |   %s" % [int(w.damage),
 						(" x%d pellets" % w.pellets) if w.pellets > 1 else "", w.mag_size, w.reload_time,
 						"pierces armour" if w.pierce_armor else "stopped by armour"]
+				if w.role != "":
+					stats = w.role.to_upper() + "   |   " + stats
+				if w.falloff_start < w.range:
+					stats += "   |   weaker past %d m" % int(w.falloff_start)
+				if w.suppress_slow < 1.0:
+					stats += "   |   hits slow bugs"
 				var price := "starter" if w.price_chitin == 0 else "%d chitin" % w.price_chitin
 				out.append(_item(id, w.display_name, id, str(e.get("lore", w.description)), stats, e.get("tips", []), price))
 		1:
@@ -84,7 +90,33 @@ func menu_items(tab: int) -> Array:
 						"   |   pierces armour" if t.armor_pierce else ""]
 				var icon: Variant = IconStudio.turret(MenuScreen.instance, id) if MenuScreen.instance != null else null
 				out.append(_item(id, t.display_name, icon, str(e.get("lore", t.description)), stats, e.get("tips", []), "%d scrap" % t.cost_scrap))
+		3:
+			# (Gameplay helper) Each crop has a job; the numbers come from the crop data.
+			for id: StringName in CROP_ORDER:
+				var c := Defs.crop(id)
+				var e := FieldGuide.entry("crops", id)
+				var yields: PackedStringArray = []
+				for r: StringName in c.harvest:
+					yields.append("%d %s" % [int(c.harvest[r]), String(r).replace("_", " ")])
+				var sells: PackedStringArray = []
+				for r: StringName in c.harvest:
+					if MarketPrices.BASE.has(r):
+						sells.append("%d %s each" % [int(MarketPrices.BASE[r]), String(MarketPrices.currency(r))])
+				var stats := "Ripe in %s   |   %d water   |   harvest %s   |   sells for %s" % [
+						_minutes(c.grow_time), c.water_cost, ", ".join(yields), ", ".join(sells)]
+				var tips: Array = [c.role] if c.role != "" else []
+				tips.append_array(e.get("tips", []))
+				out.append(_item(id, c.display_name, null, str(e.get("lore", "")), stats, tips, "%d scrap a seed" % MarketPrices.seed_price(c)))
 	return out
+
+
+const CROP_ORDER: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs"]
+
+
+static func _minutes(secs: float) -> String:
+	var m := int(secs) / 60
+	var s := int(secs) % 60
+	return "%d min" % m if s == 0 else "%d min %d s" % [m, s]
 
 
 func _item(id: StringName, title: String, icon: Variant, lore: String, stats: String, tips: Array, price: String) -> Dictionary:

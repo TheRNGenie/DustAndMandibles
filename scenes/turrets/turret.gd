@@ -31,6 +31,10 @@ var shots: int = 0
 var tier: int = 0
 ## False while the owner's stockpile can't pay this special turret's upkeep.
 var has_ammo: bool = true
+# Perk: the builder's Engineer perks (Perks.apply_turret): range, fire interval, HP multipliers.
+var perk_range := 1.0
+var perk_rate := 1.0
+var perk_hp := 1.0
 
 var _head: Node3D
 var _gun: Node3D
@@ -165,7 +169,7 @@ func _think(delta: float) -> void:
 		if not has_ammo:
 			_cooldown = 1.0
 			return
-	_cooldown = def.interval_at(tier) * Weather.turret_fire_interval(GameState.weather)
+	_cooldown = def.interval_at(tier) * Weather.turret_fire_interval(GameState.weather) * perk_rate # Perk: Well Oiled
 	shots += 1
 	if randf() <= def.hit_chance * Weather.turret_accuracy(GameState.weather):
 		TurretEffects.apply(self, _target, aim_point, def.damage_at(tier, TurretDef.is_heavy(_target.def)))
@@ -258,7 +262,7 @@ func _lit_near(pos: Vector3) -> bool:
 
 ## Range from the upgrade tier and the scaffold level it stands on.
 func range_multiplier() -> float:
-	return TurretDef.range_mult(tier, level)
+	return TurretDef.range_mult(tier, level) * perk_range # Perk: Long Sights
 
 
 func muzzle_position() -> Vector3:
@@ -275,7 +279,7 @@ func upgrade() -> void:
 	if multiplayer.is_server() and upgrade_cost() > 0:
 		var lost := health.max_hp - health.hp
 		tier += 1
-		health.setup(def.hp_at(tier))
+		health.setup(def.hp_at(tier) * perk_hp) # Perk: Reinforced Frames
 		health.hp = maxf(health.max_hp - lost, 1.0)
 
 
@@ -375,7 +379,7 @@ func interact_prompt() -> String:
 		text += "\nHold E: repair (1 scrap per %d HP)" % int(BuildManager.REPAIR_HP_PER_SCRAP)
 	if upgrade_cost() > 0:
 		var payer := Economy.payer_cliff(multiplayer.get_unique_id(), cliff_id)
-		var price := "1 upgrade token" if Economy.amount(payer, UPGRADE_TOKEN) > 0 else "%d chitin" % upgrade_cost()
+		var price := "1 upgrade token" if Economy.amount(payer, UPGRADE_TOKEN) > 0 else "%d chitin" % Perks.discount(multiplayer.get_unique_id(), &"chitin_smith", upgrade_cost()) # Perk: Chitin Smith
 		text += "\nU: upgrade to %s (%s)" % [TurretDef.TIER_NAMES[tier + 1], price]
 	return text
 

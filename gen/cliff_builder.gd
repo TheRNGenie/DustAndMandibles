@@ -117,6 +117,144 @@ func face_offset(cliff_id: int, y: float, z: float) -> float:
 	return edge_offset(cliff_id, z) + prof + rough
 
 
+# ---------------------------------------------------------------- fast face queries for bugs
+
+## Hundreds of climbing bugs ask where the face is every tick: face_offset is
+## sampled on a fine grid over the play area (a row of heights at a time, the
+## first time a bug gets there) and read back bilinearly. The grid is finer
+## than the face mesh itself, so bugs still sit on the rock.
+const GRID_STEP := 0.25
+const GRID_Z := 24.0
+const GRID_Y0 := -2.0
+const GRID_Y1 := WorldLayout.CLIFF_HEIGHT + 2.0
+const GRID_NZ := int(GRID_Z * 2.0 / GRID_STEP) + 1
+const GRID_NY := int((GRID_Y1 - GRID_Y0) / GRID_STEP) + 1
+## One grid per cliff (separate members so rows are written in place), and which rows are filled.
+var _g0 := PackedFloat32Array()
+var _g1 := PackedFloat32Array()
+var _r0 := PackedByteArray()
+var _r1 := PackedByteArray()
+
+
+## face_offset from the grid (exact face_offset outside it).
+func face_offset_fast(cliff_id: int, y: float, z: float) -> float:
+	var fz := (z + GRID_Z) / GRID_STEP
+	var fy := (y - GRID_Y0) / GRID_STEP
+	if fz < 0.0 or fy < 0.0 or fz >= GRID_NZ - 1 or fy >= GRID_NY - 1:
+		return face_offset(cliff_id, y, z)
+	var iy := int(fy)
+	var iz := int(fz)
+	var rows := _r0 if cliff_id == 0 else _r1
+	if rows.is_empty() or rows[iy] == 0 or rows[iy + 1] == 0:
+		_fill_row(cliff_id, iy)
+		_fill_row(cliff_id, iy + 1)
+	var g := _g0 if cliff_id == 0 else _g1
+	var o := iy * GRID_NZ + iz
+	var tz := fz - iz
+	var a := lerpf(g[o], g[o + 1], tz)
+	var b := lerpf(g[o + GRID_NZ], g[o + GRID_NZ + 1], tz)
+	return lerpf(a, b, fy - iy)
+
+
+func _fill_row(cliff_id: int, iy: int) -> void:
+	var y := GRID_Y0 + iy * GRID_STEP
+	if cliff_id == 0:
+		if _r0.is_empty():
+			_r0.resize(GRID_NY)
+			_g0.resize(GRID_NY * GRID_NZ)
+		if _r0[iy] != 0:
+			return
+		for iz in GRID_NZ:
+			_g0[iy * GRID_NZ + iz] = face_offset(0, y, -GRID_Z + iz * GRID_STEP)
+		_r0[iy] = 1
+	else:
+		if _r1.is_empty():
+			_r1.resize(GRID_NY)
+			_g1.resize(GRID_NY * GRID_NZ)
+		if _r1[iy] != 0:
+			return
+		for iz in GRID_NZ:
+			_g1[iy * GRID_NZ + iz] = face_offset(1, y, -GRID_Z + iz * GRID_STEP)
+		_r1[iy] = 1
+
+
+## A climbing bug's frame on the face at (y, z): Y along the outward normal,
+## -Z up the face, origin `clear` out from the rock. Same as building it from
+## face_point/face_normal, but off the grid.
+func face_frame(cliff_id: int, y: float, z: float, clear: float) -> Transform3D:
+	var s := WorldLayout.side_sign(cliff_id)
+	if wildness(z) > 0.0:
+		var n0 := face_normal(cliff_id, y, z)
+		var p0 := face_point(cliff_id, y, z)
+		var up0 := (face_point(cliff_id, y + 0.5, z) - face_point(cliff_id, y - 0.5, z)).normalized()
+		var z0 := -(up0 - n0 * up0.dot(n0)).normalized()
+		return Transform3D(Basis(n0.cross(z0).normalized(), n0, z0), p0 + n0 * clear)
+	var e := 0.4
+	# Points are (s * (HALF_GAP - offset), y, z) in the play area (no warp).
+	var dy := Vector3(-s * (face_offset_fast(cliff_id, y + e, z) - face_offset_fast(cliff_id, y - e, z)), 2.0 * e, 0.0)
+	var dz := Vector3(-s * (face_offset_fast(cliff_id, y, z + e) - face_offset_fast(cliff_id, y, z - e)), 0.0, 2.0 * e)
+	var n := dz.cross(dy).normalized()
+	if n.x * -s < 0.0:
+		n = -n
+	var p := Vector3(s * (WorldLayout.HALF_GAP - face_offset_fast(cliff_id, y, z)), y, z)
+	var up := dy.normalized()
+	var z_axis := -(up - n * up.dot(n)).normalized()
+	return Transform3D(Basis(n.cross(z_axis).normalized(), n, z_axis), p + n * clear)
+
+
+## Plateau ground height for walking bugs, off a lazily filled 0.5 m grid (the
+## ground mesh itself is built on a 1 m x 1.5 m grid). Exact outside the grid.
+const PGRID_STEP := 0.5
+const PGRID_D := 64.0
+const PGRID_Z := 48.0
+const PGRID_ND := int(PGRID_D / PGRID_STEP) + 1
+const PGRID_NZ := int(PGRID_Z * 2.0 / PGRID_STEP) + 1
+var _p0 := PackedFloat32Array()
+var _p1 := PackedFloat32Array()
+var _pr0 := PackedByteArray()
+var _pr1 := PackedByteArray()
+
+
+func ground_height_fast(cliff_id: int, pos: Vector3) -> float:
+	var pc := plateau_coords(cliff_id, pos)
+	var fd := maxf(pc.x, 0.0) / PGRID_STEP
+	var fz := (pc.y + PGRID_Z) / PGRID_STEP
+	if fz < 0.0 or fd >= PGRID_ND - 1 or fz >= PGRID_NZ - 1:
+		return plateau_height(cliff_id, maxf(pc.x, 0.0), pc.y)
+	var id := int(fd)
+	var iz := int(fz)
+	var rows := _pr0 if cliff_id == 0 else _pr1
+	if rows.is_empty() or rows[id] == 0 or rows[id + 1] == 0:
+		_fill_prow(cliff_id, id)
+		_fill_prow(cliff_id, id + 1)
+	var g := _p0 if cliff_id == 0 else _p1
+	var o := id * PGRID_NZ + iz
+	var tz := fz - iz
+	return lerpf(lerpf(g[o], g[o + 1], tz), lerpf(g[o + PGRID_NZ], g[o + PGRID_NZ + 1], tz), fd - id)
+
+
+func _fill_prow(cliff_id: int, id: int) -> void:
+	var d := id * PGRID_STEP
+	if cliff_id == 0:
+		if _pr0.is_empty():
+			_pr0.resize(PGRID_ND)
+			_p0.resize(PGRID_ND * PGRID_NZ)
+		if _pr0[id] != 0:
+			return
+		for iz in PGRID_NZ:
+			_p0[id * PGRID_NZ + iz] = plateau_height(0, d, -PGRID_Z + iz * PGRID_STEP)
+		_pr0[id] = 1
+	else:
+		if _pr1.is_empty():
+			_pr1.resize(PGRID_ND)
+			_p1.resize(PGRID_ND * PGRID_NZ)
+		if _pr1[id] != 0:
+			return
+		for iz in PGRID_NZ:
+			_p1[id * PGRID_NZ + iz] = plateau_height(1, d, -PGRID_Z + iz * PGRID_STEP)
+		_pr1[id] = 1
+
+
 ## World position on a cliff face.
 func face_point(cliff_id: int, y: float, z: float) -> Vector3:
 	var s := WorldLayout.side_sign(cliff_id)

@@ -5,11 +5,12 @@ extends RefCounted
 ## clears for the build phase.
 ##   Clear         standard rules
 ##   Windy         turret shots miss more, lobbed shots drift, players get pushed
-##   Light Rain    crops grow 1.5x faster and need no watering; catchers fill fast
+##   Light Rain    crops grow 1.5x faster and need no watering; catchers fill ~7x faster
 ##   Thunderstorm  rain effects plus lightning (1 in 10 strikes wrecks a turret)
 ##   Snow (rare)   frost eats growing crops; the cold slows bugs
 ##   Dust storm    (rare) you can barely see: turrets reach only ~55% as far
-##   Heat wave     turrets overheat (fire slower); the heat dries crops and catchers
+##   Heat wave     turrets overheat (fire slower); the heat dries crops and catchers,
+##                 and players get thirsty up to twice as fast
 ##   Fog bank      turrets reach only ~65% as far unless a lantern lights them up
 ##   Blood moon    (very rare, night only) a much bigger wave; bugs drop 2x chitin
 ## Temperature (degrees F) comes from the time of day plus the weather. It
@@ -23,11 +24,11 @@ const NAMES: Array[String] = ["Clear skies", "Windy", "Light rain", "Thunderstor
 const BLURBS: Array[String] = [
 	"Clear skies. Standard rules.",
 	"Wind's picking up: turrets miss more, mortars drift, and you'll get pushed around.",
-	"Light rain: crops grow faster and need no water.",
-	"Thunderstorm: rain feeds the crops, but lightning can wreck a turret.",
+	"Light rain: crops grow faster and need no water, and rain catchers fill fast.",
+	"Thunderstorm: rain feeds the crops and fills the catchers, but lightning can wreck a turret.",
 	"SNOW? Frost is killing the crops, but the cold slows the bugs.",
-	"Dust storm! Turrets can barely see. Get on the guns yourself.",
-	"Heat wave: turrets run hot and fire slower, crops and catchers dry out.",
+	"Dust storm! Turrets see only about half as far (lanterns help) and so do you. Get on the guns yourself.",
+	"Heat wave: turrets run hot and fire slower, crops and catchers dry out, and you get thirsty fast.",
 	"Fog bank rolling in: turrets can't see far unless a lantern lights the way.",
 	"BLOOD MOON. A huge swarm is coming, and every bug drops double chitin.",
 ]
@@ -144,6 +145,11 @@ static func crop_temp_rate(t: float) -> float:
 ## Bug speed from temperature: sluggish in the cold, quick in the heat.
 static func bug_temp_speed(t: float) -> float:
 	return clampf(lerpf(0.75, 1.15, (t - 30.0) / 85.0), 0.75, 1.15)
+
+
+## How fast players get thirsty: normal up to 85 F, about twice as fast at 115 F.
+static func thirst_rate(t: float) -> float:
+	return clampf(1.0 + (t - 85.0) / 30.0, 0.8, 2.0)
 
 
 ## Rain-catcher fill speed multiplier (heat evaporates it).

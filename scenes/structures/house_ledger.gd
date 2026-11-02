@@ -65,7 +65,7 @@ func menu_items(_tab: int) -> Array:
 		out.append({"id": i, "name": u["name"], "icon": ICONS.get(u["id"], &"house"), "desc": u["desc"],
 				"price": Homestead.cost_text(u["cost"]), "price_ok": Economy.can_afford(cid, u["cost"]),
 				"disabled": why, "buttons": [[&"buy", "Buy"]]})
-	return out
+	return Perks.discount_menu(out, &"carpenter", cid) # Perk: Carpenter
 
 
 func menu_press(id: Variant, _action: StringName) -> void:

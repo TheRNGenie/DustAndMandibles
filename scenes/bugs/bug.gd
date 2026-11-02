@@ -2,8 +2,12 @@ class_name Bug
 extends Node3D
 ## A giant bug. The host runs its brain (LaneClimber on the cliff face, Breacher on
 ## the plateau, Flier in the air) and owns its HP. Clients only get state + climb
-## height + lane position (or ground/air position) + HP at 10 Hz and rebuild the
-## transform from the shared cliff surface, so climbing bugs cost almost no bandwidth.
+## height + lane position (or ground/air position) + HP at 10 Hz (BugManager packs
+## every bug into a few packets) and rebuild the transform from the shared cliff
+## surface, so climbing bugs cost almost no bandwidth.
+## Cheap to have hundreds of: the body, legs and wings are slots in shared
+## MultiMeshes (LegBatch), the face is only worn by the nearest few (BugFace
+## pool), and one Hitbox body holds both the shell and weak-spot spheres.
 
 signal died(bug: Bug, source: String, source_cliff: int)
 signal fled(bug: Bug)
@@ -31,8 +35,15 @@ var speed_mult: float = 1.0:
 		if status != null:
 			status.frozen = v <= 0.0
 var brood_done := false
+## Host: loot a breaching thief grabbed from its cliff's stockpile (dropped if it's killed).
+var stolen: Dictionary = {}
 ## 1 in 100 bugs spawn smoking a cigarette and move twice as fast.
 var smoker := false
+## Crowd disc radius and weight (BugCrowd), worked out once.
+var crowd_r := 0.0
+var crowd_w := 1.0
+## Network id (BugManager's batched state sync finds bugs by it).
+var net_id := 0
 var _face: BugFace
 
 # Replicated state.
@@ -50,7 +61,16 @@ var _climber: LaneClimber
 var _breacher: Breacher
 var _flier: Flier
 var _legs: LegRig
-var _body: MeshInstance3D
+var _hitbox: Hitbox
+## The body's slot in its kind's MultiMesh, and its animated local transform.
+var _body_b: LegBatch
+var _body_slot := -1
+var _body_local := Transform3D()
+## Fliers' four wings (slots in the shared wing MultiMesh).
+var _wing_b: LegBatch
+var _wing_slots: Array[int] = []
+static var _wing_mesh: ArrayMesh
+static var _wing_mat: StandardMaterial3D
 var _heading := Vector3.FORWARD
 var _last_pos := Vector3.ZERO
 var _placed := false
@@ -71,22 +91,18 @@ func setup(d: BugDef, cid: int, lane_index: int, start_z: float, start_y: float,
 	health.name = "Health"
 	health.setup(d.max_hp * hp_mult)
 	add_child(health)
-	_body = MeshInstance3D.new()
-	_body.mesh = spec["body"]
-	_body.material_override = Materials.toon(0.03) # shared, so bodies of a kind batch together
-	_body.scale = Vector3.ONE * float(spec["scale"])
-	add_child(_body)
+	_body_local = Transform3D(Basis.from_scale(Vector3.ONE * float(spec["scale"])), Vector3.ZERO)
 	_legs = LegRig.new()
+	_legs.name = "Legs"
 	_legs.setup(spec)
+	_legs.set_clearance(float(spec["clearance"]))
+	crowd_r = float(spec["body_radius"]) * 0.85
+	crowd_w = BugCrowd.weight(d.size, d.behavior == BugDef.Behavior.BOSS)
 	add_child(_legs)
-	_face = BugFace.new()
-	_face.name = "Face"
-	add_child(_face)
-	_face.setup(self, spec, smoker)
-	health.changed.connect(func(_hp: float, _mx: float) -> void: _face.wince())
-	add_child(Hitbox.make(self, float(spec["body_radius"]), Vector3(0, float(spec["clearance"]) * 0.3, 0)))
-	add_child(WeakSpot.make(self, float(spec["weak_radius"]), spec["weak_spot"]))
-	add_child(_make_synchronizer())
+	health.changed.connect(_on_hp_changed)
+	_hitbox = Hitbox.make_bug(self, float(spec["body_radius"]), Vector3(0, float(spec["clearance"]) * 0.3, 0),
+			float(spec["weak_radius"]), spec["weak_spot"])
+	add_child(_hitbox)
 	status = BugStatus.new(self)
 	_climber = LaneClimber.new(self)
 	_breacher = Breacher.new(self)
@@ -108,18 +124,93 @@ func _ready() -> void:
 	_update_visibility()
 
 
-func _make_synchronizer() -> MultiplayerSynchronizer:
-	var cfg := SceneReplicationConfig.new()
-	for p: String in [".:state", ".:climb_y", ".:lane_z", ".:ground_pos", ".:crest_t", ".:cliff_id", ".:crouch", ".:ride", "Health:hp"]:
-		var path := NodePath(p)
-		cfg.add_property(path)
-		cfg.property_set_spawn(path, true)
-		cfg.property_set_replication_mode(path, SceneReplicationConfig.REPLICATION_MODE_ALWAYS)
-	var sync := MultiplayerSynchronizer.new()
-	sync.name = "Sync"
-	sync.replication_config = cfg
-	sync.replication_interval = 0.1
-	return sync
+func _enter_tree() -> void:
+	if _body_slot >= 0:
+		return
+	var root := get_tree().current_scene if get_tree().current_scene != null else get_tree().root
+	# Bodies of a kind share one mesh, so they draw as one MultiMesh (with shadows).
+	_body_b = LegBatch.of(spec["body"], Materials.toon(0.03), root, true)
+	_body_slot = _body_b.take()
+	if bool((spec.get("face", {}) as Dictionary).get("wings", false)):
+		_wing_b = LegBatch.of(_wings_mesh(), _wing_mat, root)
+		for i in 4:
+			_wing_slots.append(_wing_b.take())
+
+
+func _exit_tree() -> void:
+	if _body_slot >= 0:
+		_body_b.give_back(_body_slot)
+		_body_slot = -1
+	for s: int in _wing_slots:
+		_wing_b.give_back(s)
+	_wing_slots.clear()
+	# A bug that died hands its face back; the world closing just frees them.
+	if is_queued_for_deletion():
+		set_face(false)
+
+
+## Wears a face (pupils, brows, mandibles...) or hands it back to the pool.
+## BugManager gives faces to the nearest few bugs only.
+func set_face(on: bool) -> void:
+	if on == (_face != null):
+		return
+	if on:
+		_face = BugFace.acquire(self)
+		add_child(_face)
+		_face.visible = not is_hidden()
+		_place_face()
+	else:
+		BugFace.release(_face)
+		_face = null
+
+
+func has_face() -> bool:
+	return _face != null
+
+
+func _on_hp_changed(_hp: float, _mx: float) -> void:
+	if _face != null:
+		_face.wince()
+
+
+func _place_face() -> void:
+	var s := float(spec["scale"])
+	_face.transform = _body_local.scaled_local(Vector3.ONE / s) if s > 0.0 else Transform3D()
+
+
+## Writes the body (and wings) into their MultiMesh slots at the bug's transform.
+func _write_body() -> void:
+	if _body_slot < 0:
+		return
+	var g := global_transform
+	_body_b.put(_body_slot, g * _body_local)
+	if _wing_slots.is_empty():
+		return
+	var s := float(spec["scale"])
+	var face := g * (_body_local.scaled_local(Vector3.ONE / s) if s > 0.0 else Transform3D())
+	var k := 0
+	for side: float in [-1.0, 1.0]:
+		for z: float in [-0.25, 0.1]:
+			var flap := side * sin(_anim_t * 55.0 + (0.0 if z < 0.0 else 1.4)) * 0.55
+			var pivot := Transform3D(Basis(Vector3.BACK, flap), Vector3(side * 0.08, 0.12, z) * s)
+			_wing_b.put(_wing_slots[k], face * pivot * Transform3D(Basis.from_scale(Vector3(side, 1.0, 1.0) * s), Vector3.ZERO))
+			k += 1
+
+
+## Four see-through wings that buzz (dragonfly bandits): one mesh for every flier.
+static func _wings_mesh() -> ArrayMesh:
+	if _wing_mesh == null:
+		_wing_mat = StandardMaterial3D.new()
+		_wing_mat.albedo_color = Color(0.85, 0.95, 1.0, 0.45)
+		_wing_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_wing_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_wing_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		var st := MeshKit.begin()
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.7, 0, 0)), Vector3(0.7, 0.012, 0.16), 3, 10, Color(1, 1, 1))
+		for k in 4:
+			MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.35 + k * 0.25, 0.013, 0)), Vector3(0.01, 0.004, 0.24 - k * 0.04), Color(0.4, 0.5, 0.6))
+		_wing_mesh = MeshKit.finish(st)
+	return _wing_mesh
 
 
 func is_climbing() -> bool:
@@ -177,27 +268,24 @@ func _pp(delta: float) -> void:
 	_update_visibility()
 	if is_hidden():
 		return
-	# Level of detail: legs and body animation run every tick up close, every
-	# other tick far away, and not at all off-screen (they catch up on return).
+	# Level of detail: legs and body animation run every update on screen, and
+	# not at all off-screen (they catch up on return); the body still follows.
 	# (detail is set by BugManager.assign_detail, a few times a second)
 	_anim_acc += delta
-	_anim_skip += 1
-	var every := 0 if detail == 2 else 1
-	if every == 0 or _anim_skip < every:
-		return
-	_anim_skip = 0
-	_legs.set_lite(detail != 0)
-	_legs.update(_anim_acc, global_transform, spd, _project)
-	_animate_body(_anim_acc, spd)
-	_anim_acc = 0.0
+	if detail != 2:
+		_legs.set_lite(detail != 0)
+		# Feet only need the ground's shape off the cliff face (else: the plane under the body).
+		var walk := state == State.BREACHING or state == State.CROSSING
+		_legs.update(_anim_acc, global_transform, spd, _project if walk else Callable())
+		_animate_body(_anim_acc, spd)
+		_anim_acc = 0.0
+	_write_body()
 
 
 ## 0 = close and on screen, 1 = far but on screen, 2 = off screen (no camera: full),
 ## 3 = close but over the full-detail budget (a big crowd): updated like 2 but animated.
 var detail := 0
-var _lod_t := 0.0
 var _anim_acc := 0.0
-var _anim_skip := 0
 const LOD_FAR := 18.0
 ## Distance to the camera at the last detail check (faces only animate close up).
 var cam_dist := 0.0
@@ -212,13 +300,18 @@ func detail_level() -> int:
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam == null:
 		return 0
+	return detail_from(cam.global_position, cam.get_frustum())
+
+
+## detail_level() with the camera position and frustum worked out once for the crowd.
+func detail_from(cam_pos: Vector3, frustum: Array[Plane]) -> int:
 	var r := float(spec["body_radius"]) + float(spec["upper"]) + float(spec["lower"])
 	var p := global_position
-	var dist := cam.global_position.distance_to(p)
+	var dist := cam_pos.distance_to(p)
 	cam_dist = dist
 	if dist < r * 2.0 + 3.0:
 		return 0
-	for plane: Plane in cam.get_frustum():
+	for plane: Plane in frustum:
 		if plane.distance_to(p) > r:
 			return 2
 	return 0 if dist < LOD_FAR else 1
@@ -235,10 +328,12 @@ func _animate_body(delta: float, spd: float) -> void:
 	var stride := clampf(spd * 0.4, 0.0, 1.0)
 	# Ducking: squashed flat and a little wider, legs splayed (the leg rig follows the body).
 	var duck := 1.0 - 0.45 * crouch
-	_body.scale = Vector3(s * (1.0 - breathe * 0.5) * (1.0 + 0.12 * crouch), s * (1.0 + breathe) * duck, s * (1.0 - breathe * 0.3) * (1.0 + 0.08 * crouch))
-	_body.position = Vector3(0, absf(sin(_anim_t * (6.0 + spd * 2.0))) * 0.05 * s * stride, 0)
-	_body.rotation = Vector3(sin(_anim_t * (3.0 + spd)) * 0.04 * stride, 0, sin(_anim_t * (6.0 + spd * 2.0)) * 0.03 * stride)
-	_face.transform = _body.transform.scaled_local(Vector3.ONE / s) if s > 0.0 else Transform3D()
+	var scl := Vector3(s * (1.0 - breathe * 0.5) * (1.0 + 0.12 * crouch), s * (1.0 + breathe) * duck, s * (1.0 - breathe * 0.3) * (1.0 + 0.08 * crouch))
+	var pos := Vector3(0, absf(sin(_anim_t * (6.0 + spd * 2.0))) * 0.05 * s * stride, 0)
+	var rot := Vector3(sin(_anim_t * (3.0 + spd)) * 0.04 * stride, 0, sin(_anim_t * (6.0 + spd * 2.0)) * 0.03 * stride)
+	_body_local = Transform3D(Basis.from_euler(rot).scaled_local(scl), pos)
+	if _face != null:
+		_place_face()
 
 
 var _was_hidden := -1
@@ -249,12 +344,14 @@ func _update_visibility() -> void:
 	if int(hidden) == _was_hidden:
 		return
 	_was_hidden = int(hidden)
-	_body.visible = not hidden
-	_legs.visible = not hidden
-	_face.visible = not hidden
-	for c in get_children():
-		if c is Hitbox:
-			(c as Hitbox).collision_layer = 0 if hidden else WorldLayout.LAYER_BUG
+	if hidden and _body_slot >= 0:
+		_body_b.hide(_body_slot)
+		for s: int in _wing_slots:
+			_wing_b.hide(s)
+	_legs.set_shown(not hidden)
+	if _face != null:
+		_face.visible = not hidden
+	_hitbox.collision_layer = 0 if hidden else WorldLayout.LAYER_BUG
 
 
 func _think(delta: float) -> void:
@@ -345,12 +442,7 @@ func _update_heading() -> void:
 
 
 func _face_transform(y: float, clear: float) -> Transform3D:
-	var n := cliffs.face_normal(cliff_id, y, lane_z)
-	var p := cliffs.face_point(cliff_id, y, lane_z)
-	var up_face := (cliffs.face_point(cliff_id, y + 0.5, lane_z) - cliffs.face_point(cliff_id, y - 0.5, lane_z)).normalized()
-	var z_axis := -(up_face - n * up_face.dot(n)).normalized()
-	var x_axis := n.cross(z_axis).normalized()
-	return Transform3D(Basis(x_axis, n, z_axis), p + n * clear)
+	return cliffs.face_frame(cliff_id, y, lane_z, clear)
 
 
 func _ground_transform(pos: Vector3, heading: Vector3, clear: float) -> Transform3D:
@@ -360,7 +452,7 @@ func _ground_transform(pos: Vector3, heading: Vector3, clear: float) -> Transfor
 		h = -_outward()
 	var z_axis := -h.normalized()
 	var x_axis := Vector3.UP.cross(z_axis).normalized()
-	var ground := Vector3(pos.x, cliffs.ground_height_at(cliff_id, pos) + clear, pos.z)
+	var ground := Vector3(pos.x, cliffs.ground_height_fast(cliff_id, pos) + clear, pos.z)
 	return Transform3D(Basis(x_axis, Vector3.UP, z_axis), ground)
 
 
@@ -376,7 +468,7 @@ func _outward() -> Vector3:
 ## Projects a point onto the surface under the bug (for foot placement).
 func _project(point: Vector3, up: Vector3) -> Vector3:
 	if state == State.BREACHING:
-		return Vector3(point.x, cliffs.ground_height_at(cliff_id, point), point.z)
+		return Vector3(point.x, cliffs.ground_height_fast(cliff_id, point), point.z)
 	if state == State.CROSSING:
 		return Vector3(point.x, cliffs.floor_height(point.x, point.z), point.z)
 	var base := global_position - up * float(spec["clearance"])

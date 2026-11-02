@@ -65,8 +65,10 @@ func menu_build_body(body: Control, _screen: MenuScreen) -> void:
 			labels.append(opt[1])
 			if opt[0] == Settings.look.get(slot):
 				selected = i
-		col.add_child(MenuScreen.toggle_row(labels, selected, func(i: int) -> void:
-			Settings.set_look(slot, str(info[1][i][0]))))
+		var options := MenuScreen.toggle_row(labels, selected, func(i: int) -> void:
+			Settings.set_look(slot, str(info[1][i][0])))
+		col.add_child(options)
+		Perks.lock_look_row(options, slot) # Perk: some looks are bought with Brands (Rancher's Ledger)
 
 
 func menu_press(_id: Variant, _action: StringName) -> void:

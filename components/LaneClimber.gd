@@ -77,6 +77,14 @@ func _wander(d: BugDef) -> void:
 	var reach := 8.0 if leaper else 5.0
 	var half := WorldLayout.PLATEAU_WIDTH * 0.5 - 2.0
 	target_z = clampf(bug.lane_z + randf_range(-reach, reach), -half, half)
+	# Weak spots: weigh a couple of spots against how many turrets still cover
+	# the climb above each (precomputed table, so this stays cheap at 750 bugs).
+	var cm := CoverageMap.instance
+	if cm != null:
+		var other := clampf(bug.lane_z + randf_range(-reach, reach), -half, half)
+		var picks := [cm.cover_ahead(bug.cliff_id, target_z, bug.climb_y), cm.cover_ahead(bug.cliff_id, other, bug.climb_y)]
+		if CoverageMap.pick_weakest(picks, [randf(), randf()]) == 1:
+			target_z = other
 
 
 func _spit(delta: float) -> void:

@@ -17,6 +17,7 @@ var _next_id := 0
 static var instance: BugManager
 var _next_loot := 0
 var _loot: Dictionary = {} # loot id -> LootDrop (every peer)
+var _stolen_loot: Dictionary = {} # host: loot id -> [cliff, {res: amount}] a thief dropped
 ## Burning chili patches: {cliff, center, radius, dps, left, source, source_cliff}
 var _fires: Array[Dictionary] = []
 
@@ -131,6 +132,9 @@ func _spawn_bug(data: Variant) -> Node:
 	var d := data as Dictionary
 	var bug := Bug.new()
 	bug.name = "Bug%d" % int(d["id"])
+	bug.net_id = int(d["id"])
+	_by_id[bug.net_id] = bug
+	bug.tree_exited.connect(_forget.bind(bug.net_id, bug))
 	bug.smoker = bool(d.get("smoke", false))
 	bug.setup(Defs.bug(StringName(d["bug"])), int(d["cliff"]), int(d["lane"]),
 			float(d["z"]), float(d["y"]), float(d["hp"]), int(d.get("state", Bug.State.CLIMBING)),
@@ -143,6 +147,15 @@ func _spawn_bug(data: Variant) -> Node:
 		bug.died.connect(_on_bug_died)
 		bug.fled.connect(_on_bug_fled)
 	return bug
+
+
+func _forget(id: int, bug: Bug) -> void:
+	if _by_id.get(id) == bug:
+		_by_id.erase(id)
+
+
+func _exit_tree() -> void:
+	BugFace.clear_pool()
 
 
 func alive_count() -> int:
@@ -180,6 +193,10 @@ func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 		else:
 			at.y = Bug.cliffs.ground_height_at(bug.cliff_id, at) if Bug.cliffs != null else at.y - 3.0
 		_spawn_loot.rpc(_next_loot, at, extra, bug.def.display_name, bug.def.shell_color)
+		# [Gameplay hook] A thief killed on its way out drops what it stole.
+		if not bug.stolen.is_empty():
+			_stolen_loot[_next_loot] = [bug.cliff_id, bug.stolen]
+			_mark_stolen.rpc(_next_loot, bug.stolen)
 	_pop.rpc(bug.global_position, bug.def.shell_color, float(bug.spec["scale"]))
 	_announce_kill.rpc(bug.def.display_name, bug.cliff_id, source, source_cliff, bug.def.scrap_drop)
 	bug.queue_free()
@@ -206,7 +223,10 @@ func _announce_kill(bug_name: String, bug_cliff: int, source: String, source_cli
 
 
 func _on_bug_fled(bug: Bug) -> void:
-	_announce_line.rpc("A %s got away with its loot!" % bug.def.display_name)
+	if not bug.stolen.is_empty():
+		_announce_line.rpc("A %s got over the lip with %s!" % [bug.def.display_name, Economy.describe(bug.stolen)])
+	else:
+		_announce_line.rpc("A %s got away with its loot!" % bug.def.display_name)
 	bug.queue_free()
 
 
@@ -260,6 +280,10 @@ func _physics_process(delta: float) -> void:
 	_hand_out_turns()
 	if not multiplayer.is_server():
 		return
+	_sync_t += delta
+	if _sync_t >= SYNC_INTERVAL:
+		_sync_t = 0.0
+		send_states()
 	# Every other tick is plenty for keeping bugs apart.
 	_sep_tick = not _sep_tick
 	if _sep_tick:
@@ -321,6 +345,9 @@ func _draw_spit(from: Vector3, to: Vector3, flight: float) -> void:
 ## At most this many bugs get full-detail updates (every tick) at once; the rest
 ## of a close crowd updates every few ticks. The nearest ones win.
 const FULL_DETAIL_BUDGET := 40
+## Faces aren't drawn past 14 m: bugs further than this don't wear one.
+const FACE_RANGE := 17.0
+const FACES_PER_PASS := 8
 const FAR_BUDGET := 100
 var _detail_t := 0.0
 var _sep_tick := false
@@ -351,19 +378,43 @@ func _hand_out_turns() -> void:
 
 
 func assign_detail() -> void:
+	var cam := get_viewport().get_camera_3d()
 	var seen: Array[Bug] = []
+	var dists := PackedFloat32Array()
+	var cam_pos := cam.global_position if cam != null else Vector3.ZERO
+	var frustum: Array[Plane] = cam.get_frustum() if cam != null else ([] as Array[Plane])
 	for c in get_children():
 		var b := c as Bug
 		if b == null or not b.is_alive():
 			continue
-		b.detail = b.detail_level()
+		b.detail = b.detail_from(cam_pos, frustum) if cam != null else 0
 		if b.detail < 2:
 			seen.append(b)
-	if seen.size() <= FULL_DETAIL_BUDGET:
-		return
-	seen.sort_custom(func(x: Bug, y: Bug) -> bool: return x.cam_dist < y.cam_dist)
-	for i in range(FULL_DETAIL_BUDGET, seen.size()):
-		seen[i].detail = 1 if i < FULL_DETAIL_BUDGET + FAR_BUDGET else 3
+			dists.append(b.cam_dist)
+	if seen.size() > FULL_DETAIL_BUDGET:
+		# The nearest FULL_DETAIL_BUDGET stay full detail, the next FAR_BUDGET far,
+		# the rest of a close crowd take turns (cut-offs from a native sort).
+		var sorted := dists.duplicate()
+		sorted.sort()
+		var near_cut := sorted[FULL_DETAIL_BUDGET - 1]
+		var far_cut := sorted[mini(FULL_DETAIL_BUDGET + FAR_BUDGET - 1, sorted.size() - 1)]
+		for i in seen.size():
+			var d := dists[i]
+			if d > near_cut:
+				seen[i].detail = 1 if d <= far_cut else 3
+	# Faces (pupils, brows, mandibles) only on full-detail bugs close enough to
+	# see them; a few new ones per pass so a rush of bugs can't stall a frame.
+	var handed := 0
+	for c in get_children():
+		var b := c as Bug
+		if b == null:
+			continue
+		var want := cam != null and b.is_alive() and b.detail == 0 and b.cam_dist < (FACE_RANGE + 3.0 if b.has_face() else FACE_RANGE)
+		if want and not b.has_face():
+			if handed >= FACES_PER_PASS:
+				continue
+			handed += 1
+		b.set_face(want)
 
 
 func separate() -> void:
@@ -399,8 +450,8 @@ func separate() -> void:
 		var wt: Array[float] = []
 		for b: Bug in bugs:
 			pos.append(Vector2(b.lane_z, b.climb_y) if key < 10 else Vector2(b.ground_pos.x, b.ground_pos.z))
-			rad.append(float(b.spec["body_radius"]) * 0.85)
-			wt.append(BugCrowd.weight(b.def.size, b.def.behavior == BugDef.Behavior.BOSS))
+			rad.append(b.crowd_r)
+			wt.append(b.crowd_w)
 		var res := BugCrowd.resolve(pos, rad, wt)
 		var push: Array[Vector2] = res["push"]
 		for i in bugs.size():
@@ -438,6 +489,14 @@ func _spawn_loot(id: int, at: Vector3, chitin: int, bug_name: String, shell: Col
 	_loot[id] = drop
 
 
+## Every peer: this heap also holds stolen goods (shown in its prompt).
+@rpc("authority", "call_local", "reliable")
+func _mark_stolen(id: int, amounts: Dictionary) -> void:
+	var drop := _loot.get(id) as LootDrop
+	if drop != null and is_instance_valid(drop):
+		drop.stolen = amounts
+
+
 ## Local player pressed E on a loot heap.
 func request_loot(id: int) -> void:
 	if multiplayer.is_server():
@@ -462,6 +521,12 @@ func _take_loot(peer_id: int, id: int) -> void:
 			cid = (n as Player).cliff_id
 	Economy.earn(cid, {&"chitin": drop.chitin})
 	Economy.notify(peer_id, "Looted the %s: +%d chitin." % [drop.bug_name.to_lower(), drop.chitin])
+	# [Gameplay hook] Stolen goods go back to the stockpile they were taken from.
+	if _stolen_loot.has(id):
+		var back: Array = _stolen_loot[id]
+		_stolen_loot.erase(id)
+		Economy.earn(int(back[0]), back[1])
+		Economy.notify_cliff(int(back[0]), "Got back the stolen %s." % Economy.describe(back[1]))
 	_remove_loot.rpc(id)
 
 
@@ -472,3 +537,68 @@ func _remove_loot(id: int) -> void:
 	if drop != null and is_instance_valid(drop):
 		Audio.play_at(&"coin", drop.global_position, -4.0)
 		drop.queue_free()
+
+
+# ------------------------------------------------------------------ state sync
+
+## Every peer: bugs by network id (the batched state sync finds them by it).
+var _by_id: Dictionary = {}
+var _sync_t := 0.0
+var _net_packets := 0
+var _net_bugs := 0
+var _net_log_t := 0
+## How often the host sends every bug's state, and how many bugs per packet
+## (kept under one MTU, so a lost packet only costs those bugs a tick).
+const SYNC_INTERVAL := 0.1
+const SYNC_PER_PACKET := 48
+
+
+## Host: packs every bug's replicated state (see Bug) into a few unreliable
+## packets: one batched sync for the whole crowd instead of a synchronizer each.
+func send_states() -> void:
+	if multiplayer.multiplayer_peer == null or multiplayer.get_peers().is_empty():
+		return
+	var buf := PackedByteArray()
+	var count := 0
+	for c in get_children():
+		var b := c as Bug
+		if b == null or b.net_id == 0:
+			continue
+		buf.append_array(BugSync.pack_state(b.net_id, b.state, b.cliff_id, b.crouch, b.ride, b.health.hp,
+				b.climb_y, b.lane_z, b.crest_t, b.ground_pos))
+		count += 1
+		if count >= SYNC_PER_PACKET:
+			_bug_states.rpc(buf)
+			buf = PackedByteArray()
+			count = 0
+	if count > 0:
+		_bug_states.rpc(buf)
+
+
+## Clients: apply a batch of bug states from the host (Bug smooths toward them).
+@rpc("authority", "call_remote", "unreliable")
+func _bug_states(buf: PackedByteArray) -> void:
+	var states := BugSync.unpack_states(buf)
+	if GameState.has_flag("--netlog"):
+		_net_packets += 1
+		_net_bugs += states.size()
+		if Time.get_ticks_msec() - _net_log_t > 5000:
+			_net_log_t = Time.get_ticks_msec()
+			print("[net] bug sync: %d packets, %d bug states, %d bugs known here" % [_net_packets, _net_bugs, _by_id.size()])
+	for d: Dictionary in states:
+		var b := _by_id.get(int(d["id"])) as Bug
+		if b == null or not is_instance_valid(b):
+			continue
+		b.state = int(d["state"])
+		b.cliff_id = int(d["cliff"])
+		b.crouch = float(d["crouch"])
+		b.ride = float(d["ride"])
+		if d.has("climb_y"):
+			b.climb_y = float(d["climb_y"])
+			b.lane_z = float(d["lane_z"])
+			b.crest_t = float(d["crest_t"])
+		else:
+			b.ground_pos = d["ground_pos"]
+		var hp := float(d["hp"])
+		if not is_equal_approx(b.health.hp, hp):
+			b.health.hp = hp

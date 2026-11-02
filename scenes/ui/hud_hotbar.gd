@@ -39,8 +39,9 @@ func _ready() -> void:
 		p.add_child(stack)
 		var icon := ItemIcon.new()
 		icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		icon.host = self
 		stack.add_child(icon)
-		var key := UiStyle.label(str(i + 1), 12, Palette.GLOW_YELLOW)
+		var key := UiStyle.label(str((i + 1) % 10), 12, Palette.GLOW_YELLOW) # the 10th slot is key 0
 		key.autowrap_mode = TextServer.AUTOWRAP_OFF
 		key.position = Vector2(2, -2)
 		stack.add_child(key)
@@ -74,6 +75,8 @@ func refresh() -> void:
 		var info := hotbar.slot_info(i)
 		_icons[i].item = info["id"]
 		_icons[i].queue_redraw()
+		# Icons render a frame later: redraw once they're ready.
+		get_tree().create_timer(0.2).timeout.connect(_icons[i].queue_redraw)
 		_counts[i].text = str(info["count"])
 		var sb := UiStyle.wood_sign()
 		sb.set_content_margin_all(4)
@@ -88,8 +91,17 @@ func refresh() -> void:
 ## Simple drawn icons for hotbar items (no image files).
 class ItemIcon extends Control:
 	var item: StringName = &""
+	## Where the 3D icon renders live (the hotbar itself).
+	var host: Node
 
 	func _draw() -> void:
+		# A picture of the real model where we have one; the drawn icon otherwise.
+		if item != &"" and host != null:
+			var tex := IconStudio.item(host, item)
+			if tex != null:
+				var side := minf(size.x, size.y) * 1.15
+				draw_texture_rect(tex, Rect2(size * 0.5 - Vector2(side, side) * 0.5, Vector2(side, side)), false)
+				return
 		var c := size * 0.5
 		var s := minf(size.x, size.y) * 0.4
 		var dark := Palette.OUTLINE

@@ -180,10 +180,12 @@ func _do_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> void:
 		return
 	if (_cpu_builder == "" and not may_build(peer_id, cid)) or not is_free_for(id, cid, cell) or GameState.phase == GameState.Phase.GAME_OVER:
 		return
-	var cost := Defs.cost_of(id)
+	var cost := Perks.build_cost(peer_id, id) # Perk: Bulk Lumber / Barn Raising
 	if _cpu_builder == "" and not Economy.spend(cid, {&"scrap": cost}):
 		Economy.notify(peer_id, "Not enough scrap for a %s (%d)." % [Defs.name_of(id), cost])
 		return
+	if _cpu_builder == "":
+		Perks.note_built(peer_id, id) # Perk: Barn Raising used up
 	if id == &"scaffold" and scaffold_levels(cid, cell) > 0:
 		(_scaffolds[_cell_key(cid, cell)] as ScaffoldNode).set_levels(scaffold_levels(cid, cell) + 1)
 		_built_fx.rpc(Buildable.cell_center(cliffs, cid, cell))
@@ -200,7 +202,7 @@ func _do_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> void:
 			level = 1
 	_next_id += 1
 	_spawner.spawn({"id": _next_id, "type": id, "cliff": cid, "row": cell.x, "col": cell.y,
-			"level": level, "owner": _name_of(peer_id)})
+			"level": level, "owner": _name_of(peer_id), "peer": peer_id}) # Perk: "peer" for the builder's perks
 
 
 func _spawn_built(data: Variant) -> Node:
@@ -214,6 +216,7 @@ func _spawn_built(data: Variant) -> Node:
 	if Defs.is_turret(id):
 		var t := Turret.new()
 		t.setup(Defs.turret(id), cid, cell, pos + Vector3.UP * ScaffoldNode.LEVEL_HEIGHT * level, str(d["owner"]), level)
+		Perks.apply_turret(t, int(d.get("peer", 0))) # Perk: Long Sights / Well Oiled / Reinforced Frames
 		node = t
 	elif id == &"scaffold":
 		var sc := ScaffoldNode.new()
@@ -288,7 +291,7 @@ func _do_demolish(peer_id: int, n: Node3D) -> void:
 		if turret_at(cid, sc.cell, sc.levels) != null:
 			Economy.notify(peer_id, "Remove the turret on the top level first.")
 			return
-		Economy.earn(cid, {&"scrap": int(Defs.cost_of(&"scaffold") * DEMOLISH_REFUND)})
+		Economy.earn(cid, {&"scrap": int(Defs.cost_of(&"scaffold") * DEMOLISH_REFUND * Perks.more(peer_id, &"salvager"))}) # Perk: Salvager
 		if sc.levels <= 1:
 			sc.queue_free()
 		else:
@@ -299,7 +302,7 @@ func _do_demolish(peer_id: int, n: Node3D) -> void:
 	var h: Variant = n.get("health")
 	if h != null:
 		fraction = (h as Health).fraction()
-	Economy.earn(cid, {&"scrap": int(Defs.cost_of(id) * DEMOLISH_REFUND * fraction)})
+	Economy.earn(cid, {&"scrap": int(Defs.cost_of(id) * DEMOLISH_REFUND * fraction * Perks.more(peer_id, &"salvager"))}) # Perk: Salvager
 	n.queue_free()
 
 
@@ -318,7 +321,7 @@ func _do_repair(peer_id: int, n: Node3D) -> void:
 	var payer := Economy.payer_cliff(peer_id, t.cliff_id)
 	if not Economy.spend(payer, {&"scrap": int(ceil(REPAIR_CHUNK / REPAIR_HP_PER_SCRAP))}):
 		return
-	t.repair(REPAIR_CHUNK)
+	t.repair(REPAIR_CHUNK * Perks.more(peer_id, &"tinker")) # Perk: Tinker
 
 
 func _do_upgrade(peer_id: int, n: Node3D) -> void:
@@ -328,8 +331,9 @@ func _do_upgrade(peer_id: int, n: Node3D) -> void:
 	var payer := Economy.payer_cliff(peer_id, t.cliff_id)
 	# A casino upgrade token pays first; otherwise chitin.
 	var paid := Economy.amount(payer, Turret.UPGRADE_TOKEN) > 0 and Economy.spend(payer, {Turret.UPGRADE_TOKEN: 1})
-	if not paid and not Economy.spend(payer, {&"chitin": t.upgrade_cost()}):
-		Economy.notify(peer_id, "Upgrading needs %d chitin (armoured bugs and the airship market give it)." % t.upgrade_cost())
+	var chitin := Perks.discount(peer_id, &"chitin_smith", t.upgrade_cost()) # Perk: Chitin Smith
+	if not paid and not Economy.spend(payer, {&"chitin": chitin}):
+		Economy.notify(peer_id, "Upgrading needs %d chitin (armoured bugs and the airship market give it)." % chitin)
 		return
 	t.upgrade()
 	Economy.notify(peer_id, "%s upgraded: %s." % [t.def.display_name, TurretDef.TIER_NAMES[t.tier]])
@@ -365,6 +369,27 @@ func _wreck(pos: Vector3, text: String) -> void:
 		Turret.vfx.pop(pos + Vector3.UP, Palette.WOOD, 1.6)
 	Audio.play_at(&"dynamite", pos, -6.0)
 	structure_event.emit(text)
+
+
+## Host: puts a saved build back exactly where it was (Continue last run): no
+## cost, no grid checks, at the saved scaffold level. Returns the new node.
+func restore_built(id: StringName, cid: int, cell: Vector2i, level: int, owner_label: String) -> Node3D:
+	if not multiplayer.is_server() or not (Defs.is_turret(id) or Defs.STRUCTURES.has(id)):
+		return null
+	_next_id += 1
+	return _spawner.spawn({"id": _next_id, "type": id, "cliff": cid, "row": cell.x, "col": cell.y,
+			"level": level, "owner": owner_label}) as Node3D
+
+
+# Perk: start-of-run gifts (Homestead Plot, Old Scaffolds) go up free for the player.
+func free_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> bool:
+	if not multiplayer.is_server() or not is_free_for(id, cid, cell):
+		return false
+	var who := _name_of(peer_id)
+	_cpu_builder = who
+	_do_build(peer_id, id, cid, cell)
+	_cpu_builder = ""
+	return true
 
 
 func _name_of(peer_id: int) -> String:

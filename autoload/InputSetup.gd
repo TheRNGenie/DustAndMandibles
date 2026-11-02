@@ -25,7 +25,9 @@ const KEY_BINDINGS: Dictionary = {
 	"debug_overlay": [KEY_F3],
 	"ready_up": [KEY_G],
 	"emote": [KEY_H], # co-op/UI: hold for the emote wheel
+	"overview_map": [KEY_M], # the canyon map
 	"photo_mode": [KEY_P], # co-op/UI: hide the HUD, then free camera
+	"build_camera": [KEY_TAB], # build mode: raised over-the-shoulder view
 	"debug_skip_phase": [KEY_F6],
 	"debug_add_scrap": [KEY_F7],
 	"debug_spawn_bug": [KEY_F8],

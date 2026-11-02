@@ -13,13 +13,8 @@ signal hit_confirmed(weak: bool)
 ## The equipped weapon or the owned set changed (for the hotbar).
 signal loadout_changed
 
-const WEAPONS: Dictionary = {
-	&"revolver": preload("res://data/weapons/revolver.tres"),
-	&"lever_rifle": preload("res://data/weapons/lever_rifle.tres"),
-	&"coach_shotgun": preload("res://data/weapons/coach_shotgun.tres"),
-	&"blunderbuss": preload("res://data/weapons/blunderbuss.tres"),
-	&"crank_gatling": preload("res://data/weapons/crank_gatling.tres"),
-}
+## [Foundation] Guns are registered in Defs.WEAPONS with the rest of the content.
+const WEAPONS: Dictionary = Defs.WEAPONS
 const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling"]
 const MAX_RANGE := 300.0
 const IMPACT_FORCE := 4.0
@@ -177,11 +172,11 @@ func code_of(id: StringName) -> int:
 
 # Effective stats of the gun in hand, with its mods.
 func mag_size() -> int:
-	return def.mag_size + WeaponMods.add(def.id, code_of(def.id), "mag") if def != null else 0
+	return def.mag_size + WeaponMods.add(def.id, code_of(def.id), "mag") + PerkTable.bandolier_bonus(def.mag_size, Perks.local_rank(&"bandolier")) if def != null else 0 # Perk: Bandolier
 
 
 func fire_interval() -> float:
-	return def.fire_interval * WeaponMods.mult(def.id, code_of(def.id), "fire_interval")
+	return def.fire_interval * WeaponMods.mult(def.id, code_of(def.id), "fire_interval") * Perks.local_less(&"hair_trigger") # Perk: Hair Trigger
 
 
 func reload_time() -> float:
@@ -281,6 +276,11 @@ static func damage_for(id: StringName, code: int) -> float:
 
 static func range_for(id: StringName, code: int) -> float:
 	return weapon(id).range * WeaponMods.mult(id, code, "range")
+
+
+## Damage of one pellet/bullet that hit `dist` metres from the shooter (falloff).
+static func damage_at(id: StringName, code: int, dist: float) -> float:
+	return damage_for(id, code) * weapon(id).falloff(dist)
 
 
 static func pierce_for(id: StringName, code: int) -> bool:
@@ -412,7 +412,7 @@ func _feel_offset() -> Array:
 
 ## Times for this gun: tipping in, each round, closing up (faster with upgrades).
 func _times() -> Vector3:
-	var k := pow(0.85, level_of(def.id))
+	var k := pow(0.85, level_of(def.id)) * Perks.local_less(&"quick_hands") # Perk: Quick Hands
 	match def.id:
 		&"lever_rifle":
 			return Vector3(0.3, reload_time() * 0.2, 0.35) * k
@@ -504,6 +504,9 @@ func trigger(camera: Camera3D) -> bool:
 	var p := get_parent().get_parent().get_parent() as Player
 	if p != null:
 		p.add_shake(def.shake)
+		if p.is_multiplayer_authority():
+			# Per-gun role feel: the rifle and shotguns kick hard, the revolver barely.
+			p.add_recoil(def.recoil_deg * (0.7 if aiming else 1.0), def.recoil_yaw_deg, def.recoil_recover)
 	fired.emit(camera.global_position, -camera.global_transform.basis.z)
 	return true
 
@@ -569,8 +572,10 @@ func show_impact(hit: Dictionary, dir: Vector3, mine: bool = false, dmg: float =
 			vfx.spark(pos, normal, Palette.ACID_GREEN)
 			Audio.play_at(&"hit_tick", pos)
 			if mine:
-				var weak := (collider as Hitbox).multiplier > 1.0
-				vfx.damage_number(pos, dmg * (collider as Hitbox).multiplier, weak)
+				# [Foundation hook] one hitbox per bug now: the weak spot is read from the hit point.
+				var mult := (collider as Hitbox).multiplier_at(pos)
+				var weak := mult > 1.0
+				vfx.damage_number(pos, dmg * mult, weak)
 				hit_confirmed.emit(weak)
 		else:
 			vfx.spark(pos, normal)

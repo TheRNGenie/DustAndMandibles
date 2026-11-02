@@ -54,3 +54,10 @@ func _on_view() -> void:
 
 func _shoe() -> Array[int]:
 	return CasinoRules.new_shoe(_rng)
+
+
+## Host: pay out after the table's animation (shell game, beetle race).
+func _pay_later(peer_id: int, amounts: Dictionary, seconds: float) -> void:
+	if amounts.is_empty():
+		return
+	get_tree().create_timer(seconds, false).timeout.connect(_pay.bind(peer_id, amounts))

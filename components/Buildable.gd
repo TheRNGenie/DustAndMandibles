@@ -28,6 +28,8 @@ const WINDMILL := Vector2(20.0, -13.0)
 const WATER_TOWER := Vector2(28.0, -17.0)
 ## The big scrap heap beside the house (east of it, past the end of the field).
 const SALVAGE := Vector2(25.0, 11.0)
+## The campfire in front of the house, beside the path to the bridge (3 x 3 cells kept clear).
+const CAMPFIRE := Vector2(14.0, -9.0)
 ## Starter farm field: 3 x 4 farm plots (2 x 2 cells each) beside the house.
 const FIELD_COLS := [14, 16, 18]
 const FIELD_ROWS := [8, 6, 4, 2]
@@ -94,6 +96,9 @@ static func _landmark(cell: Vector2i) -> bool:
 		return true
 	var wt := cell_of(WATER_TOWER.x, WATER_TOWER.y)
 	if Rect2i(wt - Vector2i(1, 1), Vector2i(3, 3)).has_point(cell):
+		return true
+	var cf := cell_of(CAMPFIRE.x, CAMPFIRE.y)
+	if Rect2i(cf - Vector2i(1, 1), Vector2i(3, 3)).has_point(cell):
 		return true
 	var sp := cell_of(SALVAGE.x, SALVAGE.y)
 	if Rect2i(sp - Vector2i(2, 2), Vector2i(5, 5)).has_point(cell):

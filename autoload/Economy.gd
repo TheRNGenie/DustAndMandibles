@@ -5,6 +5,8 @@ extends Node
 signal resources_changed(cliff_id: int)
 ## A message for the local player ("Not enough water...").
 signal notice(text: String)
+## Every peer: a breaching bug carried this off a cliff's stockpile (HUD shows the loss).
+signal stolen_from(cliff_id: int, amounts: Dictionary)
 
 var ledger := EconomyLedger.new()
 
@@ -139,6 +141,29 @@ func steal(cliff_id: int, res: StringName, amount: int) -> int:
 		ledger.spend(_pool(cliff_id), {res: take})
 		_push()
 	return take
+
+
+## Host: a bug that breached grabs what it can of `wanted` ({res: amount}).
+## Returns what it actually took (empty if the stockpile was bare).
+func breach_steal(cliff_id: int, wanted: Dictionary) -> Dictionary:
+	var got := {}
+	for r: StringName in wanted:
+		var n := steal(cliff_id, r, int(wanted[r]))
+		if n > 0:
+			got[r] = n
+	if not got.is_empty():
+		_show_stolen.rpc(cliff_id, got)
+	return got
+
+
+@rpc("authority", "call_local", "reliable")
+func _show_stolen(cliff_id: int, amounts: Dictionary) -> void:
+	stolen_from.emit(cliff_id, amounts)
+
+
+## "12 scrap and 2 chitin" for messages.
+static func describe(amounts: Dictionary) -> String:
+	return BreachRules.describe(amounts)
 
 
 ## Host: message whoever owns a cliff (both players when solo).
