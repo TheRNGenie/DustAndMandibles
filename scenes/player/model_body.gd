@@ -126,18 +126,28 @@ func apply() -> void:
 	var to_rig := rig_inv * skel.global_transform
 	var sk_from_rig := to_rig.affine_inverse().basis
 	var raise := {}
+	var hang := {}
 	for m: Array in _map:
 		var pivot: Node3D = m[0]
 		var b: int = m[1]
 		var p_rig: Basis = (rig_inv.basis * pivot.global_basis).orthonormalized()
 		var rest: Basis = m[2]
 		if m[4]:
-			# How far this arm is raised from hanging (upper arm decides for the forearm too).
+			# Arms: point each bone where the rig's limb points (so elbows bend the
+			# way the rig bends them, whatever the model's bone roll), keeping the
+			# model's own relaxed hang when the arm is down.
 			var side := "L" if skel.get_bone_name(b).begins_with("Left") else "R"
 			if not raise.has(side):
 				var down := (p_rig * Vector3.DOWN).normalized()
 				raise[side] = smoothstep(0.25, 0.9, down.angle_to(Vector3.DOWN))
-			rest = (m[3] as Basis).slerp(m[2], raise[side])
+				var model_hang := ((m[3] as Basis) * Vector3.UP).normalized()
+				hang[side] = Basis().slerp(_rotation_between(Vector3.DOWN, model_hang), 1.0 - float(raise[side]))
+			var want := p_rig * ((hang[side] as Basis) * Vector3.DOWN)
+			var rest_m: Basis = m[3]
+			var rest_dir := (rest_m * Vector3.UP).normalized()
+			var aim_basis := _rotation_between(rest_dir, want.normalized()) * rest_m
+			skel.set_bone_global_pose(b, Transform3D((sk_from_rig * aim_basis).orthonormalized(), skel.get_bone_global_pose(b).origin))
+			continue
 		var target: Basis = sk_from_rig * (p_rig * rest)
 		var cur := skel.get_bone_global_pose(b)
 		var origin := cur.origin

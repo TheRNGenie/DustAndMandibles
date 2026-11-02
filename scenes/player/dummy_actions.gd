@@ -13,7 +13,12 @@ const DUR := {
 	&"loot": 1.0, &"slots": 1.0, &"cards": 1.0, &"dice": 1.05, &"roulette": 1.0,
 	&"chest": 0.9, &"ledger": 1.15, &"buy": 0.85, &"pickup": 0.8, &"hammer": 1.1,
 	&"zip": 0.6, &"wardrobe": 1.0,
+	# Idle business for NPCs.
+	&"stretch": 2.6, &"cross_arms": 5.0, &"wipe": 3.2, &"pocket_watch": 3.0,
+	&"scratch_head": 2.0, &"look_around": 3.4, &"shift_weight": 3.0,
 }
+## The idle moves shopkeepers pick from.
+const IDLES: Array[StringName] = [&"stretch", &"cross_arms", &"wipe", &"pocket_watch", &"scratch_head", &"look_around", &"shift_weight"]
 
 
 ## Sounds played during each move: [fraction of the move, sound, volume dB].
@@ -218,6 +223,49 @@ static func pose(rig: DummyRig, id: StringName, t: float, w: float) -> void:
 			for i in 2:
 				_arm(rig, i, Vector3(2.9, 0.0, (-0.2 if i == 0 else 0.2)), 0.2, w)
 			_head(rig, Vector3(0.2, 0, 0), w)
+		&"stretch":
+			# Arms up overhead, a lean back, a little shake out.
+			var up := sin(t * PI)
+			for i in 2:
+				var s := -1.0 if i == 0 else 1.0
+				_arm(rig, i, Vector3(2.9 * up, 0.0, s * 0.25 * up), 0.3 + 0.5 * (1.0 - up), w)
+			_rot(rig._torso, Vector3(0.18 * up, 0, sin(life * 3.0) * 0.04 * up), w)
+			_head(rig, Vector3(0.35 * up, 0, 0), w)
+		&"cross_arms":
+			# Arms folded, weight on one leg, now and then a glance.
+			for i in 2:
+				var s := -1.0 if i == 0 else 1.0
+				_arm(rig, i, Vector3(0.4, s * 0.75, 0.0), 1.75 + (0.1 if i == 1 else 0.0), w)
+			rig._hips.position.x = lerpf(rig._hips.position.x, 0.05, w)
+			_rot(rig._torso, Vector3(0.04, 0.0, -0.05), w)
+			_head(rig, Vector3(-0.05, sin(t * PI * 2.0) * 0.4, 0.06), w)
+		&"wipe":
+			# Wiping the counter in circles.
+			var c := t * PI * 8.0
+			_arm(rig, 1, Vector3(0.7 + sin(c) * 0.1, 0.25 + cos(c) * 0.25, 0.0), 0.7 + cos(c) * 0.2, w)
+			_arm(rig, 0, Vector3(0.5, -0.3, 0.0), 1.0, w)
+			_rot(rig._torso, Vector3(-0.22, cos(c) * 0.06, 0), w)
+			_head(rig, Vector3(-0.45, 0, 0), w)
+		&"pocket_watch":
+			# Fish out the watch, check the time, a slow look up.
+			var check := _seg(t, 0.2, 0.35) * (1.0 - _seg(t, 0.8, 0.95))
+			_arm(rig, 0, Vector3(0.7 * check + 0.05, -0.35 * check, 0.0), 1.5 * check + 0.2, w)
+			_arm(rig, 1, Vector3(0.6 * check + 0.05, 0.45 * check, 0.0), 1.5 * check + 0.2, w)
+			_head(rig, Vector3(-0.55 * check + 0.15 * _seg(t, 0.65, 0.8), 0, 0), w)
+		&"scratch_head":
+			var sc := sin(life * 18.0) * 0.08
+			_arm(rig, 1, Vector3(2.55 + sc, 0.25, 0.35), 2.3 - sc, w)
+			_head(rig, Vector3(0.05, -0.15, 0.12), w)
+		&"look_around":
+			# A slow look left, then right, then back.
+			_head(rig, Vector3(0.05, sin(t * TAU) * 0.75, 0), w)
+			_rot(rig._torso, Vector3(0, sin(t * TAU) * 0.18, 0), w)
+		&"shift_weight":
+			# Settle onto one hip, hand on the belt.
+			var sh := _seg(t, 0.1, 0.4) * (1.0 - _seg(t, 0.75, 1.0))
+			rig._hips.position.x = lerpf(rig._hips.position.x, 0.07 * sh, w)
+			_rot(rig._torso, Vector3(0, 0, -0.08 * sh), w)
+			_arm(rig, 1, Vector3(0.15, 0.0, 0.45 * sh + 0.1), 1.3 * sh + 0.2, w)
 		&"wardrobe":
 			# Straighten the hat and give the vest a tug.
 			_arm(rig, 0, Vector3(2.4, 0.2, -0.35), 2.0, w)
