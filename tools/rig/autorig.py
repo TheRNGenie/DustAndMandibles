@@ -250,17 +250,58 @@ def skin(body, rig, L):
     def _trunk_d(p):
         return min(_seg_dist(p, *bones[n]) for n in ("Hips", "Spine", "Chest")) - 0.06 * H
     arm_x = L["sh_x"] * 0.92
+    # Pass 1: which body part each vertex belongs to.
+    keys = []
     for v in body.data.vertices:
         p = v.co
         side = "Left" if p.x > 0 else "Right"
-        near_arm = abs(p.x) > 0.6 * L["sh_x"] and p.z > 0.25 * H and _arm_d(p, side) < min(_leg_d(p, side), _trunk_d(p))
-        is_leg = not near_arm and p.z < L["crotch"] + 0.02 * H
-        if is_leg:
-            chain = chains[side + "_leg"]
-        elif near_arm or (p.z < L["neck"] and abs(p.x) > 0.45 * L["sh_x"] and _arm_d(p, side) < _trunk_d(p)):
-            chain = chains[side + "_arm"]
+        ad = _arm_d(p, side)
+        # Hands are wide (curled fingers, thumbs): anything near the hand bone is hand.
+        hd = _seg_dist(p, *bones[side + "Hand"])
+        if hd < 0.07 * H and hd < _leg_d(p, side) and hd < _trunk_d(p) + 0.06 * H and p.z > 0.25 * H:
+            ad = min(ad, 0.0)
+        # Only what is actually on the arm moves with it: clothing beside it stays with the body.
+        near_arm = abs(p.x) > 0.6 * L["sh_x"] and p.z > 0.25 * H and ad < 0.05 * H and ad < min(_leg_d(p, side), _trunk_d(p))
+        if not near_arm and p.z < L["crotch"] + 0.02 * H:
+            keys.append(side + "_leg")
+        elif near_arm or (p.z < L["neck"] and abs(p.x) > 0.45 * L["sh_x"] and ad < 0.06 * H and ad < _trunk_d(p)
+                and not (abs(p.x) < L["sh_x"] * 1.05 and ad > 0.035 * H)):
+            keys.append(side + "_arm")
         else:
-            chain = chains["trunk"]
+            keys.append("trunk")
+    # Pass 2: a separate small piece of the mesh (a holster, a buckle, a hand)
+    # goes to one body part as a whole, so it can't be torn between two.
+    parent = list(range(len(keys)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    for e in body.data.edges:
+        a, b = find(e.vertices[0]), find(e.vertices[1])
+        if a != b:
+            parent[a] = b
+    islands = {}
+    for i in range(len(keys)):
+        islands.setdefault(find(i), []).append(i)
+    for members in islands.values():
+        if len(members) > len(keys) * 0.2:
+            continue
+        votes = {}
+        for i in members:
+            votes[keys[i]] = votes.get(keys[i], 0) + 1
+        if len(votes) > 1:
+            win = max(votes, key=votes.get)
+            for i in members:
+                keys[i] = win
+    print("[autorig] mesh pieces:", len(islands))
+    # Pass 3: weights to the nearest bones of that part.
+    for v in body.data.vertices:
+        p = v.co
+        key = keys[v.index]
+        is_leg = key.endswith("_leg")
+        chain = chains[key]
         d = sorted((_seg_dist(p, *bones[n]), n) for n in chain)
         best, name = d[0]
         if is_leg and name != "Hips":

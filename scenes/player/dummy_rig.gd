@@ -73,6 +73,10 @@ var move_local := Vector3.ZERO
 var action: StringName = &""
 var action_t := 0.0
 var _action_w := 0.0
+## The Meshy body worn over the pivots (null = the code-built dummy is shown).
+var _model: ModelBody
+## Moves the hat to sit on the model's head.
+const MODEL_HAT_OFFSET := Vector3(0, -0.02, 0.0)
 ## Debug screenshots: hold the action at this point (0..1); -1 plays normally.
 var action_freeze := -1.0
 ## NPC use: the right arm hangs and swings instead of aiming.
@@ -134,9 +138,34 @@ func build(team: Color, is_first_person: bool, dummy_look: Dictionary = {}) -> v
 		for mi: MeshInstance3D in [head_mi, torso, pelvis, tails]:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 		position.z = 0.06
+	_model = null
+	var outfit := StringName(str(look.get("outfit")))
+	if ModelBody.has_model(outfit) and not GameState.has_flag("--oldbody"):
+		_wear_model(outfit)
 	var w := _weapon
 	_weapon = &"-"
 	set_weapon(w if w != &"-" else &"revolver")
+
+
+## Swaps the code-built body for the rigged model: the pivots stay (invisible)
+## and drive the model's bones; the gun stays in the pivot hand and the hat on
+## the pivot head, which line up with the model's.
+func _wear_model(outfit: StringName) -> void:
+	for mi: MeshInstance3D in find_children("*", "MeshInstance3D", true, false):
+		if mi != _gun_mi:
+			mi.visible = false
+	_model = ModelBody.new()
+	_model.name = "Model"
+	add_child(_model)
+	_model.setup(self, outfit, first_person)
+	if str(look.get("hat")) != "none":
+		var hat := MeshInstance3D.new()
+		hat.mesh = DummyBuilder.hat_mesh(_team, look)
+		hat.material_override = _mat
+		hat.position = MODEL_HAT_OFFSET
+		if first_person:
+			hat.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		_head.add_child(hat)
 
 
 ## Re-dresses the dummy (keeps team and first-person setting).
@@ -291,6 +320,8 @@ func animate(delta: float, speed: float, sliding: bool, pitch: float, vy: float 
 	_wobble_vel += (-_wobble * 60.0 - _wobble_vel * 7.0) * dt
 	_wobble += _wobble_vel * dt
 	_head.rotation.z = -_wobble.z * 1.4
+	if _model != null and is_inside_tree():
+		_model.apply()
 
 
 ## Act out an interaction (harvest, plant, slots...). See DummyActions.
@@ -329,7 +360,10 @@ func _apply_action(dt: float) -> void:
 func flash() -> void:
 	_mat.set_shader_parameter("flash_color", Palette.GLOW_YELLOW)
 	var tw := create_tween()
-	tw.tween_method(func(v: float) -> void: _mat.set_shader_parameter("flash_amount", v), 0.6, 0.0, 0.15)
+	tw.tween_method(func(v: float) -> void:
+		_mat.set_shader_parameter("flash_amount", v)
+		if _model != null:
+			_model.set_flash(Palette.GLOW_YELLOW, v), 0.6, 0.0, 0.15)
 
 
 func _pivot(parent: Node3D, pos: Vector3) -> Node3D:

@@ -265,6 +265,13 @@ static func _mask(st: SurfaceTool, team: Color) -> void:
 
 # ------------------------------------------------------------------ hats
 
+## Just the hat (for the Meshy bodies, which come bareheaded). Same space as "head".
+static func hat_mesh(team: Color, look: Dictionary) -> ArrayMesh:
+	var st := MeshKit.begin()
+	_hat_for(st, look, team)
+	return MeshKit.finish(st)
+
+
 static func _hat_for(st: SurfaceTool, look: Dictionary, team: Color) -> void:
 	match str(look.get("hat")):
 		"cattleman":
