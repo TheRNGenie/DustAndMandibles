@@ -219,6 +219,8 @@ func _act_shot(spec: String) -> void:
 	var rest := spec.get_slice("@", 1) if spec.contains("@") else "0.5"
 	var prop := StringName(rest.get_slice(":", 1)) if rest.contains(":") else &""
 	pl.head.rotation.x = -0.25
+	# Look at a spot on the ground just ahead, as when using a crop plot.
+	pl.head.rotation.x = -0.55
 	pl.act(id, prop)
 	pl.fp_hands.freeze = float(rest.get_slice(":", 0))
 	pl.rig.action_freeze = pl.fp_hands.freeze

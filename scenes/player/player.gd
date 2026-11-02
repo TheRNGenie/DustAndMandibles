@@ -151,8 +151,11 @@ func set_remote_pose(sliding: bool) -> void:
 ## Footstep: boots on porch boards and floors (structures) or on dirt.
 func _on_step(at: Vector3, strength: float) -> void:
 	var wood := _on_wood(at)
-	var vol := lerpf(-16.0, -6.0, strength) + (-3.0 if is_multiplayer_authority() else 0.0)
+	var vol := lerpf(-24.0, -14.0, strength) + (-4.0 if is_multiplayer_authority() else 0.0)
 	Audio.play_at(&"step_wood" if wood else &"step_dirt", at, vol)
+	# Spurs jingle now and then, more often at a run.
+	if randf() < 0.08 + 0.1 * strength:
+		Audio.play_at(&"spur", at + Vector3.UP * 0.1, vol - 6.0)
 
 
 ## Remote players: landing heard from the body pose (the owner uses real floor contact).
@@ -182,7 +185,14 @@ func act(id: StringName, prop: StringName = &"") -> void:
 	if id == &"" or not is_multiplayer_authority():
 		return
 	if fp_hands != null:
-		fp_hands.play(id, prop)
+		# Reach for what's under the crosshair.
+		var from := camera.global_position
+		var q := PhysicsRayQueryParameters3D.create(from, from - camera.global_basis.z * 3.5,
+				WorldLayout.LAYER_WORLD | WorldLayout.LAYER_STRUCTURE | WorldLayout.LAYER_TRAP)
+		q.exclude = [get_rid()]
+		var hit := get_world_3d().direct_space_state.intersect_ray(q)
+		var target := camera.to_local(hit["position"]) if not hit.is_empty() else Vector3(0.1, -0.25, -0.5)
+		fp_hands.play(id, prop, target)
 	rig.play_action(id)
 	_act_remote.rpc(id)
 

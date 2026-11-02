@@ -27,6 +27,10 @@ var dip := 0.0
 var _props: Dictionary = {}
 ## Debug screenshots: hold the move at this point (0..1); -1 plays normally.
 var freeze := -1.0
+## The thing being used, in camera space (where the hand reaches to).
+var _target := Vector3(0.1, -0.25, -0.5)
+## Every hands-on move is short and snappy in first person.
+const DUR_FP := 0.75
 
 
 func _ready() -> void:
@@ -90,17 +94,19 @@ static func hand_mesh(look: Dictionary, side: float) -> ArrayMesh:
 	look = DummyLook.clean(look)
 	var st := MeshKit.begin()
 	WeaponBuilder.fist(st, Vector3.ZERO, Vector3(side, 0, 0), Vector3(0, 1, 0.2), DummyLook.paint(look), side > 0.0)
-	WeaponBuilder.sleeve(st, Vector3(side * 0.005, -0.01, 0.05), Vector3(side * 0.09, -0.2, 0.3), look)
+	# A long forearm, so its far end is always out of view below the screen.
+	WeaponBuilder.sleeve(st, Vector3(side * 0.005, -0.01, 0.05), Vector3(side * 0.16, -0.42, 0.5), look)
 	return MeshKit.finish(st)
 
 
-func play(id: StringName, prop: StringName = &"") -> void:
+func play(id: StringName, prop: StringName = &"", target: Vector3 = Vector3(0.1, -0.25, -0.5)) -> void:
 	if not DummyActions.has(id) or id == &"wardrobe":
 		return
 	action = id
 	_prop_id = prop
+	_target = target
 	t = 0.0
-	_dur = DummyActions.duration(id)
+	_dur = DUR_FP * (1.25 if id in [&"pump", &"slots", &"water", &"ledger"] else 1.0)
 	visible = true
 	_fly.visible = false
 	_prop_r.mesh = null
@@ -128,9 +134,8 @@ func _process(delta: float) -> void:
 		if gun != null:
 			gun.set_lowered(false)
 		return
-	# Hands come up over the first 15% and drop away over the last 15%.
-	var w := minf(smoothstep(0.0, 0.15, t), 1.0 - smoothstep(0.85, 1.0, t))
-	var low := Vector3(0, -0.45, 0.1) * (1.0 - w)
+	var w := minf(smoothstep(0.0, 0.2, t), 1.0 - smoothstep(0.8, 1.0, t))
+	var low := Vector3.ZERO
 	_stream.visible = false
 	var p := _pose(action, t, delta)
 	_right.transform = Transform3D(Basis.from_euler(p[1]), (p[0] as Vector3) + low)
@@ -144,106 +149,98 @@ const R0 := Vector3(0.17, -0.24, -0.42)
 const L0 := Vector3(-0.17, -0.24, -0.42)
 
 
+## Where the hand goes: the point under the crosshair, kept within arm's reach
+## (camera space).
+func _reach_point() -> Vector3:
+	return Vector3(clampf(_target.x, -0.04, 0.2), clampf(_target.y, -0.36, -0.1), clampf(_target.z, -0.6, -0.46))
+
+
+const REST_LOW := Vector3(0.22, -0.45, -0.26)
+
+
 ## [right pos, right rot, left pos, left rot, left visible, view dip].
-func _pose(id: StringName, tt: float, delta: float) -> Array:
+## Every move is the same shape: the right hand reaches out to the thing under
+## your crosshair (0-35%), does the job right there (35-65%), and drops back out
+## of view with whatever it took (65-100%).
+func _pose(id: StringName, tt: float, _delta: float) -> Array:
 	var life := Time.get_ticks_msec() * 0.001
+	var reach := smoothstep(0.0, 0.35, tt)
+	var back := smoothstep(0.68, 1.0, tt)
+	var a := clampf((tt - 0.35) / 0.33, 0.0, 1.0) # progress of the job itself
+	var at := _reach_point()
+	var hand := REST_LOW.lerp(at, reach)
+	# Reaching down tips the hand down; reaching up tips it up.
+	# Fingers forward and a little down, knuckles up: a hand reaching to take hold.
+	var rot := Vector3(0.3 + 0.3 * clampf(-at.y - 0.15, 0.0, 0.3), 0.2, 0.15)
+	var off := Vector3.ZERO
+	var left := false
+	var l_off := Vector3(-0.2, 0.0, 0.02)
+	var take := &""
 	match id:
-		&"harvest":
-			var yank := smoothstep(0.5, 0.66, tt)
-			var grab := smoothstep(0.15, 0.4, tt)
-			var shake := sin(life * 50.0) * 0.008 * grab * (1.0 - yank)
-			_set_prop(_prop_r, _prop_id if yank > 0.0 else &"", &"crop")
-			var r := Vector3(0.07, -0.4 + yank * 0.22 + shake, -0.6 + yank * 0.16)
-			var l := Vector3(-0.05, -0.42 + yank * 0.18 - shake, -0.62 + yank * 0.12)
-			return [r, Vector3(-0.15 - yank * 0.35, 0.2, 0.1), l, Vector3(-0.15, -0.2, -0.1), yank < 0.9, 0.45 - yank * 0.2]
+		&"harvest", &"loot":
+			# Grip, a couple of tugs, then a yank back with it.
+			var tug := sin(a * PI * 4.0) * 0.012 * (1.0 - smoothstep(0.6, 0.8, a))
+			off = Vector3(0, tug + 0.07 * smoothstep(0.7, 1.0, a), tug + 0.1 * smoothstep(0.7, 1.0, a))
+			take = (&"crop" if id == &"harvest" else &"chitin") if a > 0.75 else &""
+		&"salvage":
+			off = Vector3(sin(a * PI * 6.0) * 0.02, -absf(sin(a * PI * 3.0)) * 0.03 + 0.06 * smoothstep(0.75, 1.0, a), 0.08 * smoothstep(0.75, 1.0, a))
+			take = &"scrap" if a > 0.75 else &""
 		&"plant":
-			var poke := absf(sin(tt * PI * 3.0)) if tt < 0.6 else 0.0
-			var pat := absf(sin((tt - 0.6) * PI * 5.0)) if tt >= 0.6 else 0.0
-			_set_prop(_prop_r, &"seed" if tt < 0.45 else &"", &"seed")
-			var r := Vector3(0.05, -0.36 - poke * 0.07, -0.6 - poke * 0.04)
-			var l := Vector3(-0.07, -0.38 - pat * 0.07, -0.6)
-			return [r, Vector3(-0.3, 0.1, 0.0), l, Vector3(-0.1, 0.0, -0.1), tt > 0.5, 0.5]
+			# Two pokes into the soil with the seed, then a pat.
+			off = Vector3(0, -absf(sin(a * PI * 3.0)) * 0.05, 0)
+			take = &"seed" if a < 0.5 else &""
+			rot.x -= 0.4 * reach
 		&"water":
-			var tip := smoothstep(0.15, 0.4, tt) * (1.0 - smoothstep(0.75, 0.88, tt))
-			var sway := sin(tt * PI * 2.0) * 0.06 * tip
-			_set_prop(_prop_r, &"water", &"water")
-			var r := Vector3(0.08 + sway, -0.24, -0.5)
-			if tip > 0.3:
+			rot.z += 1.0 * sin(a * PI)
+			take = &"water"
+			if a > 0.15 and a < 0.85:
 				_stream.visible = true
 				var mouth := _right.to_global(Vector3(-0.09, 0.03, 0.0))
 				_stream.global_transform = Transform3D(Basis(), mouth + Vector3(0, -0.3, 0))
-			return [r, Vector3(-0.2, 0.0, 1.1 * tip), r + Vector3(-0.15, -0.05, 0.03), Vector3(0.0, 0.0, 0.4 * tip), true, 0.4]
 		&"pump":
-			var stroke := sin(tt * PI * 4.0) * 0.5 + 0.5
-			var r := Vector3(0.07, -0.18 - stroke * 0.18, -0.5)
-			return [r, Vector3(-0.2, 0, 0), r + Vector3(-0.15, 0, 0.0), Vector3(-0.2, 0, 0), true, 0.25 + stroke * 0.1]
-		&"salvage":
-			var lift := smoothstep(0.7, 0.86, tt)
-			var dig0 := sin(tt * PI * 6.0) * (1.0 - lift)
-			var dig1 := sin(tt * PI * 6.0 + PI) * (1.0 - lift)
-			_set_prop(_prop_r, &"scrap" if lift > 0.0 else &"", &"scrap")
-			var r := Vector3(0.09, -0.4 + dig0 * 0.05 + lift * 0.2, -0.52 + dig0 * 0.04 + lift * 0.1)
-			var l := Vector3(-0.09, -0.4 + dig1 * 0.05, -0.52 + dig1 * 0.04)
-			return [r, Vector3(-0.5 + lift * 0.4, 0.2, dig0 * 0.3), l, Vector3(-0.5, -0.2, dig1 * 0.3), lift < 0.8, 0.5 - lift * 0.2]
-		&"loot":
-			var tug := sin(tt * PI * 3.0) * (1.0 - smoothstep(0.72, 0.85, tt))
-			var free := smoothstep(0.72, 0.85, tt)
-			_set_prop(_prop_r, &"chitin", &"chitin")
-			var r := Vector3(0.05, -0.38 + tug * 0.04 + free * 0.2, -0.5 + tug * 0.06 + free * 0.12)
-			return [r, Vector3(-0.4 + free * 0.3, 0.1, tug * 0.2), Vector3(-0.1, -0.4, -0.52), Vector3(-0.4, 0, 0), free < 0.5, 0.45]
-		&"slots":
-			var up := smoothstep(0.0, 0.3, tt)
-			var haul := smoothstep(0.32, 0.46, tt)
-			var r := Vector3(0.2, -0.24 + up * 0.32 - haul * 0.4, -0.5)
-			return [r, Vector3(0.2 - haul * 0.4, 0, -0.1), L0 + Vector3(0.02, 0.02, -0.08), Vector3(-0.2, 0, 0), true, -0.05 + haul * 0.15]
-		&"cards":
-			var flick := sin(smoothstep(0.35, 0.6, tt) * PI)
-			_set_prop(_prop_l, &"cards", &"cards")
-			_set_prop(_prop_r, &"card" if tt < 0.5 else &"", &"card")
-			var r := Vector3(0.1, -0.28 + flick * 0.04, -0.46 - flick * 0.1)
-			if tt >= 0.5:
-				_fly_prop(&"card", Vector3(0.1, -0.25, -0.58), clampf((tt - 0.5) * 4.0, 0.0, 1.0), Vector3(-0.05, -0.2, -0.4))
-			return [r, Vector3(-0.4, -0.3 * flick, -0.2 * flick), Vector3(-0.1, -0.27, -0.42), Vector3(-0.2, 0.2, 0.5), true, 0.3]
-		&"dice":
-			var throw := smoothstep(0.58, 0.72, tt)
-			var shake := sin(life * 38.0) * 0.03 * (1.0 - throw)
-			_set_prop(_prop_r, &"dice" if throw < 0.5 else &"", &"dice")
-			if throw >= 0.5:
-				_fly_prop(&"dice", Vector3(0.1, -0.26, -0.58), clampf((tt - 0.65) * 3.0, 0.0, 1.0), Vector3(0, -0.3, -0.8))
-			var r := Vector3(0.18 - throw * 0.08, -0.12 + shake - throw * 0.14, -0.38 - throw * 0.2)
-			return [r, Vector3(0.3 - throw * 0.8, 0, shake * 3.0), L0, Vector3.ZERO, false, 0.15 + throw * 0.15]
-		&"roulette":
-			var sweep := smoothstep(0.15, 0.45, tt)
-			var r := Vector3(0.22 - sweep * 0.3, -0.3, -0.48)
-			return [r, Vector3(-0.3, sweep * 0.6, 0), L0, Vector3.ZERO, false, 0.3]
+			off = Vector3(0, -0.07 * (sin(a * PI * 4.0) * 0.5 + 0.5), 0)
+			left = true
 		&"chest":
-			var heave := smoothstep(0.3, 0.62, tt)
-			var r := Vector3(0.12, -0.36 + heave * 0.26, -0.52 + heave * 0.06)
-			var l := Vector3(-0.12, -0.36 + heave * 0.26, -0.52 + heave * 0.06)
-			return [r, Vector3(-0.6 + heave * 0.9, 0, 0), l, Vector3(-0.6 + heave * 0.9, 0, 0), true, 0.35 - heave * 0.2]
+			off = Vector3(0, 0.14 * smoothstep(0.2, 0.9, a), 0.03 * a)
+			rot.x += 0.6 * smoothstep(0.2, 0.9, a)
+			left = true
 		&"ledger":
-			_set_prop(_prop_l, &"ledger", &"ledger")
-			_set_prop(_prop_r, &"pencil", &"pencil")
-			var scr := Vector3(sin(life * 9.0) * 0.03, sin(life * 22.0) * 0.006, 0)
-			return [Vector3(0.03, -0.24, -0.46) + scr, Vector3(-0.4, 0.3, 0.2), Vector3(-0.07, -0.3, -0.48), Vector3(0.25, 0.0, 0.25), true, 0.4]
+			# Pencil scribbling over the open book.
+			off = Vector3(sin(life * 9.0) * 0.025, sin(life * 21.0) * 0.006, 0)
+			take = &"pencil"
+			left = true
+			l_off = Vector3(-0.14, -0.04, 0.03)
 		&"buy":
-			var out := sin(smoothstep(0.0, 0.85, tt) * PI)
-			_set_prop(_prop_r, &"coin" if tt < 0.5 else &"", &"coin")
-			var r := Vector3(0.12, -0.26 + out * 0.06, -0.38 - out * 0.16)
-			return [r, Vector3(-0.2 + out * 0.3, 0, 0.3), L0, Vector3.ZERO, false, 0.05]
-		&"pickup":
-			var reach := sin(tt * PI)
-			var r := Vector3(0.14, -0.24 + reach * 0.06, -0.4 - reach * 0.18)
-			return [r, Vector3(0, 0, 0.2), L0, Vector3.ZERO, false, 0.05]
+			off = Vector3(0, 0.02, -0.04 * sin(a * PI))
+			take = &"coin" if a < 0.6 else &""
+		&"pickup", &"zip":
+			off = Vector3(0, 0.0, 0.08 * smoothstep(0.5, 1.0, a))
 		&"hammer":
-			var blow := absf(sin(tt * PI * 2.0))
-			_set_prop(_prop_r, &"hammer", &"hammer")
-			var r := Vector3(0.14, -0.3 + blow * 0.22, -0.48 + blow * 0.08)
-			return [r, Vector3(blow * 1.1 - 0.3, 0, 0), Vector3(-0.08, -0.38, -0.52), Vector3(-0.5, 0, 0), true, 0.4]
-		&"zip":
-			var g := smoothstep(0.0, 0.5, tt)
-			return [Vector3(0.1, -0.2 + g * 0.3, -0.35), Vector3(1.2, 0, 0), Vector3(-0.1, -0.2 + g * 0.3, -0.35), Vector3(1.2, 0, 0), true, -0.25]
-	return [R0, Vector3.ZERO, L0, Vector3.ZERO, false, 0.0]
+			var blow := absf(sin(a * PI * 2.0))
+			off = Vector3(0, 0.08 * blow, 0.03 * blow)
+			rot.x += 1.1 * blow - 0.3
+			take = &"hammer"
+		&"slots":
+			off = Vector3(0, 0.12 * (1.0 - smoothstep(0.3, 0.7, a)) - 0.08 * smoothstep(0.3, 0.7, a), 0)
+		&"cards":
+			off = Vector3(-0.05 * sin(a * PI), 0, -0.05 * sin(a * PI))
+			take = &"card" if a < 0.5 else &""
+			if a >= 0.5:
+				_fly_prop(&"card", at, clampf((a - 0.5) * 3.0, 0.0, 1.0), Vector3(-0.05, -0.15, -0.3))
+		&"dice":
+			off = Vector3(sin(life * 38.0) * 0.015 * (1.0 - a), 0, 0)
+			take = &"dice" if a < 0.6 else &""
+			if a >= 0.6:
+				_fly_prop(&"dice", at, clampf((a - 0.6) * 3.0, 0.0, 1.0), Vector3(0, -0.25, -0.6))
+		&"roulette":
+			off = Vector3(0.12 - 0.24 * smoothstep(0.1, 0.9, a), 0, 0)
+	_set_prop(_prop_r, take, take)
+	var r_pos := (hand + off * (1.0 - back)).lerp(REST_LOW, back)
+	var l_pos := (hand + l_off).lerp(REST_LOW * Vector3(-1, 1, 1), back)
+	if id == &"ledger":
+		_set_prop(_prop_l, &"ledger", &"ledger")
+	var dip_amt := clampf(-at.y * 0.35, 0.0, 0.16)
+	return [r_pos, rot, l_pos, Vector3(rot.x, -0.15, -0.1), left, dip_amt]
 
 
 func _set_prop(mi: MeshInstance3D, id: StringName, _kind: StringName) -> void:

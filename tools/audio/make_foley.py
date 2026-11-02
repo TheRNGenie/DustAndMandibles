@@ -292,6 +292,15 @@ def spur(rng, amt=0.12):
     return modal([4200, 5900, 7600], [0.05, 0.035, 0.025], [1, 0.7, 0.5], 0.18, rng, 0.06) * amt
 
 
+def spur_jingle(rng):
+    """A spur rowel jingling now and then while walking (played on its own)."""
+    out = silence(0.35)
+    place(out, spur(rng, 1.0), 0.0)
+    if rng.uniform() < 0.6:
+        place(out, spur(rng, 0.6), rng.uniform(0.05, 0.12))
+    return out
+
+
 def step_dirt(rng):
     out = silence(0.25)
     heel = lowpass(rng.standard_normal(int(SR * 0.05)), jitter(rng, 380)) * env(int(SR * 0.05), 0.002, 0.018)
@@ -612,6 +621,7 @@ def main():
     takes("herb_eat", herb_eat, 1, 0.55, 45)
     takes("cig_light", cig_light, 1, 0.45, 46)
     takes("hook_bite", hook_bite, 2, 0.6, 47)
+    takes("spur", spur_jingle, 3, 0.35, 48)
 
 
 if __name__ == "__main__":

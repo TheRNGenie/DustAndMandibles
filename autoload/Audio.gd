@@ -16,7 +16,7 @@ const NAMES: Array[StringName] = [&"revolver", &"gatling_1", &"gatling_2", &"gat
 	&"step_dirt", &"step_wood", &"land_dirt", &"land_wood", &"jump", &"slide", &"equip", &"throw",
 	&"harvest_pull", &"plant_dig", &"pump", &"salvage", &"loot_crack", &"chest_open", &"scribble", &"hammer_hit",
 	&"slot_lever", &"card_flick", &"roulette_spin", &"wheel_tick", &"dice", &"register", &"zip_grab", &"zip_start",
-	&"herb_eat", &"cig_light", &"hook_bite"]
+	&"herb_eat", &"cig_light", &"hook_bite", &"spur"]
 ## Most sounds have several takes (name.wav, name__2.wav, ...); one is picked at random.
 const MAX_TAKES := 6
 const POOL_3D := 32
@@ -39,12 +39,14 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_log = "--audiolog" in OS.get_cmdline_user_args()
 	for n in NAMES:
-		var path := SFX_DIR + String(n) + ".wav"
+		# Each sound is a .wav (made by our scripts) or an .ogg (recorded, imported).
+		var ext := ".wav" if ResourceLoader.exists(SFX_DIR + String(n) + ".wav") else ".ogg"
+		var path := SFX_DIR + String(n) + ext
 		if ResourceLoader.exists(path):
 			_streams[n] = load(path)
 			var takes: Array = [_streams[n]]
 			for k in range(2, MAX_TAKES + 1):
-				var alt := SFX_DIR + "%s__%d.wav" % [n, k]
+				var alt := SFX_DIR + "%s__%d%s" % [n, k, ext]
 				if ResourceLoader.exists(alt):
 					takes.append(load(alt))
 			_takes[n] = takes
