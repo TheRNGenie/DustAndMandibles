@@ -221,6 +221,8 @@ func _show_detail(id: StringName, payer: int) -> void:
 static func _where(id: StringName) -> String:
 	if Defs.is_house_turret(id):
 		return "Goes on the house: porch, balcony or roof deck"
+	if Defs.is_crewed(id): # Crewed
+		return "Takes 2 x 2 of bare ground, no scaffold. Sit in it to aim and fire it yourself"
 	if Defs.is_turret(id):
 		if Defs.gets_scaffold(id):
 			return "Goes anywhere on your plateau, on a free scaffold"

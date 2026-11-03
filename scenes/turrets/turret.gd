@@ -233,7 +233,7 @@ func _valid(b: Bug) -> bool:
 				return false
 	elif not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing(), covers):
 		return false
-	var muzzle := _head.global_position
+	var muzzle := _sight_point() # Crewed: crewed guns look from the gun, not their low turntable
 	var seen := weather_range()
 	if seen < 1.0 and _lit_near(b.global_position):
 		seen = 1.0 # a lantern or a lit lighter shows this bug through the murk
@@ -247,6 +247,11 @@ func _valid(b: Bug) -> bool:
 		if home != null:
 			q.exclude = [home.get_rid()]
 	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+
+# Crewed: where range, arc and line of sight are measured from (CrewedTurret overrides).
+func _sight_point() -> Vector3:
+	return _head.global_position
 
 
 ## Look-down limit in degrees: the turret's own, plus 5 per scaffold level.

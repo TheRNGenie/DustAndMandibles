@@ -75,7 +75,7 @@ func selected_id() -> StringName:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if GameState.menu_open or player.is_downed():
+	if GameState.menu_open or player.is_downed() or player.crewing != null: # Crewed: not from a gun seat
 		return
 	if event.is_action_pressed("build_menu"):
 		if not active:
@@ -209,7 +209,7 @@ func _process(delta: float) -> void:
 		_aim_house_mount(pos)
 		return
 	_cell = Buildable.world_to_cell(cliffs, _cliff, pos)
-	if selected_id() == &"farm_plot":
+	if selected_id() == &"farm_plot" or Defs.is_crewed(selected_id()): # Crewed: 2 x 2 like plots
 		# 2 x 2 plots: centre the footprint on where you aim.
 		var pc := cliffs.plateau_coords(_cliff, pos)
 		_cell = Buildable.cell_of(pc.x - WorldLayout.CELL * 0.5, pc.y - WorldLayout.CELL * 0.5)

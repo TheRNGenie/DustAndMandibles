@@ -30,6 +30,8 @@ const RESPAWN_DELAY := 3.0
 ## Additions: sitting on a campfire log (see scenes/extras/campfire.gd).
 const EYE_SEATED := 1.05
 var seated := false
+# Crewed: the crewed gun you're sitting in (CrewedTurret drives you while set).
+var crewing: CrewedTurret = null
 
 @export var cliff_id: int = WorldLayout.WEST
 
@@ -132,7 +134,7 @@ func _ready() -> void:
 
 
 func is_sliding() -> bool:
-	return _sliding or seated # seated by a campfire reads as a crouch to others
+	return _sliding or seated or crewing != null # seated by a campfire (or on a crewed gun) reads as a crouch to others
 
 
 func is_downed() -> bool:
@@ -253,7 +255,7 @@ func _process(delta: float) -> void:
 		raw_vel = Vector3(velocity.x, 0.0, velocity.z)
 	_body_vel = _body_vel.lerp(raw_vel, clampf(delta * (30.0 if is_multiplayer_authority() else 8.0), 0.0, 1.0))
 	var speed := _body_vel.length()
-	var sliding := (_sliding or seated) if is_multiplayer_authority() else _remote_sliding
+	var sliding := (_sliding or seated or crewing != null) if is_multiplayer_authority() else _remote_sliding # Crewed
 	var vy := (global_position.y - _last_y) / maxf(delta, 0.0001)
 	_last_y = global_position.y
 	_vy_smooth = lerpf(_vy_smooth, vy, clampf(delta * 10.0, 0.0, 1.0))
@@ -267,6 +269,8 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if crewing != null and (event.is_action_pressed("melee") or event.is_action_pressed("throw_rock") or event.is_action_pressed("smoke")):
+		return # Crewed: hands are on the gun
 	if event.is_action_pressed("melee") and not GameState.menu_open and not vitals.downed and whip != null:
 		whip.lash()
 		get_viewport().set_input_as_handled()
@@ -298,8 +302,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	if _mantling:
 		return
-	if seated:
-		# Additions hook: sitting at a campfire (Campfire moves you and stands you up).
+	if seated or crewing != null:
+		# Additions hook: sitting at a campfire (Campfire moves you and stands you up),
+		# or in a crewed gun's seat (CrewedTurret places you and aims through your view).
 		velocity = Vector3.ZERO
 		_update_camera(delta, false)
 		return
@@ -680,7 +685,7 @@ var _down_k := 0.0
 
 func _update_camera(delta: float, sprinting: bool) -> void:
 	var eye := EYE_SLIDE if _sliding else EYE_STAND
-	if seated:
+	if seated or crewing != null: # Crewed
 		eye = EYE_SEATED
 	# On your back: the view drops to the ground, looking up at the sky.
 	eye = lerpf(eye, 0.35, _down_k)

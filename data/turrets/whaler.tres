@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"whaler"
+display_name = "The Whaler"
+description = "A whaling ballista on a timber sledge. Its barbed harpoon on a chain pins a big bug to the wall; hold the reel to drag it down, and it takes a hard fall when the chain lets go."
+role = "pins and drags down bosses and big bugs"
+weakness = "one bug at a time; slow reload"
+cost_scrap = 220
+max_hp = 320.0
+range = 105.0
+fire_interval = 5.0
+damage = 60.0
+armor_pierce = true
+heavy_mult = 1.5
+pitch_limit_deg = 40.0
+turn_speed = 100.0
+spread_deg = 0.3
+hit_chance = 0.95
+effect = 4
+effect_size = 6.0
+sound = &"harpoon"
+crewed = true
+crew_yaw_arc_deg = 70.0
+crew_pitch_up_deg = 30.0

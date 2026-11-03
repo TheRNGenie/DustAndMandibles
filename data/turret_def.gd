@@ -62,6 +62,13 @@ const HEAVY_HP := 100.0
 @export var anti_air: bool = false
 ## Shot sound (audio/sfx name). "gatling" picks one of three variants.
 @export var sound: StringName = &"gatling"
+# Crewed: a 2 x 2 crewed gun (scenes/turrets/crewed_turret.gd): E takes the seat
+# and you aim and fire it yourself; left alone it fires at half rate and damage.
+@export var crewed: bool = false
+## Crewed: how far the gun traverses either side of straight across, in degrees.
+@export var crew_yaw_arc_deg: float = 75.0
+## Crewed: how far the barrel may lift above horizontal while manned, in degrees.
+@export var crew_pitch_up_deg: float = 35.0
 
 
 ## Armour-plated or 100+ HP: the bugs big-game guns are for and swarm guns struggle with.

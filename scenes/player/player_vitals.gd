@@ -168,6 +168,14 @@ func apply_damage(amount: float) -> void:
 
 
 func _update_interact(delta: float) -> void:
+	if player.crewing != null:
+		# Crewed: in a gun's seat the card shows its controls; E leaves (CrewedTurret).
+		var crew_text := player.crewing.crew_prompt()
+		if crew_text != _prompt:
+			_prompt = crew_text
+			prompt_changed.emit(crew_text)
+		_hold = 0.0
+		return
 	var target := _look_target()
 	var text := ""
 	if target != null and target.has_method("interact_prompt"):

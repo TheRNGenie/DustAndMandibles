@@ -268,8 +268,9 @@ func _deposit_task() -> bool:
 
 ## Turrets worth building, cheapest-first within each kind.
 func _turret_choice() -> StringName:
-	var cliff_turrets: Array = Defs.BUILD_CATEGORIES[1]["items"].filter(func(id: StringName) -> bool: return id != &"scaffold")
-	var air: Array = Defs.BUILD_CATEGORIES[3]["items"]
+	# Crewed: categories by name (a "Crewed Guns" tab now sits after Cliff Turrets).
+	var cliff_turrets: Array = Defs.category_items("Cliff Turrets").filter(func(id: StringName) -> bool: return id != &"scaffold")
+	var air: Array = Defs.category_items("Air Defense")
 	var options: Array = []
 	match quality:
 		0:
@@ -298,6 +299,18 @@ func _turret_choice() -> StringName:
 				options.append_array(air)
 			if big > 0:
 				options.append(&"buffalo_rifle")
+			# Crewed: High builds a crewed gun or two once the line is up (it never
+			# sits in one: they fire on their own at half power for it).
+			var crewed_built := _my_turrets().filter(func(t: Node) -> bool: return t is CrewedTurret).size()
+			if crewed_built < 2 and _my_turrets().size() >= 6:
+				var pick := &"big_bertha"
+				if total > 0 and float(fliers) / total > 0.15:
+					pick = &"sky_hound"
+				elif big > 0:
+					pick = &"whaler"
+				elif crewed_built == 1:
+					pick = &"thunder_mule"
+				options.push_front(pick)
 			options.append_array(cliff_turrets)
 	for id: StringName in options:
 		if Defs.is_turret(id) and Economy.cpu_can_spend(display_name, {&"scrap": Defs.cost_of(id)}):
