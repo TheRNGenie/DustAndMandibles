@@ -31,10 +31,15 @@ second copy on the same PC its own anonymous id, `--eoscreds=<file>` reads other
    joiner `-- --debug --epic --eosrelay --eosnewdevice --netlog --fast --join=DUST-XXXXXX`
    (code from the host's `[net] Epic lobby ..., invite` line). Both log
    `Epic P2P link ...: relayed`, the run starts and waves play.
-3. Normal launch (no flags): Host shows "Signing in to online play...", then a
-   `DUST-XXXXXX` code with the note "Works from anywhere...".
+3. Normal launch (no flags): Host shows "Signing in to online play...", then
+   "Creating lobby..." (Copy Code greyed), then "Lobby  DUST-XXXXXX" with the note
+   "Works from anywhere...". Lobby rows and the F3 overlay show ping (Epic games
+   measure it with a 1 s ping RPC; Direct games use ENet's figure).
 4. A friend on another network (no port forwarding) joins with that code and plays a wave.
-5. Leave as host: the friend returns to the menu; the old code then says "No game with code".
+5. Leave as host, or lose the host's connection: the friend returns to the menu with
+   "The host left the game, or the connection to them dropped."; the old code then
+   says "No game with that code". Join errors also cover "That game is full" and
+   "Version mismatch".
 6. Wrong or missing credentials, or no internet: Host still works, with a direct
    code and a note saying why online is off; joining a `DUST-XXXXXX` code says why it can't.
 7. Release build from a tag with the secrets set: the release has the exe, three DLLs,

@@ -37,6 +37,8 @@ const R_SUCCESS := 0
 const R_INVALID_USER := 3
 const R_ALREADY_CONFIGURED := 15
 const R_DUPLICATE_NOT_ALLOWED := 24
+const R_LOBBY_TOO_MANY_PLAYERS := 9004
+const R_NOT_FOUND := 18
 const CREDENTIAL_DEVICEID := 10
 const PERMISSION_PUBLIC := 0
 const PERMISSION_INVITE_ONLY := 2
@@ -200,8 +202,12 @@ static func _result_words(code: int) -> String:
 			return "no connection to Epic"
 		2:
 			return "Epic rejected the credentials"
+		18:
+			return "it's gone"
 		27:
 			return "Epic timed out"
+		9004:
+			return "it's full"
 		1015:
 			return "Epic doesn't know this client id"
 	return "EOS error %d" % code
@@ -368,7 +374,7 @@ func join(code: String) -> MultiplayerPeer:
 		last_error = "Epic's servers didn't answer. Check your internet and try again."
 		return null
 	if int((found as Dictionary)["result_code"]) != R_SUCCESS or int(search.call("get_search_result_count")) == 0:
-		last_error = "No game with code %s. Check the code, or ask your friend to host again." % want
+		last_error = "No game with that code (%s). Check it, or the game may have started already; ask your friend to host again." % want
 		return null
 	var details: Object = (search.call("copy_search_result_by_index", 0) as Dictionary).get("lobby_details")
 	if details == null:
@@ -376,7 +382,11 @@ func join(code: String) -> MultiplayerPeer:
 		return null
 	var ver := _attr(details, ATTR_VERSION)
 	if ver != game_version:
-		last_error = "That game runs version %s and you have %s. Both of you need the same version." % [ver, game_version]
+		last_error = "Version mismatch: that game runs %s and you have %s. Both of you need the same version." % [ver, game_version]
+		return null
+	var info: Variant = (details.call("copy_info") as Dictionary).get("lobby_details")
+	if info is Dictionary and int((info as Dictionary).get("available_slots", 1)) <= 0:
+		last_error = "That game is full."
 		return null
 	_ieos.call("lobby_interface_join_lobby", Opts.new({
 		"local_user_id": _user_id, "lobby_details": details, "presence_enabled": false,
@@ -387,7 +397,13 @@ func join(code: String) -> MultiplayerPeer:
 			_leave_lobby(str((joined as Dictionary)["lobby_id"]))
 		return null
 	if joined == null or int((joined as Dictionary)["result_code"]) != R_SUCCESS:
-		last_error = "Couldn't join that game (it may be full or already started)."
+		var r := -1 if joined == null else int((joined as Dictionary)["result_code"])
+		if r == R_LOBBY_TOO_MANY_PLAYERS:
+			last_error = "That game is full."
+		elif joined == null:
+			last_error = "Epic's servers didn't answer. Check your internet and try again."
+		else:
+			last_error = "Couldn't join that game (%s)." % _result_words(r)
 		return null
 	_lobby_id = str((joined as Dictionary)["lobby_id"])
 	_code = want
