@@ -22,5 +22,6 @@ trailer/dust_and_mandibles_trailer.mp4
 .env
 assets/meshy/
 
-# Epic Online Services credentials (local only)
+# Epic Online Services credentials: never commit (dev file / written by CI at build time)
 eos_credentials.txt
+eos_release.cfg

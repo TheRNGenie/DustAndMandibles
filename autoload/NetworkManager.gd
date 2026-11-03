@@ -1,22 +1,26 @@
 extends Node
 ## Host/join, peer ids, cliff assignment, the map and the lobby roster.
-## This is the only script that knows the transport is ENet, so it can be
-## swapped for WebRTC or Steam later without touching gameplay code.
+## How players find each other and which MultiplayerPeer carries the game is
+## up to an OnlineBackend (components/net/): DirectBackend (ENet, UPnP, IP
+## invite codes; always there) or the online backend (EpicBackend now, Steam
+## later). Gameplay code never sees which one is in use.
 
 signal players_changed
 signal connected_to_host
 signal connection_failed(reason: String)
 signal server_closed
 signal player_left(peer_id: int)
-## The host's invite changed (the router opened up, or didn't).
+## The host's invite changed (the router opened up, the online lobby got its code...).
 signal invite_changed
 
-const DEFAULT_PORT := 24565
-const DEFAULT_ADDRESS := "127.0.0.1"
+const DEFAULT_PORT := DirectBackend.DEFAULT_PORT
+const DEFAULT_ADDRESS := DirectBackend.DEFAULT_ADDRESS
 ## The most players any map holds (each map's own limit: max_players()).
 const MAX_PLAYERS := 4
 const WORLD_SCENE := "res://scenes/world.tscn"
 const MENU_SCENE := "res://scenes/main_menu.tscn"
+## An online join that hasn't connected by then gives up.
+const ONLINE_JOIN_TIMEOUT_SEC := 30.0
 
 ## peer_id -> {"name": String, "cliff": int, "ready": bool}. Owned by the host, mirrored on clients.
 var players: Dictionary = {}
@@ -27,20 +31,23 @@ var map_id: StringName = MapDef.CANYON
 var cpu_quality := -1
 const CPU_QUALITY_NAMES := ["Low", "Medium", "High"]
 var local_name: String = "Rancher"
-var _peer: ENetMultiplayerPeer
+var _peer: MultiplayerPeer
 var _started := false
-var _port: int = DEFAULT_PORT
-var _address: String = DEFAULT_ADDRESS
 ## Set by join_from_menu(); the main menu joins it on load.
 var pending_join: Dictionary = {}
-## Invites over the internet: when hosting, the router is asked (UPnP) to open
-## the game's port, and its public address goes into the invite code.
-## "" = not tried yet / working, "open" = the internet can reach us, "lan" = same network only.
-var upnp_state := ""
-var public_ip := ""
-var _upnp: UPNP
-var _upnp_thread: Thread
-var _upnp_port := 0
+## Always there: ENet + UPnP + IP invite codes.
+var direct: DirectBackend
+## Epic now, Steam later; null when it's missing or unusable (then Direct only).
+var online: OnlineBackend
+## Which of the two carries the current game.
+var _backend: OnlineBackend
+## Why online invites are off, for the lobby ("" when they're on).
+var _offline_note := ""
+## Why the last join or host failed, in words for the player.
+var last_error := ""
+## Bumped by leave(), so an online join still searching knows it was abandoned.
+var _join_ticket := 0
+var _host_port := DEFAULT_PORT
 
 
 func _ready() -> void:
@@ -49,40 +56,117 @@ func _ready() -> void:
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	direct = DirectBackend.new()
+	direct.name = "DirectBackend"
+	var flags := _launch_flags()
+	direct.flags = flags
+	add_child(direct)
+	direct.status_changed.connect(invite_changed.emit)
+	var why: Array[String] = []
+	online = OnlineBackend.create_online(why, flags)
+	_offline_note = why[0] if not why.is_empty() else ""
+	direct.fallback_note = _offline_note
+	if online != null:
+		online.game_version = game_version()
+		online.player_name = local_name
+		add_child(online)
+		online.status_changed.connect(invite_changed.emit)
+		online.lobby_failed.connect(_on_lobby_failed)
+		online.login() # signs in in the background; hosting falls back to Direct until it's ready
+	print("[net] backends: Direct%s" % (" + " + online.backend_name() if online != null else " only" + (" (%s)" % _offline_note if _offline_note != "" else "")))
+
+
+## The launch flags, built like GameState.flags (whose _ready runs after ours).
+static func _launch_flags() -> PackedStringArray:
+	var flags := OS.get_cmdline_user_args()
+	for arg: String in OS.get_cmdline_args():
+		if arg.begins_with("--") and not flags.has(arg):
+			flags.append(arg)
+	# Scripts (the unit tests: -s res://tests/run_tests.gd) never go online.
+	if (OS.get_cmdline_args().has("-s") or OS.get_cmdline_args().has("--script")) and not flags.has("--direct"):
+		flags.append("--direct")
+	return flags
+
+
+## The build's version ("dev" when run from the editor). Online lobbies only
+## match the same version; release.yml stamps the tag into the project.
+static func game_version() -> String:
+	var v := str(ProjectSettings.get_setting("application/config/version", ""))
+	return v if v != "" else "dev"
 
 
 func is_online() -> bool:
 	return _peer != null
 
 
+## Is the online backend still signing in? (Hosting now would fall back to Direct.)
+func online_signing_in() -> bool:
+	return online != null and online.is_signing_in()
+
+
+## Waits (up to `seconds`) for the online backend to finish signing in.
+func wait_for_online(seconds: float = 15.0) -> void:
+	var until := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while online_signing_in() and Time.get_ticks_msec() < until:
+		await get_tree().process_frame
+
+
+## Hosts a game: on the online backend when it's signed in, else directly on
+## `port` (the lobby note says why). Returns OK or an error (see last_error).
 func host(port: int = DEFAULT_PORT) -> Error:
 	leave()
 	if GameState.has_flag("--debug") and GameState.flag_value("--port") != "":
 		port = int(GameState.flag_value("--port")) # Crewed: debug two-window tests on a port of their own
-	var peer := ENetMultiplayerPeer.new()
 	var flag_map := StringName(GameState.flag_value("--map").to_lower())
 	if MapDef.IDS.has(flag_map):
 		map_id = flag_map
-	var err := peer.create_server(port, MAX_PLAYERS - 1)
-	# If the port is taken (another copy of the game, or something else on this
-	# PC), try the next few: the invite code carries whichever port we got.
-	if err != OK:
-		for i in range(1, 32):
-			peer = ENetMultiplayerPeer.new()
-			err = peer.create_server(port + i, MAX_PLAYERS - 1)
-			if err == OK:
-				print("[net] port %d busy, hosting on %d" % [port, port + i])
-				port += i
-				break
-	if err != OK:
-		return err
+	_host_port = port
+	var peer: MultiplayerPeer = null
+	direct.fallback_note = _offline_note
+	if online != null:
+		online.player_name = local_name
+		if online.is_ready():
+			peer = online.host(max_players(), {"port": port})
+			if peer != null:
+				_backend = online
+		if peer == null:
+			var why := online.last_error if online.last_error != "" else "still signing in"
+			direct.fallback_note = "%s online isn't available (%s), so this invite is a direct connection." % [online.backend_name(), why.trim_suffix(".")]
+			print("[net] hosting directly: " + direct.fallback_note)
+			online.login() # retry in the background (no-op while it's still signing in)
+	if peer == null:
+		peer = direct.host(MAX_PLAYERS, {"port": port})
+		if peer == null:
+			last_error = direct.last_error
+			return ERR_CANT_CREATE
+		_backend = direct
 	_peer = peer
-	_port = port
 	multiplayer.multiplayer_peer = peer
 	players = {1: {"name": local_name, "cliff": 0, "ready": false}}
 	players_changed.emit()
-	_open_router(port)
+	invite_changed.emit()
 	return OK
+
+
+## The online lobby couldn't be made: nobody could find this game, so host it
+## directly instead (only while the host is still alone in the lobby).
+func _on_lobby_failed(reason: String) -> void:
+	if _backend != online or not is_online() or not multiplayer.is_server() or _started or players.size() > 1:
+		return
+	online.leave()
+	_peer.close()
+	var peer := direct.host(MAX_PLAYERS, {"port": _host_port})
+	if peer == null:
+		leave()
+		connection_failed.emit("The online lobby failed (%s) and hosting directly failed too." % reason)
+		return
+	direct.fallback_note = "The %s lobby failed (%s), so this invite is a direct connection." % [online.backend_name(), reason]
+	print("[net] hosting directly: " + direct.fallback_note)
+	_backend = direct
+	_peer = peer
+	multiplayer.multiplayer_peer = peer
+	players_changed.emit()
+	invite_changed.emit()
 
 
 ## How many players the chosen map holds (one per cliff).
@@ -98,6 +182,8 @@ func set_map(id: StringName) -> bool:
 	if players.size() > MapDef.players_of(id):
 		return false
 	map_id = id
+	if _backend != null:
+		_backend.set_max_players(max_players()) # the online lobby holds the new map's count
 	# Everyone keeps their cliff if it still exists, else takes the first free one.
 	var taken := {}
 	var ids := players.keys()
@@ -132,19 +218,54 @@ func _sync_map(id: String) -> void:
 
 func join(address: String = DEFAULT_ADDRESS, port: int = DEFAULT_PORT) -> Error:
 	leave()
-	var peer := ENetMultiplayerPeer.new()
-	var err := peer.create_client(address, port)
-	if err != OK:
-		return err
+	var peer := direct.join_address(address, port)
+	if peer == null:
+		last_error = direct.last_error
+		return ERR_CANT_CONNECT
+	_backend = direct
 	_peer = peer
-	_port = port
-	_address = address
 	multiplayer.multiplayer_peer = peer
 	return OK
 
 
+## Joins an online invite (DUST-XXXXXX, InviteCode.is_lobby_code). Returns at
+## once; connected_to_host or connection_failed(reason) follows. An error here
+## means it couldn't even start (see last_error).
+func join_code(code: String) -> Error:
+	leave()
+	if online == null or not online.owns_code(code):
+		last_error = ("That's an online invite, but online play is off in this copy of the game. " + _offline_note).strip_edges()
+		return ERR_UNAVAILABLE
+	online.player_name = local_name
+	_join_online(code, _join_ticket)
+	return OK
+
+
+func _join_online(code: String, ticket: int) -> void:
+	var peer := await online.join(code)
+	if ticket != _join_ticket: # left (or joined something else) meanwhile
+		if peer != null:
+			peer.close()
+		return
+	if peer == null:
+		print("[net] online join failed: " + online.last_error)
+		connection_failed.emit(online.last_error)
+		return
+	_backend = online
+	_peer = peer
+	multiplayer.multiplayer_peer = peer
+	await get_tree().create_timer(ONLINE_JOIN_TIMEOUT_SEC).timeout
+	if ticket == _join_ticket and _peer == peer and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTING:
+		leave()
+		connection_failed.emit("Found the game but couldn't reach the host. Try again in a moment.")
+
+
 func leave() -> void:
-	_close_router()
+	_join_ticket += 1
+	direct.leave()
+	if online != null:
+		online.leave()
+	_backend = null
 	if _peer != null:
 		_peer.close()
 	_peer = null
@@ -154,129 +275,31 @@ func leave() -> void:
 	players_changed.emit()
 
 
-## The code a friend types to join this game (DUST-XXXXX-XXXXX): the router's
-## public address when it let us open the port, else this PC's LAN address.
+## The code a friend types to join this game: DUST-XXXXX-XXXXX for a direct
+## game (the host's address), DUST-XXXXXX for an online lobby.
 func invite_code() -> String:
-	if is_online() and not multiplayer.is_server():
-		return InviteCode.encode(_address, _port) # a client shares the host's address
-	var ip := public_ip if upnp_state == "open" and public_ip != "" else local_ip()
-	var code := InviteCode.encode(ip, _port)
-	return code if code != "" else "%s:%d" % [ip, _port]
+	var code := (_backend if _backend != null else direct).invite_code()
+	return code if code != "" else "..."
 
 
 ## One line on where the invite works, for the lobby and the Social tab.
 func invite_note() -> String:
-	if is_online() and not multiplayer.is_server():
-		return "The code of the game you're in."
-	match upnp_state:
-		"open":
-			return "Works over the internet. Send it to your friend; they type it into Join."
-		"lan":
-			return "Same network only: your router didn't open port %d by itself. Forward UDP %d, or both use Tailscale / Radmin VPN and join by its IP." % [_port, _port]
-	return "Opening your router for internet play..."
-
-
-# ------------------------------------------------------------------ UPnP (host)
-
-## Ask the router to forward our port (on a thread: discovery takes a second or two).
-func _open_router(port: int) -> void:
-	_close_router()
-	upnp_state = ""
-	public_ip = ""
-	invite_changed.emit()
-	if GameState.has_flag("--debug") or GameState.has_flag("--noupnp"):
-		upnp_state = "lan" # tests and automated runs never touch the router
-		invite_changed.emit()
-		return
-	_upnp_port = port
-	_upnp_thread = Thread.new()
-	_upnp_thread.start(_upnp_work.bind(port))
-
-
-func _upnp_work(port: int) -> void:
-	var u := UPNP.new()
-	var ip := ""
-	var ok := false
-	if u.discover(2000, 2, "InternetGatewayDevice") == UPNP.UPNP_RESULT_SUCCESS 			and u.get_gateway() != null and u.get_gateway().is_valid_gateway():
-		ok = u.add_port_mapping(port, port, "Dust & Mandibles", "UDP", 0) == UPNP.UPNP_RESULT_SUCCESS
-		ip = u.query_external_address()
-	# A router behind the provider's own NAT reports a private address: no good for invites.
-	if ip == "" or _private(ip):
-		ok = false
-	_upnp_done.call_deferred(u, ok, ip)
-
-
-static func _private(ip: String) -> bool:
-	var p := ip.split(".")
-	if p.size() != 4:
-		return true
-	var a := int(p[0])
-	var b := int(p[1])
-	return a == 10 or a == 127 or (a == 192 and b == 168) or (a == 172 and b >= 16 and b <= 31) 			or (a == 100 and b >= 64 and b <= 127) or (a == 169 and b == 254)
-
-
-func _upnp_done(u: UPNP, ok: bool, ip: String) -> void:
-	if _upnp_thread != null:
-		_upnp_thread.wait_to_finish()
-		_upnp_thread = null
-	if not is_online() or not multiplayer.is_server():
-		if ok:
-			u.delete_port_mapping(_upnp_port, "UDP") # we stopped hosting while it worked
-		return
-	_upnp = u if ok else null
-	upnp_state = "open" if ok else "lan"
-	public_ip = ip if ok else ""
-	print("[net] invite: %s (%s)" % [invite_code(), upnp_state])
-	invite_changed.emit()
-
-
-func _close_router() -> void:
-	if _upnp_thread != null:
-		_upnp_thread.wait_to_finish()
-		_upnp_thread = null
-	if _upnp != null:
-		_upnp.delete_port_mapping(_upnp_port, "UDP")
-		_upnp = null
-	upnp_state = ""
-	public_ip = ""
-
-
-func _exit_tree() -> void:
-	_close_router()
+	return (_backend if _backend != null else direct).invite_note()
 
 
 ## Best-guess LAN IPv4 address of this machine.
 func local_ip() -> String:
-	var fallback := DEFAULT_ADDRESS
-	for addr: String in IP.get_local_addresses():
-		if addr.contains(":") or addr.begins_with("127.") or addr.begins_with("169.254."):
-			continue
-		if addr.begins_with("192.168.") or addr.begins_with("10.") or addr.begins_with("172."):
-			return addr
-		fallback = addr
-	return fallback
+	return DirectBackend.local_ip()
 
 
-## Parses an invite code, "IP:port" or a bare IP. Returns {} if it isn't usable.
+## Parses a direct invite code, "IP:port" or a bare IP. Returns {} if it isn't usable.
+## (Online invites are InviteCode.is_lobby_code(); join those with join_code().)
 func parse_invite(text: String) -> Dictionary:
-	var t := text.strip_edges()
-	if t == "":
-		return {}
-	var coded := InviteCode.decode(t)
-	if not coded.is_empty():
-		return coded
-	var address := t
-	var port := DEFAULT_PORT
-	var colon := t.rfind(":")
-	if colon > 0:
-		address = t.substr(0, colon)
-		port = int(t.substr(colon + 1))
-	if port <= 0 or port > 65535 or not (address.is_valid_ip_address() or address.contains(".")):
-		return {}
-	return {"address": address, "port": port}
+	return DirectBackend.parse(text)
 
 
 ## Leaves the current game, returns to the menu and joins another one from there.
+## `address` may also be an online invite (DUST-XXXXXX).
 func join_from_menu(address: String, port: int) -> void:
 	leave()
 	pending_join = {"address": address, "port": port}
@@ -348,10 +371,7 @@ func get_ping_ms() -> int:
 		for id: int in players:
 			if id != 1:
 				target = id
-	var p := _peer.get_peer(target)
-	if p == null:
-		return 0
-	return int(p.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+	return _backend.ping_ms(_peer, target) if _backend != null else 0
 
 
 func set_ready(value: bool) -> void:
@@ -424,6 +444,8 @@ func start_game() -> void:
 	_started = true
 	if _peer != null:
 		_peer.refuse_new_connections = true
+	if _backend != null:
+		_backend.set_joinable(false) # the online lobby stops showing up in searches
 	_start_game.rpc(String(map_id))
 
 

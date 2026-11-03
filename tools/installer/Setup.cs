@@ -3,8 +3,9 @@
 // Downloads the latest game build from the GitHub Releases page, installs it to
 // %LOCALAPPDATA%\DustAndMandibles, adds Desktop and Start Menu shortcuts, and
 // starts the game. Run it again (or use the shortcut) and it checks for a newer
-// release first, so it doubles as the updater. The game is one self-contained
-// .exe, so nothing else needs installing.
+// release first, so it doubles as the updater. The game is one .exe plus any
+// .dll files the release carries (the Epic Online Services libraries for
+// online invites), all placed side by side; nothing else needs installing.
 //
 // "--safe" (the Start Menu's Safe Mode shortcut) starts the game on the OpenGL
 // renderer with Low graphics, for old or integrated GPUs that can't run Vulkan.
@@ -51,10 +52,11 @@ static class Setup
             string installed = File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : "";
 
             string tag = null, url = null;
+            string[] libs = new string[0];
             try
             {
                 Console.WriteLine("Checking GitHub for the latest version...");
-                FindLatest(out tag, out url);
+                FindLatest(out tag, out url, out libs);
             }
             catch (Exception e)
             {
@@ -63,10 +65,20 @@ static class Setup
                 Console.WriteLine("Couldn't reach GitHub, starting the installed version.");
             }
 
-            if (tag != null && (tag != installed || !File.Exists(game)))
+            bool libsMissing = false;
+            foreach (string lib in libs)
+                if (!File.Exists(Path.Combine(InstallDir, Path.GetFileName(lib)))) libsMissing = true;
+            if (tag != null && (tag != installed || !File.Exists(game) || libsMissing))
             {
                 Console.WriteLine(installed == "" ? "Installing " + tag + "..." : "Updating " + installed + " -> " + tag + "...");
                 Download(url, game);
+                // Libraries next to the game (online play). The game still runs
+                // without them, with direct invites only, so a failure isn't fatal.
+                foreach (string lib in libs)
+                {
+                    try { Download(lib, Path.Combine(InstallDir, Uri.UnescapeDataString(Path.GetFileName(lib)))); }
+                    catch (Exception e) { Console.WriteLine("  (skipped " + Path.GetFileName(lib) + ": " + e.Message + ")"); }
+                }
                 File.WriteAllText(versionFile, tag);
             }
             else if (tag != null)
@@ -109,8 +121,9 @@ static class Setup
         return wc;
     }
 
-    // Reads the latest release's tag and the game's download link from the GitHub API.
-    static void FindLatest(out string tag, out string url)
+    // Reads the latest release's tag, the game's download link and the links of
+    // any .dll files to put next to it, from the GitHub API.
+    static void FindLatest(out string tag, out string url, out string[] libs)
     {
         string json;
         using (var wc = Client())
@@ -124,6 +137,10 @@ static class Setup
             throw new Exception("the latest release has no " + GameFile);
         tag = t.Groups[1].Value;
         url = u.Groups[1].Value;
+        var found = new System.Collections.Generic.List<string>();
+        foreach (Match m in Regex.Matches(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]*\\.dll)\""))
+            found.Add(m.Groups[1].Value);
+        libs = found.ToArray();
     }
 
     // Downloads to a temporary file with a progress bar, then swaps it into place.

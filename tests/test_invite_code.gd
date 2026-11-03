@@ -28,3 +28,16 @@ func test_rejects_junk() -> void:
 	assert_true(InviteCode.decode("192.168.1.20:24565").is_empty(), "an IP:port isn't a code")
 	assert_eq(InviteCode.encode("::1", 24565), "", "IPv6 has no code")
 	assert_eq(InviteCode.encode("1.2.3", 24565), "")
+
+
+func test_lobby_codes() -> void:
+	for i in 20:
+		var code := InviteCode.make_lobby_code()
+		assert_eq(code.length(), 11, code)
+		assert_eq(InviteCode.normalize_lobby_code(code), code, "a fresh code is canonical")
+		assert_true(InviteCode.decode(code).is_empty(), "a lobby code is never a direct code")
+	assert_eq(InviteCode.normalize_lobby_code(" dust 7k2-mqo "), "DUST-7K2MQ0", "loose typing, O reads as 0")
+	assert_eq(InviteCode.normalize_lobby_code("7K2MQX"), "DUST-7K2MQX", "no prefix")
+	assert_eq(InviteCode.normalize_lobby_code("DUST-7K2MQ-X4P90"), "", "a direct code isn't a lobby code")
+	assert_eq(InviteCode.normalize_lobby_code("192.168.1.20"), "")
+	assert_false(InviteCode.is_lobby_code("DUST-7K2M!X"))

@@ -71,6 +71,10 @@ func _refresh() -> void:
 
 
 func _on_join() -> void:
+	if InviteCode.is_lobby_code(_join_edit.text): # an online invite (DUST-XXXXXX)
+		_status.text = "Leaving this game and joining %s..." % _join_edit.text
+		NetworkManager.join_from_menu(InviteCode.normalize_lobby_code(_join_edit.text), NetworkManager.DEFAULT_PORT)
+		return
 	var parsed := NetworkManager.parse_invite(_join_edit.text)
 	if parsed.is_empty():
 		_status.text = "That doesn't look like an invite code."
