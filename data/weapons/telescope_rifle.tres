@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"telescope_rifle"
+display_name = "Telescope Rifle"
+description = "A bolt-action target rifle with a brass spyglass for a scope. Right click to look down it. Weak-spot hits land five times as hard, but every round has to be worked in by hand."
+damage = 70.0
+mag_size = 5
+fire_interval = 1.5
+reload_time = 3.4
+pellets = 1
+spread_deg = 0.0
+range = 500.0
+price_chitin = 80
+upgrade_costs = PackedInt32Array(25, 50)
+shake = 0.6
+sound = &"sharpshooter"
+recoil_deg = 6.0
+recoil_yaw_deg = 0.5
+recoil_recover = 0.6
+role = "Marksman"
+sound_pitch = 0.85
+weak_bonus = 2.5

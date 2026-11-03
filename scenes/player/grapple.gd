@@ -46,6 +46,9 @@ var _pull_limit := PULL_MAX_TIME
 var _cd := 0.0
 var _rope: MeshInstance3D
 var _hook: MeshInstance3D
+## Harpoon Pistol: a pull started by a harpoon shot (no launcher in hand, no
+## button to hold; it runs until you arrive, jump, or time runs out).
+var _harpoon := false
 ## Rope shown for a remote player (anchor), or empty.
 var _remote_anchor: Variant = null
 
@@ -124,12 +127,12 @@ func _holding() -> bool:
 ## and before move_and_slide. Returns true when it took over the velocity.
 func physics(delta: float) -> bool:
 	_cd = maxf(_cd - delta, 0.0)
-	var can_use := _holding() and not GameState.menu_open and not player.is_downed() \
+	var can_use := (_holding() or _harpoon) and not GameState.menu_open and not player.is_downed() \
 			and not player.is_down_in_canyon() and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or test_mode)
 	if not can_use:
 		_release()
 		return false
-	if mode == Mode.NONE and _cd <= 0.0:
+	if mode == Mode.NONE and _cd <= 0.0 and _holding():
 		if Input.is_action_just_pressed("fire"):
 			_launch(Mode.PULL)
 		elif Input.is_action_just_pressed("alt_fire"):
@@ -151,6 +154,16 @@ func attach(new_mode: Mode, point: Vector3) -> void:
 	_pull_limit = maxf(PULL_MAX_TIME, _rope_len / PULL_SPEED * 1.5 + 0.6)
 	player.cancel_fall()
 	_show_rope.rpc(anchor)
+
+
+## Harpoon Pistol: the dart bit into rock or a big bug at `point`; reel the
+## shooter in to it with the launcher's pull.
+func harpoon_pull(point: Vector3) -> void:
+	if player.is_down_in_canyon():
+		return
+	attach(Mode.PULL, point)
+	_harpoon = true
+	Audio.play_at(&"hook_bite", point, -2.0)
 
 
 func _launch(new_mode: Mode) -> void:
@@ -189,7 +202,7 @@ static func _on_airship(n: Node) -> bool:
 func _pull(delta: float) -> bool:
 	_pull_t += delta
 	# Let go of the button: the rope lets go at once, and you keep your speed.
-	if not test_mode and not Input.is_action_pressed("fire"):
+	if not test_mode and not _harpoon and not Input.is_action_pressed("fire"):
 		_release()
 		return false
 	var to := anchor - (player.global_position + Vector3.UP * 0.9)
@@ -253,6 +266,7 @@ func _swing(delta: float) -> bool:
 
 
 func _release() -> void:
+	_harpoon = false
 	if mode == Mode.NONE:
 		return
 	mode = Mode.NONE

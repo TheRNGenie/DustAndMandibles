@@ -204,12 +204,19 @@ func fire(origin: Vector3, dir: Vector3) -> void:
 	if gun.aim > 0.6:
 		seed_value |= 1 # aimed shots spread less (see Gun.shot_dirs)
 	var muzzle := gun.muzzle_global()
-	for d in Gun.shot_dirs(id, dir, seed_value, level):
-		var hit := gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, level))
-		var dmg := Gun.damage_at(id, level, origin.distance_to(hit["position"])) if not hit.is_empty() else Gun.damage_for(id, level)
-		gun.show_impact(hit, d, true, dmg) # client-side prediction
-		var end: Vector3 = hit["position"] if not hit.is_empty() else origin + d * Gun.range_for(id, level)
-		gun.draw_tracer(id, muzzle, end)
+	var def := gun.def
+	if def.special == &"smoke":
+		_smoke_fx(muzzle, dir)
+	else:
+		for d in Gun.shot_dirs(id, dir, seed_value, level):
+			var hit := gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, level))
+			var dmg := Gun.damage_at(id, level, origin.distance_to(hit["position"])) if not hit.is_empty() else Gun.damage_for(id, level)
+			dmg *= _crit(def, hit)
+			gun.show_impact(hit, d, true, dmg) # client-side prediction
+			var end: Vector3 = hit["position"] if not hit.is_empty() else origin + d * Gun.range_for(id, level)
+			gun.draw_tracer(id, muzzle, end)
+			if def.special == &"harpoon":
+				_harpoon_self(hit)
 	if multiplayer.is_server():
 		_server_fire(origin, dir, id, level, seed_value)
 	else:
@@ -234,20 +241,114 @@ func _request_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, se
 ## Host: applies damage for every pellet, then tells every other peer to draw the shot.
 func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, seed_value: int) -> void:
 	var def := Gun.weapon(id)
+	if def.special == &"smoke":
+		_server_smoke(origin, dir.normalized(), level)
+		_fire_fx.rpc(origin, dir, id, seed_value, level)
+		return
+	var salted: Array[Bug] = []
 	for d in Gun.shot_dirs(id, dir.normalized(), seed_value, level):
 		var hit := player.gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, level))
 		if hit.is_empty():
+			if def.special == &"flare":
+				# Into the open sky: it hangs there and sinks, lighting what's below.
+				_flare_at.rpc(origin + d * minf(Gun.range_for(id, level), 60.0), true)
 			continue
 		# Per-gun roles: shotguns lose punch with distance; the Gatling pins bugs down.
 		var dmg := Gun.damage_at(id, level, origin.distance_to(hit["position"]))
 		dmg *= Perks.gun_hit_mult(player.get_multiplayer_authority(), hit, origin.distance_to(hit["position"])) # Perk: Heavy Slugs / Marksman / Lucky Shot / Point Blank
+		dmg *= _crit(def, hit) # Telescope Rifle: weak-spot crits
 		Gun.apply_hit_result(hit, d, dmg, Gun.pierce_for(id, level), player.display_name(), player.cliff_id)
+		if def.special != &"":
+			_server_special(def, hit, salted)
 		if def.suppress_slow < 1.0:
 			var hb := hit["collider"] as Hitbox
 			var bug := hb.target as Bug if hb != null else null
 			if bug != null and is_instance_valid(bug) and bug.is_alive():
 				bug.status.slow(def.suppress_slow, def.suppress_time)
+	for b in salted:
+		GunRules.salt_hit(b) # once per shot, however many grains hit
 	_fire_fx.rpc(origin, dir, id, seed_value, level)
+
+
+## Weak-spot crit multiplier of a hit for this gun (1 = none).
+static func _crit(def: WeaponDef, hit: Dictionary) -> float:
+	if def.weak_bonus <= 1.0 or hit.is_empty():
+		return 1.0
+	var hb := hit["collider"] as Hitbox
+	return GunRules.crit_mult(def.weak_bonus, hb != null and hb.multiplier_at(hit["position"]) > 1.0)
+
+
+## Host: a frontier gun's special on one hit (GunRules): rock salt (collected,
+## applied once per shot), the harpoon reeling a small bug in, a flare marking a
+## bug for every turret or burning where it struck rock.
+func _server_special(def: WeaponDef, hit: Dictionary, salted: Array[Bug]) -> void:
+	var hb := hit["collider"] as Hitbox
+	var bug := hb.target as Bug if hb != null else null
+	var alive := bug != null and is_instance_valid(bug) and bug.is_alive()
+	match def.special:
+		&"salt":
+			if alive and not salted.has(bug):
+				salted.append(bug)
+		&"harpoon":
+			if alive and GunRules.harpoon_for_bug(bug) == GunRules.Harpoon.REEL:
+				_reel(bug)
+		&"flare":
+			if alive:
+				bug.status.mark(GunRules.MARK_TIME)
+				bug.show_flare.rpc(GunRules.MARK_TIME)
+			else:
+				_flare_at.rpc(hit["position"] + (hit["normal"] as Vector3) * 0.15, false)
+
+
+## Host: the harpoon reels a small bug in: off the wall (it drops), or dragged
+## across the ground / out of the air to just in front of the shooter.
+func _reel(bug: Bug) -> void:
+	bug.status.root(GunRules.REEL_HOLD)
+	match bug.state:
+		Bug.State.CLIMBING:
+			bug.knock_off(player.display_name(), player.cliff_id)
+		Bug.State.BREACHING, Bug.State.FLYING, Bug.State.CROSSING:
+			bug.ground_pos = GunRules.reel_point(bug.ground_pos, player.global_position + Vector3.UP * 0.8)
+
+
+## Owner: the harpoon bit into rock or a big bug: you get reeled in to it.
+func _harpoon_self(hit: Dictionary) -> void:
+	if hit.is_empty():
+		return
+	var hb := hit["collider"] as Hitbox
+	var action := GunRules.harpoon_action(false, true)
+	if hb != null:
+		var bug := hb.target as Bug
+		action = GunRules.harpoon_for_bug(bug) if bug != null else GunRules.Harpoon.NONE
+	if action == GunRules.Harpoon.PULL and player.grapple != null:
+		player.grapple.harpoon_pull(hit["position"])
+
+
+## Host: one puff of the Bee Smoker; every flier and spider in the cloud goes drowsy.
+func _server_smoke(origin: Vector3, dir: Vector3, level: int) -> void:
+	for n: Node in player.get_tree().get_nodes_in_group("bugs"):
+		var b := n as Bug
+		if b == null or not b.is_alive() or b.is_hidden():
+			continue
+		if GunRules.in_smoke(origin, dir, b.global_position, Gun.range_for(&"bee_smoker", level)):
+			GunRules.smoke_hit(b, WeaponMods.level(level))
+
+
+func _smoke_fx(muzzle: Vector3, dir: Vector3) -> void:
+	var vfx := player.gun.vfx
+	if vfx != null:
+		vfx.bee_smoke(muzzle, dir)
+
+
+## Every peer: a flare burning at `pos` (`sky`: it hangs in the air and sinks).
+@rpc("any_peer", "call_local", "reliable")
+func _flare_at(pos: Vector3, sky: bool) -> void:
+	if multiplayer.get_remote_sender_id() != 1 and multiplayer.get_remote_sender_id() != 0:
+		return
+	var f := SignalFlare.make(GunRules.MARK_TIME + (3.0 if sky else 0.0))
+	f.sink = 1.2 if sky else 0.0
+	player.get_tree().current_scene.add_child(f)
+	f.global_position = pos
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -259,8 +360,11 @@ func _fire_fx(origin: Vector3, dir: Vector3, id: StringName, seed_value: int, co
 
 func _show_remote_shot(origin: Vector3, dir: Vector3, id: StringName, seed_value: int, code: int = 0) -> void:
 	var def := Gun.weapon(id)
-	Audio.play_at(def.sound, player.global_position + Vector3.UP * 1.4, -4.0)
+	Gun.play_shot_sound(def, player.global_position + Vector3.UP * 1.4, -4.0, seed_value >> 1)
 	var muzzle := player.global_position + Vector3.UP * 1.3 + player.global_transform.basis.x * 0.3
+	if def.special == &"smoke":
+		_smoke_fx(muzzle + dir.normalized() * 0.4, dir)
+		return
 	for d in Gun.shot_dirs(id, dir.normalized(), seed_value, code):
 		var hit := player.gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, code))
 		player.gun.show_impact(hit, d)

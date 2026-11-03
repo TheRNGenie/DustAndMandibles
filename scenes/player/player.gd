@@ -422,6 +422,7 @@ func _handle_weapon() -> void:
 	var pull := Input.is_action_pressed("fire") if gun.def != null and gun.def.automatic else Input.is_action_just_pressed("fire")
 	if pull and gun.trigger(camera):
 		net.fire(camera.global_position, -camera.global_transform.basis.z)
+		kick_back(gun.def.kickback)
 	if Input.is_action_just_pressed("reload"):
 		gun.reload()
 
@@ -781,6 +782,16 @@ func bonk(dir: Vector3, strength: float) -> void:
 	var side := signf(flat.dot(global_transform.basis.x))
 	_roll_vel += -side * 6.0 * strength
 	add_shake(0.5 * strength)
+
+
+## The Punt Gun's kick: shoved back along your aim, stumbling for a moment so
+## your feet don't simply cancel it.
+func kick_back(kickback: float) -> void:
+	if kickback <= 0.0 or not is_multiplayer_authority():
+		return
+	velocity += GunRules.kick_velocity(-camera.global_transform.basis.z, kickback)
+	_stagger = maxf(_stagger, 0.4)
+	rig.knock(camera.global_transform.basis.z, 0.6)
 
 
 ## Local player: shake the camera (0..1).

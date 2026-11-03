@@ -12,7 +12,8 @@ extends Node3D
 ##   shotgun:   barrels drop open, the empties fly, two shells go in, snap shut.
 
 var id: StringName
-var drum: MeshInstance3D
+## The revolver's cylinder, or the pepperbox's barrel cluster (turns about Z).
+var drum: Node3D
 var lever: Node3D
 var barrels: Node3D
 ## Crank Gatling: the spinning barrel cluster and the crank handle.
@@ -26,6 +27,22 @@ var _flyer: MeshInstance3D
 var _mat: Material
 var _team: Color
 var _posture := 0.0
+# Frontier guns (gen/frontier_guns.gd): the rifle's bolt, the salt gun's pump,
+# the harpoon's spool and loaded dart, the smoker's bellows and leather, and
+# the derringers' second pistol (in the left hand) with its own barrels.
+var bolt: Node3D
+var pump: Node3D
+var reel: Node3D
+var dart: Node3D
+var bellows: Node3D
+var pleats: Node3D
+var left_gun: Node3D
+var left_barrels: Node3D
+var _reel_spin := 0.0
+var _reel_angle := 0.0
+var _puff_phase := 0.0
+## Derringers: the recoil of the last shot, per hand (0 right, 1 left).
+var _hand_kick := Vector2.ZERO
 
 
 func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) -> void:
@@ -33,6 +50,85 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 	_mat = mat
 	_team = team
 	var body := _mi(self, null)
+	if FrontierGuns.has(id):
+		_build_frontier(body)
+	else:
+		_build_classic(body)
+	_right_mi = _mi(self, null)
+	left = Node3D.new()
+	left.position = WeaponBuilder.LEFT_FIST[id]
+	add_child(left)
+	_left_mi = _mi(left, null)
+	var held_round := WeaponBuilder.cartridge()
+	match id:
+		&"coach_shotgun":
+			held_round = WeaponBuilder.shell()
+		&"blunderbuss":
+			held_round = WeaponBuilder.powder_horn()
+		&"crank_gatling":
+			held_round = WeaponBuilder.gatling_drum()
+		&"flare_gun", &"salt_shotgun", &"punt_gun", &"harpoon_pistol", &"telescope_rifle", &"pepperbox":
+			held_round = FrontierGuns.held_round(id)
+	_round = _mi(left, held_round)
+	if FrontierGuns.has(id):
+		_round.material_override = null
+	_round.position = Vector3(0.012, 0.02, -0.02)
+	_round.visible = false
+	if id == &"revolver":
+		_make_twirl_pivot()
+	if id == &"derringer_pair":
+		# The second pistol sits in the left fist the way the first sits in the right.
+		left_gun = Node3D.new()
+		left_gun.name = "LeftPistol"
+		left_gun.position = -(WeaponBuilder.RIGHT_HAND[id][0] as Vector3)
+		left.add_child(left_gun)
+		var lb := _mi(left_gun, FrontierGuns.parts(id)["body"])
+		lb.material_override = null
+		left_barrels = FrontierGuns.part_node(id, "barrels")
+		left_gun.add_child(left_barrels)
+	if id == &"lever_rifle":
+		_flyer = MeshInstance3D.new()
+		_flyer.mesh = WeaponBuilder.cartridge()
+		_flyer.material_override = _mat
+		_flyer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_flyer.visible = false
+		add_child(_flyer)
+	set_look(look)
+
+
+## A frontier gun: its body (own materials, no toon override) and each moving
+## part on its pivot (FrontierGuns.PIVOTS).
+func _build_frontier(body: MeshInstance3D) -> void:
+	body.mesh = FrontierGuns.parts(id)["body"]
+	body.material_override = null
+	for part: String in FrontierGuns.parts(id):
+		if part == "body":
+			continue
+		var n := FrontierGuns.part_node(id, part)
+		add_child(n)
+		match part:
+			"barrels":
+				barrels = n
+			"drum":
+				drum = n
+			"bolt":
+				bolt = n
+			"pump":
+				pump = n
+			"reel":
+				reel = n
+			"dart":
+				dart = n
+			"bellows":
+				bellows = n
+			"pleats":
+				pleats = n
+	if bellows != null:
+		bellows.rotation.x = FrontierGuns.BELLOWS_OPEN
+		pleats.rotation.x = FrontierGuns.BELLOWS_OPEN * 0.6
+
+
+func _build_classic(body: MeshInstance3D) -> void:
 	match id:
 		&"revolver":
 			body.mesh = WeaponBuilder.revolver_body()
@@ -64,32 +160,6 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 			_mi(barrels, WeaponBuilder.shotgun_barrels())
 	if GunModels.has(id):
 		_use_model(body)
-	_right_mi = _mi(self, null)
-	left = Node3D.new()
-	left.position = WeaponBuilder.LEFT_FIST[id]
-	add_child(left)
-	_left_mi = _mi(left, null)
-	var held_round := WeaponBuilder.cartridge()
-	match id:
-		&"coach_shotgun":
-			held_round = WeaponBuilder.shell()
-		&"blunderbuss":
-			held_round = WeaponBuilder.powder_horn()
-		&"crank_gatling":
-			held_round = WeaponBuilder.gatling_drum()
-	_round = _mi(left, held_round)
-	_round.position = Vector3(0.012, 0.02, -0.02)
-	_round.visible = false
-	if id == &"revolver":
-		_make_twirl_pivot()
-	if id == &"lever_rifle":
-		_flyer = MeshInstance3D.new()
-		_flyer.mesh = WeaponBuilder.cartridge()
-		_flyer.material_override = _mat
-		_flyer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_flyer.visible = false
-		add_child(_flyer)
-	set_look(look)
 
 
 ## Swap the code-built gun for the Meshy model: the body goes on this node, and
@@ -192,6 +262,21 @@ func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: f
 		&"crank_gatling":
 			# Tip it right to swap the drum on top.
 			transform = Transform3D(Basis.from_euler(Vector3(0.15 * e, 0.0, -0.55 * e)), Vector3(-0.04, 0.05, 0.05) * e)
+		&"derringer_pair":
+			# Both pistols come up, muzzles high, and the barrels flick open.
+			transform = Transform3D(Basis.from_euler(Vector3(0.55 * e, 0.0, 0.25 * e)), Vector3(0.0, 0.05, 0.02) * e)
+		&"pepperbox", &"harpoon_pistol":
+			# Tipped up and left to thumb rounds into the back of the block / slide a dart in.
+			transform = Transform3D(Basis.from_euler(Vector3(0.5 * e, 0.25 * e, 0.6 * e)), Vector3(-0.06, 0.06, 0.03) * e)
+		&"flare_gun", &"punt_gun":
+			# Muzzle down, breech up toward you.
+			transform = Transform3D(Basis.from_euler(Vector3(-0.35 * e, 0.15 * e, 0.35 * e)), Vector3(-0.05, 0.08, 0.06) * e)
+		&"salt_shotgun":
+			# Rolled over to thumb shells into the loading port underneath.
+			transform = Transform3D(Basis.from_euler(Vector3(0.2 * e, -0.1 * e, 1.6 * e)), Vector3(-0.05, 0.08, 0.06) * e)
+		&"telescope_rifle":
+			# Canted right, bolt open, rounds pressed down into the magazine.
+			transform = Transform3D(Basis.from_euler(Vector3(0.25 * e, -0.15 * e, -0.55 * e)), Vector3(-0.03, 0.07, 0.07) * e)
 		_:
 			transform = Transform3D(Basis.from_euler(Vector3(0.4 * e, 0.12 * e, 0.3 * e)), Vector3(-0.04, 0.06, 0.06) * e)
 	if drum != null:
@@ -199,7 +284,17 @@ func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: f
 	if lever != null:
 		lever.rotation.x = 0.95 * sin(clampf(cycle, 0.0, 1.0) * PI)
 	if barrels != null:
-		barrels.rotation.x = -0.75 * e
+		barrels.rotation.x = (0.9 if id == &"derringer_pair" else -0.75) * e
+	if left_barrels != null:
+		left_barrels.rotation.x = 0.9 * e
+	if bolt != null:
+		_pose_bolt(cycle, e)
+	if pump != null:
+		# Racked back and forward after each shot.
+		pump.position = FrontierGuns.pivot(id, "pump") + Vector3(0, 0, 0.075 * sin(clampf(cycle, 0.0, 1.0) * PI))
+	if id == &"derringer_pair":
+		_pose_derringers(e, load_t, loading)
+		return
 	# Support hand: off to the cartridge pouch during the posture, then fetch,
 	# thumb the round home, and back for the next one.
 	var rest: Vector3 = WeaponBuilder.LEFT_FIST[id]
@@ -236,6 +331,61 @@ func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: f
 		var up := parent_basis * Vector3.UP
 		# A touch oversized so it reads on screen.
 		_round.global_transform = Transform3D(Basis.looking_at(dir, up).scaled(Vector3.ONE * 1.6), left.global_position + dir * 0.045 + up * 0.02)
+
+
+## Telescope Rifle bolt: lift the handle, draw it back, push it home, turn it
+## down (cycle 0..1 after a shot); held open while reloading.
+func _pose_bolt(cycle: float, open: float) -> void:
+	var c := clampf(cycle, 0.0, 1.0)
+	var lift := 0.0
+	var back := 0.0
+	if c < 1.0:
+		lift = _ease(c / 0.2) if c < 0.8 else 1.0 - _ease((c - 0.8) / 0.2)
+		back = _ease((c - 0.2) / 0.25) if c < 0.5 else 1.0 - _ease((c - 0.5) / 0.25)
+	lift = maxf(lift, open)
+	back = maxf(back, open * 0.8)
+	bolt.rotation.z = 1.25 * lift
+	bolt.position = FrontierGuns.pivot(id, "bolt") + Vector3(0, 0, 0.07 * back)
+
+
+## Derringers: each hand kicks on its own shot; on a reload both pistols tip up,
+## barrels open, and a flick of the wrists seats the new rounds.
+func _pose_derringers(e: float, load_t: float, loading: bool) -> void:
+	_round.visible = false
+	var rest: Vector3 = WeaponBuilder.LEFT_FIST[id]
+	var seat := sin(clampf(load_t, 0.0, 1.0) * PI) * 0.12 if loading else 0.0
+	left.position = rest + Vector3(0.05, 0.05, 0.02) * e + Vector3(0, 0, 0.03 * _hand_kick.y)
+	# (The left pistol hangs off this node, so cancel the right hand's kick on it.)
+	left.rotation = Vector3(0.5 * _hand_kick.y - 0.5 * _hand_kick.x, 0.0, -0.5 * e)
+	rotation.x += 0.5 * _hand_kick.x + seat
+
+
+## Derringers: the pistol in hand `side` (0 right, 1 left) just fired.
+func hand_kick(side: int) -> void:
+	if side == 0:
+		_hand_kick.x = 1.0
+	else:
+		_hand_kick.y = 1.0
+
+
+## Harpoon: the dart shows in the muzzle only while one is loaded.
+func set_loaded(on: bool) -> void:
+	if dart != null:
+		dart.visible = on
+
+
+## Harpoon: the spool whirls as the line pays out (decays by itself).
+func spin_reel(speed: float) -> void:
+	_reel_spin = maxf(_reel_spin, speed)
+
+
+## Frame update for the frontier guns' idle motion (spool, kicks).
+func frontier_tick(delta: float) -> void:
+	_hand_kick = _hand_kick.move_toward(Vector2.ZERO, delta * 7.0)
+	if reel != null:
+		_reel_angle += _reel_spin * delta
+		_reel_spin = move_toward(_reel_spin, 0.0, delta * 30.0)
+		reel.rotation.x = -_reel_angle
 
 
 ## The lever-rifle flourish (Hunt: Showdown style): the lever flicks, the
@@ -277,6 +427,17 @@ var _spin_angle := 0.0
 
 
 func turn_crank(amount: float, delta: float) -> void:
+	if bellows != null:
+		# Bee Smoker: the bellows pump while the trigger's held.
+		if amount > 0.01:
+			_puff_phase += delta * 11.0
+		var squeeze := (0.5 + 0.5 * sin(_puff_phase)) * amount
+		bellows.rotation.x = FrontierGuns.BELLOWS_OPEN * (1.0 - 0.85 * squeeze)
+		pleats.rotation.x = bellows.rotation.x * 0.6
+		var rest: Vector3 = WeaponBuilder.LEFT_FIST[id]
+		left.position = rest + Vector3(0, 0, 0) # the can hand stays put
+		_right_mi.position = Vector3(0, 0, -0.03 * squeeze)
+		return
 	if spinner == null:
 		return
 	_spin_angle += amount * 26.0 * delta
@@ -303,8 +464,14 @@ func _push_dir() -> Vector3:
 	match id:
 		&"lever_rifle":
 			return transform.basis * Vector3(-0.5, 0.1, -1.0).normalized()
-		&"blunderbuss", &"crank_gatling":
+		&"blunderbuss", &"crank_gatling", &"bee_smoker":
 			return transform.basis * Vector3(0, -1, 0)
+		&"salt_shotgun":
+			return transform.basis * Vector3(0, 1, -0.3).normalized()
+		&"telescope_rifle":
+			return transform.basis * Vector3(-0.2, -1, 0).normalized()
+		&"flare_gun", &"punt_gun":
+			return transform.basis * Vector3(0, -0.45, -1).normalized()
 		&"coach_shotgun":
 			return (transform.basis * barrels.transform.basis * Vector3(0, 0, -1)).normalized() if barrels != null else Vector3.FORWARD
 	return transform.basis * Vector3(0, 0, -1)

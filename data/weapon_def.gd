@@ -42,6 +42,24 @@ extends Resource
 ## One-word job shown in the field guide and gun shop.
 @export var role: String = ""
 
+@export_group("Specials")
+## What the gun does besides damage (GunRules): &"harpoon" reels small bugs in
+## or pulls you to big ones and walls, &"flare" marks a bug for every turret,
+## &"salt" makes climbers lose their grip, &"smoke" makes fliers and spiders
+## drowsy. &"" = an ordinary gun.
+@export var special: StringName = &""
+## Pitch of the shot sound (new guns reuse the old recordings higher or lower),
+## and an optional second sound layered on top.
+@export var sound_pitch: float = 1.0
+@export var sound_layer: StringName = &""
+@export var sound_layer_pitch: float = 1.0
+## Shoves the shooter back along the shot (m/s): the Punt Gun's kick.
+@export var kickback: float = 0.0
+## Extra multiplier on a weak-spot hit, on top of the weak spot's own x2 (crits).
+@export var weak_bonus: float = 1.0
+## How fast it comes up when you switch to it (1 = normal; the derringers are quick).
+@export var draw_speed: float = 1.0
+
 
 ## Damage multiplier for a hit `dist` metres away.
 func falloff(dist: float) -> float:
@@ -53,9 +71,14 @@ func falloff(dist: float) -> float:
 ## A gun's key numbers in one line, the same in the shop and the field guide:
 ## "Damage 30  ·  6 Rounds  ·  1.8 s Reload  ·  Pierces Armour".
 func stat_line() -> String:
+	if special == &"smoke":
+		return "  ·  ".join(PackedStringArray(["No Damage", "%d s of Smoke" % roundi(mag_size * fire_interval),
+				"Reaches %d m" % int(range), "Refills Itself"]))
 	var parts: PackedStringArray = ["Damage %d%s" % [int(damage), (" x%d" % pellets) if pellets > 1 else ""],
 			"%d Round%s" % [mag_size, "" if mag_size == 1 else "s"], "%.1f s Reload" % reload_time,
 			"Pierces Armour" if pierce_armor else "Stopped by Armour"]
 	if falloff_start < range:
 		parts.append("Weaker Past %d m" % int(falloff_start))
+	if weak_bonus > 1.0:
+		parts.append("Weak Spots x%s" % String.num(WeakSpot.MULTIPLIER * weak_bonus, 1).trim_suffix(".0"))
 	return "  ·  ".join(parts)

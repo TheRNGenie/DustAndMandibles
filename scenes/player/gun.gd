@@ -17,7 +17,14 @@ signal flourished(kind: StringName)
 
 ## [Foundation] Guns are registered in Defs.WEAPONS with the rest of the content.
 const WEAPONS: Dictionary = Defs.WEAPONS
-const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun", &"dino_rifle"]
+const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun", &"dino_rifle",
+	&"derringer_pair", &"pepperbox", &"salt_shotgun", &"harpoon_pistol", &"bee_smoker", &"flare_gun", &"punt_gun", &"telescope_rifle"]
+## Frontier guns that load every round in one go (a reload is one step).
+const LOAD_ALL: Array[StringName] = [&"crank_gatling", &"pepperbox", &"derringer_pair"]
+## Where some guns sit lower or closer than the standard rest spot (the smoker's
+## can would block the view; the punt gun rides on the hip).
+const REST_OFF: Dictionary = {&"bee_smoker": Vector3(0.03, -0.1, 0.04), &"punt_gun": Vector3(0.02, -0.05, 0.08),
+	&"derringer_pair": Vector3(0.02, 0.0, 0.03), &"telescope_rifle": Vector3(0.0, -0.01, 0.02)}
 const MAX_RANGE := 300.0
 const IMPACT_FORCE := 4.0
 const REST_POS := Vector3(0.2, -0.19, -0.5)
@@ -33,9 +40,14 @@ const MAX_WEAPONS := 3
 const AIM_POS: Dictionary = {&"revolver": Vector3(0.0, -0.075, -0.5), &"lever_rifle": Vector3(0.0, -0.056, -0.44),
 	&"coach_shotgun": Vector3(0.0, -0.058, -0.4), &"blunderbuss": Vector3(0.0, -0.05, -0.4), &"crank_gatling": Vector3(0.06, -0.12, -0.45),
 	&"elephant_gun": Vector3(-0.0077, -0.036, -0.2), # the scope's axis on your eye line
-	&"dino_rifle": Vector3(-0.003, -0.072, -0.12)}
+	&"dino_rifle": Vector3(-0.003, -0.072, -0.12),
+	&"derringer_pair": Vector3(0.09, -0.11, -0.42), &"pepperbox": Vector3(0.0, -0.074, -0.46), &"harpoon_pistol": Vector3(0.0, -0.078, -0.44),
+	&"flare_gun": Vector3(0.0, -0.08, -0.44), &"salt_shotgun": Vector3(0.0, -0.04, -0.36), &"punt_gun": Vector3(0.07, -0.21, -0.4),
+	&"bee_smoker": Vector3(0.12, -0.27, -0.46), &"telescope_rifle": Vector3(0.0, -0.068, -0.16)}
 ## The Elephant Gun's lashed-on magnifying glass zooms in hard.
-const AIM_ZOOM: Dictionary = {&"revolver": 1.4, &"lever_rifle": 2.2, &"coach_shotgun": 1.25, &"blunderbuss": 1.15, &"crank_gatling": 1.2, &"elephant_gun": 3.2, &"dino_rifle": 1.0} # Dino Rifle: its glass (DinoGlass) sets the zoom
+const AIM_ZOOM: Dictionary = {&"revolver": 1.4, &"lever_rifle": 2.2, &"coach_shotgun": 1.25, &"blunderbuss": 1.15, &"crank_gatling": 1.2, &"elephant_gun": 3.2, &"dino_rifle": 1.0,
+	&"derringer_pair": 1.05, &"pepperbox": 1.2, &"harpoon_pistol": 1.35, &"flare_gun": 1.3, &"salt_shotgun": 1.25, &"punt_gun": 1.0,
+	&"bee_smoker": 1.0, &"telescope_rifle": 4.5} # Telescope Rifle: the spyglass # Dino Rifle: its glass (DinoGlass) sets the zoom
 ## Player shot tracers per gun: colour, thickness (m), speed (m/s).
 const TRACERS: Dictionary = {
 	&"revolver": [Color("#FFC94A"), 0.055, 240.0],
@@ -45,6 +57,14 @@ const TRACERS: Dictionary = {
 	&"crank_gatling": [Color("#FFD23F"), 0.04, 300.0],
 	&"elephant_gun": [Color("#FFF6D0"), 0.09, 420.0],
 	&"dino_rifle": [Color("#E8FFD0"), 0.08, 420.0],
+	&"derringer_pair": [Color("#FFD27A"), 0.04, 220.0],
+	&"pepperbox": [Color("#FFB04A"), 0.04, 220.0],
+	&"salt_shotgun": [Color("#F4F8FF"), 0.03, 170.0], # rock salt
+	&"harpoon_pistol": [Color("#C8A46A"), 0.022, 110.0], # the line
+	&"flare_gun": [Color("#FF4A3A"), 0.12, 75.0], # the burning flare
+	&"punt_gun": [Color("#FF8A3A"), 0.04, 170.0],
+	&"bee_smoker": [Color("#D8D2C8"), 0.0, 1.0],
+	&"telescope_rifle": [Color("#FFF8E0"), 0.06, 460.0],
 }
 
 
@@ -63,6 +83,15 @@ func draw_tracer(id: StringName, from: Vector3, to: Vector3) -> void:
 ## World position of this gun's muzzle (the flash point).
 func muzzle_global() -> Vector3:
 	return _flash.global_position
+
+
+## When each gun was put away (ms), for the smoker's fuel.
+var _holstered_at: Dictionary = {}
+## Derringers: the hand that fires next (0 right, 1 left).
+var _hand_next := 0
+## Bee Smoker: seconds since the last puff, and the fuel's fraction of a unit.
+var _fuel_idle := 0.0
+var _fuel_frac := 0.0
 
 
 ## Aimed shotguns spread this much less.
@@ -218,6 +247,7 @@ func equip(id: StringName) -> void:
 		return
 	if def != null and owned.has(def.id):
 		_ammo_by_weapon[def.id] = ammo
+		_holstered_at[def.id] = Time.get_ticks_msec()
 	def = weapon(id)
 	holding = &""
 	_item_mi.visible = false
@@ -236,8 +266,13 @@ func equip(id: StringName) -> void:
 		# Drawn with a spin round the trigger finger.
 		_start_twirl(TWIRL_EQUIP)
 	var muzzle_z := -0.28 if id == &"revolver" else -0.62
-	_flash.position = Vector3(0, 0.02, muzzle_z)
-	_flash_light.position = Vector3(0, 0.02, muzzle_z - 0.05)
+	_flash.position = FrontierGuns.MUZZLE.get(id, Vector3(0, 0.02, muzzle_z))
+	_flash_light.position = _flash.position + Vector3(0, 0, -0.05)
+	_hand_next = 0
+	if id == &"bee_smoker" and _holstered_at.has(id):
+		# The burlap kept smouldering in the holster.
+		var away := (Time.get_ticks_msec() - int(_holstered_at[id])) / 1000.0
+		ammo = int(GunRules.refill(float(ammo), away, maxf(away - GunRules.FUEL_DELAY, 0.0), level_of(id), float(mag_size())))
 	ammo_changed.emit(ammo, mag_size())
 	loadout_changed.emit()
 
@@ -360,7 +395,11 @@ func _process(delta: float) -> void:
 		_cycle = minf(_cycle + delta / maxf(fire_interval() * 0.8, 0.1), 1.0)
 	_drum_angle = move_toward(_drum_angle, _drum_target, delta * 9.0)
 	var vm := _models.get(def.id) as ViewModel if def != null else null
+	if def != null and def.special == &"smoke" and holding == &"":
+		_refill_fuel(delta)
 	if vm != null:
+		vm.frontier_tick(delta)
+		vm.set_loaded(ammo > 0 or _stage == Reload.CLOSE)
 		var load_t := clampf(_stage_t / maxf(_stage_len, 0.001), 0.0, 1.0)
 		var catch_t := load_t if (_stage == Reload.OPEN and _catching) else -1.0
 		vm.pose(_open, load_t, _stage == Reload.LOAD, _cycle, _drum_angle, _loaded_this_reload, catch_t)
@@ -379,11 +418,14 @@ func _process(delta: float) -> void:
 		(_models[def.id] as Node3D).visible = not is_scoped()
 	if def != null and def.id == &"dino_rifle" and _models.has(def.id):
 		(_models[def.id] as ViewModel).set_glass(DinoGlass.of(code_of(def.id))) # this gun's glass fit
-	var aim_pos: Vector3 = AIM_POS.get(def.id, REST_POS) if def != null else REST_POS
+	if def != null and def.id == &"telescope_rifle" and _models.has(def.id):
+		(_models[def.id] as Node3D).visible = not is_scoped()
+	var rest: Vector3 = REST_POS + (REST_OFF.get(def.id, Vector3.ZERO) if def != null else Vector3.ZERO)
+	var aim_pos: Vector3 = AIM_POS.get(def.id, rest) if def != null else rest
 	_feel_step(delta)
 	var off := _feel_offset()
 	var held := holding != &"" and holding != &"none"
-	position = REST_POS.lerp(aim_pos, aim) + Vector3(0, 0, _kick * 0.06 * (1.0 - aim * 0.5)) + off[0] + (item_pos if held else Vector3.ZERO)
+	position = rest.lerp(aim_pos, aim) + Vector3(0, 0, _kick * 0.06 * (1.0 - aim * 0.5)) + off[0] + (item_pos if held else Vector3.ZERO)
 	rotation = Vector3(_kick * 0.5, 0, 0) + off[1] + (item_rot if held else Vector3.ZERO)
 
 
@@ -418,7 +460,7 @@ func _feel_step(delta: float) -> void:
 	# Landing: a damped dip.
 	_land_vel += (-_land * 120.0 - _land_vel * 14.0) * dt
 	_land += _land_vel * dt
-	_raise = move_toward(_raise, 0.0, dt * 3.6)
+	_raise = move_toward(_raise, 0.0, dt * 3.6 * (def.draw_speed if def != null else 1.0))
 	lowered = move_toward(lowered, _lower_target, dt * 5.0)
 
 
@@ -463,6 +505,21 @@ func _times() -> Vector3:
 		&"elephant_gun", &"dino_rifle":
 			# Break it open, thumb in two fat cartridges one at a time, snap it shut.
 			return Vector3(0.6, reload_time() * 0.5, 0.55) * k
+		&"derringer_pair":
+			# Flick both open, thumb four in, flick them shut: under a second.
+			return Vector3(0.15, reload_time() * 0.6, 0.15) * k
+		&"pepperbox":
+			# All six nipples capped and loaded from a block in one go.
+			return Vector3(0.35, reload_time() * 0.7, 0.3) * k
+		&"salt_shotgun":
+			return Vector3(0.35, reload_time() * 0.16, 0.3) * k
+		&"telescope_rifle":
+			return Vector3(0.4, reload_time() * 0.15, 0.4) * k
+		&"harpoon_pistol", &"flare_gun":
+			return Vector3(0.35, reload_time() * 0.55, 0.3) * k
+		&"punt_gun":
+			# Break the iron open, heave the spent case out, the new shell in, close it.
+			return Vector3(0.9, reload_time() * 0.55, 0.85) * k
 	return Vector3(0.35, reload_time() * 0.3, 0.3) * k
 
 
@@ -483,7 +540,7 @@ func _advance_reload(delta: float) -> void:
 			_begin(Reload.LOAD, times.y)
 		Reload.LOAD:
 			# The gatling swaps a whole drum at once.
-			ammo = mag_size() if def.id == &"crank_gatling" else mini(ammo + 1, mag_size())
+			ammo = mag_size() if LOAD_ALL.has(def.id) else mini(ammo + 1, mag_size())
 			_loaded_this_reload += 1
 			ammo_changed.emit(ammo, mag_size())
 			_foley("load", -8.0)
@@ -530,22 +587,38 @@ func trigger(camera: Camera3D) -> bool:
 	if def.automatic and spin < 1.0:
 		return false # still winding the crank up
 	if ammo <= 0:
-		reload()
+		if def.special != &"smoke": # the smoker just waits for its fuel
+			reload()
 		return false
 	ammo -= 1
 	_twirl_left = 0.0 # a shot cuts any flourish short
 	_cooldown = fire_interval()
 	_kick = 1.0 + def.shake
-	if def.id == &"revolver":
+	if def.id == &"revolver" or def.id == &"pepperbox":
 		_drum_target += TAU / 6.0
-	elif def.id == &"lever_rifle":
-		_cycle = 0.0 # work the lever
-	_flash.visible = true
-	_flash.rotation.z = randf() * TAU
-	_flash_light.light_energy = 2.5
-	_flash_left = 0.05
+	elif def.id == &"lever_rifle" or def.id == &"salt_shotgun" or def.id == &"telescope_rifle":
+		_cycle = 0.0 # work the lever / pump / bolt
+	var vm := _models.get(def.id) as ViewModel
+	if def.id == &"derringer_pair":
+		# Right, left, right, left: each pistol kicks in its own hand.
+		vm.hand_kick(_hand_next)
+		var off: Vector3 = vm.left.position - (WeaponBuilder.RIGHT_HAND[def.id][0] as Vector3) if _hand_next == 1 else Vector3.ZERO
+		_flash.position = (FrontierGuns.MUZZLE[def.id] as Vector3) + off
+		_hand_next = 1 - _hand_next
+	elif def.id == &"harpoon_pistol":
+		vm.spin_reel(60.0)
+	if def.special == &"smoke":
+		_fuel_idle = 0.0
+		_kick = 0.0
+	else:
+		_flash.visible = true
+		_flash.rotation.z = randf() * TAU
+		_flash_light.light_energy = 2.5 if def.id != &"flare_gun" else 5.0
+		_flash_light.light_color = Color("#FF5A3A") if def.id == &"flare_gun" else Palette.GLOW_YELLOW
+		_flash_left = 0.05 if def.id != &"flare_gun" else 0.18
 	ammo_changed.emit(ammo, mag_size())
-	Audio.play_at(def.sound, global_position, -2.0)
+	play_shot_sound(def, global_position, -2.0, _shot_count)
+	_shot_count += 1
 	var p := get_parent().get_parent().get_parent() as Player
 	if p != null:
 		p.add_shake(def.shake)
@@ -554,6 +627,35 @@ func trigger(camera: Camera3D) -> bool:
 			p.add_recoil(def.recoil_deg * (0.7 if aiming else 1.0), def.recoil_yaw_deg, def.recoil_recover)
 	fired.emit(camera.global_position, -camera.global_transform.basis.z)
 	return true
+
+
+var _shot_count := 0
+
+
+## A gun's shot sound (pitched, with its layer). The smoker only wheezes every
+## third puff, and quietly.
+static func play_shot_sound(d: WeaponDef, at: Vector3, volume_db: float, count: int = 0) -> void:
+	if d.special == &"smoke":
+		if count % 3 == 0:
+			Audio.play_at(d.sound, at, volume_db - 12.0, d.sound_pitch)
+		return
+	Audio.play_at(d.sound, at, volume_db, d.sound_pitch)
+	if d.sound_layer != &"":
+		Audio.play_at(d.sound_layer, at, volume_db - 3.0, d.sound_layer_pitch)
+
+
+## Bee Smoker: the burlap smoulders back up while you're not puffing.
+func _refill_fuel(delta: float) -> void:
+	_fuel_idle += delta
+	if ammo >= mag_size():
+		_fuel_frac = 0.0
+		return
+	var f := GunRules.refill(float(ammo) + _fuel_frac, _fuel_idle, delta, level_of(def.id), float(mag_size()))
+	var whole := int(f)
+	_fuel_frac = f - whole
+	if whole != ammo:
+		ammo = whole
+		ammo_changed.emit(ammo, mag_size())
 
 
 ## Right mouse held: aim if a gun is out and not reloading.
@@ -567,7 +669,7 @@ func set_aiming(on: bool) -> void:
 func is_scoped() -> bool:
 	if def != null and def.id == &"dino_rifle":
 		return holding == &"" and aim > 0.85 and bool(DinoGlass.get_fit(code_of(def.id))["scoped"])
-	return def != null and def.id == &"elephant_gun" and holding == &"" and aim > 0.85
+	return def != null and (def.id == &"elephant_gun" or def.id == &"telescope_rifle") and holding == &"" and aim > 0.85
 
 
 func zoom_factor() -> float:
@@ -580,7 +682,7 @@ func zoom_factor() -> float:
 
 
 func reload() -> void:
-	if holding != &"" or def == null or _stage != Reload.NONE or ammo == mag_size():
+	if holding != &"" or def == null or _stage != Reload.NONE or ammo == mag_size() or def.special == &"smoke":
 		return
 	var times := _times()
 	_loaded_this_reload = 0
@@ -588,7 +690,7 @@ func reload() -> void:
 	_begin(Reload.OPEN, CATCH_TIME if _catching else times.x)
 	if _catching:
 		_foley("open", -4.0)
-	var rounds := mag_size() if def.id == &"coach_shotgun" else (1 if def.id == &"crank_gatling" else mag_size() - ammo)
+	var rounds := mag_size() if def.id == &"coach_shotgun" else (1 if LOAD_ALL.has(def.id) else mag_size() - ammo)
 	reload_started.emit(times.x + times.y * rounds + times.z)
 	if def.id == &"revolver":
 		flourished.emit(&"reload_revolver")
@@ -621,7 +723,7 @@ func is_twirling() -> bool:
 
 ## This gun's reload sound for a step ("open", "load", "close"), or the generic click.
 func _foley(step: String, volume_db: float) -> void:
-	var id := StringName("%s_%s" % [def.id, step]) if def != null else &"reload"
+	var id := StringName("%s_%s" % [FrontierGuns.FOLEY.get(def.id, def.id), step]) if def != null else &"reload"
 	Audio.play_at(id if Audio.has_sound(id) else &"reload", global_position, volume_db)
 
 

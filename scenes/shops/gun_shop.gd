@@ -12,6 +12,14 @@ const SHELF: Array[Dictionary] = [
 	{"kind": "buy", "id": &"crank_gatling"},
 	{"kind": "buy", "id": &"elephant_gun"},
 	{"kind": "buy", "id": &"dino_rifle"},
+	{"kind": "buy", "id": &"derringer_pair"},
+	{"kind": "buy", "id": &"pepperbox"},
+	{"kind": "buy", "id": &"salt_shotgun"},
+	{"kind": "buy", "id": &"harpoon_pistol"},
+	{"kind": "buy", "id": &"bee_smoker"},
+	{"kind": "buy", "id": &"flare_gun"},
+	{"kind": "buy", "id": &"punt_gun"},
+	{"kind": "buy", "id": &"telescope_rifle"},
 	{"kind": "upgrade", "id": &"revolver"},
 	{"kind": "upgrade", "id": &"lever_rifle"},
 	{"kind": "upgrade", "id": &"coach_shotgun"},
@@ -19,6 +27,14 @@ const SHELF: Array[Dictionary] = [
 	{"kind": "upgrade", "id": &"crank_gatling"},
 	{"kind": "upgrade", "id": &"elephant_gun"},
 	{"kind": "upgrade", "id": &"dino_rifle"},
+	{"kind": "upgrade", "id": &"derringer_pair"},
+	{"kind": "upgrade", "id": &"pepperbox"},
+	{"kind": "upgrade", "id": &"salt_shotgun"},
+	{"kind": "upgrade", "id": &"harpoon_pistol"},
+	{"kind": "upgrade", "id": &"bee_smoker"},
+	{"kind": "upgrade", "id": &"flare_gun"},
+	{"kind": "upgrade", "id": &"punt_gun"},
+	{"kind": "upgrade", "id": &"telescope_rifle"},
 	{"kind": "mods", "id": &"revolver"},
 	{"kind": "mods", "id": &"lever_rifle"},
 	{"kind": "mods", "id": &"coach_shotgun"},
@@ -26,6 +42,14 @@ const SHELF: Array[Dictionary] = [
 	{"kind": "mods", "id": &"crank_gatling"},
 	{"kind": "mods", "id": &"elephant_gun"},
 	{"kind": "mods", "id": &"dino_rifle"},
+	{"kind": "mods", "id": &"derringer_pair"},
+	{"kind": "mods", "id": &"pepperbox"},
+	{"kind": "mods", "id": &"salt_shotgun"},
+	{"kind": "mods", "id": &"harpoon_pistol"},
+	{"kind": "mods", "id": &"bee_smoker"},
+	{"kind": "mods", "id": &"flare_gun"},
+	{"kind": "mods", "id": &"punt_gun"},
+	{"kind": "mods", "id": &"telescope_rifle"},
 ]
 
 ## Host: what every peer owns, peer_id -> {weapon id: level}.
@@ -133,7 +157,7 @@ func menu_items(tab: int) -> Array:
 				why = "Fully upgraded."
 			var cost: int = 0 if maxed else int(w.upgrade_costs[level])
 			out.append({"id": "upgrade:%s" % id, "name": "%s  ·  Level %d" % [w.display_name, level], "icon": id,
-					"desc": "+25% damage and a 15% faster reload per level.", "price": "" if maxed else UiStyle.cost(cost, "chitin"),
+					"desc": _upgrade_desc(w), "price": "" if maxed else UiStyle.cost(cost, "chitin"),
 					"price_ok": chitin >= cost, "disabled": why, "buttons": [[&"buy", "Upgrade"]]})
 		elif tab == 2 and item["kind"] == "mods":
 			# Only guns you carry, so the list stays short.
@@ -179,6 +203,13 @@ func menu_items(tab: int) -> Array:
 		out.append({"id": "", "name": "Nothing to work on", "icon": &"hammer", "desc": "Mods are fitted to the guns you carry.",
 				"price": "", "price_ok": true, "disabled": "Buy a gun first.", "buttons": []})
 	return Perks.discount_menu(out, &"gunsmiths_friend", NetworkManager.cliff_of(multiplayer.get_unique_id())) # Perk: Gunsmith's Friend
+
+
+## What one level does for this gun (the smoker does no damage: it smokes longer).
+static func _upgrade_desc(w: WeaponDef) -> String:
+	if w.special == &"smoke":
+		return "Smoke keeps bugs drowsy %s s longer and the fuel refills 25%% faster per level." % str(GunRules.SMOKE_TIME_PER_LEVEL)
+	return "+25% damage and a 15% faster reload per level."
 
 
 func menu_press(id: Variant, _action: StringName) -> void:

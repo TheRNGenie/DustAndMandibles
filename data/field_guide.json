@@ -35,6 +35,69 @@
         "Hold fire: it winds up for a moment, then keeps firing.",
         "Sixty rounds a drum; swapping drums takes a few seconds."
       ]
+    },
+    "derringer_pair": {
+      "lore": "A gambler's pair of hideout pistols, one per hand. They clear leather before anything else you own and empty in a blink.",
+      "tips": [
+        "Click fast: right hand, left hand, right, left.",
+        "Damage drops off hard past a few metres: it's for the spider already on the porch.",
+        "Reloads both in under a second."
+      ]
+    },
+    "pepperbox": {
+      "lore": "Six barrels drilled into one turning block. Nobody ever hit what they aimed at with one, but up close it hardly matters.",
+      "tips": [
+        "Fast and wild: get close, then hold your nerve and keep clicking.",
+        "All six reload at once."
+      ]
+    },
+    "salt_shotgun": {
+      "lore": "Rock salt instead of buckshot: the farmer's way to say \"get off my land\". It stings so much the bugs forget to hold on.",
+      "tips": [
+        "Every climber you hit slides a few metres back down the wall.",
+        "Big bugs slide less; bosses barely budge, and not twice in a row.",
+        "Useless for killing: pair it with your partner's turrets."
+      ]
+    },
+    "harpoon_pistol": {
+      "lore": "A spring-gun that throws a barbed whaling dart on a line. What happens next depends on who's heavier.",
+      "tips": [
+        "Small bugs get reeled in to your feet, or yanked off the wall to fall.",
+        "Big bugs, bosses and rock pull YOU to them, like the grapple.",
+        "Jump to let go of the line early."
+      ]
+    },
+    "bee_smoker": {
+      "lore": "Any beekeeper knows smoke calms a hive. It turns out it calms a spider the size of a mule just as well.",
+      "tips": [
+        "Hold fire to puff: fliers and spiders in the cloud go drowsy and slow right down.",
+        "Drowsy fliers sink low enough to swat.",
+        "Does no damage, and the burlap refills itself when you stop."
+      ]
+    },
+    "flare_gun": {
+      "lore": "Meant for calling the cavalry. Out here it calls every turret on both cliffs to the same bug.",
+      "tips": [
+        "Hit a bug and it burns red for six seconds: all turrets shoot it first.",
+        "Fire it at the rock or the sky at night to light the canyon.",
+        "One shot, then a slow reload: pick your target."
+      ]
+    },
+    "punt_gun": {
+      "lore": "Built to bring down a whole flock of ducks from a punt. Somebody sawed it short and now shoots it from the hip.",
+      "tips": [
+        "One huge cone of shot: perfect for a pack at the lip.",
+        "The kick shoves you back a few steps. Mind the edge.",
+        "A long reload: switch guns rather than wait."
+      ]
+    },
+    "telescope_rifle": {
+      "lore": "A target rifle with a brass spyglass strapped on top. Patient, precise and murderous on a weak spot.",
+      "tips": [
+        "Right click to look down the spyglass.",
+        "Weak spots take five times the damage.",
+        "Work the bolt between shots: make every one count."
+      ]
     }
   },
   "bugs": {

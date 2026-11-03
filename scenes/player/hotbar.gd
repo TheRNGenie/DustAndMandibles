@@ -125,6 +125,12 @@ func _cliff() -> int:
 	return player.cliff_id
 
 
+## Hotbar labels where the gun's first word won't do.
+const SHORT_NAMES: Dictionary = {&"coach_shotgun": "Shotgun", &"salt_shotgun": "Salt Gun", &"bee_smoker": "Smoker",
+	&"flare_gun": "Flare Gun", &"punt_gun": "Punt Gun", &"derringer_pair": "Derringers", &"harpoon_pistol": "Harpoon",
+	&"telescope_rifle": "Telescope"}
+
+
 ## For the HUD: item id, label, count text, selected?
 func slot_info(i: int) -> Dictionary:
 	var id := slot_item(i)
@@ -132,7 +138,7 @@ func slot_info(i: int) -> Dictionary:
 	if id == &"":
 		return info
 	if i < 3:
-		info["label"] = Gun.weapon(id).display_name.split(" ")[0] if id != &"coach_shotgun" else "Shotgun"
+		info["label"] = SHORT_NAMES.get(id, Gun.weapon(id).display_name.split(" ")[0])
 		info["selected"] = player.gun.holding == &"" and player.gun.def != null and player.gun.def.id == id
 		var lvl := player.gun.level_of(id)
 		var mods := WeaponMods.count(player.gun.code_of(id))

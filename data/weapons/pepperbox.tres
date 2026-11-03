@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"pepperbox"
+display_name = "Pepperbox Revolver"
+description = "Six barrels bored into one spinning block. Pull, pull, pull: a wild spray of lead that's murder at arm's length and a prayer past it. Reloads all six at once."
+damage = 18.0
+mag_size = 6
+fire_interval = 0.13
+reload_time = 2.1
+pellets = 1
+spread_deg = 4.5
+range = 60.0
+price_chitin = 25
+upgrade_costs = PackedInt32Array(10, 25)
+shake = 0.25
+sound = &"revolver"
+recoil_deg = 2.6
+recoil_yaw_deg = 1.6
+recoil_recover = 0.15
+falloff_start = 6.0
+falloff_end = 30.0
+falloff_min = 0.35
+role = "Spray"
+sound_pitch = 1.2

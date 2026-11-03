@@ -34,3 +34,8 @@ static func in_arc(muzzle: Vector3, target: Vector3, pitch_limit_deg: float, max
 ## Score for choosing between valid targets: prefer bugs closest to the top of the cliff.
 static func priority(climb_y: float, distance: float) -> float:
 	return climb_y * 10.0 - distance
+
+
+## Score for a bug that a Signal Flare marked: on top of everything else (GunRules).
+static func marked_priority(score: float, marked: bool) -> float:
+	return score + GunRules.mark_bonus(marked)

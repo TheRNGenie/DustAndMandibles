@@ -268,6 +268,10 @@ func _update_hint() -> void:
 
 
 func _on_ammo_changed(current: int, max_ammo: int) -> void:
+	var g := _scope.gun if _scope != null else null
+	if g != null and is_instance_valid(g) and g.def != null and g.def.special == &"smoke":
+		_ammo_label.text = "%d%%" % roundi(100.0 * current / maxf(max_ammo, 1)) # Bee Smoker: its fuel, as a share
+		return
 	_ammo_label.text = "%d / %d" % [current, max_ammo]
 
 
@@ -462,6 +466,9 @@ class ScopeOverlay extends Control:
 		var short := minf(size.x, size.y)
 		var c := size * 0.5
 		var r := short * 0.42
+		if gun != null and is_instance_valid(gun) and gun.def != null and gun.def.id == &"telescope_rifle":
+			_draw_spyglass(c, short)
+			return
 		# Dino Rifle: where and how its glass got tied on (DinoGlass).
 		var fit := {}
 		if gun != null and is_instance_valid(gun) and gun.def != null and gun.def.id == &"dino_rifle":
@@ -492,6 +499,33 @@ class ScopeOverlay extends Control:
 				draw_arc(c, r * (0.78 + 0.07 * i), 0.0, TAU, 64, Color(1, 1, 1, 0.05), r * 0.06, true)
 		if bool(fit["cracked"]):
 			_draw_crack(c, r)
+
+
+	## The Telescope Rifle's brass spyglass: a smaller, sharper lens deep in a
+	## black drawtube (the tube's brass rings show round it), a fine crosshair
+	## with range ticks below the centre, and a little tremor from your breathing.
+	func _draw_spyglass(c: Vector2, short: float) -> void:
+		var s := Time.get_ticks_msec() / 1000.0
+		c += Vector2(sin(s * 0.9) + 0.4 * sin(s * 2.3), cos(s * 0.7) + 0.3 * sin(s * 1.9)) * short * 0.0025
+		var r := short * 0.36
+		var outer := size.length() + 2.0
+		draw_arc(c, (r + outer) * 0.5, 0.0, TAU, 96, Color(0.02, 0.015, 0.01, 0.99), outer - r + 2.0, true)
+		# The drawtube seen end-on: brass rims stepping out from the lens.
+		for i in 3:
+			draw_arc(c, r + 5.0 + i * 13.0, 0.0, TAU, 96, Color("#B8893A").darkened(0.25 * i), 5.0 - i, true)
+		draw_arc(c, r - 14.0, 0.0, TAU, 96, Color(0, 0, 0, 0.32), 28.0, true)
+		draw_arc(c, r * 0.97, PI * 1.1, PI * 1.45, 24, Color(1, 1, 1, 0.12), 3.0, true)
+		# Crosshair: fine wires to the rim, thicker posts at the edge.
+		var ink := Color(0.05, 0.04, 0.03, 0.92)
+		for d: Vector2 in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
+			draw_line(c + d * 6.0, c + d * r * 0.62, ink, 1.4, true)
+			draw_line(c + d * r * 0.62, c + d * r, ink, 4.0, true)
+		# Range ticks down the lower wire (hold-over for long shots).
+		for i in range(1, 5):
+			var y := c.y + r * 0.1 * i
+			var w := r * (0.06 if i % 2 == 0 else 0.035)
+			draw_line(Vector2(c.x - w, y), Vector2(c.x + w, y), ink, 1.4, true)
+		draw_circle(c, 1.8, Color("#C83A2A"))
 
 
 	## A crack across the lens: one jagged run edge to edge, with a few branches.

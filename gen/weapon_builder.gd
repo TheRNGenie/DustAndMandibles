@@ -205,16 +205,34 @@ const HINGE := Vector3(0, -0.004, -0.055)
 ## support hand holds, and the wrist or grip the trigger hand wraps [centre, grip axis].
 const LEFT_FIST: Dictionary = {&"revolver": Vector3(-0.022, -0.075, 0.07), &"lever_rifle": Vector3(-0.004, -0.022, -0.194),
 	&"coach_shotgun": Vector3(-0.004, -0.03, -0.25), &"blunderbuss": Vector3(-0.004, -0.068, -0.215),
-	&"crank_gatling": Vector3(-0.108, -0.076, -0.203), &"elephant_gun": Vector3(-0.004, -0.034, -0.27), &"dino_rifle": Vector3(-0.004, -0.04, -0.3)}
+	&"crank_gatling": Vector3(-0.108, -0.076, -0.203), &"elephant_gun": Vector3(-0.004, -0.034, -0.27), &"dino_rifle": Vector3(-0.004, -0.04, -0.3),
+	# Frontier guns: the derringers' second pistol hand, the pump, the punt gun's
+	# forward handle, the smoker can's heat guard, the rifle's forend.
+	&"derringer_pair": Vector3(-0.38, -0.036, 0.046), &"pepperbox": Vector3(-0.022, -0.075, 0.07),
+	&"harpoon_pistol": Vector3(-0.022, -0.075, 0.07), &"flare_gun": Vector3(-0.022, -0.075, 0.07),
+	&"salt_shotgun": Vector3(-0.004, -0.036, -0.205), &"punt_gun": Vector3(-0.004, -0.086, -0.318),
+	&"bee_smoker": Vector3(-0.07, -0.01, -0.095), &"telescope_rifle": Vector3(-0.004, -0.03, -0.26)}
 const RIGHT_GRIP: Dictionary = {&"lever_rifle": [Vector3(0.004, -0.046, 0.114), Vector3(0, 0.55, -0.83)],
 	&"coach_shotgun": [Vector3(0.004, -0.075, 0.112), Vector3(0, 0.75, -0.66)],
 	&"blunderbuss": [Vector3(0.004, -0.064, 0.12), Vector3(0, 0.6, -0.8)],
 	&"crank_gatling": [Vector3(0.004, -0.082, -0.078), Vector3(0, 0.86, -0.52)],
 	&"elephant_gun": [Vector3(0.004, -0.078, 0.118), Vector3(0, 0.75, -0.66)],
-	&"dino_rifle": [Vector3(0.004, -0.078, 0.118), Vector3(0, 0.75, -0.66)]}
+	&"dino_rifle": [Vector3(0.004, -0.078, 0.118), Vector3(0, 0.75, -0.66)],
+	&"salt_shotgun": [Vector3(0.004, -0.03, 0.112), Vector3(0, 0.72, -0.69)],
+	&"punt_gun": [Vector3(0.004, -0.022, 0.078), Vector3(0, 0.6, -0.8)],
+	&"telescope_rifle": [Vector3(0.004, -0.028, 0.112), Vector3(0, 0.66, -0.75)]}
+## Frontier one-hand guns whose grip isn't the revolver's: [fist centre, grip axis, elbow offset, back of hand].
+const RIGHT_HAND: Dictionary = {&"derringer_pair": [Vector3(0.003, -0.036, 0.046), Vector3(0, 0.92, -0.39), Vector3(0.1, -0.29, 0.4), Vector3(1, 0.1, 0.25)],
+	&"bee_smoker": [Vector3(0.012, -0.004, 0.018), Vector3(0, 1, 0.08), Vector3(0.12, -0.3, 0.38), Vector3(1, 0, 0.45)]}
+## Guns held in both hands (the support hand on the gun, not in the pouch).
+const TWO_HANDED: Array[StringName] = [&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun", &"dino_rifle",
+	&"salt_shotgun", &"punt_gun", &"telescope_rifle", &"bee_smoker"]
 const LOAD_POINT: Dictionary = {&"revolver": Vector3(0.022, 0.03, 0.03), &"lever_rifle": Vector3(0.026, -0.004, -0.04),
 	&"coach_shotgun": Vector3(0.0, 0.02, -0.09), &"blunderbuss": Vector3(0.0, 0.05, -0.44),
-	&"crank_gatling": Vector3(0.0, 0.1, 0.03), &"elephant_gun": Vector3(0.0, 0.02, -0.09), &"dino_rifle": Vector3(0.0, 0.02, -0.09)}
+	&"crank_gatling": Vector3(0.0, 0.1, 0.03), &"elephant_gun": Vector3(0.0, 0.02, -0.09), &"dino_rifle": Vector3(0.0, 0.02, -0.09),
+	&"derringer_pair": Vector3(0.0, 0.015, -0.02), &"pepperbox": Vector3(0.0, 0.021, 0.012), &"harpoon_pistol": Vector3(0.0, 0.026, -0.25),
+	&"flare_gun": Vector3(0.0, 0.026, -0.02), &"salt_shotgun": Vector3(0.0, -0.02, -0.03), &"punt_gun": Vector3(0.0, 0.03, -0.09),
+	&"bee_smoker": Vector3(0.0, 0.14, -0.09), &"telescope_rifle": Vector3(0.016, 0.03, 0.0)}
 ## Crank Gatling: barrel spin axis origin and the crank's pivot (gun space).
 const GATLING_AXIS := Vector3(0, 0.0, -0.05)
 const GATLING_CRANK := Vector3(0.06, 0.0, 0.04)
@@ -470,9 +488,12 @@ static func arm_right(id: StringName, look: Dictionary = {}) -> ArrayMesh:
 	var paint := DummyLook.paint(look)
 	var st := MeshKit.begin()
 	match id:
-		&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun", &"dino_rifle":
+		&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun", &"dino_rifle", &"salt_shotgun", &"punt_gun", &"telescope_rifle":
 			var g: Vector3 = RIGHT_GRIP[id][0]
 			arm(st, g, RIGHT_GRIP[id][1], Vector3(1, 0.2, 0.1), g + Vector3(0.116, -0.3, 0.4), look, true)
+		&"derringer_pair", &"bee_smoker":
+			var h: Array = RIGHT_HAND[id]
+			arm(st, h[0], h[1], h[3], (h[0] as Vector3) + (h[2] as Vector3), look, true)
 		_:
 			arm(st, Vector3(0.003, -0.05, 0.07), Vector3(0, 0.95, -0.35), Vector3(1, 0.1, 0.25), Vector3(0.1, -0.33, 0.45), look, true)
 	return MeshKit.finish(st)
@@ -494,6 +515,22 @@ static func arm_left(id: StringName, look: Dictionary = {}, local: bool = false)
 			# Left hand on the crank handle, turning it.
 			var lf: Vector3 = LEFT_FIST[id]
 			arm(st, o + lf, Vector3(1, 0, 0), Vector3(0, -0.2, 1), o + lf + Vector3(-0.17, -0.3, 0.3), look)
+		&"salt_shotgun", &"telescope_rifle":
+			# Round the pump / forend from below.
+			var lf: Vector3 = LEFT_FIST[id]
+			arm(st, o + lf, Vector3(0, 0, -1), Vector3(-0.7, -1, 0), o + lf + Vector3(-0.196, -0.284, 0.28), look)
+		&"punt_gun":
+			# Fist round the upright forward handle.
+			var lf: Vector3 = LEFT_FIST[id]
+			arm(st, o + lf, Vector3(0, 1, 0.2), Vector3(-1, -0.1, -0.2), o + lf + Vector3(-0.2, -0.24, 0.3), look)
+		&"bee_smoker":
+			# Holding the can by its heat guard.
+			var lf: Vector3 = LEFT_FIST[id]
+			arm(st, o + lf, Vector3(0, 1, 0), Vector3(-1, 0, 0.3), o + lf + Vector3(-0.16, -0.3, 0.34), look)
+		&"derringer_pair":
+			# The other pistol: the left hand's own grip, like the right's mirrored.
+			var lf: Vector3 = LEFT_FIST[id]
+			arm(st, o + lf, Vector3(0, 0.92, -0.39), Vector3(-1, 0.1, 0.25), o + lf + Vector3(-0.1, -0.29, 0.4), look)
 		_:
 			arm(st, o + Vector3(-0.022, -0.075, 0.07), Vector3(0, 0.6, -0.8), Vector3(-1, -0.3, 0.2), o + Vector3(-0.22, -0.34, 0.36), look)
 	return MeshKit.finish(st)

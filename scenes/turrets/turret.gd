@@ -224,13 +224,13 @@ func _pick_target() -> Bug:
 			if g == null or not _valid_cheap(g, muzzle, seen, pitch, max_range):
 				continue
 			cands.append(g)
-			scores.append(-g.global_position.distance_to(global_position))
+			scores.append(Targeting.marked_priority(-g.global_position.distance_to(global_position), g.status.is_marked())) # Signal Flare
 	else:
 		for b in bug_manager.climbers_on(covers):
 			if not _valid_cheap(b, muzzle, seen, pitch, max_range):
 				continue
 			cands.append(b)
-			scores.append(Targeting.priority(b.climb_y, b.global_position.distance_to(global_position)))
+			scores.append(Targeting.marked_priority(Targeting.priority(b.climb_y, b.global_position.distance_to(global_position)), b.status.is_marked())) # Signal Flare
 	while not cands.is_empty():
 		# The first best score (as a plain scan would keep it).
 		var top := 0

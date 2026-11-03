@@ -277,6 +277,7 @@ func _pick_target() -> Bug:
 				for dy in range(-1, 2):
 					n += int(crowd.get(k + Vector2i(dz, dy), 0))
 			score = n * 20.0 + b.climb_y * 2.0
+		score = Targeting.marked_priority(score, b.status.is_marked()) # Signal Flare
 		if score > best_score and _valid(b):
 			best = b
 			best_score = score

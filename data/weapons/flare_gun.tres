@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"flare_gun"
+display_name = "Signal Flare Gun"
+description = "A fat brass flare pistol. Shoot a bug and it burns red for six seconds: every turret on both cliffs drops what it's doing and shoots that one. Lights up the night, too."
+damage = 12.0
+mag_size = 1
+fire_interval = 0.5
+reload_time = 2.4
+pellets = 1
+spread_deg = 0.0
+range = 160.0
+price_chitin = 40
+upgrade_costs = PackedInt32Array(15, 30)
+shake = 0.3
+sound = &"mortar"
+recoil_deg = 3.5
+recoil_yaw_deg = 0.3
+recoil_recover = 0.35
+role = "Spotter"
+special = &"flare"
+sound_pitch = 1.75
+sound_layer = &"cig_light"
+sound_layer_pitch = 0.6
