@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://tkdgti0gysti"
-path="res://.godot/imported/lever_rifle_lever_Image_0.jpg-624ecbac4daaf8ef7cc1e039b79016a5.ctex"
+path.bptc="res://.godot/imported/lever_rifle_lever_Image_0.jpg-624ecbac4daaf8ef7cc1e039b79016a5.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "0746946542eaf2eae5b376aa2dce277d"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/guns/lever_rifle_lever_Image_0.jpg"
-dest_files=["res://.godot/imported/lever_rifle_lever_Image_0.jpg-624ecbac4daaf8ef7cc1e039b79016a5.ctex"]
+dest_files=["res://.godot/imported/lever_rifle_lever_Image_0.jpg-624ecbac4daaf8ef7cc1e039b79016a5.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

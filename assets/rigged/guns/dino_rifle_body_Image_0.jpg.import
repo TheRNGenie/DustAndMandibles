@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://drrifav6iy52"
-path="res://.godot/imported/dino_rifle_body_Image_0.jpg-f086f44d0c986762b2d742581945b69e.ctex"
+path.bptc="res://.godot/imported/dino_rifle_body_Image_0.jpg-f086f44d0c986762b2d742581945b69e.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "b6ee26b8833e16fc89f038fa18a93275"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/guns/dino_rifle_body_Image_0.jpg"
-dest_files=["res://.godot/imported/dino_rifle_body_Image_0.jpg-f086f44d0c986762b2d742581945b69e.ctex"]
+dest_files=["res://.godot/imported/dino_rifle_body_Image_0.jpg-f086f44d0c986762b2d742581945b69e.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

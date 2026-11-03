@@ -49,6 +49,15 @@ var fullscreen: bool = false
 var shadows: bool = true
 var msaa: int = 1 # 0 off, 1 = 2x, 2 = 4x, 3 = 8x
 var render_scale: float = 1.0
+## "low" / "medium" / "high" (GraphicsQuality.PRESET_VALUES) or "custom";
+## "" until the first launch picks one for the hardware.
+var quality: String = ""
+# Levels 0 Low, 1 Medium, 2 High (what they mean: GraphicsQuality).
+var shadow_detail: int = GraphicsQuality.HIGH
+var effects: int = GraphicsQuality.HIGH
+var view_distance: int = GraphicsQuality.HIGH
+var particles: int = GraphicsQuality.HIGH
+var bug_detail: int = GraphicsQuality.HIGH
 # Audio (linear 0..1)
 var master_volume: float = 0.8
 var sfx_volume: float = 1.0
@@ -67,9 +76,64 @@ signal look_changed
 var _bindings: Dictionary = {}
 
 
+## Values the command line overrides for this session only (key -> the saved
+## value, which is what gets written back to the file).
+var _session: Dictionary = {}
+
+
 func _ready() -> void:
 	load_settings()
+	if quality == "":
+		# First launch: pick a preset for this machine.
+		# (On the OpenGL renderer - Safe Mode, or no Vulkan / D3D12 - it's an old GPU.)
+		var preset := "low" if is_compatibility() else GraphicsQuality.auto_preset(_device_type(), RenderingServer.get_video_adapter_name())
+		_set_preset_values(preset)
+		print("[settings] first launch on '%s': %s graphics" % [RenderingServer.get_video_adapter_name(), preset])
+		save_settings()
+	_session_overrides()
 	apply()
+
+
+## Command-line overrides, never saved: --quality=low|medium|high, --safe (Low
+## graphics; the Safe Mode shortcut also starts the OpenGL renderer),
+## --windowed, --novsync (also uncaps the frame rate).
+func _session_overrides() -> void:
+	var args := OS.get_cmdline_user_args()
+	var want := ""
+	for a: String in args:
+		if a.begins_with("--quality="):
+			want = a.get_slice("=", 1).to_lower()
+	if args.has("--safe") or args.has("--low"):
+		want = "low"
+	if GraphicsQuality.PRESETS.has(want):
+		var values: Dictionary = GraphicsQuality.PRESET_VALUES[want]
+		for key: String in values:
+			_override(key, values[key])
+		_override("quality", want)
+	if args.has("--windowed") or args.has("--safe"):
+		_override("fullscreen", false)
+	if args.has("--novsync"):
+		_override("vsync", false)
+		_override("fps_cap", 0)
+
+
+func _override(key: String, value: Variant) -> void:
+	if not _session.has(key):
+		_session[key] = get(key)
+	set(key, value)
+
+
+static func _device_type() -> int:
+	var rd := RenderingServer.get_rendering_device()
+	if rd != null:
+		return rd.get_device_type()
+	return RenderingDevice.DEVICE_TYPE_OTHER
+
+
+## True on the OpenGL (Compatibility) renderer: Safe Mode, or the automatic
+## fallback on GPUs without Vulkan / Direct3D 12.
+static func is_compatibility() -> bool:
+	return RenderingServer.get_current_rendering_method() == "gl_compatibility"
 
 
 func apply() -> void:
@@ -82,6 +146,14 @@ func apply() -> void:
 	var vp := get_viewport()
 	vp.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X, Viewport.MSAA_8X][clampi(msaa, 0, 3)] as Viewport.MSAA
 	vp.scaling_3d_scale = render_scale
+	# Below full resolution, AMD FSR upscales (sharper than plain stretching); the
+	# OpenGL renderer only has bilinear.
+	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if render_scale < 0.99 and not is_compatibility() else Viewport.SCALING_3D_MODE_BILINEAR
+	vp.mesh_lod_threshold = GraphicsQuality.LOD_THRESHOLD[GraphicsQuality.level(view_distance)]
+	var sd := GraphicsQuality.level(shadow_detail)
+	RenderingServer.directional_shadow_atlas_set_size(GraphicsQuality.SHADOW_ATLAS[sd], true)
+	RenderingServer.directional_soft_shadow_filter_set_quality(GraphicsQuality.SHADOW_FILTER[sd] as RenderingServer.ShadowQuality)
+	BugManager.set_detail_level(GraphicsQuality.level(bug_detail))
 	_set_bus_volume("Master", master_volume)
 	_set_bus_volume("SFX", sfx_volume)
 	_set_bus_volume("Music", music_volume)
@@ -97,8 +169,38 @@ func _set_bus_volume(bus: String, linear: float) -> void:
 ## Sets a setting by name, applies and saves it.
 func set_value(key: String, value: Variant) -> void:
 	set(key, value)
+	_session.erase(key)
+	if GraphicsQuality.PRESET_KEYS.has(key):
+		quality = GraphicsQuality.matching_preset(_preset_values())
+		_session.erase("quality")
 	apply()
 	save_settings()
+
+
+## Picks a graphics preset ("low", "medium", "high"), applies and saves it.
+func set_quality(preset: String) -> void:
+	if not GraphicsQuality.PRESETS.has(preset):
+		return
+	_set_preset_values(preset)
+	for key: String in GraphicsQuality.PRESET_KEYS:
+		_session.erase(key)
+	_session.erase("quality")
+	apply()
+	save_settings()
+
+
+func _set_preset_values(preset: String) -> void:
+	var values: Dictionary = GraphicsQuality.PRESET_VALUES[preset]
+	for key: String in values:
+		set(key, values[key])
+	quality = preset
+
+
+func _preset_values() -> Dictionary:
+	var d := {}
+	for key: String in GraphicsQuality.PRESET_KEYS:
+		d[key] = get(key)
+	return d
 
 
 # ------------------------------------------------------------------ key remapping
@@ -178,14 +280,15 @@ func _deserialize(data: String) -> InputEvent:
 # ------------------------------------------------------------------ persistence
 
 const SAVED_KEYS: Array[String] = ["mouse_sensitivity", "invert_y", "fov", "brightness", "fps_cap",
-	"vsync", "fullscreen", "shadows", "msaa", "render_scale", "master_volume", "sfx_volume", "music_volume", "debug_mode",
+	"vsync", "fullscreen", "shadows", "msaa", "render_scale", "quality", "shadow_detail", "effects",
+	"view_distance", "particles", "bug_detail", "master_volume", "sfx_volume", "music_volume", "debug_mode",
 	"colorblind", "tutorial_done"]
 
 
 func save_settings() -> void:
 	var cfg := ConfigFile.new()
 	for key in SAVED_KEYS:
-		cfg.set_value("settings", key, get(key))
+		cfg.set_value("settings", key, _session[key] if _session.has(key) else get(key))
 	for action: String in _bindings:
 		cfg.set_value("bindings", action, _bindings[action])
 	cfg.set_value("look", "outfit", JSON.stringify(look))
@@ -206,6 +309,9 @@ func load_settings() -> void:
 	for key in SAVED_KEYS:
 		if cfg.has_section_key("settings", key):
 			set(key, cfg.get_value("settings", key))
+	if not cfg.has_section_key("settings", "quality"):
+		# Saved before quality presets: keep every setting as it was.
+		quality = GraphicsQuality.matching_preset(_preset_values())
 	if cfg.has_section_key("look", "outfit"):
 		look = DummyLook.clean(JSON.parse_string(str(cfg.get_value("look", "outfit"))))
 	if cfg.has_section("bindings"):

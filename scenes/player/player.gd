@@ -91,6 +91,7 @@ func _ready() -> void:
 	collision.shape = _capsule
 	spawn_transform = global_transform
 	camera.fov = Settings.fov
+	camera.far = GraphicsQuality.VIEW_FAR[GraphicsQuality.level(Settings.view_distance)]
 	body.visible = false
 	grapple = Grapple.new()
 	grapple.name = "Grapple"

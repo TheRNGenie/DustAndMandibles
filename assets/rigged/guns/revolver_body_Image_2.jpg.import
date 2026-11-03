@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://8p84bnovc5xp"
-path="res://.godot/imported/revolver_body_Image_2.jpg-604f7b46c82fae34c9024067d5c0ea6e.ctex"
+path.s3tc="res://.godot/imported/revolver_body_Image_2.jpg-604f7b46c82fae34c9024067d5c0ea6e.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "fd72335f8460631f1c08ac6b3a5183ac"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/guns/revolver_body_Image_2.jpg"
-dest_files=["res://.godot/imported/revolver_body_Image_2.jpg-604f7b46c82fae34c9024067d5c0ea6e.ctex"]
+dest_files=["res://.godot/imported/revolver_body_Image_2.jpg-604f7b46c82fae34c9024067d5c0ea6e.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -39,5 +40,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=0
+process/size_limit=256
 detect_3d/compress_to=1

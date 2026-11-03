@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://hymhthows2va"
-path="res://.godot/imported/crank_gatling_barrels_Image_0.jpg-dd8081786f9b82d57eeb086a042891a0.ctex"
+path.bptc="res://.godot/imported/crank_gatling_barrels_Image_0.jpg-dd8081786f9b82d57eeb086a042891a0.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "b91ae40e4199bd314952b6b44cf61d0e"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/guns/crank_gatling_barrels_Image_0.jpg"
-dest_files=["res://.godot/imported/crank_gatling_barrels_Image_0.jpg-dd8081786f9b82d57eeb086a042891a0.ctex"]
+dest_files=["res://.godot/imported/crank_gatling_barrels_Image_0.jpg-dd8081786f9b82d57eeb086a042891a0.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

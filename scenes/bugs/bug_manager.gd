@@ -278,8 +278,9 @@ func add_fire(cliff: int, center: Vector3, radius: float, dps: float, seconds: f
 
 
 ## Script time per tick the bugs that take turns may use (the nearest
-## FULL_DETAIL_BUDGET update every tick on top of this).
-const TURN_BUDGET_US := 5000.0
+## FULL_DETAIL_BUDGET update every tick on top of this). Set by the Bug Detail
+## graphics setting (GraphicsQuality), like the budgets below.
+static var TURN_BUDGET_US := 5000.0
 var _turn := 0
 ## Running average cost of one bug update (microseconds).
 static var _avg_us := 60.0
@@ -357,11 +358,19 @@ func _draw_spit(from: Vector3, to: Vector3, flight: float) -> void:
 
 ## At most this many bugs get full-detail updates (every tick) at once; the rest
 ## of a close crowd updates every few ticks. The nearest ones win.
-const FULL_DETAIL_BUDGET := 40
-## Faces aren't drawn past 14 m: bugs further than this don't wear one.
-const FACE_RANGE := 17.0
+static var FULL_DETAIL_BUDGET := 40
+## Faces aren't drawn past this: bugs further away don't wear one.
+static var FACE_RANGE := 17.0
 const FACES_PER_PASS := 8
-const FAR_BUDGET := 100
+static var FAR_BUDGET := 100
+
+
+## Bug Detail setting: 0 Low, 1 Medium, 2 High (GraphicsQuality).
+static func set_detail_level(lvl: int) -> void:
+	FULL_DETAIL_BUDGET = GraphicsQuality.BUG_FULL_DETAIL[lvl]
+	FAR_BUDGET = GraphicsQuality.BUG_FAR_BUDGET[lvl]
+	TURN_BUDGET_US = GraphicsQuality.BUG_TURN_BUDGET_US[lvl]
+	FACE_RANGE = GraphicsQuality.BUG_FACE_RANGE[lvl]
 var _detail_t := 0.0
 var _sep_tick := false
 

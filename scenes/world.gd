@@ -291,9 +291,17 @@ func _build_environment() -> void:
 func _apply_settings() -> void:
 	_env.adjustment_enabled = true
 	_env.adjustment_brightness = Settings.brightness
-	_sun.shadow_enabled = Settings.shadows and not GameState.has_flag("--noshadow")
+	# (The OpenGL renderer draws a shadowed sun in an extra additive pass that
+	# doubles up the ambient light and washes everything out, and it costs a
+	# second pass over the whole scene: weak GPUs go without sun shadows there.)
+	_sun.shadow_enabled = Settings.shadows and not GameState.has_flag("--noshadow") and not Settings.is_compatibility()
+	var sd := GraphicsQuality.level(Settings.shadow_detail)
+	_sun.directional_shadow_max_distance = GraphicsQuality.SHADOW_DISTANCE[sd]
+	_sun.directional_shadow_mode = GraphicsQuality.SHADOW_SPLITS[sd] as DirectionalLight3D.ShadowMode
+	_env.glow_enabled = Settings.effects >= GraphicsQuality.MEDIUM
 	if players_root == null:
 		return
 	var p := local_player()
 	if p != null:
 		p.camera.fov = Settings.fov
+		p.camera.far = GraphicsQuality.VIEW_FAR[GraphicsQuality.level(Settings.view_distance)]
