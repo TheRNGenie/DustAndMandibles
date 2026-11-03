@@ -504,9 +504,11 @@ func _shoot(b: Bug) -> void:
 	var hit := _rng.randf() < hit_p
 	if not hit:
 		aim += Vector3(_rng.randf_range(-1.5, 1.5), _rng.randf_range(-1.0, 1.5), _rng.randf_range(-1.5, 1.5))
-	# Host only: CPU teammates exist only on the host (clients have no World/CPU node,
-	# so an RPC here spammed "Node not found" errors on every client shot).
-	_shot_fx(muzzle, aim)
+	# Every peer: clients build this CPU as a puppet (World._spawn_cpus), same path.
+	if NetworkManager.is_online():
+		_shot_fx.rpc(muzzle, aim)
+	else:
+		_shot_fx(muzzle, aim)
 	_shots += 1
 	if GameState.has_flag("--cpulog") and _shots % 25 == 0:
 		print("[cpu] %d shots, %d hits" % [_shots, _hits])
