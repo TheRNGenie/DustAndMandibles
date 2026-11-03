@@ -27,6 +27,8 @@ func _ready() -> void:
 	var map_id := NetworkManager.map_id
 	if not NetworkManager.is_online() and GameState.flag_value("--map") != "":
 		map_id = StringName(GameState.flag_value("--map").to_lower())
+	if GameState.tutorial:
+		map_id = MapDef.CANYON # the tutorial is always the two-cliff canyon
 	MapDef.select(map_id)
 	print("[map] %s (%d cliffs)" % [WorldLayout.map().display_name, WorldLayout.cliff_count()])
 	_build_environment()
@@ -114,6 +116,12 @@ func _ready() -> void:
 	saver.name = "RunSaver"
 	saver.world = self
 	add_child(saver)
+	# Tutorial: the guided first run (steps, cards, the scripted wave).
+	if GameState.tutorial:
+		var tut := TutorialRun.new()
+		tut.name = "TutorialRun"
+		tut.world = self
+		add_child(tut)
 
 	if multiplayer.is_server():
 		_on_peer_loaded(1)

@@ -38,6 +38,8 @@ func _ready() -> void:
 func _active() -> bool:
 	if player == null or not is_instance_valid(player):
 		return false
+	if GameState.tutorial: # the full tutorial (TutorialRun) teaches all of this
+		return false
 	if Settings.tutorial_done and not _forced:
 		return false
 	if GameState.has_flag("--debug") and not _forced:

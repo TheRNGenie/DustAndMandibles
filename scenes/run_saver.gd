@@ -30,6 +30,8 @@ func _on_phase(p: GameState.Phase) -> void:
 
 ## Host: writes the run as it stands now.
 func save_now() -> void:
+	if GameState.tutorial: # the tutorial never saves over (or as) a real run
+		return
 	if not multiplayer.is_server() or GameState.phase == GameState.Phase.GAME_OVER or GameState.phase == GameState.Phase.LOBBY:
 		return
 	if RunSave.write(capture()):
