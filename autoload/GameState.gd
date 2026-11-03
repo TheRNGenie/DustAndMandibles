@@ -69,6 +69,14 @@ func debug_enabled() -> bool:
 	return flags.has("--debug") or Settings.debug_mode
 
 
+## Tiers: the wave that decides which Mid / Late turrets are unlocked
+## (Defs.is_unlocked). Debug: --alltiers unlocks everything.
+func tier_wave() -> int:
+	if flags.has("--alltiers") and debug_enabled():
+		return 999
+	return wave
+
+
 ## Value of a `--name=value` flag, or "" if absent.
 func flag_value(flag: String) -> String:
 	for f: String in flags:

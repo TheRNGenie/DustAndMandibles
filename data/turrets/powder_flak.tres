@@ -24,3 +24,4 @@ flight_time = 0.5
 effect_size = 4.5
 anti_air = true
 sound = &"cannon"
+tier = 1

@@ -124,7 +124,12 @@ func category_items(c: int) -> Array:
 		return []
 	if Defs.BUILD_CATEGORIES[c]["name"] == "Crafted":
 		return crafted_held()
-	return Defs.BUILD_CATEGORIES[c]["items"]
+	return Defs.by_tier(Defs.BUILD_CATEGORIES[c]["items"]) # Tiers: Early, Mid, Late
+
+
+## Tiers: can this item be built yet (Mid / Late turrets unlock at later waves)?
+static func unlocked(id: StringName) -> bool:
+	return Defs.is_unlocked(id, GameState.tier_wave())
 
 
 ## Crafted turret items your cliff holds (made at the Workshop), for the Crafted tab.
@@ -164,6 +169,9 @@ func show_category(c: int) -> void:
 
 ## From the menu: build this item (closes the menu, shows the ghost).
 func choose(id: StringName) -> void:
+	if not unlocked(id): # Tiers: a locked tile does nothing but say why
+		Economy.notice.emit("%s: %s." % [Defs.name_of(id), Defs.lock_reason(id, GameState.tier_wave())])
+		return
 	for c in Defs.BUILD_CATEGORIES.size():
 		if category_items(c).has(id):
 			category = c
@@ -186,7 +194,12 @@ func _cycle(step: int) -> void:
 	if items.is_empty():
 		return
 	var i := items.find(selected_id())
-	_select(Defs.BUILD_ORDER.find(items[(i + step + items.size()) % items.size()]))
+	# Tiers: the wheel skips anything still locked.
+	for k in items.size():
+		var next: StringName = items[(i + step * (k + 1) + items.size() * (k + 1)) % items.size()]
+		if unlocked(next):
+			_select(Defs.BUILD_ORDER.find(next))
+			return
 
 
 func _select(i: int) -> void:
@@ -268,7 +281,7 @@ func _process(delta: float) -> void:
 	var mine := bm.may_build(multiplayer.get_unique_id(), _cliff)
 	var payer := _cliff if GameState.is_solo() else player.cliff_id
 	var affordable := _can_pay(payer, selected_id())
-	_ok = mine and bm.is_free_for(selected_id(), _cliff, _cell) and affordable
+	_ok = mine and bm.is_free_for(selected_id(), _cliff, _cell) and affordable and unlocked(selected_id()) # Tiers
 	_ghost_mat.albedo_color = Color(0.4, 1.0, 0.4, 0.45) if _ok else Color(1.0, 0.3, 0.25, 0.45)
 
 
@@ -314,7 +327,7 @@ func _aim_house_mount(pos: Vector3) -> void:
 	_ghost.rotation.y = WorldLayout.facing_canyon_yaw(_cliff)
 	var bm := BuildManager.instance
 	var payer := _cliff if GameState.is_solo() else player.cliff_id
-	_ok = bm.may_build(multiplayer.get_unique_id(), _cliff) and bm.is_free_for(selected_id(), _cliff, _cell) 			and _can_pay(payer, selected_id())
+	_ok = bm.may_build(multiplayer.get_unique_id(), _cliff) and bm.is_free_for(selected_id(), _cliff, _cell) 			and _can_pay(payer, selected_id()) and unlocked(selected_id()) # Tiers
 	_ghost_mat.albedo_color = Color(0.4, 1.0, 0.4, 0.45) if _ok else Color(1.0, 0.3, 0.25, 0.45)
 
 
@@ -326,7 +339,9 @@ func build_info(icon: Texture2D) -> Dictionary:
 	var bad := false
 	if _cell != Vector2i(-1, -1) and not _ok and Buildable.cell_ok_for(id, _cell):
 		bad = true
-		if not BuildManager.instance.may_build(multiplayer.get_unique_id(), _cliff):
+		if not unlocked(id): # Tiers
+			status = Defs.lock_reason(id, GameState.tier_wave())
+		elif not BuildManager.instance.may_build(multiplayer.get_unique_id(), _cliff):
 			status = "Build on your own plateau: your turrets cover your partner"
 		elif not BuildManager.instance.is_free_for(id, _cliff, _cell):
 			status = "That spot is taken"

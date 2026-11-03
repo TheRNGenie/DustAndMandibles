@@ -26,3 +26,4 @@ sound = &"harpoon"
 crewed = true
 crew_yaw_arc_deg = 70.0
 crew_pitch_up_deg = 30.0
+tier = 2

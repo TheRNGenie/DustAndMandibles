@@ -25,3 +25,4 @@ effect_size = 3.2
 ammo_cost = {&"scrap": 1}
 anti_air = true
 sound = &"lobber"
+tier = 2

@@ -326,6 +326,40 @@
         "The cloud keeps stinging anything that flies through it.",
         "Turns almost all the way round: it covers your own sky too."
       ]
+    },
+    "twin_gatling": {
+      "lore": "Two Gatlings yoked to one crank and a shared drum. Twice the lead of a Gatling Post.",
+      "tips": [
+        "Still half damage on armour: pair it with a big-game gun."
+      ]
+    },
+    "hornets_nest": {
+      "lore": "A dozen barrels on a spinning drum. The shot rattles from one bug into the next.",
+      "tips": [
+        "Each hit ricochets into up to two more bugs within 3 m: best on packed swarms.",
+        "Half damage on armour."
+      ]
+    },
+    "elephant_battery": {
+      "lore": "A double rifle built for elephants, bolted to a sledge. Each round goes clean through.",
+      "tips": [
+        "Each round carries on into two more bugs in its line.",
+        "Pierces armour, +50% on heavy bugs."
+      ]
+    },
+    "rail_spike_driver": {
+      "lore": "A steam ram that drives a railroad spike between two rails. Slow, and nothing stops it.",
+      "tips": [
+        "Skewers every climber in a line down the wall; the last one is pinned to the rock.",
+        "Aimed at the top bug, it takes the whole lane under it."
+      ]
+    },
+    "gatling_porch": {
+      "lore": "A Gatling bolted to the house. It covers the whole yard from the porch.",
+      "tips": [
+        "Only fires at bugs on your plateau, never at cliffs.",
+        "Reaches the whole yard, not just the doorstep."
+      ]
     }
   },
   "crops": {

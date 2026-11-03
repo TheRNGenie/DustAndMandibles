@@ -53,6 +53,12 @@ const TURRETS: Dictionary = {
 	&"sharpshooter_tower": preload("res://data/turrets/sharpshooter_tower.tres"),
 	&"porch_repeater": preload("res://data/turrets/porch_repeater.tres"),
 	&"rooftop_cannon": preload("res://data/turrets/rooftop_cannon.tres"),
+	# Tiers: Mid and Late turrets (TurretDef.tier, unlocked at TurretDef.UNLOCK_WAVES).
+	&"twin_gatling": preload("res://data/turrets/twin_gatling.tres"),
+	&"hornets_nest": preload("res://data/turrets/hornets_nest.tres"),
+	&"elephant_battery": preload("res://data/turrets/elephant_battery.tres"),
+	&"rail_spike_driver": preload("res://data/turrets/rail_spike_driver.tres"),
+	&"gatling_porch": preload("res://data/turrets/gatling_porch.tres"),
 	# Crewed: 2 x 2 guns you sit in and fire yourself (CrewedTurret).
 	&"big_bertha": preload("res://data/turrets/big_bertha.tres"),
 	&"whaler": preload("res://data/turrets/whaler.tres"),
@@ -97,20 +103,56 @@ const BUILD_ORDER: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"wat
 	&"chili_mortar", &"dynamite_lobber", &"lasso_harpoon", &"scaffold", &"scattergun_post", &"sharpshooter_tower", &"barbed_wire", &"bear_trap",
 	&"dynamite_crate", &"palisade", &"lantern_post", &"rain_catcher", &"farm_plot", &"porch_repeater", &"rooftop_cannon",
 	&"duck_gun", &"sky_sweeper", &"net_thrower", &"powder_flak", &"firework_battery",
-	&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound"] # Crewed
+	&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound", # Crewed
+	&"twin_gatling", &"hornets_nest", &"elephant_battery", &"rail_spike_driver", &"gatling_porch"] # Tiers
 
 ## Build menu (B) categories, in tab order.
 const BUILD_CATEGORIES: Array[Dictionary] = [
 	{"name": "Farming", "items": [&"farm_plot", &"rain_catcher"]},
 	{"name": "Cliff Turrets", "items": [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar",
-		&"dynamite_lobber", &"lasso_harpoon", &"scaffold"]},
+		&"dynamite_lobber", &"lasso_harpoon", &"scaffold",
+		&"twin_gatling", &"elephant_battery", &"hornets_nest", &"rail_spike_driver"]}, # Tiers: shown sorted by tier
 	{"name": "Crewed Guns", "items": [&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound"]}, # Crewed
 	{"name": "Tactical", "items": [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post"]},
 	{"name": "Air Defense", "items": [&"duck_gun", &"sky_sweeper", &"net_thrower", &"powder_flak", &"firework_battery"]},
-	{"name": "Last Resorts", "items": [&"scattergun_post", &"sharpshooter_tower", &"porch_repeater", &"rooftop_cannon"]},
+	{"name": "Last Resorts", "items": [&"scattergun_post", &"sharpshooter_tower", &"porch_repeater", &"rooftop_cannon", &"gatling_porch"]},
 	# Crafted: filled at runtime with the crafted turret items your cliff holds (BuildMode.category_items).
 	{"name": "Crafted", "items": []},
 ]
+
+## Tiers: the tech tier of a build item (0 Early, 1 Mid, 2 Late; anything that
+## isn't a turret, and crafted turrets, count as Early).
+static func tier_of(id: StringName) -> int:
+	return turret(id).tier if is_turret(id) else 0
+
+
+## Tiers: the wave a build item unlocks at (1 = from the start).
+static func unlock_wave(id: StringName) -> int:
+	return turret(id).unlock_wave() if is_turret(id) else 1
+
+
+## Tiers: can `id` be built on `wave`? (Callers pass GameState.tier_wave().)
+static func is_unlocked(id: StringName, wave: int) -> bool:
+	return tier_of(id) == 0 or wave >= unlock_wave(id)
+
+
+## Tiers: why a locked item can't be built yet ("" when it can).
+static func lock_reason(id: StringName, wave: int) -> String:
+	if is_unlocked(id, wave):
+		return ""
+	return "Unlocks at Wave %d" % unlock_wave(id)
+
+
+## Tiers: a category's items sorted by tech tier (Early, Mid, Late), keeping the
+## listed order within a tier. Scaffolds and structures sort with the Early ones.
+static func by_tier(items: Array) -> Array:
+	var out: Array = []
+	for t in TurretDef.ERA_NAMES.size():
+		for id: StringName in items:
+			if tier_of(id) == t:
+				out.append(id)
+	return out
+
 
 ## Turrets that come standing on a free scaffold (every turret except the last
 ## resorts and the house turrets).

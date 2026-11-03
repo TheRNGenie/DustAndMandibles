@@ -70,6 +70,50 @@ const HEAVY_HP := 100.0
 ## Crewed: how far the barrel may lift above horizontal while manned, in degrees.
 @export var crew_pitch_up_deg: float = 35.0
 
+# ---- Tech tiers: Early / Mid / Late (see UNLOCK_WAVES) ----
+## Tech tier: 0 Early (from the start), 1 Mid, 2 Late. Mid and Late turrets stay
+## locked in the build menu until the wave in UNLOCK_WAVES. Not the upgrade tier
+## (Stock / Brass Fittings / Big Bore), which every turret still has on top.
+@export_range(0, 2) var tier: int = 0
+## Extra on-hit behaviour on top of `effect` (see TurretEffects): &"" none,
+## SPECIAL_CHAIN ricochets between bugs close together, SPECIAL_PIERCE carries
+## on through bugs in the line of fire, SPECIAL_SPIKE skewers every climber in
+## a line down the wall and pins the last one.
+@export var special: StringName = &""
+## Chain: bounces after the first hit. Pierce: bugs it carries on into after the target.
+@export var special_count: int = 0
+## Chain: hop reach in metres. Pierce / spike: how close to the line a bug must be.
+@export var special_radius: float = 0.0
+## Damage kept on each bounce or each bug passed through (0.6 = 60%).
+@export var special_falloff: float = 1.0
+## Spike: seconds the last bug skewered is pinned to the rock.
+@export var special_pin: float = 0.0
+## House turret that covers the whole yard (your plateau), not just near the house.
+@export var yard_wide: bool = false
+
+const SPECIAL_CHAIN := &"chain"
+const SPECIAL_PIERCE := &"pierce"
+const SPECIAL_SPIKE := &"spike"
+## Tech tier names, for the build menu's tag chips.
+const ERA_NAMES: Array[String] = ["Early", "Mid", "Late"]
+## The wave each tech tier unlocks at (Early from the start). The one place to change it.
+const UNLOCK_WAVES: Array[int] = [1, 5, 10]
+
+
+## The wave this turret unlocks at.
+func unlock_wave() -> int:
+	return UNLOCK_WAVES[clampi(tier, 0, UNLOCK_WAVES.size() - 1)]
+
+
+## Can it be built on `wave`?
+func unlocked_on(wave: int) -> bool:
+	return wave >= unlock_wave()
+
+
+## "Early", "Mid" or "Late".
+func era_name() -> String:
+	return ERA_NAMES[clampi(tier, 0, ERA_NAMES.size() - 1)]
+
 
 ## Armour-plated or 100+ HP: the bugs big-game guns are for and swarm guns struggle with.
 static func is_heavy(bd: BugDef) -> bool:
@@ -90,25 +134,25 @@ func upkeep_text() -> String:
 
 
 ## Damage of one shot at an upgrade tier, against a heavy bug or not.
-func damage_at(tier: int, heavy: bool = false) -> float:
-	return damage * TIER_DAMAGE[clampi(tier, 0, MAX_TIER)] * (heavy_mult if heavy else 1.0)
+func damage_at(upgrade: int, heavy: bool = false) -> float:
+	return damage * TIER_DAMAGE[clampi(upgrade, 0, MAX_TIER)] * (heavy_mult if heavy else 1.0)
 
 
 ## Range at an upgrade tier, standing on `level` scaffold levels.
-func range_at(tier: int, level: int = 0) -> float:
-	return range * range_mult(tier, level)
+func range_at(upgrade: int, level: int = 0) -> float:
+	return range * range_mult(upgrade, level)
 
 
-static func range_mult(tier: int, level: int) -> float:
-	return TIER_RANGE[clampi(tier, 0, MAX_TIER)] + RANGE_PER_LEVEL * maxi(level, 0)
+static func range_mult(upgrade: int, level: int) -> float:
+	return TIER_RANGE[clampi(upgrade, 0, MAX_TIER)] + RANGE_PER_LEVEL * maxi(level, 0)
 
 
-func interval_at(tier: int) -> float:
-	return fire_interval * TIER_INTERVAL[clampi(tier, 0, MAX_TIER)]
+func interval_at(upgrade: int) -> float:
+	return fire_interval * TIER_INTERVAL[clampi(upgrade, 0, MAX_TIER)]
 
 
-func hp_at(tier: int) -> float:
-	return max_hp * TIER_HP[clampi(tier, 0, MAX_TIER)]
+func hp_at(upgrade: int) -> float:
+	return max_hp * TIER_HP[clampi(upgrade, 0, MAX_TIER)]
 
 
 ## One line for the build catalog's detail strip: job, weakness and any upkeep.
@@ -125,23 +169,29 @@ func role_line() -> String:
 
 ## The key numbers in one line, like a gun's (build menu, workshop, field guide):
 ## "Damage 6  ·  6.7 Shots/s  ·  Range 80 m  ·  Splash 3 m".
-func stat_line(tier: int = 0) -> String:
-	var dmg := damage_at(tier)
+func stat_line(upgrade: int = 0) -> String:
+	var dmg := damage_at(upgrade)
 	var parts: PackedStringArray = ["Damage %s" % _num(dmg)]
-	var every := interval_at(tier)
+	var every := interval_at(upgrade)
 	parts.append(("%s Shots/s" % _num(1.0 / every)) if every < 1.0 else ("1 Shot / %s s" % _num(every)))
-	parts.append("Range %d m" % int(roundf(range_at(tier))))
+	parts.append("Range %d m" % int(roundf(range_at(upgrade))))
 	match effect:
 		Effect.KNOCKBACK: parts.append("Knocks Bugs Off")
 		Effect.BURN: parts.append("Burning Patch %s m" % _num(effect_size))
 		Effect.SPLASH: parts.append("Splash %s m" % _num(effect_size))
 		Effect.PIN: parts.append("Pins %s s" % _num(effect_size))
+	match special:
+		SPECIAL_CHAIN: parts.append("Ricochets to %d More" % special_count)
+		SPECIAL_PIERCE: parts.append("Pierces %d Bugs" % special_count)
+		SPECIAL_SPIKE: parts.append("Skewers a Line, Pins %s s" % _num(special_pin))
 	if armor_pierce:
 		parts.append("Pierces Armour")
 	if not is_equal_approx(heavy_mult, 1.0):
 		parts.append("x%s vs Heavy" % _num(heavy_mult))
 	if anti_air:
 		parts.append("Fliers Only")
+	if yard_wide:
+		parts.append("Whole Yard")
 	return "  ·  ".join(parts)
 
 

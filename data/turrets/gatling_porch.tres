@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"gatling_porch"
+display_name = "Gatling Porch Turret"
+description = "House turret: a Gatling bolted to the porch, balcony or roof deck. It sweeps the whole yard, but only shoots bugs on your plateau."
+role = "anything loose in your yard"
+weakness = "never fires at cliffs; armour (x0.6)"
+cost_scrap = 180
+max_hp = 260.0
+range = 48.0
+fire_interval = 0.09
+damage = 7.0
+armor_pierce = false
+heavy_mult = 0.6
+pitch_limit_deg = 80.0
+turn_speed = 280.0
+spread_deg = 2.5
+hit_chance = 0.8
+guards_plateau = true
+guards_house = true
+sound = &"gatling"
+tier = 2
+yard_wide = true

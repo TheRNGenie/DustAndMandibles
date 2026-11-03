@@ -83,6 +83,7 @@ func menu_items(tab: int) -> Array:
 				var t := Defs.turret(id)
 				var e := FieldGuide.entry("turrets", id)
 				var stats := t.stat_line() + "  ·  %d HP" % int(t.max_hp) # the same numbers as in the build menu
+				stats += "  ·  %s Tier" % t.era_name() + ("" if t.tier == 0 else " (Wave %d)" % t.unlock_wave()) # Tiers
 				var icon: Variant = IconStudio.turret(MenuScreen.instance, id) if MenuScreen.instance != null else null
 				out.append(_item(id, t.display_name, icon, str(e.get("lore", t.description)), stats, e.get("tips", []), UiStyle.cost(t.cost_scrap, "scrap")))
 		3:

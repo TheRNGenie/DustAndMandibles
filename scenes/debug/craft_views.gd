@@ -3,7 +3,8 @@ extends Node
 ## your plateau, posed (heads turned, guns raised), for checking their looks.
 ## Started by DebugTools when --craftlineup is given with --shot.
 ##   --craftlineup              a default set of 6 designs covering every part
-##   --craftlineup=a,b,c        these designs (ids with or without "craft_")
+##   --craftlineup=a,b,c        these designs (ids with or without "craft_"; plain turret ids too)
+##   --craftlineup=tiers        Tiers: the five new Mid / Late turrets (gen/tier_builder.gd)
 ## Options: --craftcam=front|back|near (default front: from the canyon side, 3/4 view),
 ##   --craftpitch=deg (gun pitch, default 8), --craftyaw=deg (head yaw, default -25).
 
@@ -23,7 +24,10 @@ func _ready() -> void:
 	var spec := GameState.flag_value("--craftlineup")
 	if spec != "":
 		ids = []
-		for s: String in spec.split(","):
+		for s: String in (",".join(TierBuilder.IDS) if spec == "tiers" else spec).split(","):
+			if Defs.TURRETS.has(StringName(s)): # Tiers: plain turret ids line up too
+				ids.append(StringName(s))
+				continue
 			ids.append(StringName(s if s.begins_with(CraftTable.PREFIX) else CraftTable.PREFIX + s))
 	var cliffs := world.get("cliffs") as CliffBuilder
 	var a := Buildable.cell_center(cliffs, cid, Vector2i(3, 6))
@@ -42,7 +46,7 @@ func _ready() -> void:
 		p.y = cell_ground.y
 		centre += p / ids.size()
 		_pose(id, p, yaw, turn, pitch, Palette.team_color(cid))
-		print("[craftview] %s (%s) at %s" % [id, CraftTable.name_of(id), str(p.snapped(Vector3.ONE * 0.1))])
+		print("[craftview] %s (%s) at %s" % [id, Defs.name_of(id), str(p.snapped(Vector3.ONE * 0.1))])
 	if player != null:
 		player.global_position = centre - fwd * 14.0 + Vector3.UP * 1.0
 	var cam := Camera3D.new()
@@ -94,6 +98,12 @@ func _pose(id: StringName, at: Vector3, yaw: float, turn: float, pitch: float, t
 		sm.material_override = Materials.toon(0.012)
 		sm.position = parts["spin_at"]
 		gm.add_child(sm)
+	if parts.has("spin_b"): # Tiers: the Twin Gatling's second cluster
+		var sb := MeshInstance3D.new()
+		sb.mesh = parts["spin_b"]
+		sb.material_override = Materials.toon(0.012)
+		sb.position = parts["spin_b_at"]
+		gm.add_child(sb)
 	# A marker at the muzzle offset, to check it sits at the barrel's mouth.
 	if GameState.has_flag("--craftmuzzle"):
 		var m := MeshInstance3D.new()

@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"hornets_nest"
+display_name = "Hornet's Nest"
+description = "A spinning drum of a dozen barrels that sprays shot. Every ball that hits ricochets on into up to two more bugs packed close by."
+role = "packed swarms (shot ricochets)"
+weakness = "armour and big bugs (half damage); spread-out bugs"
+cost_scrap = 200
+max_hp = 220.0
+range = 95.0
+fire_interval = 0.16
+damage = 6.0
+armor_pierce = false
+heavy_mult = 0.5
+pitch_limit_deg = 40.0
+turn_speed = 200.0
+spread_deg = 3.0
+hit_chance = 0.75
+sound = &"repeater"
+tier = 2
+special = &"chain"
+special_count = 2
+special_radius = 3.0
+special_falloff = 0.6

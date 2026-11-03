@@ -25,3 +25,4 @@ effect_size = 0.0
 guards_plateau = true
 ammo_cost = {}
 sound = &"sharpshooter"
+tier = 1
