@@ -52,6 +52,10 @@ func draw_tracer(id: StringName, from: Vector3, to: Vector3) -> void:
 		return
 	var s: Array = TRACERS.get(id, TRACERS[&"revolver"])
 	vfx.bullet_streak(from, to, s[0], s[1], s[2])
+	# Birds and vultures can be shot out of the sky (each peer's own sky).
+	var life: Node = vfx.get("canyon_life")
+	if life != null and is_instance_valid(life):
+		life.call("shoot", from, to)
 
 
 ## World position of this gun's muzzle (the flash point).

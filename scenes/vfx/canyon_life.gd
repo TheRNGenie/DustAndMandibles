@@ -30,6 +30,10 @@ var _bird_pos: PackedVector3Array = PackedVector3Array()
 var _bird_vel: PackedVector3Array = PackedVector3Array()
 var _bird_phase: PackedFloat32Array = PackedFloat32Array()
 var _birds_t := -1.0
+## Shot birds: index -> true while it tumbles out of the sky (until the flock leaves).
+var _bird_dead: Dictionary = {}
+## Seconds a shot vulture stays gone before another one circles in.
+const VULTURE_BACK := 45.0
 
 
 func _ready() -> void:
@@ -50,7 +54,16 @@ func _ready() -> void:
 			scatter_birds())
 
 
+var _test_t := 0.0
+
+
 func _process(delta: float) -> void:
+	if GameState.has_flag("--shootbird") and _test_t >= 0.0:
+		_test_t += delta
+		if _test_t > 3.0 and not _vultures.is_empty():
+			_test_t = -1.0
+			var at := (_vultures[0]["node"] as Node3D).global_position
+			print("[birds] test shot hit: ", shoot(at + Vector3(0, -30, 0), at + Vector3(0, 30, 0)))
 	if cliffs == null:
 		return
 	_update_weeds(delta)
@@ -205,6 +218,8 @@ func _vulture_wing() -> ArrayMesh:
 
 func _update_vultures(delta: float) -> void:
 	for v in _vultures:
+		if _update_falling_vulture(v, delta):
+			continue
 		var ang := float(v["angle"]) + float(v["speed"]) * delta
 		v["angle"] = ang
 		var r := float(v["radius"])
@@ -230,6 +245,85 @@ func _update_vultures(delta: float) -> void:
 		var wings: Array = v["wings"]
 		(wings[0] as Node3D).rotation.z = -(0.12 + flap)
 		(wings[1] as Node3D).rotation.z = 0.12 + flap
+
+
+## A shot vulture folds up and drops, spinning; later another circles in.
+## Returns true while it's out of the sky.
+func _update_falling_vulture(v: Dictionary, delta: float) -> bool:
+	if not v.has("down_t"):
+		return false
+	var root := v["node"] as Node3D
+	v["down_t"] = float(v["down_t"]) + delta
+	if root.visible:
+		var vel: Vector3 = v["fall_vel"]
+		vel += Vector3.DOWN * 16.0 * delta
+		v["fall_vel"] = vel
+		root.global_position += vel * delta
+		root.rotate_object_local(Vector3.FORWARD, delta * 6.0)
+		root.rotate_object_local(Vector3.RIGHT, delta * 2.5)
+		var wings: Array = v["wings"]
+		(wings[0] as Node3D).rotation.z = -1.1
+		(wings[1] as Node3D).rotation.z = 1.1
+		var floor_y := cliffs.floor_height(root.global_position.x, root.global_position.z) if cliffs != null else 0.0
+		if root.global_position.y <= floor_y + 0.3 or float(v["down_t"]) > 12.0:
+			root.visible = false
+			if vfx != null:
+				vfx.call("dust_burst", root.global_position, Vector3.UP, 1.2)
+	if float(v["down_t"]) > VULTURE_BACK:
+		v.erase("down_t")
+		root.visible = true
+		root.rotation = Vector3.ZERO
+	return true
+
+
+## A shot along from -> to: knocks down the first vulture or bird it passes
+## close to (each player's sky is their own, so this is a local effect; every
+## peer runs it for every shot it draws). Returns true if something fell.
+func shoot(from: Vector3, to: Vector3) -> bool:
+	var seg := to - from
+	var seg_len := seg.length()
+	if seg_len < 0.5:
+		return false
+	var dir := seg / seg_len
+	var best := seg_len
+	var hit_v: Dictionary = {}
+	var hit_b := -1
+	for v in _vultures:
+		if v.has("down_t"):
+			continue
+		var at := (v["node"] as Node3D).global_position
+		var t := clampf((at - from).dot(dir), 0.0, seg_len)
+		if t < best and (from + dir * t).distance_to(at) < 1.8:
+			best = t
+			hit_v = v
+	if _birds_t > 0.0:
+		for i in BIRDS:
+			if _bird_dead.has(i):
+				continue
+			var t := clampf((_bird_pos[i] - from).dot(dir), 0.0, seg_len)
+			if t < best and (from + dir * t).distance_to(_bird_pos[i]) < 0.7:
+				best = t
+				hit_v = {}
+				hit_b = i
+	if not hit_v.is_empty():
+		hit_v["down_t"] = 0.0
+		hit_v["fall_vel"] = dir * 6.0 + Vector3.UP * 2.0
+		var pos := (hit_v["node"] as Node3D).global_position
+		_feathers(pos, 1.2)
+		Audio.play_at(&"rustle", pos, 2.0)
+		return true
+	if hit_b >= 0:
+		_bird_dead[hit_b] = true
+		_bird_vel[hit_b] = dir * 4.0 + Vector3.UP * 1.0
+		_feathers(_bird_pos[hit_b], 0.6)
+		Audio.play_at(&"rustle", _bird_pos[hit_b], -2.0)
+		return true
+	return false
+
+
+func _feathers(pos: Vector3, size: float) -> void:
+	if vfx != null and vfx.has_method("pop"):
+		vfx.call("pop", pos, Color("#3A2E30"), size)
 
 
 # ------------------------------------------------------------------ dust devil
@@ -339,6 +433,7 @@ func scatter_birds() -> void:
 		_bird_vel[i] = away.normalized() * _rng.randf_range(5.0, 8.0)
 		_bird_phase[i] = _rng.randf() * TAU
 	_birds_t = 9.0
+	_bird_dead.clear()
 	_birds.multimesh.visible_instance_count = BIRDS
 	_birds.global_transform = Transform3D()
 	Audio.play_at(&"rustle", cliffs.plateau_point(0, 1.0, 0.0), 2.0)
@@ -352,8 +447,17 @@ func _update_birds(delta: float) -> void:
 	var mm := _birds.multimesh
 	if _birds_t <= 0.0:
 		mm.visible_instance_count = 0
+		_bird_dead.clear()
 		return
 	for i in BIRDS:
+		if _bird_dead.has(i):
+			# Shot: it drops, tumbling, wings folded.
+			_bird_vel[i] += Vector3.DOWN * 14.0 * delta
+			_bird_pos[i] += _bird_vel[i] * delta
+			_bird_phase[i] += delta * 9.0
+			var tb := Basis(Vector3.RIGHT, _bird_phase[i]).scaled(Vector3(1.6, 0.3, 1.6))
+			mm.set_instance_transform(i, Transform3D(tb, _bird_pos[i]))
+			continue
 		var v := _bird_vel[i]
 		# Climb steeply at first, then level off and speed away.
 		v += Vector3(v.x, 0, v.z).normalized() * 3.0 * delta + Vector3.UP * (2.0 - v.y * 0.4) * delta
