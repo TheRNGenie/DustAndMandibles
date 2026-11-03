@@ -12,6 +12,7 @@ var _feed: VBoxContainer
 var _card: HudPromptCard
 var _prompt_text := ""
 var _over: PanelContainer
+var _paper: NewspaperFront
 var _over_label: Label
 var _keep_going: Button
 var _build_mode: BuildMode
@@ -52,7 +53,11 @@ func _ready() -> void:
 	var col := VBoxContainer.new()
 	_over.add_child(col)
 	_over_label = UiStyle.label("", 26)
+	_over_label.visible = false # the newspaper carries the result now
 	col.add_child(_over_label)
+	_paper = NewspaperFront.new() # end-of-run front page (RunStats)
+	col.add_child(_paper)
+	RunStats.reset() # a new world = a new run
 	col.add_child(BrandsReport.new()) # Perk: Brands earned this run
 	# After a win: keep the waves coming past the last one (host decides).
 	_keep_going = UiStyle.button("Keep going (endless)")
@@ -198,6 +203,7 @@ func _on_bug_killed(bug_name: String, bug_cliff: int, source: String, source_cli
 		add_line(bug_name, Palette.ROCK_C) # a plain announcement (e.g. a bandit escaped)
 		return
 	var scrap := int(loot.get(&"scrap", 0))
+	RunStats.note_kill(bug_name, source, scrap) # for the end-of-run newspaper
 	var saved := _cliff_owner_name(bug_cliff)
 	var text: String
 	if source_cliff >= 0 and source_cliff != bug_cliff:
@@ -221,6 +227,7 @@ func _on_wave_announced(heavy_cliff: int, west_share: float, lane_counts: Array)
 
 func _on_game_over(won: bool, reason: String) -> void:
 	_over_label.text = ("YOU WIN!\n" if won else "THE CANYON IS LOST\n") + reason
+	_paper.show_run(won, reason)
 	_over.visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	GameState.menu_open = true

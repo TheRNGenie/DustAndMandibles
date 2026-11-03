@@ -1089,6 +1089,11 @@ func _take_screenshot(path: String) -> void:
 		lt.autostart = true
 		add_child(lt)
 		lt.timeout.connect(func() -> void: player.whip.lash())
+	if GameState.flag_value("--endat") != "": # --endat=S[:win]: end the run after S s (newspaper screenshots)
+		var parts := GameState.flag_value("--endat").split(":")
+		get_tree().create_timer(float(parts[0])).timeout.connect(func() -> void:
+			if multiplayer.is_server():
+				GameState._finish.rpc(parts.size() > 1 and parts[1] == "win", "The East Homestead fell on wave %d." % GameState.wave))
 	if GameState.has_flag("--downed") and player != null:
 		player.vitals.apply_damage(99999.0) # knocked down (screenshots of the downed pose)
 	if GameState.flag_value("--hold") != "" and player != null:
