@@ -314,6 +314,19 @@ func _make_rain_catcher(cid: int, cell: Vector2i, pos: Vector3) -> WaterSource:
 	return w
 
 
+## Scrap you get back for selling this buildable: half its price, scaled by
+## its health (Salvager pays more). Scaffolds are free, so they sell for nothing.
+func sell_price(peer_id: int, n: Node) -> int:
+	if n is ScaffoldNode:
+		return 0
+	var id: StringName = n.get("build_id") if n.get("build_id") != null else (n as Object).get("def").get("id")
+	var fraction := 1.0
+	var h: Variant = n.get("health")
+	if h != null:
+		fraction = (h as Health).fraction()
+	return int(Defs.cost_of(id) * DEMOLISH_REFUND * fraction * Perks.more(peer_id, &"salvager")) # Perk: Salvager
+
+
 func _do_demolish(peer_id: int, n: Node3D) -> void:
 	var cid := int(n.get("cliff_id"))
 	if not may_build(peer_id, cid):
@@ -324,20 +337,15 @@ func _do_demolish(peer_id: int, n: Node3D) -> void:
 		if turret_at(cid, sc.cell, sc.levels) != null:
 			Economy.notify(peer_id, "Remove the turret on the top level first.")
 			return
-		if sc.paid_levels > 0: # free levels (put up under turrets) give nothing back
+		if sc.paid_levels > 0: # scaffolds are free now; old saves' paid levels still pay back
 			sc.paid_levels -= 1
-			Economy.earn(cid, {&"scrap": int(Defs.cost_of(&"scaffold") * DEMOLISH_REFUND * Perks.more(peer_id, &"salvager"))}) # Perk: Salvager
+			Economy.earn(cid, {&"scrap": int(25 * DEMOLISH_REFUND * Perks.more(peer_id, &"salvager"))}) # Perk: Salvager
 		if sc.levels <= 1:
 			sc.queue_free()
 		else:
 			sc.set_levels(sc.levels - 1)
 		return
-	var id: StringName = n.get("build_id") if n.get("build_id") != null else (n as Object).get("def").get("id")
-	var fraction := 1.0
-	var h: Variant = n.get("health")
-	if h != null:
-		fraction = (h as Health).fraction()
-	Economy.earn(cid, {&"scrap": int(Defs.cost_of(id) * DEMOLISH_REFUND * fraction * Perks.more(peer_id, &"salvager"))}) # Perk: Salvager
+	Economy.earn(cid, {&"scrap": sell_price(peer_id, n)})
 	n.queue_free()
 
 

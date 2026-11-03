@@ -8,6 +8,6 @@ id = &"scaffold"
 display_name = "Scaffold"
 description = "Stack turrets: each level holds another turret, and each level up gives it 5 more degrees of look-down. Build again on the same spot to add a level (max 3)."
 kind = 7
-cost_scrap = 25
+cost_scrap = 0
 max_hp = 200.0
 radius = 1.0

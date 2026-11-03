@@ -5,7 +5,7 @@ extends Node3D
 ## (mouse, or number keys). The menu tucks away and a ghost snaps to the grid:
 ## green = OK, red = blocked or too expensive. Left click asks the host to build.
 ## B brings the menu back, the wheel cycles items in the category, right click leaves.
-## X demolishes what you look at (50% refund, scaled by health). U upgrades a turret.
+## X sells what you look at (50% back, scaled by health; scaffolds are free). U upgrades a turret.
 
 signal changed
 
@@ -304,9 +304,33 @@ func build_info(icon: Texture2D) -> Dictionary:
 		"icon": icon, "name": Defs.name_of(id), "cost": Perks.build_cost(multiplayer.get_unique_id(), id), # Perk: build discounts
 		"afford": GameState.is_solo() or Economy.can_afford(payer, {&"scrap": Perks.build_cost(multiplayer.get_unique_id(), id)}), # Perk: build discounts
 		"status": status, "status_bad": bad,
-		"keys": [[KeyHints.key_for("fire"), "Place"], ["Wheel", "Next"], [KeyHints.key_for("build_menu"), "Catalog"],
+		"keys": [[KeyHints.key_for("fire"), "Place"], [KeyHints.key_for("demolish"), _sell_hint()], ["Wheel", "Next"], [KeyHints.key_for("build_menu"), "Catalog"],
 				[KeyHints.key_for("build_camera"), "Eye view" if _build_cam != null and _build_cam.raised else "Raised view"], [KeyHints.key_for("alt_fire"), "Done"]],
 	}
+
+
+## "Sell" plus what the thing you're aiming at would fetch ("Sell Gatling +45").
+func _sell_hint() -> String:
+	var n := _aimed_buildable()
+	if n == null:
+		return "Sell"
+	if n is ScaffoldNode:
+		return "Remove Scaffold"
+	var id: Variant = n.get("build_id") if n.get("build_id") != null else (n.get("def").get("id") if n.get("def") != null else null)
+	if id == null:
+		return "Sell"
+	return "Sell %s +%d" % [Defs.name_of(id), BuildManager.instance.sell_price(multiplayer.get_unique_id(), n)]
+
+
+## The placed buildable under the crosshair (null if none).
+func _aimed_buildable() -> Node:
+	var hit := _aim_hit()
+	if hit.is_empty():
+		return null
+	var c := hit["collider"] as Node
+	if c == null or c.get("cell") == null or c.get("cliff_id") == null or c.get_parent() != BuildManager.instance:
+		return null
+	return c
 
 
 static func _description(id: StringName) -> String:

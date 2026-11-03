@@ -20,7 +20,7 @@ const REMAPPABLE: Dictionary = {
 	"reload": "Reload",
 	"interact": "Interact / repair",
 	"build_menu": "Build menu",
-	"demolish": "Demolish",
+	"demolish": "Sell",
 	"upgrade": "Upgrade turret (chitin)",
 	"cycle_option": "Change seed / shop item",
 	"drop_item": "Drop weapon",
