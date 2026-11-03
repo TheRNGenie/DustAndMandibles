@@ -77,7 +77,10 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if not multiplayer.is_server() or cliffs == null:
+	if cliffs == null:
+		return
+	if not multiplayer.is_server():
+		_puppet(delta)
 		return
 	_watch_threats()
 	_think -= delta
@@ -135,7 +138,7 @@ func _water_task() -> bool:
 		if not is_instance_valid(well):
 			return
 		_face(well.global_transform * Vector3(0, 0, WellJackBuilder.TROUGH_Z))
-		_rig.play_action(&"water")
+		_act(&"water")
 		var got := well.draw_for_cpu()
 		if GameState.has_flag("--cpulog"):
 			print("[cpu] %s drew %d water at the well" % [display_name, got]))
@@ -253,7 +256,7 @@ func _farm(plot: CropPlot, act: String) -> void:
 	if not is_instance_valid(plot):
 		return
 	_face(plot.global_position)
-	_rig.play_action(&"harvest" if act == "harvest" else (&"water" if act == "water" else &"plant"))
+	_act(&"harvest" if act == "harvest" else (&"water" if act == "water" else &"plant"))
 	match act:
 		"harvest":
 			# Picks it itself: crops its turrets burn as upkeep go to the pool,
@@ -306,7 +309,7 @@ func _deposit_task() -> bool:
 	var pc := cliffs.plateau_coords(cliff_id, box.global_position)
 	_go(Vector2(pc.x - 1.2, pc.y), Task.FARM, func() -> void:
 		_face(box.global_position)
-		_rig.play_action(&"chest")
+		_act(&"chest")
 		if GameState.has_flag("--cpulog"):
 			print("[cpu] put %s in the deposit box" % str(_carry))
 		box.deposit(_carry.duplicate())
@@ -395,7 +398,7 @@ func _build_at(id: StringName, cell: Vector2i) -> bool:
 	var pc := cliffs.plateau_coords(cliff_id, Buildable.cell_center(cliffs, cliff_id, cell))
 	_go(Vector2(pc.x + 1.5, pc.y), Task.BUILD, func() -> void:
 		_face(Buildable.cell_center(cliffs, cliff_id, cell))
-		_rig.play_action(&"hammer")
+		_act(&"hammer")
 		var ok := BuildManager.instance.cpu_build(display_name, id, cliff_id, cell)
 		if GameState.has_flag("--cpulog"):
 			print("[cpu] build %s at %s: %s  (scrap spent %s, team had %s)" % [id, str(cell), ok,
@@ -501,9 +504,11 @@ func _shoot(b: Bug) -> void:
 	var hit := _rng.randf() < hit_p
 	if not hit:
 		aim += Vector3(_rng.randf_range(-1.5, 1.5), _rng.randf_range(-1.0, 1.5), _rng.randf_range(-1.5, 1.5))
-	# Host only: CPU teammates exist only on the host (clients have no World/CPU node,
-	# so an RPC here spammed "Node not found" errors on every client shot).
-	_shot_fx(muzzle, aim)
+	# Every peer: clients build this CPU as a puppet (World._spawn_cpus), same path.
+	if NetworkManager.is_online():
+		_shot_fx.rpc(muzzle, aim)
+	else:
+		_shot_fx(muzzle, aim)
 	_shots += 1
 	if GameState.has_flag("--cpulog") and _shots % 25 == 0:
 		print("[cpu] %d shots, %d hits" % [_shots, _hits])
@@ -538,7 +543,58 @@ func _face(p: Vector3) -> void:
 
 func _animate(delta: float) -> void:
 	rotation.y = lerp_angle(rotation.y, _yaw, clampf(delta * 10.0, 0.0, 1.0))
-	_rig.animate(delta, _speed, false, _pitch if _target != null else 0.0)
+	var pitch := _pitch if _target != null else 0.0
+	_rig.animate(delta, _speed, false, pitch)
+	# Clients: they build the same CPU (World._spawn_cpus) as a puppet of this one.
+	_pose_t -= delta
+	if _pose_t <= 0.0 and multiplayer.has_multiplayer_peer() and NetworkManager.is_online():
+		_pose_t = POSE_INTERVAL
+		_pose.rpc(Vector3(_d, _z, _yaw), pitch, _speed)
+
+
+# ------------------------------------------------------------------ clients (puppet)
+
+const POSE_INTERVAL := 1.0 / 15.0
+var _pose_t := 0.0
+var _net := Vector3.ZERO # d, z, yaw from the host
+var _net_set := false
+
+
+## Host -> clients: where the CPU stands, which way it faces, how fast it walks.
+@rpc("authority", "call_remote", "unreliable_ordered")
+func _pose(dzy: Vector3, pitch: float, speed: float) -> void:
+	_net = dzy
+	_pitch = pitch
+	_speed = speed
+	if not _net_set or Vector2(_d - dzy.x, _z - dzy.y).length() > 6.0:
+		_d = dzy.x # first word from the host (or a big jump): snap
+		_z = dzy.y
+		_net_set = true
+
+
+func _puppet(delta: float) -> void:
+	if not _net_set:
+		return
+	var k := clampf(delta * 12.0, 0.0, 1.0)
+	_d = lerpf(_d, _net.x, k)
+	_z = lerpf(_z, _net.y, k)
+	_yaw = _net.z
+	global_position = _world(Vector2(_d, _z))
+	rotation.y = lerp_angle(rotation.y, _yaw, clampf(delta * 10.0, 0.0, 1.0))
+	_rig.animate(delta, _speed, false, _pitch)
+
+
+## Host: play a rig action (water, plant, hammer...) here and on every client.
+func _act(id: StringName) -> void:
+	if NetworkManager.is_online():
+		_act_rpc.rpc(id)
+	else:
+		_rig.play_action(id)
+
+
+@rpc("authority", "call_local", "reliable")
+func _act_rpc(id: StringName) -> void:
+	_rig.play_action(id)
 
 
 func _hostile_on_plateau() -> bool:

@@ -118,7 +118,8 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 
 func _process(_delta: float) -> void:
 	# The feed sits under the wave preview card when that's up in the corner.
-	var top := 90.0
+	# Maps: never over the other cliffs' homestead bars stacked top-right.
+	var top := maxf(90.0, 76.0 + (WorldLayout.cliff_count() - 2) * 50.0)
 	for c in get_parent().get_children():
 		if c is HudWavePreview and (c as Control).visible:
 			top = (c as Control).position.y + (c as Control).size.y + 10.0
@@ -226,10 +227,9 @@ func _on_game_over(won: bool, reason: String) -> void:
 
 
 func _cliff_owner_name(cid: int) -> String:
-	for id: int in NetworkManager.players:
-		var p: Dictionary = NetworkManager.players[id]
-		if int(p["cliff"]) == cid:
-			return str(p["name"])
+	var who := Hud.owner_name(cid) # a player or a CPU teammate
+	if who != "open" and who != "you":
+		return who
 	return "the " + WorldLayout.map().name_of(cid)
 
 

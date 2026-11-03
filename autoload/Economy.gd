@@ -192,13 +192,16 @@ func _notice(text: String) -> void:
 
 func _push() -> void:
 	if multiplayer.is_server() and NetworkManager.is_online():
-		_sync.rpc(ledger.stock)
+		_sync.rpc(ledger.stock, shared)
 	for cid in ledger.stock.size():
 		resources_changed.emit(cid)
 
 
+## `pooled`: the team shares one stockpile (a CPU teammate): clients must read
+## it under cliff 0 too, or they'd see their own (emptied) one.
 @rpc("authority", "reliable")
-func _sync(stock: Dictionary) -> void:
+func _sync(stock: Dictionary, pooled: bool = false) -> void:
 	ledger.stock = stock
+	shared = pooled
 	for cid in ledger.stock.size():
 		resources_changed.emit(cid)
