@@ -129,7 +129,7 @@ static func owner_of(cid: int) -> String:
 		if int(c.get("cliff_id")) == cid:
 			names.append(str(c.get("display_name")))
 	if names.is_empty():
-		return "empty" if not GameState.is_solo() else "you"
+		return "you" if GameState.is_solo() and MapDef.players_of(NetworkManager.map_id) <= 2 else "open"
 	return ", ".join(names)
 
 

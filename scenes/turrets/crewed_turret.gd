@@ -164,7 +164,7 @@ func _think_auto(delta: float) -> void:
 	_retarget -= delta
 	reeling = false
 	_cool_barrels(0, false, delta)
-	var lost := _target != null and (not is_instance_valid(_target) or not _target.is_alive())
+	var lost := _target != null and (not is_instance_valid(_target) or not _target.is_alive() or _target.untargetable()) # a fading Mirage Mantis drops off
 	if _retarget <= 0.0 or lost:
 		_retarget = RETARGET_TIME + randf() * 0.1
 		_target = _pick_target()

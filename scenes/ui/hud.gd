@@ -279,7 +279,7 @@ static func owner_name(cid: int) -> String:
 		for n: Node in tree.get_nodes_in_group("cpu_teammates"):
 			if int(n.get("cliff_id")) == cid:
 				return str(n.get("display_name"))
-	return "you" if GameState.is_solo() else "empty"
+	return "you" if GameState.is_solo() and MapDef.players_of(NetworkManager.map_id) <= 2 else "open" # solo on a bigger map: the other buttes are nobody's
 
 
 ## Theme: the HUD sign is the theme set's HUD card.
