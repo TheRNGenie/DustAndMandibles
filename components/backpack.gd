@@ -28,7 +28,7 @@ const WEIGHTS: Dictionary = {
 	&"rail_iron": 4,
 	&"egg": 2,
 	# Story items (a chapter's job, never unpacked onto the stockpile).
-	&"dynamite": 20,
+	&"dynamite": 35,
 	&"pump_valve": 10,
 	&"queen_gland": 8,
 }

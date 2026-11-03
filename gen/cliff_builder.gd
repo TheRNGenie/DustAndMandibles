@@ -386,14 +386,18 @@ func main_tunnel() -> int:
 	return _main
 
 
-## Tunnel `k` (wrapped), or the next one along that isn't sealed.
-func open_tunnel(k: int) -> Array:
+## Tunnel index `k` (wrapped), or the next one along that isn't sealed.
+func open_tunnel_index(k: int) -> int:
 	var n := tunnel_count()
 	for j in n:
 		var i := posmod(k + j, n)
 		if not sealed.has(i):
-			return tunnel(i)
-	return tunnel(posmod(k, n))
+			return i
+	return posmod(k, n)
+
+
+func open_tunnel(k: int) -> Array:
+	return tunnel(open_tunnel_index(k))
 
 
 ## Dark tunnel mouths at the foot of both cliffs, one per lane, with a broken rock
