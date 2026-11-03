@@ -7,26 +7,31 @@ extends RefCounted
 ## phase, wave start and "held".
 ##
 ## JSON fields: id, number, title, map, first_wave, last_wave, blurb,
-## start_bonus {resource: amount}, objective {kind: hold | fetch | protect | keep,
+## start_bonus {resource: amount}, objective {kind: hold | fetch | protect | keep | blast,
 ## text, ...kind fields}, requires (the chapter that unlocks it; the one before
 ## it in IDS when left out), bosses {"wave": bug id}, extra_bugs {"wave": [[bug id, count]]},
 ## weather {"wave": weather name}, telegram {title, body}, radio {"wave": {build,
 ## wave, held: [[speaker, line]]}}, events {key: [[speaker, line]]}, journal
 ## {title, body}, rewards {notches, unlock {kind, id, name}}, headline_win,
-## headline_loss.
+## headline_loss, sealed_tunnel (true: the main tunnel is blown shut all chapter).
 ##
-## `objective` is the one field a later Canyon Expedition replaces: the plateau
-## stand-ins (an airship drop, a boss drop) are "fetch" objectives.
+## Canyon Expeditions: a fetch's `spawn` floor_wagon (Dry Season: the valve in a
+## wrecked wagon on the canyon floor) or boss_carcass (The Survey Map: the gland
+## in the Queen Spider's carcass, which always ends up on the floor) puts the
+## item down there: it goes in your backpack and comes up with you. The old
+## plateau stand-ins (airship_drop, boss_drop) still work. `blast` is Down the
+## Hole's dynamite job (DownTheHole, BlastRules).
 
 const DIR := "res://data/story/"
-## The chapters that can be played, in play order. Chapter 7 (Down the Hole)
-## is a Canyon Expedition, built later: until then The Queen follows chapter 6
-## (its `requires` names ch6; point it at ch7 once that's in).
-const IDS: Array[String] = ["ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "ch8"]
-## The rest of the story, shown as "Coming Later" on the chapter screen.
-const PLANNED: Array = [[7, "Down the Hole"]]
+## The chapters that can be played, in play order.
+const IDS: Array[String] = ["ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "ch7", "ch8"]
+## The rest of the story, shown as "Coming Later" on the chapter screen ([[number, title]]).
+const PLANNED: Array = []
 const SPEAKERS: Array[String] = ["stroud", "kettle", "pearl", "doc"]
-const KINDS: Array[String] = ["hold", "fetch", "protect", "keep"]
+const KINDS: Array[String] = ["hold", "fetch", "protect", "keep", "blast"]
+## Where a fetch item turns up: the plateau stand-ins, then the canyon floor ones.
+const SPAWNS: Array[String] = ["airship_drop", "boss_drop", "floor_wagon", "boss_carcass"]
+const FLOOR_SPAWNS: Array[String] = ["floor_wagon", "boss_carcass"]
 ## keep: what has to be standing on every held cliff whenever a night ends.
 const KEEP_THINGS: Array[String] = ["storeys", "lanterns"]
 const WHENS: Array[String] = ["build", "wave", "held"]
@@ -53,6 +58,7 @@ var rewards: Dictionary = {}
 var headline_win := ""
 var headline_loss := ""
 var requires := ""
+var sealed_tunnel := false
 
 static var _cache: Dictionary = {}
 
@@ -95,6 +101,7 @@ static func from_dict(d: Dictionary) -> StoryChapter:
 	ch.headline_win = str(d.get("headline_win", ""))
 	ch.headline_loss = str(d.get("headline_loss", ""))
 	ch.requires = str(d.get("requires", ""))
+	ch.sealed_tunnel = bool(d.get("sealed_tunnel", false))
 	return ch
 
 
@@ -150,6 +157,29 @@ func kind() -> String:
 
 func objective_text() -> String:
 	return str(objective.get("text", "Hold Out Through Wave %d" % last_wave))
+
+
+## Is the job down on the canyon floor (an expedition)? Then a chapter whose
+## waves are done waits in a build phase for it (GameState.story_hold_build).
+func floor_job() -> bool:
+	return kind() == "blast" or (kind() == "fetch" and FLOOR_SPAWNS.has(str(objective.get("spawn", ""))))
+
+
+## fetch: the item's backpack key ("pump_valve"), or "" for a plateau stand-in.
+func pack_item() -> StringName:
+	if kind() != "fetch" or not floor_job():
+		return &""
+	return StringName(str(objective.get("pack_item", "")))
+
+
+## blast: dynamite crates (and charges) for `riders` players.
+func crates_for(riders: int) -> int:
+	return BlastRules.crates_needed(riders, int(objective.get("crates", 2)), int(objective.get("crates_per_rider", 1)))
+
+
+## blast: seconds of fuse.
+func fuse() -> float:
+	return float(objective.get("fuse", BlastRules.FUSE))
 
 
 ## keep: what has to stand ("storeys" or "lanterns").
@@ -354,15 +384,22 @@ func problems() -> Array[String]:
 			out.append("keep needs thing storeys or lanterns")
 		if int(objective.get("per_cliff", 0)) <= 0:
 			out.append("keep needs per_cliff")
+	if kind() == "blast":
+		if int(objective.get("crates", 0)) <= 0:
+			out.append("blast needs crates")
+		if fuse() < 15.0:
+			out.append("blast fuse under 15 s")
 	if kind() == "fetch":
-		if not ["airship_drop", "boss_drop"].has(str(objective.get("spawn", ""))):
-			out.append("fetch needs spawn airship_drop or boss_drop")
+		if not SPAWNS.has(str(objective.get("spawn", ""))):
+			out.append("fetch needs spawn airship_drop, boss_drop, floor_wagon or boss_carcass")
+		if floor_job() and not Backpack.WEIGHTS.has(pack_item()):
+			out.append("a floor fetch needs a pack_item with a backpack weight")
 		if not ["well", "board"].has(str(objective.get("deliver_to", ""))):
 			out.append("fetch needs deliver_to well or board")
 		var brought := false
 		for wk: String in bosses:
 			brought = brought or bosses_for(int(wk)).has(StringName(str(objective.get("boss", ""))))
-		if str(objective.get("spawn", "")) == "boss_drop" and not brought:
+		if ["boss_drop", "boss_carcass"].has(str(objective.get("spawn", ""))) and not brought:
 			out.append("boss_drop names a boss the chapter never brings")
 	return out
 

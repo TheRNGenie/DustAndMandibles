@@ -21,6 +21,11 @@ signal came_up(peer_id: int)
 signal noise(pos: Vector3, radius: float)
 ## Every peer: a backpack's contents changed.
 signal backpack_changed(peer_id: int)
+## Host (Story): a story item (story_items) came up out of the canyon in a
+## backpack: it is not unpacked onto the stockpile; the chapter takes it.
+signal story_item_up(peer_id: int, item: StringName, units: int)
+## Host (Story): a downed player's story item, left where they fell (not in the sack).
+signal story_item_dropped(peer_id: int, item: StringName, units: int, pos: Vector3)
 
 const LootSackScript := preload("res://scenes/structures/loot_sack.gd")
 const TunnelRumble := preload("res://scenes/bugs/tunnel_rumble.gd")
@@ -31,6 +36,15 @@ var down: Dictionary = {}
 var packs: Dictionary = {}
 ## Host: what the last add_to_backpack couldn't fit ({item: units}).
 var last_leftover: Dictionary = {}
+## Story: items a chapter owns (the pump valve, the Queen Spider's gland, dynamite).
+## They ride in backpacks like loot, but never land in the stockpile or a sack.
+var story_items: Array[StringName] = []
+## Story: a chapter that runs its own floor hunters (Down the Hole) turns the
+## risk clock's rumbles and hunters off.
+var risk_enabled := true
+## Story: maps a position somewhere special (inside a tunnel set) to where a
+## dropped sack or item should land on the canyon floor. Empty = as is.
+var drop_point_hook: Callable
 
 # Host: peer -> seconds down this build phase / extra risk from noise /
 # seconds since the last rumble and hunt / hunters out after them.
@@ -63,6 +77,28 @@ func add_to_backpack(peer_id: int, items: Dictionary) -> int:
 	if n > 0:
 		_set_pack(peer_id, pack.items)
 	return n
+
+
+## Host: take items out of a player's backpack (all or nothing). Synced.
+func take_from_backpack(peer_id: int, items: Dictionary) -> bool:
+	if not multiplayer.is_server():
+		return false
+	var have: Dictionary = (packs.get(peer_id, {}) as Dictionary).duplicate()
+	for k: Variant in items:
+		if int(have.get(StringName(k), 0)) < int(items[k]):
+			return false
+	for k: Variant in items:
+		var key := StringName(k)
+		have[key] = int(have[key]) - int(items[k])
+		if int(have[key]) <= 0:
+			have.erase(key)
+	_set_pack(peer_id, have)
+	return true
+
+
+## Units of `item` in a player's backpack (every peer).
+func pack_count(peer_id: int, item: StringName) -> int:
+	return int((packs.get(peer_id, {}) as Dictionary).get(item, 0))
 
 
 ## Every peer: is this player down on the canyon floor?
@@ -139,12 +175,18 @@ func _sync_pack(peer_id: int, items: Dictionary) -> void:
 
 ## Host: unpack a player's backpack onto their cliff's stockpile.
 func _deposit(peer_id: int) -> void:
-	var items: Dictionary = packs.get(peer_id, {})
+	var all_items: Dictionary = packs.get(peer_id, {})
+	if all_items.is_empty():
+		return
+	var split := ExpeditionRules.split_story(all_items, story_items)
+	var items: Dictionary = split[0]
+	_set_pack(peer_id, {})
+	for k: Variant in split[1]:
+		story_item_up.emit(peer_id, StringName(k), int(split[1][k]))
 	if items.is_empty():
 		return
 	var cid := Economy.payer_cliff(peer_id, _cliff_of(peer_id))
 	Economy.earn(cid, items)
-	_set_pack(peer_id, {})
 	Economy.notify(peer_id, "Unpacked onto your stockpile: %s." % ExpeditionRules.describe(items))
 
 
@@ -202,11 +244,16 @@ func _req_downed(pos: Vector3) -> void:
 
 
 func _downed(peer_id: int, pos: Vector3) -> void:
-	var items: Dictionary = packs.get(peer_id, {})
-	if items.is_empty():
+	var all_items: Dictionary = packs.get(peer_id, {})
+	if all_items.is_empty():
 		return
+	if drop_point_hook.is_valid():
+		pos = drop_point_hook.call(pos)
+	var split := ExpeditionRules.split_story(all_items, story_items)
 	_set_pack(peer_id, {})
-	drop_sack(pos, items, _name_of(peer_id))
+	for k: Variant in split[1]:
+		story_item_dropped.emit(peer_id, StringName(k), int(split[1][k]), pos)
+	drop_sack(pos, split[0], _name_of(peer_id))
 
 
 # ------------------------------------------------------------------ the airship
@@ -357,6 +404,8 @@ func _force_up() -> void:
 
 func _clear() -> void:
 	down.clear()
+	risk_enabled = true
+	drop_point_hook = Callable()
 	packs.clear()
 	_floor_secs.clear()
 	_heat.clear()
@@ -384,6 +433,9 @@ func _process(delta: float) -> void:
 	if GameState.phase != GameState.Phase.BUILD:
 		return
 	for peer: int in down:
+		if not risk_enabled:
+			_floor_secs[peer] = floor_time(peer) + delta
+			continue
 		_floor_secs[peer] = floor_time(peer) + delta
 		var r := risk(peer)
 		var stage := ExpeditionRules.risk_stage(r)
@@ -407,6 +459,8 @@ func _nearest_tunnel(pos: Vector3) -> Array:
 	var best: Array = []
 	var best_d := INF
 	for i in cl.tunnel_count():
+		if cl.sealed.has(i):
+			continue # Story: blown shut
 		var tn: Array = cl.tunnel(i)
 		var d := (tn[0] as Vector3).distance_to(pos)
 		if d < best_d:

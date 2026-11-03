@@ -386,6 +386,8 @@ func _fissures() -> ArrayMesh:
 		var along: Vector3 = t[1]
 		var side := along.cross(Vector3.UP).normalized()
 		var length := rng.randf_range(9.0, 12.0)
+		if i == cb.main_tunnel(): # the main tunnel: the long rift (Down the Hole)
+			length *= 1.5
 		# The dark rift: a jagged strip, widest in the middle.
 		var prev_l := Vector3.ZERO
 		var prev_r := Vector3.ZERO

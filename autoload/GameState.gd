@@ -44,6 +44,11 @@ var tutorial := false
 ## finishing when that wave is cleared, and weather forced per wave {wave: kind}.
 var story_last_wave := 0
 var story_end_hook: Callable
+## Story (host): the chapter's waves are done but its canyon-floor job isn't:
+## the run sits in a build phase (day, so you can go down) that never ends in a
+## wave. The chapter wins (or not) from there. Levers are refused.
+var story_hold := false
+const STORY_HOLD_LEVER := "No more waves tonight: finish the chapter's job first."
 var forced_weather: Dictionary = {}
 ## Command-line flags (anything after `--` on the command line).
 var flags: PackedStringArray = PackedStringArray()
@@ -104,6 +109,7 @@ func reset() -> void:
 	ready_countdown = -1.0
 	won = false
 	endless = false
+	story_hold = false
 	storm = false
 	weather = Weather.Kind.CLEAR
 	end_reason = ""
@@ -143,6 +149,8 @@ func _process(delta: float) -> void:
 		return
 	if phase == Phase.BUILD and Expedition.anyone_down():
 		return # Canyon Expeditions: the clock waits for whoever's down in the canyon
+	if story_hold:
+		return
 	time_left = maxf(time_left - delta, 0.0)
 	if multiplayer.is_server() and time_left <= 0.0:
 		_advance()
@@ -272,6 +280,15 @@ func _sync_phase(p: int, duration: float, w: int, kind: int) -> void:
 func temperature() -> float:
 	var hour := DayCycle.instance.hour() if DayCycle.instance != null else 12.0
 	return Weather.temperature(hour, weather)
+
+
+## Host (Story): the last wave is cleared and the chapter's job is on the canyon
+## floor: back to a build phase on the same wave that never runs into a wave.
+func story_hold_build() -> void:
+	if not multiplayer.is_server() or phase == Phase.GAME_OVER:
+		return
+	story_hold = true
+	_enter(Phase.BUILD)
 
 
 ## Host: ends the run now (Story: a chapter won, or lost to its objective).
@@ -424,7 +441,7 @@ func _request_vote() -> void:
 
 @rpc("any_peer", "reliable")
 func _request_debug_skip() -> void:
-	if multiplayer.is_server() and debug_enabled():
+	if multiplayer.is_server() and debug_enabled() and not story_hold:
 		_advance()
 
 
@@ -435,6 +452,9 @@ func _add_vote(id: int) -> void:
 		return
 	if not ExpeditionRules.can_throw_lever(id, Expedition.down): # Canyon Expeditions
 		Economy.notify(id, LEVER_LOCKED_SELF)
+		return
+	if story_hold:
+		Economy.notify(id, STORY_HOLD_LEVER)
 		return
 	_voters[id] = true
 	_sync_votes.rpc(_voters.size())

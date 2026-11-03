@@ -614,7 +614,7 @@ func target_transform() -> Transform3D:
 			var h := _heading if _heading.length() > 0.01 else -_outward()
 			var zc := -Vector3(h.x, 0, h.z).normalized()
 			var xc := Vector3.UP.cross(zc).normalized()
-			return Transform3D(Basis(xc, Vector3.UP, zc), Vector3(ground_pos.x, cliffs.floor_height(ground_pos.x, ground_pos.z) + clear, ground_pos.z))
+			return Transform3D(Basis(xc, Vector3.UP, zc), Vector3(ground_pos.x, _floor_y(ground_pos) + clear, ground_pos.z))
 		State.FLYING:
 			_update_heading()
 			var z_axis := -_heading
@@ -662,9 +662,20 @@ func _project(point: Vector3, up: Vector3) -> Vector3:
 	if state == State.BREACHING:
 		return Vector3(point.x, cliffs.ground_height_fast(cliff_id, point), point.z)
 	if state == State.CROSSING:
-		return Vector3(point.x, cliffs.floor_height(point.x, point.z), point.z)
+		return Vector3(point.x, _floor_y(point), point.z)
 	var base := global_position - up * _clear
 	return point - up * (point - base).dot(up)
+
+
+## Below this a crossing bug walks a story set's floor (Down the Hole's tunnel,
+## built far under the map) at its ground_pos.y instead of the canyon floor.
+const UNDERGROUND_Y := -40.0
+
+
+func _floor_y(p: Vector3) -> float:
+	if ground_pos.y < UNDERGROUND_Y:
+		return ground_pos.y
+	return cliffs.floor_height(p.x, p.z)
 
 
 ## Turrets can't lock on to this bug right now (a boss mechanic, e.g. the Mirage Mantis fading).

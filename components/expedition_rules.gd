@@ -92,6 +92,18 @@ static func taken(offer: Dictionary, left: Dictionary) -> Dictionary:
 	return out
 
 
+## Story: [ordinary items, story items] of a backpack's contents.
+static func split_story(items: Dictionary, story: Array) -> Array:
+	var plain := {}
+	var kept := {}
+	for k: Variant in items:
+		if story.has(StringName(k)):
+			kept[StringName(k)] = int(items[k])
+		else:
+			plain[k] = items[k]
+	return [plain, kept]
+
+
 ## Title Case item name for the HUD ("prickly_pear" -> "Prickly Pear").
 static func item_name(item: StringName) -> String:
 	return String(item).capitalize()

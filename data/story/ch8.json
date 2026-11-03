@@ -3,29 +3,30 @@
 	"number": 8,
 	"title": "The Queen",
 	"map": "canyon",
-	"requires": "ch6",
-	"first_wave": 19,
-	"last_wave": 20,
+	"requires": "ch7",
+	"sealed_tunnel": true,
+	"first_wave": 20,
+	"last_wave": 21,
 	"blurb": "The Hive Queen has woken, and she is climbing the canyon with everything she has: broods, spit and a shriek that stops a turret dead. The last stand of the Dry Gulch.",
-	"start_bonus": {"scrap": 1600, "chitin": 130},
+	"start_bonus": {"scrap": 1750, "chitin": 140},
 	"objective": {"kind": "hold", "text": "Bring Down the Hive Queen"},
-	"bosses": {"19": "acid_matriarch", "20": "hive_queen"},
-	"extra_bugs": {"19": [["brood_mother", 4], ["spitter_scorpion", 8], ["dragonfly_bandit", 6]], "20": [["wolf_spider", 10], ["rattler_beetle", 6], ["brood_mother", 3]]},
+	"bosses": {"20": "acid_matriarch", "21": "hive_queen"},
+	"extra_bugs": {"20": [["brood_mother", 4], ["spitter_scorpion", 8], ["dragonfly_bandit", 6]], "21": [["wolf_spider", 10], ["rattler_beetle", 6], ["brood_mother", 3]]},
 	"weather": {},
 	"telegram": {
 		"title": "The Queen Is Coming",
 		"body": "HIVE QUEEN AWAKE STOP SHE CLIMBS THE CANYON ON THE SECOND NIGHT STOP SHE CALLS BROODS AND SPITS RESIN THAT GUMS TURRETS STOP HER SHRIEK STUNS STOP SHOOT THE CROWN STOP THIS IS THE LAST STAND STOP GOOD LUCK STOP"
 	},
 	"radio": {
-		"19": {
+		"20": {
 			"build": [
-				["doc", "She's awake. The Hive Queen. I could hear her humming through the rails."],
+				["doc", "She's awake. Blowing her front door woke her. I could hear her humming through the rails."],
 				["stroud", "Tonight her guard comes up. Tomorrow, her. Build like it's the end of the world."],
 				["kettle", "Every gun I own is on your cliffs. Even the ones that explode a little."]
 			],
 			"wave": [["stroud", "Here's her honour guard. Make them regret the trip!"]]
 		},
-		"20": {
+		"21": {
 			"build": [
 				["doc", "Her crown is the soft spot. Shoot it. Respectfully, if you must, but shoot it."],
 				["pearl", "All my chips on the ranchers. Don't make me look sentimental."],

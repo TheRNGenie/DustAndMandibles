@@ -52,7 +52,7 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 	_tunnel_spin += 1
 	# Out of a tunnel down the canyon (a group's lane picks which).
 	# Maps: [mouth, way out] from the map's tunnels (the canyon's are in either wall).
-	var tunnel: Array = Bug.cliffs.tunnel((lane * 3 + cliff * 5 + _tunnel_spin) % Bug.cliffs.tunnel_count()) if Bug.cliffs != null else [Vector3.ZERO, Vector3.RIGHT]
+	var tunnel: Array = Bug.cliffs.open_tunnel(lane * 3 + cliff * 5 + _tunnel_spin) if Bug.cliffs != null else [Vector3.ZERO, Vector3.RIGHT]
 	var def := Defs.bug(bug_id)
 	if start_y <= 0.0 and is_big(def) and Bug.cliffs != null:
 		# Brutes and the boss are heard before they're seen: dust and a rumble

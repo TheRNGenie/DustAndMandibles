@@ -1,0 +1,51 @@
+{
+	"id": "ch7",
+	"number": 7,
+	"title": "Down the Hole",
+	"map": "canyon",
+	"first_wave": 19,
+	"last_wave": 19,
+	"blurb": "Doc has found the main tunnel the hive climbs out of. Ride down with the railroad's old dynamite, set charges deep inside, light the fuse and get back up the rope before it blows.",
+	"start_bonus": {"scrap": 1450, "chitin": 115},
+	"objective": {"kind": "blast", "text": "Blow the Main Tunnel Shut", "crates": 2, "crates_per_rider": 1, "fuse": 45},
+	"bosses": {},
+	"extra_bugs": {"19": [["wolf_spider", 10], ["brood_mother", 2], ["dragonfly_bandit", 4]]},
+	"weather": {},
+	"telegram": {
+		"title": "Shut the Front Door",
+		"body": "MAIN TUNNEL FOUND STOP THE HIVE COMES UP THROUGH IT STOP DYNAMITE WAITING AT THE ROPE FOOT STOP CARRY IT IN AND SET A CHARGE AT EVERY MARK STOP LIGHT THE FUSE AT THE MOUTH THEN CLIMB STOP DO NOT DAWDLE STOP"
+	},
+	"radio": {
+		"19": {
+			"build": [
+				["doc", "I've found where they come up. The big tunnel. It breathes, ranchers. Warm and wet."],
+				["stroud", "So we shut its front door. Dynamite's at the rope foot. Down you go."],
+				["kettle", "That's railroad dynamite. Older than Pearl's jokes. Carry it like a sleeping baby."]
+			],
+			"wave": [["stroud", "Hive's furious. Every bug in the canyon wants a word. Hold the line!"]],
+			"held": [["pearl", "Still standing? I'll have to pay out. Disgusting."]]
+		}
+	},
+	"events": {
+		"down": [["pearl", "Odds of you all coming back up: fair. I've lost money on fair."]],
+		"crate": [["kettle", "Steady with that crate. It's older than you and twice as grumpy."]],
+		"inside": [["doc", "Mind the resin. It's warm because something is still digesting in it."]],
+		"hunters": [["stroud", "They're pouring out of the tunnel! Cover whoever's carrying!"]],
+		"charge": [["kettle", "One charge set. Don't run in there. Don't walk fast either."]],
+		"armed": [["stroud", "Every charge is set! Light the fuse at the mouth and run for the rope."]],
+		"lit": [["stroud", "Fuse is lit! Out of the hole and up that rope, now!"]],
+		"blast": [["stroud", "Ka-BOOM. Main tunnel's sealed. Fine demolition, ranchers."], ["pearl", "I felt that in my chips."]],
+		"buried": [["doc", "Somebody was still down there. The crew will dig them out. Mostly intact."]],
+		"reminder": [["kettle", "Tunnel's still open. They're coming out of it like it's payday."]],
+		"hold": [["stroud", "Night's done but that tunnel's still open. Back down there and blow it!"]],
+		"win": [["stroud", "Tunnel's shut and the canyon held. Rest up. Something below is angry."], ["doc", "That humming? Merely the Queen. Waking. Ah."]],
+		"lost": [["stroud", "The hive got through. Back to the rope, ranchers. We try again."]]
+	},
+	"journal": {
+		"title": "Specimen Notes, No. 7",
+		"body": "The tunnel walls were glazed with resin, warm to the touch, and the eggs pulsed whenever a lantern came near.\n\nWe sealed it with the railroad's own dynamite. Somewhere below, the humming stopped. Then it began again, louder.\n\n- E. Whitlow, Rail Car 9"
+	},
+	"rewards": {"notches": 100, "unlock": {"kind": "blueprint", "id": "craft_post_cannon_explosive", "name": "Silas's Blueprint: Dynamite Thumper"}},
+	"headline_win": "Main Tunnel Blown Shut; Ranchers Climb Out Singed but Whole",
+	"headline_loss": "Tunnel Job Botched; Hive Pours Out of the Hole"
+}

@@ -5,21 +5,21 @@
 	"map": "mesa",
 	"first_wave": 6,
 	"last_wave": 8,
-	"blurb": "The wells have failed and a heat wave is rolling in. Catch the pump valve the airship drops, fit it to a well, and hold three hot nights.",
+	"blurb": "The wells have failed and a heat wave is rolling in. The supply wagon with the spare pump valve went over the edge: ride down, fetch the valve from the wreck, fit it to a well, and hold three hot nights.",
 	"start_bonus": {"scrap": 450, "chitin": 25},
-	"objective": {"kind": "fetch", "text": "Fit the New Pump Valve to a Well", "item": "valve", "item_name": "Pump Valve", "spawn": "airship_drop", "drop_wave": 6, "deliver_to": "well", "breaks_wells": true},
+	"objective": {"kind": "fetch", "text": "Fetch the Pump Valve from the Canyon Floor and Fit It to a Well", "item": "valve", "item_name": "Pump Valve", "pack_item": "pump_valve", "spawn": "floor_wagon", "drop_wave": 6, "deliver_to": "well", "breaks_wells": true},
 	"bosses": {},
 	"extra_bugs": {"7": [["wolf_spider", 4]]},
 	"weather": {"7": "heat_wave", "8": "heat_wave"},
 	"telegram": {
 		"title": "The Wells Have Failed",
-		"body": "WELLS FAILING ACROSS THE GULCH STOP HEAT WAVE INBOUND STOP REPLACEMENT PUMP VALVE DROPPING FROM THE SHIP STOP FIT IT TO A WELL BEFORE YOUR TOWERS RUN DRY STOP HOLD THREE NIGHTS STOP"
+		"body": "WELLS FAILING ACROSS THE GULCH STOP HEAT WAVE INBOUND STOP SUPPLY WAGON WITH THE SPARE PUMP VALVE WENT OVER THE EDGE STOP IT LIES ON THE FLOOR BY A TUNNEL STOP RIDE DOWN FETCH IT FIT IT TO A WELL STOP HOLD THREE NIGHTS STOP"
 	},
 	"radio": {
 		"6": {
 			"build": [
 				["stroud", "Your pump valves cracked in the heat. Every well's bone dry till you fit a new one."],
-				["stroud", "Kicking a crate overboard now. Mind your heads. Mind the crate more."]
+				["stroud", "Spare valve was on the supply wagon. The wagon went over the edge. Take the rope down."]
 			],
 			"wave": [["stroud", "Hold them off. No water, no crops. No crops, no supper."]]
 		},
@@ -33,11 +33,12 @@
 		}
 	},
 	"events": {
-		"drop": [["stroud", "Valve's down on the plateau. Look for the parachute."]],
+		"drop": [["kettle", "Wagon's wrecked by a tunnel mouth. Valve's in the back. Mind what lives in tunnels."]],
 		"pickup": [["kettle", "Careful with that. It's the last good valve this side of Tucson."]],
 		"delivered": [["stroud", "Valve's fitted. The pumps are drinking again. Fine plumbing, ranchers."]],
-		"reminder": [["stroud", "That valve's still lying out there. The wells won't wait forever."]],
-		"hold": [["stroud", "Wave's done, but nobody's fitted that valve. Get it to a well!"]],
+		"reminder": [["stroud", "That valve's still down in the canyon. The wells won't wait forever."]],
+		"up": [["stroud", "Valve's out of the canyon. Now get it to a well."]],
+		"hold": [["stroud", "Wave's done, but nobody's fitted that valve. Down the rope and get it!"]],
 		"win": [["stroud", "Three dry nights held and the wells are flowing. Drinks are on Pearl."], ["pearl", "They are not."]],
 		"lost": [["stroud", "The heat took a house. Dust yourselves off. We'll try it again."]]
 	},
@@ -47,5 +48,5 @@
 	},
 	"rewards": {"notches": 40, "unlock": {"kind": "blueprint", "id": "craft_tripod_nozzle_lead", "name": "Silas's Blueprint: Tripod Hose"}},
 	"headline_win": "Wells Flow Again; Mesa Ranchers Beat the Heat",
-	"headline_loss": "Mesa Goes Dry; Valve 'Never Fitted'"
+	"headline_loss": "Mesa Goes Dry; Valve Still in Canyon Wreck"
 }

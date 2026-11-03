@@ -27,6 +27,10 @@ const WEIGHTS: Dictionary = {
 	&"ore": 3,
 	&"rail_iron": 4,
 	&"egg": 2,
+	# Story items (a chapter's job, never unpacked onto the stockpile).
+	&"dynamite": 20,
+	&"pump_valve": 10,
+	&"queen_gland": 8,
 }
 ## Walking speed at a full pack (straight line from 1.0 at empty).
 const FULL_SPEED := 0.62

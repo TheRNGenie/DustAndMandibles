@@ -365,6 +365,37 @@ func tunnel_count() -> int:
 	return map.tunnel_count()
 
 
+## Story: tunnels blown shut (Down the Hole, and The Queen after it). Bugs never
+## come out of these (BugManager picks the next open one; Expedition skips them).
+var sealed: Array[int] = []
+var _main := -1
+
+
+## The map's main tunnel (Down the Hole): the one whose mouth is nearest a rope
+## winch's foot. It is drawn bigger than the rest (the great arch / the long rift).
+func main_tunnel() -> int:
+	if _main >= 0:
+		return _main
+	var feet: Array[Vector3] = []
+	for cid in map.count():
+		feet.append(plateau_point(cid, 0.0, Buildable.ROPE_ANCHOR_Z))
+	var mouths: Array[Vector3] = []
+	for i in tunnel_count():
+		mouths.append(tunnel(i)[0])
+	_main = BlastRules.pick_main(mouths, feet)
+	return _main
+
+
+## Tunnel `k` (wrapped), or the next one along that isn't sealed.
+func open_tunnel(k: int) -> Array:
+	var n := tunnel_count()
+	for j in n:
+		var i := posmod(k + j, n)
+		if not sealed.has(i):
+			return tunnel(i)
+	return tunnel(posmod(k, n))
+
+
 ## Dark tunnel mouths at the foot of both cliffs, one per lane, with a broken rock
 ## rim and rubble spilling out: the bugs crawl out of these and across the floor.
 func _bug_tunnels() -> ArrayMesh:
@@ -387,6 +418,9 @@ func _bug_tunnels() -> ArrayMesh:
 		var wide := Vector3(0, 0, 1) if _canyon else out.cross(Vector3.UP).normalized()
 		var w := rng.randf_range(4.4, 5.4)
 		var h := rng.randf_range(3.6, 4.3)
+		if i == main_tunnel(): # the main tunnel: the great arch (Down the Hole)
+			w *= 1.45
+			h *= 1.35
 		# The hole: nested dark arches, blackest at the back, so it reads as deep.
 		for k in 4:
 			var depth := 0.35 - k * 0.12
