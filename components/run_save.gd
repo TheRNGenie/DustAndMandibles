@@ -82,7 +82,7 @@ static func normalize(raw: Dictionary) -> Dictionary:
 	for b: Variant in (raw.get("builds", []) if raw.get("builds") is Array else []):
 		if not (b is Dictionary) or str((b as Dictionary).get("type", "")) == "":
 			continue
-		builds.append(_build(b as Dictionary))
+		builds.append(_build(b as Dictionary, cliffs))
 	out["builds"] = builds
 	var wells: Array = []
 	for w: Variant in (raw.get("wells", []) if raw.get("wells") is Array else []):
@@ -135,14 +135,16 @@ static func normalize(raw: Dictionary) -> Dictionary:
 	return out
 
 
-static func _build(b: Dictionary) -> Dictionary:
-	var out := {"type": StringName(str(b["type"])), "cliff": clampi(_i(b, "cliff", 0), 0, 1),
+static func _build(b: Dictionary, cliffs: int = 2) -> Dictionary:
+	var out := {"type": StringName(str(b["type"])), "cliff": clampi(_i(b, "cliff", 0), 0, maxi(cliffs, 2) - 1), # Maps: one per cliff of the saved map
 			"row": _i(b, "row", 0), "col": _i(b, "col", 0), "level": maxi(_i(b, "level", 0), 0),
 			"owner": str(b.get("owner", "")), "hp": _f(b, "hp", -1.0), "tier": maxi(_i(b, "tier", 0), 0),
-			"levels": clampi(_i(b, "levels", 1), 1, 3), "armed": _b(b, "armed", true), "stored": _i(b, "stored", 0)}
+			"levels": clampi(_i(b, "levels", 1), 1, 3), "paid": maxi(_i(b, "paid", 1), 0), "armed": _b(b, "armed", true), "stored": _i(b, "stored", 0)}
 	var perk: Array = b.get("perk", []) if b.get("perk") is Array else []
 	out["perk"] = [float(perk[0]) if perk.size() > 0 else 1.0, float(perk[1]) if perk.size() > 1 else 1.0,
-			float(perk[2]) if perk.size() > 2 else 1.0]
+			float(perk[2]) if perk.size() > 2 else 1.0,
+			float(perk[3]) if perk.size() > 3 else 0.0, # Overtime mend share
+			float(perk[4]) if perk.size() > 4 else 1.0] # Scrap Scavenger multiplier
 	if b.get("crop") is Dictionary:
 		var c: Dictionary = b["crop"]
 		out["crop"] = {"id": StringName(str(c.get("id", ""))), "stage": clampi(_i(c, "stage", 0), 0, 3),

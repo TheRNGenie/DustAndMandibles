@@ -8,6 +8,8 @@ extends RefCounted
 
 const LEAP_HEIGHT := 4.0
 const LEAP_TIME := 0.35
+## How close under the lip counts as over it (see update()).
+const CREST_SLACK := 0.1
 const SPIT_INTERVAL := 3.5
 const SPIT_DAMAGE := 10.0
 const SPIT_RANGE := 110.0
@@ -64,7 +66,9 @@ func update(delta: float) -> void:
 	var wobble := sin(_drift) * (0.9 if d.behavior == BugDef.Behavior.LEAPER else 0.35)
 	var side_speed := 2.6 if d.behavior == BugDef.Behavior.LEAPER else 1.3
 	bug.lane_z = move_toward(bug.lane_z, target_z + wobble, side_speed * bug.speed() * delta)
-	if bug.climb_y >= WorldLayout.CLIFF_HEIGHT:
+	# A touch under the lip: the crowd shove clamps climbers to CLIFF_HEIGHT - 0.05,
+	# so a bunch at the top would otherwise push each other back down forever.
+	if bug.climb_y >= WorldLayout.CLIFF_HEIGHT - CREST_SLACK:
 		bug.begin_crest()
 
 

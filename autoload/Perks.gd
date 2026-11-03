@@ -706,3 +706,11 @@ func _demo_profile() -> void:
 		for id: StringName in [&"well_oiled", &"reinforced_frames", &"chitin_smith", &"stout_timbers", &"full_pantry",
 				&"tough_hide", &"bandolier", &"carpenter", &"tinker", &"salvager", &"scrap_stash", &"old_scaffolds"]:
 			profile.toggle(id)
+	elif GameState.flag_value("--perkset") == "c":
+		# The newer perks (Lucky Shot, Point Blank, Overtime, Scrap Scavenger), maxed.
+		profile.loadout.clear()
+		for id: StringName in [&"lucky_shot", &"point_blank", &"overtime", &"scrap_scavenger"]:
+			while profile.next_cost(id) > 0:
+				profile.brands += profile.next_cost(id)
+				profile.unlock(id)
+			profile.toggle(id)

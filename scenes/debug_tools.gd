@@ -15,6 +15,27 @@ var _lanes: MeshInstance3D
 
 func _ready() -> void:
 	instance = self
+	if GameState.has_flag("--downlog"):
+		# Every second: each player as this peer sees it (downed, how far over on its back).
+		var dt := Timer.new()
+		dt.wait_time = 1.0
+		dt.autostart = true
+		add_child(dt)
+		dt.timeout.connect(func() -> void:
+			var parts: PackedStringArray = []
+			# --downat=S: knock this peer's own player down S seconds in (once).
+			var at := GameState.flag_value("--downat").to_float()
+			if at > 0.0 and Time.get_ticks_msec() / 1000.0 >= at and not has_meta(&"downed_once"):
+				var me := world.call("local_player") as Player if world != null else null
+				if me != null:
+					set_meta(&"downed_once", true)
+					me.vitals.apply_damage(99999.0)
+			for n: Node in get_tree().get_nodes_in_group("players"):
+				var p := n as Player
+				if p == null or not p.is_node_ready() or p.vitals == null or p.net == null:
+					continue
+				parts.append("%s%s downed %s over %.2f" % [p.name, "(me)" if p.is_multiplayer_authority() else "", p.is_downed(), float(p.get("_down_k"))])
+			print("[down] t=%d %s" % [Time.get_ticks_msec() / 1000, "  ".join(parts)]))
 	if GameState.flag_value("--act") != "":
 		_act_shot(GameState.flag_value("--act"))
 	var shot := GameState.flag_value("--shot")
@@ -31,6 +52,8 @@ func _ready() -> void:
 		_ladder_test()
 	elif GameState.has_flag("--scaffoldtest"):
 		_scaffold_test()
+	elif GameState.has_flag("--crewtest"):
+		_crew_test()
 	elif GameState.has_flag("--stacktest"):
 		_stack_test()
 	elif GameState.has_flag("--ledgertest"):
@@ -467,6 +490,52 @@ func _ladder_test() -> void:
 	get_tree().quit()
 
 
+## --crewtest: crewed 2 x 2 guns: ground only, nothing on or under their four cells
+## (scaffolds, turrets, traps, free-scaffold stacking), cost paid once, refund on demolish.
+func _crew_test() -> void:
+	for i in 30:
+		await get_tree().process_frame
+	var bm := BuildManager.instance
+	Economy.earn(0, {&"scrap": 5000})
+	var a := Vector2i(0, 8)
+	var fp := Buildable.footprint(&"big_bertha", a)
+	var s0 := Economy.amount(0, &"scrap")
+	print("[crew] bertha allowed on bare ground: %s" % bm.is_free_for(&"big_bertha", 0, a))
+	bm.build(&"big_bertha", 0, a)
+	await get_tree().create_timer(0.3).timeout
+	var t := bm.turret_at(0, a, 0)
+	print("[crew] built %s level %d paid %d (cost %d), scaffold under it %d" % [t.def.id if t != null else &"-", t.level if t != null else -1,
+			s0 - Economy.amount(0, &"scrap"), Perks.build_cost(1, &"big_bertha"), bm.scaffold_levels(0, a)])
+	for c in fp:
+		var bad: PackedStringArray = []
+		for id: StringName in [&"gatling_post", &"scaffold", &"bear_trap", &"barbed_wire", &"whaler", &"farm_plot"]:
+			if bm.is_free_for(id, 0, c):
+				bad.append(String(id))
+		print("[crew] cell %s covered: %s, allows %s" % [str(c), bm.crewed_at(0, c), "nothing" if bad.is_empty() else ", ".join(bad)])
+	# Overlap from the side: another crewed gun whose square shares a cell.
+	print("[crew] overlapping whaler at (0,9): %s, at (1,7): %s, next door (0,10): %s" % [bm.is_free_for(&"whaler", 0, Vector2i(0, 9)),
+			bm.is_free_for(&"whaler", 0, Vector2i(1, 7)), bm.is_free_for(&"whaler", 0, Vector2i(0, 10))])
+	# Under a scaffold / a stacked turret: never.
+	var sc := Vector2i(0, 14)
+	bm.build(&"gatling_post", 0, sc)
+	await get_tree().create_timer(0.3).timeout
+	print("[crew] crewed over a scaffold cell (0,13): %s, (0,14): %s" % [bm.is_free_for(&"thunder_mule", 0, Vector2i(0, 13)), bm.is_free_for(&"thunder_mule", 0, sc)])
+	bm.build(&"bear_trap", 0, Vector2i(2, 20))
+	await get_tree().create_timer(0.3).timeout
+	print("[crew] crewed over a trap: %s" % bm.is_free_for(&"sky_hound", 0, Vector2i(1, 19)))
+	# The other three guns go up too.
+	for p: Array in [[&"whaler", Vector2i(0, 10)], [&"thunder_mule", Vector2i(0, 16)], [&"sky_hound", Vector2i(0, 18)]]:
+		bm.build(p[0], 0, p[1])
+		await get_tree().create_timer(0.3).timeout
+		var g := bm.turret_at(0, p[1], 0)
+		print("[crew] %s at %s: %s" % [p[0], str(p[1]), "up, crewed %s" % (g is CrewedTurret) if g != null and g.def.id == p[0] else "NOT BUILT"])
+	s0 = Economy.amount(0, &"scrap")
+	bm.demolish_node(t)
+	await get_tree().create_timer(0.3).timeout
+	print("[crew] demolish bertha refund %d, cells free again %s" % [Economy.amount(0, &"scrap") - s0, fp.all(func(c: Vector2i) -> bool: return not bm.crewed_at(0, c) and bm.is_free_for(&"gatling_post", 0, c))])
+	get_tree().quit()
+
+
 ## --scaffoldtest: turret first, then scaffolding over it, then a turret on top.
 func _scaffold_test() -> void:
 	for i in 20:
@@ -628,6 +697,14 @@ func _soak(seconds: float) -> void:
 			if GameState.has_flag("--farm"):
 				_farm()
 			GameState.vote_skip()
+	if GameState.flag_value("--perkset") != "":
+		var mend := 0
+		var tl := 0
+		for n: Node in get_tree().get_nodes_in_group("turrets"):
+			tl += 1
+			if (n as Turret).perk_mend > 0.0:
+				mend += 1
+		print("[soak] perks: loadouts %s, turrets %d with Overtime %d, Scrap Scavenger sources %s" % [str(Perks.loadouts), tl, mend, str(Perks.get("_turret_scrap"))])
 	print("[soak] end: wave %d phase %d homesteads %s bugs %d" % [GameState.wave, GameState.phase, str(GameState.homestead_hp), bugs.alive_count()])
 	if not kills_by.is_empty():
 		print("[soak] kills by source: %s" % str(kills_by))
