@@ -3,7 +3,7 @@ extends Control
 ## Bottom-centre hotbar: nine wooden slots for keys 1-9, each showing a drawn
 ## icon of what's in it (empty slots stay blank).
 
-const SLOT_SIZE := Vector2(76, 64)
+const SLOT_SIZE := Vector2(90, 80) # sized against the status and ammo panels
 
 var hotbar: Hotbar
 var _panels: Array[PanelContainer] = []
@@ -36,16 +36,17 @@ func _ready() -> void:
 		row.add_child(p)
 		var stack := Control.new()
 		stack.custom_minimum_size = SLOT_SIZE - Vector2(8, 8)
+		stack.clip_contents = true # long guns fill the slot's width without spilling
 		p.add_child(stack)
 		var icon := ItemIcon.new()
 		icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		icon.host = self
 		stack.add_child(icon)
-		var key := UiStyle.label(str((i + 1) % 10), 12, UiStyle.c("title")) # the 10th slot is key 0
+		var key := UiStyle.label(str((i + 1) % 10), 14, UiStyle.c("title")) # the 10th slot is key 0
 		key.autowrap_mode = TextServer.AUTOWRAP_OFF
 		key.position = Vector2(2, -2)
 		stack.add_child(key)
-		var count := UiStyle.label("", 12, UiStyle.c("hud"))
+		var count := UiStyle.label("", 16, UiStyle.c("hud"))
 		count.autowrap_mode = TextServer.AUTOWRAP_OFF
 		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		count.anchor_left = 1.0
@@ -53,7 +54,7 @@ func _ready() -> void:
 		count.anchor_top = 1.0
 		count.anchor_bottom = 1.0
 		count.offset_left = -50
-		count.offset_top = -18
+		count.offset_top = -22
 		count.add_theme_color_override("font_outline_color", Palette.OUTLINE)
 		count.add_theme_constant_override("outline_size", 4)
 		stack.add_child(count)
@@ -100,11 +101,11 @@ class ItemIcon extends Control:
 		if item != &"" and host != null:
 			var tex := IconStudio.item(host, item)
 			if tex != null:
-				var side := minf(size.x, size.y) * 1.15
+				var side := maxf(size.x, size.y) * 1.1 # fill the width: most items are long guns
 				draw_texture_rect(tex, Rect2(size * 0.5 - Vector2(side, side) * 0.5, Vector2(side, side)), false)
 				return
 		var c := size * 0.5
-		var s := minf(size.x, size.y) * 0.4
+		var s := minf(size.x, size.y) * 0.45
 		var dark := Palette.OUTLINE
 		match item:
 			&"revolver":
