@@ -144,12 +144,19 @@ static func _render_node(host: Node, key: String, node: Node3D, yaw_deg: float) 
 	sun.light_energy = 1.3
 	vp.add_child(sun)
 	_cache[key] = {"vp": vp, "tex": vp.get_texture()}
+	# Weak: the host (a menu) can be freed before the next frame, taking vp with it.
+	var vp_ref: WeakRef = weakref(vp)
+	var root_ref: WeakRef = weakref(root)
+	var cam_ref: WeakRef = weakref(cam)
 	host.get_tree().process_frame.connect(func() -> void:
-		if not is_instance_valid(vp):
+		var v := vp_ref.get_ref() as SubViewport
+		var r := root_ref.get_ref() as Node3D
+		var c := cam_ref.get_ref() as Camera3D
+		if v == null or r == null or c == null:
 			return
 		var aabb := AABB()
 		var first := true
-		for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		for mi: MeshInstance3D in r.find_children("*", "MeshInstance3D", true, false):
 			if mi.mesh == null or not mi.is_visible_in_tree():
 				continue
 			var box := mi.global_transform * mi.mesh.get_aabb()
@@ -157,7 +164,7 @@ static func _render_node(host: Node, key: String, node: Node3D, yaw_deg: float) 
 			first = false
 		var center := aabb.get_center()
 		var radius := maxf(aabb.size.length() * 0.5, 0.02)
-		var dist := radius / sin(deg_to_rad(cam.fov * 0.5)) * 0.95
-		cam.position = center + Vector3(0, 0.35, 1.0).normalized() * dist
-		cam.look_at(center)
-		vp.render_target_update_mode = SubViewport.UPDATE_ONCE, CONNECT_ONE_SHOT)
+		var dist := radius / sin(deg_to_rad(c.fov * 0.5)) * 0.95
+		c.position = center + Vector3(0, 0.35, 1.0).normalized() * dist
+		c.look_at(center)
+		v.render_target_update_mode = SubViewport.UPDATE_ONCE, CONNECT_ONE_SHOT)

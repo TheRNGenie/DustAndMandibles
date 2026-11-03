@@ -415,9 +415,11 @@ func _salvo(center: Vector3, seed_value: int, mult: float) -> void:
 
 static func _delayed_splash(tree: SceneTree, bugs: BugManager, t: float, cliff: int, at: Vector3, radius: float,
 		damage: float, source: String, owner_cliff: int) -> void:
+	var bugs_ref: WeakRef = weakref(bugs) # weak: the world can be freed mid-flight
 	tree.create_timer(t).timeout.connect(func() -> void:
-		if is_instance_valid(bugs):
-			bugs.splash(cliff, at, radius, damage, source, owner_cliff))
+		var bm := bugs_ref.get_ref() as BugManager
+		if bm != null:
+			bm.splash(cliff, at, radius, damage, source, owner_cliff))
 
 
 ## Sky Hound, manned: the shell's proximity fuse bursts it beside the first

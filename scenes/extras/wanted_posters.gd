@@ -232,9 +232,11 @@ func _render(def: BugDef) -> SubViewport:
 	inner.add_child(by)
 	stamp.set_meta("by", by)
 	# Re-render a few times (the bug picture renders in its own viewport), then stop.
+	var vp_ref: WeakRef = weakref(vp) # weak: the poster can be freed first
 	get_tree().create_timer(0.6).timeout.connect(func() -> void:
-		if is_instance_valid(vp):
-			vp.render_target_update_mode = SubViewport.UPDATE_ONCE)
+		var v := vp_ref.get_ref() as SubViewport
+		if v != null:
+			v.render_target_update_mode = SubViewport.UPDATE_ONCE)
 	return vp
 
 

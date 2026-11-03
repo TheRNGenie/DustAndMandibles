@@ -123,6 +123,17 @@ func _ready() -> void:
 		director.name = "TrailerDirector"
 		director.world = self
 		add_child(director)
+	# --leaveafter=S (crash tests): back to the menu after S seconds, as the pause
+	# menu's Leave does (with --host --startafter the menu then starts a new game).
+	if GameState.flag_value("--leaveafter") != "":
+		get_tree().create_timer(GameState.flag_value("--leaveafter").to_float()).timeout.connect(_test_leave)
+
+
+func _test_leave() -> void:
+	print("[test] leaving to the menu")
+	GameState.menu_open = false
+	NetworkManager.leave()
+	_return_to_menu()
 
 
 # ------------------------------------------------------------------ spawning (host decides)
