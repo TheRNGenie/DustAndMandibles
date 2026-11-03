@@ -46,6 +46,8 @@ func _ready() -> void:
 						set_meta(&"peershot_up", true)
 						_peer_shot(p, ps.replace(".png", "_up.png"))
 			print("[down] t=%d %s" % [Time.get_ticks_msec() / 1000, "  ".join(parts)]))
+	if GameState.has_flag("--selltest"):
+		_sell_test() # QA: build a turret in a scaffold frame and sell it (works on a client too)
 	if GameState.flag_value("--cpudryat") != "":
 		# --cpudryat=S: S seconds in (host), pour out the CPU cliff's water so its crops
 		# need a trip to the well; then log the pool and the well every 2 s.
@@ -599,6 +601,42 @@ func _crew_test() -> void:
 	await get_tree().create_timer(0.3).timeout
 	print("[crew] demolish bertha refund %d, cells free again %s" % [Economy.amount(0, &"scrap") - s0, fp.all(func(c: Vector2i) -> bool: return not bm.crewed_at(0, c) and bm.is_free_for(&"gatling_post", 0, c))])
 	get_tree().quit()
+
+
+## --selltest: on this peer's own cliff, a scaffold, a turret in its frame and one
+## on top; then sell (as X does) the top turret, the frame turret and the scaffold
+## in one frame, and finally whatever is left, logging what the cell holds.
+func _sell_test() -> void:
+	await get_tree().create_timer(14.0).timeout
+	var bm := BuildManager.instance
+	var me := world.call("local_player") as Player if world != null else null
+	if bm == null or me == null:
+		return
+	var cid := me.cliff_id
+	var cell := Vector2i(0, 7)
+	if multiplayer.is_server():
+		Economy.earn(cid, {&"scrap": 600})
+	bm.build(&"scaffold", cid, cell)
+	await get_tree().create_timer(0.5).timeout
+	bm.build(&"gatling_post", cid, cell)
+	await get_tree().create_timer(0.5).timeout
+	bm.build(&"gatling_post", cid, cell)
+	await get_tree().create_timer(1.0).timeout
+	var on := bm.turrets_on(cid, cell)
+	print("[sell] built: levels %d, turrets %d, scrap %d" % [bm.scaffold_levels(cid, cell), on.size(), Economy.amount(cid, &"scrap")])
+	for t in on:
+		bm.demolish_node(t)
+	for n: Node in bm.get_children():
+		if n is ScaffoldNode and (n as ScaffoldNode).cell == cell and int(n.get("cliff_id")) == cid:
+			bm.demolish_node(n)
+	await get_tree().create_timer(1.0).timeout
+	print("[sell] after one-frame sells: levels %d, turrets %d, scrap %d" % [bm.scaffold_levels(cid, cell), bm.turrets_on(cid, cell).size(), Economy.amount(cid, &"scrap")])
+	for k in 3:
+		for n: Node in bm.get_children():
+			if n is ScaffoldNode and (n as ScaffoldNode).cell == cell and int(n.get("cliff_id")) == cid:
+				bm.demolish_node(n)
+		await get_tree().create_timer(0.5).timeout
+	print("[sell] done: levels %d, turrets %d, scrap %d" % [bm.scaffold_levels(cid, cell), bm.turrets_on(cid, cell).size(), Economy.amount(cid, &"scrap")])
 
 
 ## --scaffoldtest: turret first, then scaffolding over it, then a turret on top.
@@ -1545,8 +1583,18 @@ func _frame_view(path: String) -> void:
 func _grapple_wall_test() -> void:
 	for i in 30:
 		await get_tree().physics_frame
-	var cliffs := world.get("cliffs") as CliffBuilder
+	# A client's own player arrives a little later (spawned by the host).
 	var player := world.call("local_player") as Player
+	var wait := 0
+	while (player == null or not player.is_node_ready() or player.grapple == null) and wait < 1200:
+		await get_tree().physics_frame
+		wait += 1
+		player = world.call("local_player") as Player
+	if player == null:
+		print("[gwall] no local player")
+		return
+	await get_tree().create_timer(GameState.flag_value("--gwallat").to_float()).timeout # --gwallat=S: start later
+	var cliffs := world.get("cliffs") as CliffBuilder
 	var g := player.grapple
 	g.test_mode = true
 	player.hotbar_use_grapple()
