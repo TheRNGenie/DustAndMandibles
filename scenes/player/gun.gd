@@ -12,6 +12,8 @@ signal reload_started(duration: float)
 signal hit_confirmed(weak: bool)
 ## The equipped weapon or the owned set changed (for the hotbar).
 signal loadout_changed
+## A flourish worth showing on your body to everyone else ("twirl", "reload_revolver").
+signal flourished(kind: StringName)
 
 ## [Foundation] Guns are registered in Defs.WEAPONS with the rest of the content.
 const WEAPONS: Dictionary = Defs.WEAPONS
@@ -112,6 +114,14 @@ var _land_vel := 0.0
 var _air_feel := 0.0
 ## 1 right after switching weapons: the new one comes up from below.
 var _raise := 0.0
+## Revolver twirl round the trigger finger: time left, length, full turns.
+var _twirl_left := 0.0
+var _twirl_len := 1.0
+var _twirl_turns := 2.0
+const TWIRL_EQUIP := Vector2(0.62, 2.0)
+const TWIRL_RELOAD := Vector2(0.42, 1.0)
+## Debug (--twirlat=0..1): hold the twirl at that point (viewmodel screenshots).
+var _twirl_freeze := -1.0
 ## Extra hand movement for held items (the lighter's flick), and where an item
 ## is held relative to the gun's rest spot.
 var item_rot := Vector3.ZERO
@@ -133,6 +143,8 @@ static func weapon(id: StringName) -> WeaponDef:
 
 
 func _ready() -> void:
+	if GameState.flag_value("--twirlat") != "":
+		_twirl_freeze = GameState.flag_value("--twirlat").to_float()
 	position = REST_POS
 	var mat := Materials.toon(0.004)
 	var owner_player := get_parent().get_parent().get_parent() as Player
@@ -219,6 +231,10 @@ func equip(id: StringName) -> void:
 	if _raise < 0.5 and is_inside_tree():
 		Audio.play_at(&"equip", global_position, -10.0)
 	_raise = 1.0
+	_twirl_left = 0.0
+	if id == &"revolver" and is_inside_tree() and not GameState.has_flag("--notwirl"):
+		# Drawn with a spin round the trigger finger.
+		_start_twirl(TWIRL_EQUIP)
 	var muzzle_z := -0.28 if id == &"revolver" else -0.62
 	_flash.position = Vector3(0, 0.02, muzzle_z)
 	_flash_light.position = Vector3(0, 0.02, muzzle_z - 0.05)
@@ -348,6 +364,13 @@ func _process(delta: float) -> void:
 		var load_t := clampf(_stage_t / maxf(_stage_len, 0.001), 0.0, 1.0)
 		var catch_t := load_t if (_stage == Reload.OPEN and _catching) else -1.0
 		vm.pose(_open, load_t, _stage == Reload.LOAD, _cycle, _drum_angle, _loaded_this_reload, catch_t)
+		if def.id == &"revolver":
+			_twirl_left = maxf(_twirl_left - delta, 0.0)
+			if _twirl_freeze >= 0.0:
+				_twirl_len = TWIRL_EQUIP.x
+				_twirl_turns = TWIRL_EQUIP.y
+				_twirl_left = _twirl_len * (1.0 - _twirl_freeze)
+			vm.twirl(twirl_angle())
 		vm.turn_crank(spin, delta)
 	aim = move_toward(aim, 1.0 if aiming else 0.0, delta * 7.0)
 	# Elephant Gun: once the glass is up to your eye you look through it (the HUD
@@ -472,6 +495,9 @@ func _advance_reload(delta: float) -> void:
 				_begin(Reload.CLOSE, times.z)
 		Reload.CLOSE:
 			_stage = Reload.NONE
+			if def.id == &"revolver" and not GameState.has_flag("--notwirl"):
+				# Gate snapped shut: a quick spin back into the hand.
+				_start_twirl(TWIRL_RELOAD)
 			if def.id == &"coach_shotgun":
 				_kick = 0.4 # snapped shut
 			elif def.id == &"lever_rifle":
@@ -507,6 +533,7 @@ func trigger(camera: Camera3D) -> bool:
 		reload()
 		return false
 	ammo -= 1
+	_twirl_left = 0.0 # a shot cuts any flourish short
 	_cooldown = fire_interval()
 	_kick = 1.0 + def.shake
 	if def.id == &"revolver":
@@ -563,8 +590,33 @@ func reload() -> void:
 		_foley("open", -4.0)
 	var rounds := mag_size() if def.id == &"coach_shotgun" else (1 if def.id == &"crank_gatling" else mag_size() - ammo)
 	reload_started.emit(times.x + times.y * rounds + times.z)
+	if def.id == &"revolver":
+		flourished.emit(&"reload_revolver")
 	if not _catching:
 		_foley("open", -5.0)
+
+
+func _start_twirl(spec: Vector2) -> void:
+	_twirl_len = spec.x
+	_twirl_turns = spec.y
+	_twirl_left = spec.x
+	Audio.play_at(&"spur", global_position, -16.0)
+	flourished.emit(&"twirl")
+
+
+## The revolver's spin right now (radians): fast off the finger, settling
+## into the grip with a little overshoot.
+func twirl_angle() -> float:
+	if _twirl_left <= 0.0:
+		return 0.0
+	var t := 1.0 - _twirl_left / maxf(_twirl_len, 0.001)
+	var e := 1.0 - pow(1.0 - t, 3.0)
+	var settle := sin(clampf((t - 0.8) / 0.2, 0.0, 1.0) * PI) * 0.12
+	return -TAU * _twirl_turns * e + settle
+
+
+func is_twirling() -> bool:
+	return _twirl_left > 0.0
 
 
 ## This gun's reload sound for a step ("open", "load", "close"), or the generic click.

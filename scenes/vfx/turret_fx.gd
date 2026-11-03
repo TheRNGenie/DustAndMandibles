@@ -1,14 +1,20 @@
 extends Node
 ## Looks after turrets and structures without touching their logic (it only
-## reads them): Gatling barrels glow hotter the longer they spin, damaged
-## things go sooty and smoke (black smoke and embers when nearly gone), and
-## anything wrecked bursts into splinters. Polls a few times a second; smoke
-## emitters come from a small capped pool.
+## reads them): Gatling barrels glow hotter the longer they spin, damage shows
+## in stages (scuffed and scorched below 75%, a smoke wisp below 50%, black
+## smoke, embers and spitting sparks below 25%), every hit knocks sparks off
+## the iron or splinters off the scaffold it stands on, and anything wrecked
+## bursts into splinters. Polls a few times a second (it reads the replicated
+## HP, so every peer sees the same); smoke emitters come from a small capped pool.
 
 const SCAN := 0.25
 const SMOKE_POOL := 12
-const SOOT_AT := 0.6
-const BURNING_AT := 0.3
+const SCUFF_AT := 0.75
+const SOOT_AT := 0.5
+const BURNING_AT := 0.25
+## Hit reactions: at most one per thing this often, and this many per scan overall.
+const HIT_GAP := 0.35
+const HITS_PER_SCAN := 4
 
 var vfx: Node3D
 
@@ -19,10 +25,11 @@ var _smokes: Array[GPUParticles3D] = []
 var _embers: Array[GPUParticles3D] = []
 var _smoke_owner: Array[int] = []
 var _soot_mats: Array[StandardMaterial3D] = []
+var _hits_left := 0
 
 
 func _ready() -> void:
-	_soot_mats = [_soot_material(0.78), _soot_material(0.5)]
+	_soot_mats = [_soot_material(0.86), _soot_material(0.7), _soot_material(0.5)]
 
 
 func _process(delta: float) -> void:
@@ -47,6 +54,7 @@ func _process(delta: float) -> void:
 
 
 func _rescan() -> void:
+	_hits_left = HITS_PER_SCAN
 	var seen := {}
 	for n: Node in get_tree().get_nodes_in_group("structures"):
 		var id := n.get_instance_id()
@@ -60,7 +68,7 @@ func _rescan() -> void:
 
 
 func _track(n: Node) -> void:
-	var t := {"node": n, "heat": 0.0, "smoke": -1, "soot": 0, "top": 1.6}
+	var t := {"node": n, "heat": 0.0, "smoke": -1, "soot": 0, "top": 1.6, "hp": -1.0, "hit_t": 0.0}
 	var spin: Variant = n.get("_spin")
 	if spin is MeshInstance3D:
 		t["spin"] = spin
@@ -102,9 +110,17 @@ func _update_damage(t: Dictionary) -> void:
 	var f := h.fraction()
 	var soot := 0
 	if f < BURNING_AT:
-		soot = 2
+		soot = 3
 	elif f < SOOT_AT:
+		soot = 2
+	elif f < SCUFF_AT:
 		soot = 1
+	_react_to_hits(t, n, h)
+	if soot == 3 and vfx != null and randf() < 0.4 and n.is_visible_in_tree():
+		# Nearly gone: the works spit sparks.
+		var r := Vector3(randf_range(-0.5, 0.5), 0.0, randf_range(-0.5, 0.5))
+		vfx.call("spark", n.global_position + Vector3.UP * float(t["top"]) * randf_range(0.45, 0.9) + r,
+				(Vector3.UP + r).normalized())
 	if soot != int(t["soot"]):
 		t["soot"] = soot
 		for mi: Node in n.find_children("*", "MeshInstance3D", true, false):
@@ -112,7 +128,28 @@ func _update_damage(t: Dictionary) -> void:
 			if g == t.get("spin") and float(t["heat"]) > 0.05:
 				continue
 			g.material_overlay = null if soot == 0 else _soot_mats[soot - 1]
-		_set_smoke(t, soot)
+		_set_smoke(t, soot - 1)
+
+
+## Lost HP since the last look: sparks off the iron, and splinters off the
+## scaffold it stands on (throttled per thing and overall).
+func _react_to_hits(t: Dictionary, n: Node3D, h: Health) -> void:
+	var was := float(t["hp"])
+	t["hp"] = h.hp
+	var now := Time.get_ticks_msec() * 0.001
+	if was < 0.0 or h.hp >= was - 0.5 or h.hp <= 0.0 or vfx == null or _hits_left <= 0:
+		return
+	if now - float(t["hit_t"]) < HIT_GAP:
+		return
+	t["hit_t"] = now
+	_hits_left -= 1
+	var top := float(t["top"])
+	var side := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized()
+	vfx.call("spark", n.global_position + Vector3.UP * top * randf_range(0.4, 0.8) + side * 0.4, (side + Vector3.UP * 0.6).normalized())
+	var lv: Variant = n.get("level")
+	if lv is int and int(lv) > 0:
+		# The scaffold frame round it takes the knocks too.
+		vfx.call("splinter_chip", n.global_position + side * 0.9 + Vector3.UP * randf_range(-0.6, 0.6), side)
 
 
 ## Gives (or takes back) a smoke column; `level` 1 = grey smoke, 2 = black smoke and embers.
@@ -135,7 +172,7 @@ func _set_smoke(t: Dictionary, level: int) -> void:
 	var at := n.global_position + Vector3.UP * float(t["top"])
 	_smokes[idx].global_position = at
 	_embers[idx].global_position = at - Vector3.UP * 0.3
-	_smokes[idx].amount_ratio = 0.6 if level == 1 else 1.0
+	_smokes[idx].amount_ratio = 0.45 if level == 1 else 1.0
 	(_smokes[idx].draw_pass_1 as QuadMesh).material = _smoke_mat(level)
 	_smokes[idx].emitting = true
 	_embers[idx].emitting = level == 2

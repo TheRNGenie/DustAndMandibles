@@ -80,6 +80,8 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 	_round = _mi(left, held_round)
 	_round.position = Vector3(0.012, 0.02, -0.02)
 	_round.visible = false
+	if id == &"revolver":
+		_make_twirl_pivot()
 	if id == &"lever_rifle":
 		_flyer = MeshInstance3D.new()
 		_flyer.mesh = WeaponBuilder.cartridge()
@@ -112,6 +114,35 @@ func _use_model(body: MeshInstance3D) -> void:
 	# The model's cylinder is part of its body (it doesn't turn).
 	if drum != null:
 		drum.visible = false
+
+
+## Revolver: the gun itself (not the hand) hangs on a pivot through the
+## trigger guard, so it can spin round the trigger finger.
+const TWIRL_PIVOT := Vector3(0.0, -0.017, 0.022)
+var _twirl: Node3D
+
+
+func _make_twirl_pivot() -> void:
+	_twirl = Node3D.new()
+	_twirl.name = "Twirl"
+	_twirl.position = TWIRL_PIVOT
+	var parts: Array[Node] = []
+	for c in get_children():
+		if c != _right_mi and c != left:
+			parts.append(c)
+	add_child(_twirl)
+	for c in parts:
+		remove_child(c)
+		_twirl.add_child(c)
+		if c is Node3D:
+			(c as Node3D).position -= TWIRL_PIVOT
+
+
+## Spins the revolver round the trigger finger (radians, about its side axis;
+## negative rolls the muzzle down and under).
+func twirl(angle: float) -> void:
+	if _twirl != null:
+		_twirl.rotation.x = angle
 
 
 ## Dino Rifle: moves the tied-on glass to this gun's fit (DinoGlass variant).

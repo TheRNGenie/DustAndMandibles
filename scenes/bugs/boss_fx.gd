@@ -632,6 +632,7 @@ func lob(from: Vector3, to: Vector3, flight: float, color: Color) -> void:
 func rocks(pos: Vector3, size: float) -> void:
 	if VfxPool.instance != null:
 		VfxPool.instance.shell_crack(pos, Palette.ROCK_C, size)
+		VfxPool.instance.rock_chips(pos, Vector3.UP, size)
 		VfxPool.instance.dust_burst(pos, Vector3.UP, size)
 
 

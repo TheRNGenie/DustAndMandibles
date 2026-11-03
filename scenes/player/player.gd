@@ -127,6 +127,7 @@ func _ready() -> void:
 		fp_hands.name = "FpHands"
 		fp_hands.gun = gun
 		camera.add_child(fp_hands)
+		gun.flourished.connect(act_body)
 		camera.current = true
 		if GameState.flag_value("--shot") == "": # automated screenshots ignore the mouse
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -205,6 +206,16 @@ func act(id: StringName, prop: StringName = &"") -> void:
 		fp_hands.play(id, prop, target)
 	rig.play_action(id)
 	_act_remote.rpc(id)
+
+
+## Owner: a body-only flourish (the revolver twirl, a reload) others see on
+## your body; first person already shows it on the viewmodel.
+func act_body(id: StringName) -> void:
+	if not is_multiplayer_authority() or not DummyActions.has(id):
+		return
+	rig.play_action(id)
+	if multiplayer.has_multiplayer_peer():
+		_act_remote.rpc(id)
 
 
 @rpc("authority", "call_remote", "unreliable")

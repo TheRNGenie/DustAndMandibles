@@ -151,6 +151,11 @@ func _spawn_bug(data: Variant) -> Node:
 	if multiplayer.is_server():
 		bug.died.connect(_on_bug_died)
 		bug.fled.connect(_on_bug_fled)
+	# Big climbers knock rock chips off the face (VfxPool's CliffChips watches them).
+	if vfx != null and is_big(bug.def):
+		var chips: Variant = vfx.get("cliff_chips")
+		if chips is Node:
+			(chips as Node).call("watch", bug)
 	return bug
 
 

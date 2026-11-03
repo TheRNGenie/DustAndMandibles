@@ -18,7 +18,11 @@ const DUR := {
 	&"scratch_head": 2.0, &"look_around": 3.4, &"shift_weight": 3.0,
 	# Emotes (the emote wheel).
 	&"tip_hat": 1.3, &"wave": 1.6, &"point": 1.4, &"shrug": 1.2,
+	# Gun flourishes (shown on your body to everyone else).
+	&"twirl": 0.75, &"reload_revolver": 1.5,
 }
+## Moves that keep the gun in your hand (the rest put it away while acting).
+const KEEPS_GUN: Array[StringName] = [&"twirl", &"reload_revolver"]
 ## The emote wheel's moves, clockwise from the top, with their names.
 const EMOTES: Array[StringName] = [&"tip_hat", &"wave", &"point", &"shrug"]
 const EMOTE_NAMES := {&"tip_hat": "Tip hat", &"wave": "Wave", &"point": "Point", &"shrug": "Shrug"}
@@ -47,6 +51,10 @@ const SFX := {
 	&"tip_hat": [[0.3, &"rustle", -12.0]],
 	&"shrug": [[0.2, &"rustle", -14.0]],
 }
+
+
+static func keeps_gun(id: StringName) -> bool:
+	return KEEPS_GUN.has(id)
 
 
 static func has(id: StringName) -> bool:
@@ -278,6 +286,23 @@ static func pose(rig: DummyRig, id: StringName, t: float, w: float) -> void:
 			_arm(rig, 0, Vector3(2.4, 0.2, -0.35), 2.0, w)
 			_arm(rig, 1, Vector3(0.35 + sin(t * PI) * 0.4, 0.25, 0.05), 1.2, w)
 			_head(rig, Vector3(-0.1, sin(t * PI * 2.0) * 0.2, 0), w)
+		&"twirl":
+			# Gun hand down by the hip, the revolver spun twice round the trigger
+			# finger and caught, then back up.
+			var low := _seg(t, 0.0, 0.15) * (1.0 - _seg(t, 0.8, 1.0))
+			_arm(rig, 1, Vector3(lerpf(PI * 0.5, 0.75, low), 0.0, 0.12 * low), lerpf(0.12, 0.85, low), w)
+			var spin := 1.0 - pow(1.0 - _seg(t, 0.08, 0.85), 3.0)
+			rig._gun_mi.transform = Transform3D(Basis(Vector3.RIGHT, DummyRig.GUN_TILT - TAU * 2.0 * spin), DummyRig.GUN_AT)
+			_head(rig, Vector3(-0.12 * low, 0, 0), w)
+		&"reload_revolver":
+			# Gun brought in across the chest and tipped open, the free hand
+			# thumbing rounds in one by one, head down to watch it.
+			var inn := _seg(t, 0.0, 0.15) * (1.0 - _seg(t, 0.85, 1.0))
+			var thumb := absf(sin(_seg(t, 0.15, 0.85) * PI * 4.0))
+			_arm(rig, 1, Vector3(1.0 * inn + (1.0 - inn) * PI * 0.5, 0.0, 0.45 * inn), lerpf(0.12, 1.25, inn), w)
+			_arm(rig, 0, Vector3(0.95 * inn + 0.15 * thumb * inn, 0.0, -0.4 * inn), 1.35 * inn + 0.2, w)
+			rig._gun_mi.transform = Transform3D(Basis(Vector3.RIGHT, DummyRig.GUN_TILT).rotated(Vector3.FORWARD, 0.9 * inn), DummyRig.GUN_AT)
+			_head(rig, Vector3(-0.4 * inn, 0.1 * inn, 0), w)
 		&"tip_hat":
 			# Hand up to the brim, a slow nod with the hat tipped, back down.
 			_stand(rig, w)

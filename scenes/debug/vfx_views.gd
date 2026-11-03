@@ -136,6 +136,11 @@ func _view_sky() -> void:
 	var pitch := float(GameState.flag_value("--vfxpitch")) if GameState.flag_value("--vfxpitch") != "" else 12.0
 	var dir := Vector3(0, 0, -1).rotated(Vector3.RIGHT, deg_to_rad(pitch)).rotated(Vector3.UP, deg_to_rad(yaw))
 	_look(p, p + dir * 10.0)
+	if GameState.flag_value("--vfxcam") == "moon":
+		# Face the moon (the sun light doubles as it): look back along the light.
+		_at(0.5, func() -> void:
+			var to_moon := DayCycle.instance.sun.global_basis.z.normalized()
+			_look(p, p + (to_moon - Vector3.UP * 0.25) * 10.0))
 
 
 ## Tumbleweeds, vultures, a dust devil and the birds scattering.
@@ -185,3 +190,36 @@ func _view_stress() -> void:
 	_at(9.0, func() -> void:
 		var fps := float(Engine.get_frames_drawn() - int(frames[0])) / ((Time.get_ticks_msec() - float(frames[1])) / 1000.0)
 		print("[vfxview] stress %d bugs (alive %d): avg fps %.0f" % [n, get_tree().get_nodes_in_group("bugs").size(), fps]))
+
+
+## The east homestead after dark: porch lanterns, lit windows, lantern posts.
+func _view_house() -> void:
+	var builds := world.get("builds") as BuildManager
+	Economy.earn(WorldLayout.EAST, {&"scrap": 3000})
+	var house: Node3D = null
+	for h: Node in get_tree().get_nodes_in_group("homesteads"):
+		if int(h.get("cliff_id")) == WorldLayout.EAST:
+			house = h as Node3D
+	for c: Vector2i in [Vector2i(7, 6), Vector2i(7, 14), Vector2i(1, 8)]:
+		builds.build(&"lantern_post", WorldLayout.EAST, c)
+	if house == null:
+		return
+	var front := -house.global_basis.z
+	var side := house.global_basis.x
+	_look(house.global_position + front * 15.0 + side * 6.0 + Vector3.UP * 4.0, house.global_position + Vector3.UP * 2.5)
+
+
+## Down the length of the canyon from the east lip (long shadows at golden hour).
+func _view_canyon() -> void:
+	var cl := _cliffs()
+	var p := cl.plateau_point(WorldLayout.EAST, 2.0, -40.0) + Vector3.UP * 6.0
+	_look(p, cl.face_point(WorldLayout.WEST, 6.0, 40.0))
+
+
+## Big bugs and a boss climbing the west wall: rock chips off the face.
+func _view_rocks() -> void:
+	var cl := _cliffs()
+	var target := cl.face_point(WorldLayout.WEST, 18.0, 0.0)
+	_look(target + Vector3(18.0, 4.0, 10.0), target)
+	for i in 4:
+		_bm().spawn_group(&"brood_mother" if i % 2 == 0 else &"rattler_beetle", 1, WorldLayout.WEST, 1 + i % 3, 6.0 + float(i) * 3.0)

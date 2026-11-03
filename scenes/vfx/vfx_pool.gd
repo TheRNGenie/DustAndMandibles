@@ -11,6 +11,7 @@ const PUFF_SHADER: Shader = preload("res://shaders/vfx_puff.gdshader")
 const SwarmAudio := preload("res://scenes/vfx/swarm_audio.gd")
 const TurretFx := preload("res://scenes/vfx/turret_fx.gd")
 const CanyonLife := preload("res://scenes/vfx/canyon_life.gd")
+const CliffChips := preload("res://scenes/vfx/cliff_chips.gd")
 
 static var instance: VfxPool
 
@@ -244,12 +245,12 @@ func fire_patch(center: Vector3, radius: float, seconds: float) -> void:
 		get_tree().create_timer(1.0).timeout.connect(e.queue_free))
 
 
-func _fire(e: GPUParticles3D, pos: Vector3, normal: Vector3) -> void:
+func _fire(e: GPUParticles3D, pos: Vector3, normal: Vector3, ratio: float = 1.0) -> void:
 	var n := normal.normalized() if normal.length() > 0.01 else Vector3.UP
 	var up := Vector3.UP if absf(n.dot(Vector3.UP)) < 0.95 else Vector3.RIGHT
 	# Emitters spray along local -Z, so point -Z along the surface normal.
 	e.global_transform = Transform3D(Basis.looking_at(n, up), pos)
-	e.amount_ratio = GraphicsQuality.PARTICLE_RATIO[GraphicsQuality.level(Settings.particles)]
+	e.amount_ratio = GraphicsQuality.PARTICLE_RATIO[GraphicsQuality.level(Settings.particles)] * ratio
 	e.restart()
 	e.emitting = true
 
@@ -364,6 +365,8 @@ const SPLAT_FADE := 3.0
 const LIGHT_POOL := 4
 const CASING_POOL := 24
 const SPLINTER_POOL := 6
+const CHIP_POOL := 8
+const ROCK_POOL := 8
 const BURST_POOL := 10
 
 var _tunnel_fx: Array[GPUParticles3D] = []
@@ -378,6 +381,8 @@ var _lights: Array[OmniLight3D] = []
 var _light_e: PackedFloat32Array = PackedFloat32Array()
 var _casings: Array[GPUParticles3D] = []
 var _splinters: Array[GPUParticles3D] = []
+var _chips: Array[GPUParticles3D] = []
+var _rocks: Array[GPUParticles3D] = []
 var _puff_mats: Array[ShaderMaterial] = []
 var _puff_base: Array = []
 var _light_t := 0.0
@@ -386,6 +391,7 @@ var daylight := 1.0
 var swarm: Node
 var turret_fx: Node
 var canyon_life: Node
+var cliff_chips: Node
 
 
 ## --nopolish turns the polish pass off (for before/after perf checks).
@@ -430,6 +436,10 @@ func _ready_extras() -> void:
 		_casings.append(_make_casing_emitter())
 	for i in SPLINTER_POOL:
 		_splinters.append(_make_splinter_emitter())
+	for i in CHIP_POOL:
+		_chips.append(_make_splinter_emitter(6, 0.6))
+	for i in ROCK_POOL:
+		_rocks.append(_make_rock_emitter())
 	if GameState.flag_value("--vfxview") != "":
 		var views: Node = load("res://scenes/debug/vfx_views.gd").new()
 		views.name = "VfxViews"
@@ -443,6 +453,10 @@ func _ready_extras() -> void:
 	turret_fx.name = "TurretFx"
 	turret_fx.set("vfx", self)
 	add_child(turret_fx)
+	cliff_chips = CliffChips.new()
+	cliff_chips.name = "CliffChips"
+	cliff_chips.set("vfx", self)
+	add_child(cliff_chips)
 	canyon_life = CanyonLife.new()
 	canyon_life.name = "CanyonLife"
 	canyon_life.set("vfx", self)
@@ -776,18 +790,83 @@ func splinters(pos: Vector3, size: float = 1.0) -> void:
 	Audio.play_at(&"hammer_hit", pos, -2.0)
 
 
-func _make_splinter_emitter() -> GPUParticles3D:
+## A few splinters knocked off a scaffold frame by a hit (no dust cloud, a dull knock).
+func splinter_chip(pos: Vector3, out: Vector3) -> void:
+	var e := _next(_chips, "chip")
+	_fire(e, pos, (out + Vector3.UP * 0.5).normalized())
+	Audio.play_at(&"hammer_hit", pos, -14.0)
+
+
+## Chips of rock knocked off the cliff face (big bugs climbing, bosses hitting
+## the wall): chunks spray out from the face and tumble down it, with a puff of dust.
+func rock_chips(pos: Vector3, out: Vector3, size: float = 1.0) -> void:
+	var e := _next(_rocks, "rock")
+	var pm := e.process_material as ParticleProcessMaterial
+	pm.scale_min = 0.6 * size
+	pm.scale_max = 1.4 * size
+	pm.initial_velocity_max = 3.5 + size * 2.0
+	_fire(e, pos, (out + Vector3.UP * 0.35).normalized(), clampf(0.5 + size * 0.35, 0.5, 1.0))
+	if size >= 0.9:
+		dust_burst(pos, out, 0.45 * size)
+
+
+func _make_rock_emitter() -> GPUParticles3D:
 	var e := GPUParticles3D.new()
 	e.one_shot = true
 	e.emitting = false
-	e.amount = 16
+	e.amount = 10
+	e.lifetime = 2.2
+	e.explosiveness = 0.9
+	e.local_coords = false
+	e.visibility_aabb = AABB(Vector3(-8, -30, -8), Vector3(16, 36, 16))
+	var pm := _process_material(Vector2(1.5, 5.0), 40.0, -14.0)
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	pm.emission_sphere_radius = 0.5
+	pm.angular_velocity_min = -400.0
+	pm.angular_velocity_max = 400.0
+	pm.particle_flag_rotate_y = true
+	pm.damping_min = 0.0
+	pm.damping_max = 0.4
+	pm.color_ramp = null
+	var curve := Curve.new()
+	curve.add_point(Vector2(0, 1))
+	curve.add_point(Vector2(0.8, 1))
+	curve.add_point(Vector2(1, 0))
+	var ct := CurveTexture.new()
+	ct.curve = curve
+	pm.scale_curve = ct
+	e.process_material = pm
+	var st := MeshKit.begin()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 57
+	# Two lumpy, faceted stones in the cliff's banded colours.
+	MeshKit.add_ellipsoid(st, Transform3D(), Vector3(0.26, 0.19, 0.22), 2, 4, Palette.ROCK_B.darkened(0.25), 0.35, rng)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.3, 0.08, 0.06)), Vector3(0.14, 0.11, 0.12), 2, 4, Palette.SAND.darkened(0.1), 0.35, rng)
+	var mesh := MeshKit.finish(st)
+	mesh.surface_set_material(0, Materials.toon(0.0))
+	e.draw_pass_1 = mesh
+	e.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(e)
+	return e
+
+
+func _make_splinter_emitter(amount: int = 16, k: float = 1.0) -> GPUParticles3D:
+	var e := GPUParticles3D.new()
+	e.one_shot = true
+	e.emitting = false
+	e.amount = amount
 	e.lifetime = 1.6
 	e.explosiveness = 0.95
 	e.local_coords = false
 	e.visibility_aabb = AABB(Vector3(-8, -12, -8), Vector3(16, 20, 16))
 	var pm := _process_material(Vector2(3.0, 7.5), 70.0, -15.0)
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	pm.emission_box_extents = Vector3(0.8, 1.2, 0.8)
+	pm.emission_box_extents = Vector3(0.8, 1.2, 0.8) * k
+	if k < 1.0:
+		pm.scale_min = k
+		pm.scale_max = k * 1.3
+		pm.initial_velocity_min = 2.0
+		pm.initial_velocity_max = 4.5
 	pm.angular_velocity_min = -600.0
 	pm.angular_velocity_max = 600.0
 	pm.particle_flag_rotate_y = true

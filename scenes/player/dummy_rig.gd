@@ -47,6 +47,9 @@ var _shoulders: Array[Node3D] = []
 var _elbows: Array[Node3D] = []
 var _hand: Node3D
 var _gun_mi: MeshInstance3D
+## How the gun sits in the right hand (flourishes spin it from here).
+const GUN_TILT := -PI * 0.5
+const GUN_AT := Vector3(0, 0.0, -0.01)
 var _weapon: StringName = &"-"
 var _phase := 0.0
 var _slide := 0.0
@@ -131,7 +134,7 @@ func build(team: Color, is_first_person: bool, dummy_look: Dictionary = {}) -> v
 	_hand = _pivot(_elbows[1], Vector3(0, -FOREARM - 0.05, 0))
 	_gun_mi = MeshInstance3D.new()
 	_gun_mi.material_override = Materials.toon(0.008)
-	_gun_mi.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(0, 0.0, -0.01))
+	_gun_mi.transform = Transform3D(Basis(Vector3.RIGHT, GUN_TILT), GUN_AT)
 	_hand.add_child(_gun_mi)
 	if first_person:
 		_gun_mi.visible = false
@@ -346,7 +349,10 @@ func play_action(id: StringName) -> void:
 func _apply_action(dt: float) -> void:
 	# Hands are busy: the gun goes away while acting (third person only).
 	if not first_person:
-		_gun_mi.visible = action == &""
+		_gun_mi.visible = action == &"" or DummyActions.keeps_gun(action)
+	if action == &"" or not DummyActions.keeps_gun(action):
+		# Back to how it's held (a flourish may have left it spun).
+		_gun_mi.transform = Transform3D(Basis(Vector3.RIGHT, GUN_TILT), GUN_AT)
 	if action == &"":
 		return
 	var prev_t := action_t
