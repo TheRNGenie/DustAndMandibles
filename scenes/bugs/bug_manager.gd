@@ -191,7 +191,10 @@ func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 	BossFx.on_bug_died(bug) # Boss: the Bone Collector eats the dead near it
 	var loot := {&"scrap": bug.def.scrap_drop, &"chitin": bug.def.chitin_drop * Weather.chitin_mult(GameState.weather)}
 	loot = Brand.kill_loot(loot, source_cliff) # Theme: Crossed Irons brand, more per kill
-	loot[&"scrap"] = _scrap_carry.scale(bug.cliff_id, roundi(float(loot[&"scrap"])), Perks.kill_scrap_mult(source)) # Perk: Scrap Scavenger (fractions carried)
+	var raw_scrap := roundi(float(loot[&"scrap"]))
+	loot[&"scrap"] = _scrap_carry.scale(bug.cliff_id, raw_scrap, Perks.kill_scrap_mult(source)) # Perk: Scrap Scavenger (fractions carried)
+	if GameState.has_flag("--scraplog"):
+		print("[scrap] %s kill by %s: %d x%.2f -> %d" % [bug.def.id, source, raw_scrap, Perks.kill_scrap_mult(source), loot[&"scrap"]])
 	Economy.earn(bug.cliff_id, loot)
 	_corpse.rpc(get_path_to(bug))
 	# Bugs that made it up off the cliff wall leave something to loot.

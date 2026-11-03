@@ -46,6 +46,51 @@ func _ready() -> void:
 						set_meta(&"peershot_up", true)
 						_peer_shot(p, ps.replace(".png", "_up.png"))
 			print("[down] t=%d %s" % [Time.get_ticks_msec() / 1000, "  ".join(parts)]))
+	if GameState.flag_value("--cpudryat") != "":
+		# --cpudryat=S: S seconds in (host), pour out the CPU cliff's water so its crops
+		# need a trip to the well; then log the pool and the well every 2 s.
+		var dt2 := Timer.new()
+		dt2.wait_time = 2.0
+		dt2.autostart = true
+		add_child(dt2)
+		dt2.timeout.connect(func() -> void:
+			if not multiplayer.is_server() or not NetworkManager.has_cpu():
+				return
+			var cid: int = NetworkManager.cpu_cliffs()[0]
+			if not has_meta(&"cpudry") and Time.get_ticks_msec() / 1000.0 >= GameState.flag_value("--cpudryat").to_float():
+				set_meta(&"cpudry", true)
+				# ...and sow a corn plot there, so a crop is waiting on water.
+				for n: Node in get_tree().get_nodes_in_group("crops"):
+					var plot := n as CropPlot
+					if plot != null and plot.cliff_id == cid and plot.growth.stage == CropGrowth.Stage.EMPTY:
+						Economy.earn(cid, {CropPlot.seed_res(&"corn"): 1})
+						plot.call("_use", -1, &"corn")
+						break
+				Economy.spend(cid, {&"water": Economy.amount(cid, &"water")})
+				print("[cpuwater] drained cliff %d's water" % cid)
+			var crops := 0
+			for n: Node in get_tree().get_nodes_in_group("crops"):
+				var plot := n as CropPlot
+				if plot != null and plot.cliff_id == cid and plot.growth.stage == CropGrowth.Stage.PLANTED:
+					crops += 1
+			var well_left := -1
+			for n: Node in get_tree().get_nodes_in_group("water_sources"):
+				if n is MechWell and (n as MechWell).cliff_id == cid:
+					well_left = (n as MechWell).stored
+			print("[cpuwater] t=%d water %d planted crops %d well %d" % [Time.get_ticks_msec() / 1000, Economy.amount(cid, &"water"), crops, well_left]))
+	if GameState.flag_value("--leverat") != "":
+		# --leverat=S: S seconds in, throw this peer's own generator lever; log the levers every second.
+		var lt := Timer.new()
+		lt.wait_time = 1.0
+		lt.autostart = true
+		add_child(lt)
+		lt.timeout.connect(func() -> void:
+			var me := world.call("local_player") as Player if world != null else null
+			if me != null and not has_meta(&"lever_once") and Time.get_ticks_msec() / 1000.0 >= GameState.flag_value("--leverat").to_float():
+				set_meta(&"lever_once", true)
+				GameState.toggle_ready()
+				print("[lever] t=%d threw my lever (cliff %d)" % [Time.get_ticks_msec() / 1000, me.cliff_id])
+			print("[lever] t=%d phase %d countdown %.1f levers %s cpu %s" % [Time.get_ticks_msec() / 1000, GameState.phase, GameState.ready_countdown, str(GameState.levers), str(GameState.cpu_levers)]))
 	if GameState.flag_value("--act") != "":
 		_act_shot(GameState.flag_value("--act"))
 	var shot := GameState.flag_value("--shot")
