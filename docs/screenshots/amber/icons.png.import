@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://df38wk8e82yhc"
-path="res://.godot/imported/kiln.png-44db4a7f161a3f5ffffd82b5649475e2.ctex"
+uid="uid://dqouiyp73wsy0"
+path="res://.godot/imported/icons.png-28890d8b246d5e0476ea9b008f3a91f5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/screenshots/amber/kiln.png"
-dest_files=["res://.godot/imported/kiln.png-44db4a7f161a3f5ffffd82b5649475e2.ctex"]
+source_file="res://docs/screenshots/amber/icons.png"
+dest_files=["res://.godot/imported/icons.png-28890d8b246d5e0476ea9b008f3a91f5.ctex"]
 
 [params]
 

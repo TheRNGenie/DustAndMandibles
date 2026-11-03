@@ -84,7 +84,7 @@ func menu_title() -> String:
 
 
 func menu_tagline() -> String:
-	return "Combine a mount, a barrel and a load into a new turret. Place it from the Crafted tab of the build menu (B)."
+	return "Combine a mount, a barrel and a load into a new turret (or, with a blueprint, hive amber and parts into an amber turret). Place it from the Crafted tab of the build menu (B)."
 
 
 func menu_tabs() -> Array:

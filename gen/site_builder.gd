@@ -817,8 +817,8 @@ static func amber_chunk(seed_value: int) -> ArrayMesh:
 		[Vector3(-0.2, 0.09, 0.14), Vector3(0.11, 0.09, 0.12)], [Vector3(0.05, 0.08, -0.24), Vector3(0.13, 0.08, 0.1)]]
 	for i in lumps.size():
 		var l: Array = lumps[i]
-		var col := AmberRules.COLOR.lerp(AmberRules.DEEP, rng.randf() * 0.4)
-		MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3(rng.randf(), 1, rng.randf()).normalized(), rng.randf() * TAU), l[0]), l[1], 5, 9, col, 0.18, rng, 0.55)
+		var col := AmberRules.COLOR.lerp(AmberRules.DEEP, 0.15 + rng.randf() * 0.35)
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3(rng.randf(), 1, rng.randf()).normalized(), rng.randf() * TAU), l[0]), l[1], 5, 9, col, 0.18, rng, 0.32)
 	# Facets catching the light and the bug inside the big lump.
 	for k in 5:
 		var a := rng.randf() * TAU

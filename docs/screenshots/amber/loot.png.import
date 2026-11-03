@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c650j38p3dy8q"
-path="res://.godot/imported/lucky_menu_bought.png-50560697333164b2c6278ad456530bb5.ctex"
+uid="uid://o8m3p1q1deyu"
+path="res://.godot/imported/loot.png-3d6b130e512b8328bd23ca58293139f0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/screenshots/amber/lucky_menu_bought.png"
-dest_files=["res://.godot/imported/lucky_menu_bought.png-50560697333164b2c6278ad456530bb5.ctex"]
+source_file="res://docs/screenshots/amber/loot.png"
+dest_files=["res://.godot/imported/loot.png-3d6b130e512b8328bd23ca58293139f0.ctex"]
 
 [params]
 
