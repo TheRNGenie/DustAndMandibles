@@ -46,6 +46,7 @@ static func from_bug(bug: Bug) -> BugCorpse:
 	c._size = float(bug.spec["scale"])
 	bug.get_parent().add_child(c)
 	c.global_transform = bug.global_transform
+	c.global_position += bug.glide_offset() # where its body was drawn (it glides between updates)
 	c._drops = bug.global_basis.y.normalized().y < 0.7
 	c._lift = float(bug.spec["body_radius"]) * 0.7
 	var body := MeshInstance3D.new()

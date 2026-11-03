@@ -4,6 +4,8 @@ extends RefCounted
 
 const TOON_SHADER: Shader = preload("res://shaders/toon.gdshader")
 const OUTLINE_SHADER: Shader = preload("res://shaders/outline.gdshader")
+const TOON_GLIDE_SHADER: Shader = preload("res://shaders/toon_glide.gdshader")
+const OUTLINE_GLIDE_SHADER: Shader = preload("res://shaders/outline_glide.gdshader")
 const STRATA_SHADER: Shader = preload("res://shaders/cliff_strata.gdshader")
 const STAR_SHADER: Shader = preload("res://shaders/vfx_star.gdshader")
 
@@ -20,6 +22,24 @@ static func toon(outline_thickness: float = 0.03) -> ShaderMaterial:
 	mat.set_shader_parameter("spec_strength", 0.14)
 	if outline_thickness > 0.0:
 		mat.next_pass = outline(outline_thickness)
+	_cache[key] = mat
+	return mat
+
+
+## toon() for the bug MultiMesh batches (LegBatch): the same look, and every
+## piece glides with its bug between updates (shaders/bug_glide.gdshaderinc).
+static func toon_glide(outline_thickness: float = 0.03) -> ShaderMaterial:
+	var key := "toon_glide_%.3f" % outline_thickness
+	if _cache.has(key):
+		return _cache[key]
+	var mat := ShaderMaterial.new()
+	mat.shader = TOON_GLIDE_SHADER
+	mat.set_shader_parameter("spec_strength", 0.14)
+	if outline_thickness > 0.0:
+		var ol := ShaderMaterial.new()
+		ol.shader = OUTLINE_GLIDE_SHADER
+		ol.set_shader_parameter("thickness", outline_thickness)
+		mat.next_pass = ol
 	_cache[key] = mat
 	return mat
 

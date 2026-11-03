@@ -15,6 +15,8 @@ var _lanes: MeshInstance3D
 
 func _ready() -> void:
 	instance = self
+	if GameState.has_flag("--glidelog"):
+		_glide_log()
 	if GameState.has_flag("--downlog"):
 		# Every second: each player as this peer sees it (downed, how far over on its back).
 		var dt := Timer.new()
@@ -1492,8 +1494,13 @@ func _stress(count: int) -> void:
 		var n := 0
 		var gaps: Array[float] = []
 		var last := Time.get_ticks_usec()
+		# Smoothness: where the sampled on-screen, not-full-detail bugs are DRAWN
+		# each frame (body slot + glide offset); a bug that only steps when it
+		# gets a turn shows still frames and uneven steps.
+		var glide := _GlideSample.new(bm)
 		while Time.get_ticks_msec() - t0 < 2000:
 			await get_tree().process_frame
+			glide.frame()
 			var now := Time.get_ticks_usec()
 			gaps.append(float(now - last) / 1000.0)
 			last = now
@@ -1514,6 +1521,7 @@ func _stress(count: int) -> void:
 		print("[stress]   render cpu %.2f ms  gpu %.2f ms  frame cpu %.2f ms  video mem %.0f MB  textures %.0f MB  static mem %.0f MB" % [RenderingServer.viewport_get_measured_render_time_cpu(vp), RenderingServer.viewport_get_measured_render_time_gpu(vp), RenderingServer.get_frame_setup_time_cpu(),
 				Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0, Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0, Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0])
 		print("[stress]   ", CpuProf.report())
+		print("[stress]   ", glide.report())
 		print("[stress]   physics active %d  pairs %d  islands %d" % [Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS), Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS), Performance.get_monitor(Performance.PHYSICS_3D_ISLAND_COUNT)])
 		var kinds := {}
 		var states := {}
@@ -2368,3 +2376,78 @@ func _craft_test() -> void:
 			placed += 1
 	print("[craft] placed: ", placed, "  held now: ", Economy.amount(0, design), "  name: ", CraftTable.name_of(design))
 
+
+
+## --glidelog: every 2 s, how smoothly this peer draws the bugs on screen
+## (_GlideSample; on a client this includes the network smoothing).
+func _glide_log() -> void:
+	while is_inside_tree():
+		await get_tree().create_timer(1.0).timeout
+		var bm := world.get("bugs") as BugManager if world != null else null
+		if bm == null or bm.get_child_count() < 3:
+			continue
+		var g := _GlideSample.new(bm, true)
+		var t0 := Time.get_ticks_msec()
+		while Time.get_ticks_msec() - t0 < 2000:
+			await get_tree().process_frame
+			g.frame()
+		print("[glide] %s fps %d  %s" % ["host" if multiplayer.is_server() else "client", Engine.get_frames_per_second(), g.report()])
+
+
+## --stress: measures how smoothly far bugs are drawn (see _stress).
+class _GlideSample:
+	var bugs: Array[Bug] = []
+	var last: Array[Vector3] = []
+	var steps: Array[PackedFloat32Array] = []
+	var trace := PackedStringArray()
+
+	func _init(bm: BugManager, any_detail: bool = false) -> void:
+		for c in bm.get_children():
+			var b := c as Bug
+			if b != null and b.is_alive() and (b.detail == 1 or b.detail == 3 or any_detail) and b.boss == null:
+				bugs.append(b)
+				last.append(b.drawn_position())
+				steps.append(PackedFloat32Array())
+				if bugs.size() >= 40:
+					break
+
+	func frame() -> void:
+		for i in bugs.size():
+			var b := bugs[i]
+			if not is_instance_valid(b) or not b.is_alive():
+				continue
+			var p := b.drawn_position()
+			steps[i].append(p.distance_to(last[i]))
+			if i == 0 and trace.size() < 24:
+				trace.append("%.3f" % p.distance_to(last[i]))
+			last[i] = p
+
+	## Still frames (a moving bug drawn in the same place as last frame) and
+	## jerk (mean change in per-frame step over the mean step; 0 = perfectly even).
+	func report() -> String:
+		var still := 0
+		var total := 0
+		var jerk := 0.0
+		var jn := 0
+		var cv := 0.0
+		for st in steps:
+			var mean := 0.0
+			for d in st:
+				mean += d
+			if st.size() < 3 or mean / st.size() < 0.002:
+				continue
+			mean /= st.size()
+			var dj := 0.0
+			var var_sum := 0.0
+			for k in st.size():
+				var_sum += (st[k] - mean) * (st[k] - mean)
+				total += 1
+				if st[k] < mean * 0.05:
+					still += 1
+				if k > 0:
+					dj += absf(st[k] - st[k - 1])
+			jerk += dj / (st.size() - 1) / mean
+			cv += sqrt(var_sum / st.size()) / mean
+			jn += 1
+		return "glide: %d far bugs sampled, %d moving  still frames %.0f%%  jerk %.2f  step cv %.2f  bug0 steps(m/frame) %s" % [
+			bugs.size(), jn, 100.0 * still / maxi(total, 1), jerk / maxi(jn, 1), cv / maxi(jn, 1), ",".join(trace)]
