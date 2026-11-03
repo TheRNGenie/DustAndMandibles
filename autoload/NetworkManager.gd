@@ -395,6 +395,8 @@ func get_ping_ms() -> int:
 func ping_to(peer_id: int) -> int:
 	if _peer == null or peer_id == multiplayer.get_unique_id():
 		return 0
+	if multiplayer.is_server() and not multiplayer.get_peers().has(peer_id):
+		return 0 # not connected (e.g. a CPU teammate's roster slot): don't ask the transport
 	var own := _backend.ping_ms(_peer, peer_id) if _backend != null else 0
 	return own if own > 0 else int(_rtt.get(peer_id, 0))
 
