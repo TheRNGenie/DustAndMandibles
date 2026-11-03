@@ -10,12 +10,12 @@ extends StaticBody3D
 const UPGRADES: Array[Dictionary] = [
 	{"id": &"patch", "name": "Patch the walls", "cost": {&"scrap": 25}, "desc": "Repairs 100 HP."},
 	{"id": &"board", "name": "Board up the windows", "cost": {&"scrap": 40}, "desc": "Bugs do 30% less damage to the house."},
-	{"id": &"reinforce", "name": "Reinforce the walls", "cost": {&"scrap": 80, &"chitin": 10}, "desc": "Iron bands and a stone skirt: +250 max HP."},
-	{"id": &"floor2", "name": "Build a second floor", "cost": {&"scrap": 120, &"chitin": 15}, "desc": "Adds a storey and a front balcony with 2 house turret mounts."},
-	{"id": &"floor3", "name": "Build a lookout floor", "cost": {&"scrap": 180, &"chitin": 30}, "desc": "Adds a top storey and a railed roof deck with 2 more mounts. A lookout up top spots for your turrets: +8% range for every turret on this cliff."},
-	{"id": &"porch", "name": "Build a shaded porch", "cost": {&"scrap": 60}, "desc": "Wider covered wings either side of the porch, with benches. Rest under it and your health comes back three times as fast."},
-	{"id": &"workshop", "name": "Build a workshop", "cost": {&"scrap": 100, &"chitin": 12}, "desc": "A lean-to shed on the back of the house with a crafting bench: combine turret parts into new turrets."},
-	{"id": &"tower", "name": "Build a zip-line tower", "cost": {&"scrap": 220, &"chitin": 40}, "desc": "A tall lookout tower on the roof deck. Once both houses have one, a zip line joins them across the canyon."},
+	{"id": &"reinforce", "name": "Reinforce the walls", "cost": {&"scrap": 80, &"chitin": 10}, "desc": "+250 max HP: iron bands and a stone skirt."},
+	{"id": &"floor2", "name": "Build a second floor", "cost": {&"scrap": 120, &"chitin": 15}, "desc": "A second storey and a front balcony with 2 house turret mounts."},
+	{"id": &"floor3", "name": "Build a lookout floor", "cost": {&"scrap": 180, &"chitin": 30}, "desc": "A top storey and a roof deck with 2 more mounts. The lookout spots for you: +8% range for every turret on this cliff."},
+	{"id": &"porch", "name": "Build a shaded porch", "cost": {&"scrap": 60}, "desc": "Covered wings with benches either side of the porch. Rest under them to heal 3x as fast."},
+	{"id": &"workshop", "name": "Build a workshop", "cost": {&"scrap": 100, &"chitin": 12}, "desc": "A shed with a crafting bench: combine 3 turret parts (mount, barrel, load) into a new turret."},
+	{"id": &"tower", "name": "Build a zip-line tower", "cost": {&"scrap": 220, &"chitin": 40}, "desc": "A tall tower on the roof deck. Once both houses have one, a zip line joins them across the canyon."},
 ]
 const BOARDED_DAMAGE := 0.7
 const REINFORCE_HP := 250.0

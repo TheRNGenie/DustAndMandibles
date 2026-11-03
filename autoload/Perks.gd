@@ -403,8 +403,37 @@ func lock_look_row(row: Container, slot: String) -> void:
 			b.visible = false # Theme: secret looks stay hidden until their code is entered
 		elif b != null and not owns_look(slot, opt):
 			b.disabled = true
-			b.text = "%s  (%d Notches)" % [b.text, PerkTable.cosmetic_price(slot, opt)]
 			b.tooltip_text = "Buy it with Notches in the Rancher's Ledger (main menu)."
+			_price_chip(b, PerkTable.cosmetic_price(slot, opt))
+
+
+## A locked look's price as a small chip inside its button (padlock and "25 Notches").
+static func _price_chip(b: Button, price: int) -> void:
+	var chip := PanelContainer.new()
+	chip.theme_type_variation = "ChipPanel"
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 4)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_child(h)
+	h.add_child(UiStyle.mark("lock", UiStyle.c("gold"), 11))
+	var l := MenuScreen.ink_label(UiStyle.cost(price, "Notches"), 12, UiStyle.c("gold"))
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(l)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.add_child(chip)
+	var w := b.get_combined_minimum_size().x
+	var cw := chip.get_combined_minimum_size().x
+	b.custom_minimum_size.x = w + cw + 10
+	chip.anchor_left = 1.0
+	chip.anchor_right = 1.0
+	chip.anchor_top = 0.5
+	chip.anchor_bottom = 0.5
+	chip.offset_left = -cw - 5
+	chip.offset_right = -5
+	var ch := chip.get_combined_minimum_size().y
+	chip.offset_top = -ch * 0.5
+	chip.offset_bottom = ch * 0.5
 
 
 # ------------------------------------------------------------------ networking

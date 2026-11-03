@@ -102,8 +102,8 @@ func menu_items(tab: int) -> Array:
 		for key: StringName in CraftTable.part_keys():
 			var n := Economy.amount(cid, key)
 			var part_icon: Variant = IconStudio.craft_part(MenuScreen.instance, key) if MenuScreen.instance != null else &"hammer"
-			out.append({"id": "", "name": "%s  x%d" % [CraftTable.part_name(key), n], "icon": part_icon,
-					"desc": CraftTable.part_desc(key), "price": "", "price_ok": true,
+			out.append({"id": "", "name": CraftTable.part_name(key), "icon": part_icon,
+					"desc": CraftTable.part_desc(key), "price": "", "price_ok": true, "note": UiStyle.held(n),
 					"disabled": "" if n > 0 else "None yet: big bugs and bosses drop parts.", "buttons": []})
 		return out
 	for id: StringName in CraftTable.all_designs():
@@ -113,10 +113,10 @@ func menu_items(tab: int) -> Array:
 		var d := CraftTable.def_for(id)
 		var icon: Variant = IconStudio.turret(MenuScreen.instance, id, Palette.team_color(cid)) if MenuScreen.instance != null else CraftTable.model_of(id)
 		out.append({"id": String(id), "name": d.display_name, "icon": icon,
-				"desc": "%s\n%s" % [d.description, d.role], "price": "3 Parts", "price_ok": true,
+				"desc": "%s\n%s" % [d.stat_line(), d.role], "price": "3 Parts", "price_ok": true,
 				"disabled": "", "buttons": [[&"craft", "Craft"]]})
 	if out.is_empty():
-		out.append({"id": "", "name": "No full set of parts", "icon": &"hammer",
+		out.append({"id": "", "name": "No Full Set of Parts", "icon": &"hammer",
 				"desc": "You need one mount, one barrel and one load. Big bugs and bosses drop them; see the Parts tab.",
 				"price": "", "price_ok": true, "disabled": "Nothing to craft yet.", "buttons": []})
 	return out

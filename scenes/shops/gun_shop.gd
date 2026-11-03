@@ -133,7 +133,7 @@ func menu_items(tab: int) -> Array:
 				why = "Fully upgraded."
 			var cost: int = 0 if maxed else int(w.upgrade_costs[level])
 			out.append({"id": "upgrade:%s" % id, "name": "%s  ·  Level %d" % [w.display_name, level], "icon": id,
-					"desc": "+25% damage and a faster reload per level.", "price": "" if maxed else UiStyle.cost(cost, "chitin"),
+					"desc": "+25% damage and a 15% faster reload per level.", "price": "" if maxed else UiStyle.cost(cost, "chitin"),
 					"price_ok": chitin >= cost, "disabled": why, "buttons": [[&"buy", "Upgrade"]]})
 		elif tab == 2 and item["kind"] == "mods":
 			# Only guns you carry, so the list stays short.
