@@ -56,6 +56,14 @@ func map_for(ch: StoryChapter, riders: int) -> StringName:
 	return ch.map_for_players(riders)
 
 
+## Hive amber (host; story chapters 7, 9 and 10 call it when the job finds the
+## plans): the team may craft amber turret `id` (AmberRules.KILN / BELL / LANCE:
+## &"amber_kiln", &"queens_bell", &"mandible_lance") from now on, and every
+## rider keeps the blueprint in their saved progress. See the Amber autoload.
+func unlock_amber_blueprint(id: StringName, announce: bool = true) -> bool:
+	return Amber.unlock_blueprint(id, announce)
+
+
 func is_unlocked(cid: String) -> bool:
 	return progress.is_unlocked(cid) or (GameState.has_flag("--storyall") and GameState.debug_enabled())
 

@@ -137,7 +137,7 @@ static func list(id: StringName) -> Array:
 
 ## Combined multiplier (or bonus) of every mod fitted, for one fx key.
 static func mult(id: StringName, code: int, key: String) -> float:
-	var m := 1.0
+	var m := AmberRules.finish_mult(id, code, key) # Hive amber: Lucky Moreau's finish (code bit 9)
 	var mods := list(id)
 	for i in mods.size():
 		if has_mod(code, i) and (mods[i]["fx"] as Dictionary).has(key):
@@ -146,7 +146,7 @@ static func mult(id: StringName, code: int, key: String) -> float:
 
 
 static func add(id: StringName, code: int, key: String) -> int:
-	var a := 0
+	var a := AmberRules.finish_add(id, code, key) # Lucky's finish
 	var mods := list(id)
 	for i in mods.size():
 		if has_mod(code, i) and (mods[i]["fx"] as Dictionary).has(key):
@@ -155,6 +155,8 @@ static func add(id: StringName, code: int, key: String) -> int:
 
 
 static func flag(id: StringName, code: int, key: String) -> bool:
+	if AmberRules.finish_flag(id, code, key): # Lucky's finish
+		return true
 	var mods := list(id)
 	for i in mods.size():
 		if has_mod(code, i) and bool((mods[i]["fx"] as Dictionary).get(key, false)):

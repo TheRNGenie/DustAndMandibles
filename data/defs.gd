@@ -72,6 +72,16 @@ const TURRETS: Dictionary = {
 	&"bola_launcher": preload("res://data/turrets/bola_launcher.tres"),
 }
 
+## Hive amber turrets (AmberRules): crafted at the Workshop from amber and rare
+## parts once their blueprint is known, placed from the Crafted tab like any
+## crafted turret, one of each per team. Not in TURRETS (no scrap price, not in
+## the build tabs); Defs.turret() finds them here.
+const AMBER_TURRETS: Dictionary = {
+	&"amber_kiln": preload("res://data/turrets/amber/amber_kiln.tres"),
+	&"queens_bell": preload("res://data/turrets/amber/queens_bell.tres"),
+	&"mandible_lance": preload("res://data/turrets/amber/mandible_lance.tres"),
+}
+
 const STRUCTURES: Dictionary = {
 	&"barbed_wire": preload("res://data/structures/barbed_wire.tres"),
 	&"bear_trap": preload("res://data/structures/bear_trap.tres"),
@@ -175,7 +185,7 @@ static func by_tier(items: Array) -> Array:
 ## Turrets that come standing on a free scaffold (every turret except the last
 ## resorts and the house turrets).
 static func gets_scaffold(id: StringName) -> bool:
-	if not is_turret(id) or is_house_turret(id) or is_crewed(id): # Crewed: never on scaffolding
+	if not is_turret(id) or is_house_turret(id) or is_crewed(id) or AMBER_TURRETS.has(id): # Crewed / amber: never on scaffolding
 		return false
 	for cat: Dictionary in BUILD_CATEGORIES:
 		if cat["name"] == "Last Resorts" and (cat["items"] as Array).has(id):
@@ -221,6 +231,8 @@ static func _slow_bug(base: StringName) -> BugDef:
 static func turret(id: StringName) -> TurretDef:
 	if CraftTable.is_craft(id): # Crafted at the Workshop: built from its parts
 		return CraftTable.def_for(id)
+	if AMBER_TURRETS.has(id): # Hive amber turrets
+		return AMBER_TURRETS[id] as TurretDef
 	return TURRETS.get(id) as TurretDef
 
 
@@ -243,7 +255,7 @@ static func seed_of(crop_id: StringName) -> StringName:
 
 
 static func is_turret(id: StringName) -> bool:
-	return TURRETS.has(id) or not CraftTable.parse(id).is_empty()
+	return TURRETS.has(id) or AMBER_TURRETS.has(id) or not CraftTable.parse(id).is_empty()
 
 
 # Crewed: a 2 x 2 gun with a seat (ground level only, nothing stacks on it).

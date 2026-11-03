@@ -246,7 +246,7 @@ func _tile(i: int, id: StringName, payer: int) -> Button:
 	elif not affordable:
 		price_row.add_child(UiStyle.mark("bad", UiStyle.hud_c("bad"), 12))
 	if not locked:
-		price_row.add_child(KeyHints.text(UiStyle.held(Economy.amount(payer, id)) if CraftTable.is_craft(id) else UiStyle.cost(cost, "scrap"), 14, UiStyle.c("title") if affordable else UiStyle.hud_c("bad")))
+		price_row.add_child(KeyHints.text(UiStyle.held(Economy.amount(payer, id)) if CraftTable.is_item_turret(id) else UiStyle.cost(cost, "scrap"), 14, UiStyle.c("title") if affordable else UiStyle.hud_c("bad")))
 	# Its quick-pick number in the corner.
 	if i < 9:
 		var k := KeyHints.chip(str(i + 1))
@@ -275,9 +275,9 @@ func _show_detail(id: StringName, payer: int) -> void:
 	var cost := Perks.build_cost(multiplayer.get_unique_id(), id) # Perk: build discounts
 	var affordable := GameState.is_solo() or Economy.can_afford(payer, {&"scrap": cost})
 	_detail_name.text = Defs.name_of(id)
-	_detail_cost.text = (UiStyle.held(Economy.amount(payer, id)) + "  ·  Crafted") if CraftTable.is_craft(id) else UiStyle.cost(cost, "scrap")
+	_detail_cost.text = (UiStyle.held(Economy.amount(payer, id)) + "  ·  Crafted") if CraftTable.is_item_turret(id) else UiStyle.cost(cost, "scrap")
 	_detail_cost.add_theme_color_override("font_color", UiStyle.c("title") if affordable else UiStyle.hud_c("bad"))
-	if not affordable and not CraftTable.is_craft(id):
+	if not affordable and not CraftTable.is_item_turret(id):
 		_detail_cost.text += "  ·  Can't Afford"
 	if not BuildMode.unlocked(id): # Tiers
 		_detail_cost.text += "  ·  " + Defs.lock_reason(id, GameState.tier_wave())

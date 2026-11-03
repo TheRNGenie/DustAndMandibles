@@ -119,6 +119,10 @@ const COSMETICS: Dictionary = {
 	"paint": {"orange": 20, "white": 20},
 }
 
+## Wardrobe options only Lucky Moreau sells (for hive amber, AmberRules.STOCK):
+## never in the Ledger, owned only once bought from him.
+const LUCKY_LOOKS: Array[String] = ["paint:amber"]
+
 static var _by_id: Dictionary = {}
 
 

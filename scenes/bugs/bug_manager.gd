@@ -617,8 +617,11 @@ func separate() -> void:
 		var push: PackedVector2Array = res["push"]
 		var crouch: PackedFloat32Array = res["crouch"]
 		var ride: PackedFloat32Array = res["ride"]
+		var blocked: PackedByteArray = res["blocked"]
 		for i in n:
 			var b: Bug = bugs[i]
+			if blocked[i] != 0:
+				b.statue_blocked = 0.5 # hive amber: a statue is in the way
 			b.crouch = move_toward(b.crouch, crouch[i], 0.25)
 			b.ride = move_toward(b.ride, ride[i], 0.08)
 			var d := push[i]

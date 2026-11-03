@@ -807,6 +807,30 @@ static func _scrap_heap(st: SurfaceTool, rng: RandomNumberGenerator, at: Vector3
 
 ## A loot pile by its look (SitePlan.Loot.look). Sized to read from a few
 ## metres; chitin and eggs glow.
+## Hive amber (AmberRules): a few glowing honey-gold lumps of resin broken off
+## a nest wall, one with a little bug curled up inside, on a smear of dark resin.
+static func amber_chunk(seed_value: int) -> ArrayMesh:
+	var rng := _rng(seed_value + 404)
+	var st := MeshKit.begin()
+	MeshKit.add_ellipsoid(st, _xf(Vector3(0, 0.02, 0)), Vector3(0.5, 0.03, 0.42), 3, 10, AmberRules.DEEP.darkened(0.35), 0.2, rng)
+	var lumps: Array = [[Vector3(0.0, 0.17, 0.0), Vector3(0.2, 0.17, 0.16)], [Vector3(0.24, 0.1, 0.12), Vector3(0.12, 0.1, 0.1)],
+		[Vector3(-0.2, 0.09, 0.14), Vector3(0.11, 0.09, 0.12)], [Vector3(0.05, 0.08, -0.24), Vector3(0.13, 0.08, 0.1)]]
+	for i in lumps.size():
+		var l: Array = lumps[i]
+		var col := AmberRules.COLOR.lerp(AmberRules.DEEP, 0.15 + rng.randf() * 0.35)
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3(rng.randf(), 1, rng.randf()).normalized(), rng.randf() * TAU), l[0]), l[1], 5, 9, col, 0.18, rng, 0.32)
+	# Facets catching the light and the bug inside the big lump.
+	for k in 5:
+		var a := rng.randf() * TAU
+		MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, a).rotated(Vector3.RIGHT, rng.randf_range(-0.6, 0.6)), Vector3(cos(a) * 0.12, 0.2 + rng.randf() * 0.1, sin(a) * 0.1)),
+				Vector3(0.06, 0.005, 0.05), AmberRules.GLOW.lightened(0.3), 0.0, null, 0.9)
+	MeshKit.add_ellipsoid(st, _xf(Vector3(0.0, 0.17, 0.0)), Vector3(0.06, 0.035, 0.09), 4, 8, Color("#3A2414"))
+	for s: float in [-1.0, 1.0]:
+		for j in 3:
+			MeshKit.add_limb(st, Vector3(s * 0.03, 0.17, -0.04 + j * 0.04), Vector3(s * 0.09, 0.15, -0.06 + j * 0.05), 0.006, Color("#3A2414"), 3)
+	return MeshKit.finish(st)
+
+
 static func loot(look: StringName, seed_value: int) -> ArrayMesh:
 	var rng := _rng(seed_value)
 	var st := MeshKit.begin()
@@ -862,6 +886,8 @@ static func loot(look: StringName, seed_value: int) -> ArrayMesh:
 			st.append_from(trophy(), 0, Transform3D())
 		&"egg":
 			st.append_from(egg_cluster(seed_value, 5), 0, Transform3D())
+		&"amber":
+			st.append_from(amber_chunk(seed_value), 0, Transform3D())
 		_:
 			MeshKit.add_box(st, _xf(Vector3(0, 0.2, 0)), Vector3(0.4, 0.4, 0.4), Palette.WOOD)
 	return MeshKit.finish(st)

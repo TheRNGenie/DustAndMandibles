@@ -166,6 +166,11 @@ class ItemIcon extends Control:
 				draw_rect(Rect2(c + Vector2(-s * 0.35, s * 0.18), Vector2(s * 0.7, s * 0.24)), Palette.TEAM_WEST, true)
 				for k in 3:
 					draw_circle(c + Vector2(-s * 0.3 + k * s * 0.3, -s * 0.45), s * 0.18, Color("#8CC66E"))
+			&"amber":
+				# Hive amber: a faceted honey-gold lump with a dark speck of bug inside.
+				_poly([c + Vector2(-s * 0.7, s * 0.1), c + Vector2(-s * 0.3, -s * 0.65), c + Vector2(s * 0.45, -s * 0.6), c + Vector2(s * 0.75, s * 0.05), c + Vector2(s * 0.3, s * 0.7), c + Vector2(-s * 0.4, s * 0.6)], AmberRules.COLOR)
+				_poly([c + Vector2(-s * 0.3, -s * 0.65), c + Vector2(s * 0.45, -s * 0.6), c + Vector2(s * 0.1, -s * 0.15), c + Vector2(-s * 0.35, -s * 0.2)], AmberRules.GLOW.lightened(0.3))
+				draw_circle(c + Vector2(s * 0.05, s * 0.15), s * 0.14, Color("#3A2414"))
 			&"hammer":
 				draw_line(c + Vector2(-s * 0.5, s * 0.7), c + Vector2(s * 0.3, -s * 0.3), Palette.WOOD, 5.0)
 				_poly([c + Vector2(s * 0.0, -s * 0.7), c + Vector2(s * 0.7, -s * 0.0), c + Vector2(s * 0.5, s * 0.2), c + Vector2(-s * 0.2, -s * 0.5)], Palette.METAL)

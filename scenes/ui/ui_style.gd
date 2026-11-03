@@ -889,6 +889,7 @@ static func resource_color(resource: StringName) -> Color:
 	match resource:
 		&"scrap": return Palette.METAL.lightened(0.2)
 		&"chitin": return Palette.BEETLE_TEAL.lightened(0.15)
+		&"amber": return AmberRules.COLOR
 		&"brands", &"notches": return Color(c("gold"))
 	return Palette.BONE
 

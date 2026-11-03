@@ -107,6 +107,9 @@ func is_free_for(id: StringName, cid: int, cell: Vector2i) -> bool:
 		return true
 	if crewed_at(cid, cell):
 		return false
+	# Hive amber turrets: bare ground only (no scaffold under or over them).
+	if AmberRules.is_amber(id):
+		return not cell_taken(cid, cell)
 	if id == &"scaffold":
 		return scaffold_levels(cid, cell) < MAX_SCAFFOLD
 	if Defs.is_turret(id) and Buildable.is_turret_cell(cell):
@@ -243,8 +246,12 @@ func _do_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> void:
 		if _cpu_builder == "":
 			Economy.notify(peer_id, "The %s %s." % [Defs.name_of(id), Defs.lock_reason(id, GameState.tier_wave()).to_lower()])
 		return
+	# Hive amber turrets: the team fields one of each at a time.
+	if AmberRules.is_amber(id) and not AmberRules.can_place(Amber.placed_count(id)):
+		Economy.notify(peer_id, AmberRules.limit_text(id) + " Pick the other one up first.")
+		return
 	# Crafted turrets: placing one uses up the item made at the Workshop (no scrap).
-	if CraftTable.is_craft(id):
+	if CraftTable.is_item_turret(id):
 		if _cpu_builder != "" or not Economy.spend(cid, {id: 1}):
 			Economy.notify(peer_id, "You don't have a %s. Craft one at the Workshop." % Defs.name_of(id))
 			return
@@ -252,7 +259,7 @@ func _do_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> void:
 	if _cpu_builder == "" and not Economy.spend(cid, {&"scrap": cost}):
 		Economy.notify(peer_id, "Not enough scrap for a %s (%d)." % [Defs.name_of(id), cost])
 		return
-	if _cpu_builder == "" and not CraftTable.is_craft(id):
+	if _cpu_builder == "" and not CraftTable.is_item_turret(id):
 		Perks.note_built(peer_id, id) # Perk: Barn Raising used up
 	if id == &"scaffold" and scaffold_levels(cid, cell) > 0:
 		(_scaffolds[_cell_key(cid, cell)] as ScaffoldNode).set_levels(scaffold_levels(cid, cell) + 1)
@@ -285,7 +292,7 @@ func _spawn_built(data: Variant) -> Node:
 	var pos := Buildable.footprint_center(cliffs, cid, id, cell) if cell.x >= 0 else Homestead.of(cid).mount_global(cell.y)
 	var node: Node3D
 	if Defs.is_turret(id):
-		var t: Turret = CrewedTurret.new() if Defs.is_crewed(id) else Turret.new() # Crewed
+		var t: Turret = CrewedTurret.new() if Defs.is_crewed(id) else (AmberTurret.new() if AmberRules.is_amber(id) else Turret.new()) # Crewed; hive amber turrets
 		t.setup(Defs.turret(id), cid, cell, pos + Vector3.UP * ScaffoldNode.turret_height(level), str(d["owner"]), level)
 		Perks.apply_turret(t, int(d.get("peer", 0))) # Perk: Long Sights / Well Oiled / Reinforced Frames
 		node = t
@@ -387,7 +394,7 @@ func _do_demolish(peer_id: int, n: Node3D) -> void:
 		return
 	# Crafted turrets go back into the stockpile as their item, to place again.
 	var t_id: Variant = n.get("def").get("id") if n is Turret else null
-	if t_id != null and CraftTable.is_craft(t_id):
+	if t_id != null and CraftTable.is_item_turret(t_id):
 		Economy.earn(cid, {StringName(t_id): 1})
 		Economy.notify(peer_id, "Picked up the %s. Place it again from the Crafted tab (B)." % Defs.name_of(t_id))
 		n.queue_free()

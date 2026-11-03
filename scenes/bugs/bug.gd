@@ -511,6 +511,8 @@ var _anim_t := randf() * 10.0
 
 
 func _animate_body(delta: float, spd: float) -> void:
+	if _amber_shell != null: # Hive amber: frozen mid-stride inside the statue
+		return
 	_anim_t += delta
 	var s := _scale * grow
 	# Canyon Expeditions: asleep at a site it lies low, breathing slow and deep.
@@ -551,6 +553,12 @@ func _update_visibility() -> void:
 
 
 func _think(delta: float) -> void:
+	if entombed > 0.0: # Hive amber: set solid on the wall (Amber Kiln)
+		entombed -= delta
+		statue_blocked = 0.0
+		if entombed <= 0.0:
+			_end_entomb(false, _entomb_source, _entomb_cliff)
+		return
 	if boss != null and boss.think(delta):
 		return
 	match state:
@@ -696,7 +704,7 @@ func _floor_y(p: Vector3) -> float:
 
 ## Turrets can't lock on to this bug right now (a boss mechanic, e.g. the Mirage Mantis fading).
 func untargetable() -> bool:
-	return boss != null and boss.untargetable()
+	return (boss != null and boss.untargetable()) or entombed > 0.0 # Hive amber: statues are left standing
 
 
 ## Where a turret standing at `from` aims at this bug (a boss may offer parts, e.g. legs).
@@ -767,6 +775,9 @@ func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, mul
 		source: String, source_cliff: int) -> void:
 	if not multiplayer.is_server() or not is_alive() or is_hidden():
 		return
+	if entombed > 0.0: # Hive amber: any hit shatters a statue (a small loot burst)
+		_end_entomb(true, source, source_cliff)
+		return
 	var dmg := damage * multiplier
 	# Kill-method variants take more or less from bullets, fire or explosives.
 	if not def.damage_taken.is_empty():
@@ -812,6 +823,130 @@ func _on_died(source: String, source_cliff: int) -> void:
 	died_in = state
 	state = State.DEAD
 	died.emit(self, source, source_cliff)
+
+
+# ------------------------------------------------------------------ hive amber
+
+## Host: seconds left of this bug's amber statue (Amber Kiln). Frozen on the
+## wall, left alone by turrets, and nothing climbs through it.
+var entombed := 0.0
+var _entomb_source := ""
+var _entomb_cliff := -1
+## Host: set by BugManager.separate() while a statue shoves this bug back (LaneClimber steps round it).
+var statue_blocked := 0.0
+## Host: who rang the Queen's Bell this bug is frenzied by (kill credit for its bites).
+var frenzy_source := ""
+var frenzy_cliff := -1
+var _amber_shell: MeshInstance3D
+var _frenzy_mark: Label3D
+## Debug (--amberview): statues entombed and shattered this run, frenzy bites.
+static var amber_stats: Dictionary = {}
+
+
+static func _tally(key: String, n: int = 1) -> void:
+	amber_stats[key] = int(amber_stats.get(key, 0)) + n
+
+
+func is_entombed() -> bool:
+	return entombed > 0.0
+
+
+## Host: the Amber Kiln's molten amber sets round this bug: a statue for
+## `seconds`. Bosses and anything off the wall are never entombed.
+func entomb(seconds: float, source: String, source_cliff: int) -> bool:
+	if boss != null or not is_alive() or state != State.CLIMBING or entombed > 0.0:
+		return false
+	entombed = seconds
+	_entomb_source = source
+	_entomb_cliff = source_cliff
+	crowd_w = BugCrowd.STATUE_WEIGHT
+	status.root(seconds + 1.0)
+	_tally("entombed")
+	show_entomb.rpc(seconds)
+	return true
+
+
+## Host: the statue ends: shattered by a hit (`shattered`: a small loot burst
+## for whoever broke it) or the bug suffocated inside and it crumbles. Either way the bug dies.
+func _end_entomb(shattered: bool, source: String, source_cliff: int) -> void:
+	entombed = 0.0
+	crowd_w = BugCrowd.weight(def.size, false)
+	_tally("shattered" if shattered else "crumbled")
+	var cid := source_cliff if source_cliff >= 0 else _entomb_cliff
+	if shattered and cid >= 0:
+		Economy.earn(cid, AmberRules.shatter_loot(def.size))
+	show_entomb.rpc(-1.0 if shattered else 0.0)
+	health.take_damage(health.hp + 1.0, source if source != "" else _entomb_source, cid)
+
+
+## Every peer: the amber shell round the bug (`seconds` > 0), or off again:
+## 0 crumbles, -1 shatters (shards fly).
+@rpc("authority", "call_local", "reliable")
+func show_entomb(seconds: float) -> void:
+	if seconds > 0.0:
+		if _amber_shell == null:
+			_amber_shell = MeshInstance3D.new()
+			_amber_shell.name = "AmberShell"
+			_amber_shell.mesh = AmberFx.shell_mesh(float(spec["body_radius"]), name.hash())
+			_amber_shell.material_override = AmberFx.shell_material()
+			_amber_shell.position = Vector3(0, float(spec["clearance"]) * 0.35, 0)
+			add_child(_amber_shell)
+			AmberFx.set_pulse(_amber_shell)
+		return
+	if _amber_shell != null:
+		var at := _amber_shell.global_position
+		_amber_shell.queue_free()
+		_amber_shell = null
+		AmberFx.shatter(self, at, float(spec["body_radius"]), seconds < 0.0)
+
+
+## Host: a Queen's Bell toll: this bug turns on its neighbours for `seconds`.
+func frenzy(seconds: float, source: String, source_cliff: int) -> bool:
+	if boss != null or not is_alive() or entombed > 0.0 or state != State.CLIMBING:
+		return false
+	status.frenzy(seconds)
+	frenzy_source = source
+	frenzy_cliff = source_cliff
+	_tally("frenzied")
+	show_frenzy.rpc(seconds)
+	return true
+
+
+## Every peer: the frenzied bug's angry amber mark for `seconds`.
+@rpc("authority", "call_local", "reliable")
+func show_frenzy(seconds: float) -> void:
+	if _frenzy_mark == null:
+		_frenzy_mark = AmberFx.frenzy_mark()
+		_frenzy_mark.position = Vector3(0, float(spec["body_radius"]) * 1.7 + 0.5, 0)
+		add_child(_frenzy_mark)
+	_frenzy_mark.visible = true
+	_frenzy_mark.set_meta(&"until", Time.get_ticks_msec() + int(seconds * 1000.0))
+	AmberFx.pulse_mark(_frenzy_mark)
+
+
+## Host: a Queen's Bell toll knocks a flier out of the air: the fall hurts, and
+## it lies stunned where it lands before it takes off again.
+func drop_from_sky(source: String, source_cliff: int) -> bool:
+	if boss != null or not is_alive() or state != State.FLYING:
+		return false
+	_tally("dropped")
+	health.take_damage(AmberRules.drop_damage(health.max_hp), source, source_cliff)
+	if not is_alive():
+		return true
+	ground_pos.y = _ground_under(ground_pos) + _clear
+	status.root(AmberRules.DROP_STUN)
+	return true
+
+
+## Ground height under a point: a plateau if it's over one, else the canyon floor.
+func _ground_under(p: Vector3) -> float:
+	if cliffs == null:
+		return 0.0
+	for cid in WorldLayout.cliff_count():
+		var pc := cliffs.plateau_coords(cid, p)
+		if pc.x >= 0.0 and pc.x <= WorldLayout.PLATEAU_DEPTH + 10.0:
+			return cliffs.ground_height_fast(cid, p)
+	return cliffs.floor_height(p.x, p.z)
 
 
 ## Canyon Expeditions: a little drifting "z z" over a sleeping site bug.

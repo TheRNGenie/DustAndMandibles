@@ -171,7 +171,7 @@ class Loot:
 	var items: Dictionary = {}
 	var label := ""
 	## What it looks like: &"scrap", &"chitin", &"part", &"page", &"specimen",
-	## &"egg", &"blueprint", &"trophy".
+	## &"egg", &"blueprint", &"trophy", &"amber".
 	var look: StringName = &"scrap"
 	var walk := false
 	## Local (x across, z out) in the site's frame.
@@ -196,6 +196,8 @@ static func item_name(key: StringName) -> String:
 			return "Journal Page"
 		&"upgrade_token":
 			return "Upgrade Token"
+		AmberRules.ITEM:
+			return AmberRules.NAME
 	if CraftTable.is_part(key):
 		return CraftTable.part_name(key)
 	return String(key).replace("_", " ").capitalize()
@@ -266,6 +268,11 @@ static func loot_for(site_kind: int, site_seed: int, wave: int) -> Array[Loot]:
 			if rng.randf() < 0.6:
 				var p := CraftTable.random_part(rng)
 				add.call({p: 1}, &"part", CraftTable.part_name(p), false)
+	# Hive amber: a few glowing chips at some sites (more at nests and wrecks).
+	# Rolled after everything else so the rest of a site's loot is unchanged.
+	var amber := AmberRules.site_amber(site_kind, wave, rng)
+	if amber > 0:
+		add.call({AmberRules.ITEM: amber}, &"amber", AmberRules.NAME, false)
 	_place(out, site_kind, rng)
 	return out
 

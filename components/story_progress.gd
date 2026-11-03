@@ -12,6 +12,9 @@ var done: Dictionary = {}
 var journal: Array[String] = []
 ## Crafted turret designs Silas's blueprints give at every chapter's start.
 var blueprints: Array[String] = []
+## Hive amber turret blueprints this rider has found or bought (AmberRules.IDS):
+## the team may craft them in every run this rider joins (Amber autoload).
+var amber_blueprints: Array[String] = []
 ## Chapters tried, won or not (the chapter screen marks the rest New).
 var tried: Array[String] = []
 
@@ -57,6 +60,8 @@ func win(ch: StoryChapter) -> Dictionary:
 	var unlock: Dictionary = ch.unlock() if first else {}
 	if str(unlock.get("kind", "")) == "blueprint" and not blueprints.has(str(unlock["id"])):
 		blueprints.append(str(unlock["id"]))
+	if str(unlock.get("kind", "")) == "amber_blueprint" and not amber_blueprints.has(str(unlock["id"])):
+		amber_blueprints.append(str(unlock["id"]))
 	return {"first": first, "notches": ch.notches() if first else replay_tip(ch), "unlock": unlock, "journal": got_page}
 
 
@@ -66,7 +71,7 @@ static func replay_tip(ch: StoryChapter) -> int:
 
 
 func to_dict() -> Dictionary:
-	return {"done": done, "journal": journal, "blueprints": blueprints, "tried": tried}
+	return {"done": done, "journal": journal, "blueprints": blueprints, "tried": tried, "amber_blueprints": amber_blueprints}
 
 
 static func from_dict(d: Variant) -> StoryProgress:
@@ -79,7 +84,7 @@ static func from_dict(d: Variant) -> StoryProgress:
 		for k: Variant in raw_done:
 			if StoryChapter.IDS.has(str(k)) and raw_done[k] is Dictionary:
 				p.done[str(k)] = {"wins": int((raw_done[k] as Dictionary).get("wins", 1)), "best_wave": int((raw_done[k] as Dictionary).get("best_wave", 0))}
-	for key: String in ["journal", "blueprints", "tried"]:
+	for key: String in ["journal", "blueprints", "tried", "amber_blueprints"]:
 		var arr: Variant = dd.get(key, [])
 		if arr is Array:
 			for v: Variant in arr:

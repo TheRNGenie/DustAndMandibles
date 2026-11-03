@@ -27,6 +27,7 @@ const WEIGHTS: Dictionary = {
 	&"ore": 3,
 	&"rail_iron": 4,
 	&"egg": 2,
+	&"amber": 4, # hive amber (AmberRules): dense resin, a few chips fill a pack
 	# Story items (a chapter's job, never unpacked onto the stockpile).
 	&"dynamite": 35,
 	&"pump_valve": 10,

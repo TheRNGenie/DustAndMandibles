@@ -13,6 +13,8 @@ var _smoke: Label
 var _tonic: Label
 var _scrap: Label
 var _chitin: Label
+var _amber: Label
+var _amber_row: HBoxContainer
 ## Solo on the canyon: the other cliff's chitin, on a small labelled line.
 var _chitin_other: Label
 var _homes: Array[ProgressBar] = []
@@ -57,6 +59,14 @@ func _ready() -> void:
 	_scrap.tooltip_text = "Scrap is shared: everyone builds from this pot and every kill pays into it."
 	_chitin = _counter(row, &"chitin", "Your Chitin")
 	_chitin_other = _chitin.get_meta(&"other") as Label
+	# Hive amber (personal, like chitin): its own row under the others, only
+	# shown once you've got some.
+	_amber_row = HBoxContainer.new()
+	_amber_row.add_theme_constant_override("separation", 18)
+	_amber_row.visible = false
+	col.add_child(_amber_row)
+	_amber = _counter(_amber_row, AmberRules.ITEM, "Your Hive Amber")
+	_amber.tooltip_text = "Hive amber: found only on the canyon floor. Lucky Moreau on the airship takes it; the amber turrets are made of it."
 	_smoke = UiStyle.label("", 13, UiStyle.c("hud"))
 	_smoke.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_smoke.add_theme_color_override("font_outline_color", Palette.OUTLINE)
@@ -190,6 +200,9 @@ func _refresh_resources() -> void:
 	# Scrap is the team's one pot (the same number for everyone); chitin is yours.
 	_scrap.text = str(Economy.team_scrap())
 	_chitin.text = str(Economy.amount(cliff_id, &"chitin"))
+	var amber := Economy.amount(cliff_id, AmberRules.ITEM)
+	_amber.text = str(amber)
+	_amber_row.visible = amber > 0
 	# Solo on the canyon you play both cliffs: the big chitin number is the cliff
 	# you stand on, and a small labelled line under it is the other cliff's.
 	var other := 1 - cliff_id

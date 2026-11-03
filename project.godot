@@ -25,6 +25,7 @@ Perks="*res://autoload/Perks.gd"
 Brand="*res://autoload/Brand.gd"
 Story="*res://autoload/Story.gd"
 Expedition="*res://autoload/Expedition.gd"
+Amber="*res://autoload/Amber.gd"
 
 [debug]
 

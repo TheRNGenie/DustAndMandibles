@@ -86,6 +86,13 @@ func menu_items(tab: int) -> Array:
 				stats += "  ·  %s Tier" % t.era_name() + ("" if t.tier == 0 else " (Wave %d)" % t.unlock_wave()) # Tiers
 				var icon: Variant = IconStudio.turret(MenuScreen.instance, id) if MenuScreen.instance != null else null
 				out.append(_item(id, t.display_name, icon, str(e.get("lore", t.description)), stats, e.get("tips", []), UiStyle.cost(t.cost_scrap, "scrap")))
+			# Hive amber turrets: crafted from amber and parts once the blueprint is known, one of each per team.
+			for id: StringName in AmberRules.IDS:
+				var t := Defs.turret(id)
+				var e := FieldGuide.entry("turrets", id)
+				var stats := t.stat_line() + "  ·  %d HP  ·  Late Tier (Wave %d)  ·  Blueprint: %s" % [int(t.max_hp), t.unlock_wave(), AmberRules.FOUND_IN[id]]
+				var icon: Variant = IconStudio.turret(MenuScreen.instance, id) if MenuScreen.instance != null else null
+				out.append(_item(id, t.display_name, icon, str(e.get("lore", t.description)), stats, e.get("tips", []), UiStyle.cost(AmberRules.amber_cost(id), "amber") + " + Parts"))
 		3:
 			# (Gameplay helper) Each crop has a job; the numbers come from the crop data.
 			for id: StringName in CROP_ORDER:
@@ -148,6 +155,10 @@ func _floor_items() -> Array:
 		var stats := "Finds: %s  ·  Sleeping: %s  ·  Refills Every Build Phase" % [", ".join(finds), ", ".join(sleepers)]
 		var icon: Variant = IconStudio.site_loot(MenuScreen.instance, SITE_ICONS[kind]) if MenuScreen.instance != null else null
 		out.append(_item(id, SitePlan.NAMES[kind], icon, str(e.get("lore", "")), stats, e.get("tips", []), ""))
+	# Hive amber (AmberRules): the floor's rarest find.
+	var ae := FieldGuide.entry("sites", AmberRules.ITEM)
+	var amber_icon: Variant = IconStudio.site_loot(MenuScreen.instance, &"amber") if MenuScreen.instance != null else null
+	out.append(_item(AmberRules.ITEM, AmberRules.NAME, amber_icon, str(ae.get("lore", "")), "Backpack Weight %d a Chip  ·  Yours Alone" % AmberRules.WEIGHT, ae.get("tips", []), ""))
 	for k: StringName in [SitePlan.NEST_EGG, SitePlan.SPECIMEN, SitePlan.JOURNAL_PAGE]:
 		var e := FieldGuide.entry("sites", k)
 		var look: StringName = {SitePlan.NEST_EGG: &"egg", SitePlan.SPECIMEN: &"specimen", SitePlan.JOURNAL_PAGE: &"page"}[k]

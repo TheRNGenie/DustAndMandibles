@@ -59,6 +59,7 @@ func _ready() -> void:
 	var menu := MenuScreen.new()
 	menu.name = "MenuScreen"
 	add_child(menu)
+	Amber.world_ready() # Hive amber: this run's blueprints and favours start fresh
 	var airship := Airship.new()
 	airship.name = "Airship"
 	add_child(airship)

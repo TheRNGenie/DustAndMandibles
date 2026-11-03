@@ -20,6 +20,9 @@ static func _slip_for(target: Bug) -> float:
 static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 	var source := "%s's %s" % [t.owner_name, t.def.display_name]
 	var dir := (aim - t.muzzle_position()).normalized()
+	if t is AmberTurret: # Hive amber: the Amber Kiln's molten lob (the bell and lance never come here)
+		(t as AmberTurret).amber_shot(target, aim, damage)
+		return
 	match t.def.special:
 		&"steam":
 			_steam(t, target, aim, source)

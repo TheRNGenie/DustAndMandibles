@@ -145,12 +145,15 @@ func crafted_held() -> Array:
 	for id: StringName in CraftTable.all_designs():
 		if Economy.amount(payer, id) > 0:
 			out.append(id)
+	for id: StringName in AmberRules.IDS: # Hive amber turrets made at the Workshop
+		if Economy.amount(payer, id) > 0:
+			out.append(id)
 	return out
 
 
 ## Can `payer` pay for `id`: its scrap, and for a crafted turret one of its items.
 func _can_pay(payer: int, id: StringName) -> bool:
-	if CraftTable.is_craft(id) and Economy.amount(payer, id) <= 0:
+	if CraftTable.is_item_turret(id) and Economy.amount(payer, id) <= 0:
 		return false
 	return Economy.can_afford(payer, {&"scrap": Perks.build_cost(multiplayer.get_unique_id(), id)}) # Perk: build discounts
 
@@ -354,7 +357,7 @@ func build_info(icon: Texture2D) -> Dictionary:
 		elif not BuildManager.instance.is_free_for(id, _cliff, _cell):
 			status = "That spot is taken"
 		else:
-			status = "None left: craft another at the Workshop" if CraftTable.is_craft(id) else "Not enough scrap"
+			status = "None left: craft another at the Workshop" if CraftTable.is_item_turret(id) else "Not enough scrap"
 	elif not _ghost.visible:
 		status = "Aim at an open spot on your plateau"
 	return {
@@ -376,7 +379,7 @@ func _sell_hint() -> String:
 	var id: Variant = n.get("build_id") if n.get("build_id") != null else (n.get("def").get("id") if n.get("def") != null else null)
 	if id == null:
 		return "Sell"
-	if CraftTable.is_craft(id):
+	if CraftTable.is_item_turret(id):
 		return "Pick Up %s" % Defs.name_of(id)
 	return "Sell %s +%d" % [Defs.name_of(id), BuildManager.instance.sell_price(multiplayer.get_unique_id(), n)]
 

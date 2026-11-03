@@ -289,6 +289,8 @@ func _take(peer: int, site_index: int, slot: int) -> bool:
 		Economy.notify(peer, "A page from Doc Whitlow's journal: \"%s\"" % SitePlan.journal_line(run_seed + site_index * 7 + gen_wave))
 	elif l.look == &"blueprint":
 		Economy.notify(peer, "%s: the parts for one, packed in the tube. Craft it at the Workshop." % l.label)
+	elif l.look == &"amber":
+		Economy.notify(peer, "Hive amber: %d chips, warm to the touch. It's yours alone; Lucky Moreau on the airship buys with nothing else." % int(l.items.get(AmberRules.ITEM, 0)))
 	elif l.look == &"specimen":
 		Economy.notify(peer, "A specimen jar for Doc. The airship market pays well for them.")
 	elif l.look == &"trophy":
