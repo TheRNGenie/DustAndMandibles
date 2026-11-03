@@ -137,10 +137,26 @@ func _build_ui() -> void:
 	col.add_theme_constant_override("separation", 12)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	page.add_child(col)
+	# The column scrolls only if a short screen can't fit the lobby.
+	var page_scroll := ScrollContainer.new()
+	page_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	page_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page_scroll.follow_focus = true
+	page.add_child(page_scroll)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page_scroll.add_child(col)
 
 	_name_edit = _line_edit("Your name", "Rancher")
-	col.add_child(_name_edit)
+	var name_row := HBoxContainer.new() # a caption, so the field never floats unlabelled
+	name_row.add_theme_constant_override("separation", 10)
+	var name_cap := _label("Rider Name", 16, Color(0, 0, 0, 0))
+	name_cap.theme_type_variation = "SoftInkLabel"
+	name_cap.autowrap_mode = TextServer.AUTOWRAP_OFF
+	name_cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	name_row.add_child(name_cap)
+	_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_row.add_child(_name_edit)
+	col.add_child(name_row)
 
 	_connect_box = VBoxContainer.new()
 	_connect_box.add_theme_constant_override("separation", 10)
@@ -190,7 +206,7 @@ func _build_ui() -> void:
 	_connect_box.add_child(quit_btn)
 
 	_lobby_box = VBoxContainer.new()
-	_lobby_box.add_theme_constant_override("separation", 8)
+	_lobby_box.add_theme_constant_override("separation", 6)
 	col.add_child(_lobby_box)
 	# Invite: the host's code (InviteCode) with a copy button, and where it works.
 	_invite_card = UiStyle.panel("CardPanel")
@@ -251,7 +267,11 @@ func _build_ui() -> void:
 		if not NetworkManager.set_map(MapDef.IDS[i]):
 			_status.text = "Too many players in the lobby for that map."
 		_refresh())
-	_map_row = UiStyle.row("Map", _map_pick)
+	# Host settings on one row: the map, then CPU teammates.
+	_map_row = HBoxContainer.new()
+	_map_row.add_theme_constant_override("separation", 8)
+	_map_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_map_row.add_child(_map_pick)
 	_lobby_box.add_child(_map_row)
 	# Host: optional CPU teammates for the empty cliffs.
 	_cpu_pick = OptionButton.new()
@@ -259,17 +279,27 @@ func _build_ui() -> void:
 		_cpu_pick.add_item(label)
 	_cpu_pick.selected = NetworkManager.cpu_quality + 1
 	_cpu_pick.item_selected.connect(func(i: int) -> void: NetworkManager.set_cpu(i - 1))
-	_lobby_box.add_child(_cpu_pick)
+	_cpu_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_map_row.add_child(_cpu_pick)
 	_solo_btn = _button("Start Alone (Testing)")
+	_solo_btn.custom_minimum_size.y = 46
 	_solo_btn.pressed.connect(func() -> void: NetworkManager.start_game())
 	_lobby_box.add_child(_solo_btn)
-	_lobby_box.add_child(_ledger_button()) # Perk
+	# The lobby's lesser buttons share a row, a size down from the title screen's.
+	var lobby_row := HBoxContainer.new()
+	lobby_row.add_theme_constant_override("separation", 8)
+	_lobby_box.add_child(lobby_row)
+	var ledger_btn := _ledger_button() # Perk
 	var leave_btn := _button("Leave")
 	leave_btn.pressed.connect(func() -> void:
 		RunSave.pending = {}
 		NetworkManager.leave()
 		_show_connect(""))
-	_lobby_box.add_child(leave_btn)
+	for b: Button in [ledger_btn, leave_btn]:
+		b.custom_minimum_size.y = 42
+		b.add_theme_font_size_override("font_size", UiStyle.ts(18))
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		lobby_row.add_child(b)
 
 	_status = _label("", 15, Color(0, 0, 0, 0))
 	_status.theme_type_variation = "SoftInkLabel"
@@ -441,7 +471,7 @@ func _refresh() -> void:
 	_cpu_pick.selected = NetworkManager.cpu_quality + 1
 	_map_row.visible = multiplayer.is_server()
 	_map_pick.selected = MapDef.IDS.find(NetworkManager.map_id)
-	_map_title.text = "%s  -  %d Cliffs" % [map.display_name, map.count()]
+	_map_title.text = "%s  ·  %d Cliffs" % [map.display_name, map.count()]
 	_map_label.text = map.blurb
 
 
@@ -460,28 +490,26 @@ func _fill_roster() -> void:
 	var map := MapDef.by_id(NetworkManager.map_id) # Maps: rows by cliff name
 	for id: int in NetworkManager.players:
 		var p: Dictionary = NetworkManager.players[id]
-		var tick := "ready" if bool(p["ready"]) else "not ready"
+		var tick := "Ready" if bool(p["ready"]) else "Not Ready"
 		_roster_box.add_child(_roster_row(Brand.mark_of(id), "%s: %s" % [map.name_of(int(p["cliff"])), str(p["name"])],
 				"%s%s%s" % [tick, Perks.roster_note(id), NetworkManager.ping_note(id)], bool(p["ready"])))
 	if NetworkManager.has_cpu():
 		var free := NetworkManager.cpu_cliffs()
 		for i in free.size():
 			_roster_box.add_child(_roster_row(Brand.mark_of(Brand.CPU_KEY), "%s: %s" % [map.name_of(free[i]), CpuTeammate.NAMES[mini(i, CpuTeammate.NAMES.size() - 1)]],
-					"CPU, %s  -  ready" % NetworkManager.CPU_QUALITY_NAMES[NetworkManager.cpu_quality], true))
+					"CPU, %s  ·  Ready" % NetworkManager.CPU_QUALITY_NAMES[NetworkManager.cpu_quality], true))
 	elif NetworkManager.players.size() < NetworkManager.max_players():
 		var waiting := NetworkManager.max_players() - NetworkManager.players.size()
-		var w := _label("(waiting for a partner...)" if waiting == 1 else "(room for %d more...)" % waiting, 15, Color(0, 0, 0, 0))
-		w.theme_type_variation = "SoftInkLabel"
-		_roster_box.add_child(w)
+		_roster_box.add_child(UiStyle.status("Waiting for a partner" if waiting == 1 else "Room for %d more riders" % waiting, "info", 15))
 	for c in _brand_row.get_children():
 		c.queue_free()
 	_brand_row.add_child(BrandMark.make(Brand.local if Brand.has_chosen() else BrandTable.NONE, 30, UiStyle.ink()))
-	var mine := _label("Your brand: %s" % (BrandTable.name_of(Brand.local) if Brand.has_chosen() else "not chosen yet"), 16, Color(0, 0, 0, 0))
+	var mine := _label("Your Brand: %s" % (BrandTable.name_of(Brand.local) if Brand.has_chosen() else "Not Chosen Yet"), 16, Color(0, 0, 0, 0))
 	mine.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	mine.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_brand_row.add_child(mine)
 	var change := _button("Change Brand" if Brand.has_chosen() else "Choose Brand")
-	change.custom_minimum_size = Vector2(170, 44)
+	change.custom_minimum_size = Vector2(170, 40)
 	change.add_theme_font_size_override("font_size", 16)
 	change.disabled = not Brand.editable()
 	change.pressed.connect(func() -> void: _brands.open())
@@ -522,12 +550,12 @@ func _line_edit(placeholder: String, value: String) -> LineEdit:
 	e.placeholder_text = placeholder
 	e.text = value
 	e.custom_minimum_size.y = 40
-	e.add_theme_font_size_override("font_size", 18)
+	e.add_theme_font_size_override("font_size", UiStyle.ts(18))
 	return e
 
 
 func _button(text: String) -> Button:
 	var b := UiStyle.button(text) # Theme: big title-screen buttons
-	b.custom_minimum_size.y = 56
-	b.add_theme_font_size_override("font_size", 22)
+	b.custom_minimum_size.y = 50
+	b.add_theme_font_size_override("font_size", UiStyle.ts(22))
 	return b

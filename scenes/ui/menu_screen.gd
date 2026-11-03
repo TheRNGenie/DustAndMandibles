@@ -10,6 +10,7 @@ extends CanvasLayer
 ##   menu_title() -> String            menu_tagline() -> String
 ##   menu_tabs() -> Array[String]      menu_items(tab) -> Array[Dictionary]
 ##   menu_press(id, action)            menu_build_body(parent: Control, screen)
+##   menu_stock() -> [[resource, amount], ...]  (header chips; scrap and chitin if absent)
 ##   signal menu_changed (or ui_changed) to redraw.
 ## Item dictionaries: {id, name, desc, icon (StringName for ItemIcon or Texture2D),
 ##   price (String), price_ok (bool), note (String), disabled (String reason),
@@ -35,6 +36,8 @@ var _tabs: HBoxContainer
 var _body: VBoxContainer
 var _scroll: ScrollContainer
 var _dirty := false
+var _hint_box: HBoxContainer
+var _hint_tabs := -1
 
 
 func _ready() -> void:
@@ -47,7 +50,7 @@ func _ready() -> void:
 
 
 func is_open() -> bool:
-	return _root.visible
+	return UiStyle.shown(_root)
 
 
 func open(p: Object) -> void:
@@ -58,7 +61,7 @@ func open(p: Object) -> void:
 	for sig: String in ["menu_changed", "ui_changed"]:
 		if provider.has_signal(sig) and not provider.is_connected(sig, _mark_dirty):
 			provider.connect(sig, _mark_dirty)
-	var was_open := _root.visible
+	var was_open := UiStyle.shown(_root)
 	_root.visible = true
 	GameState.menu_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -68,11 +71,11 @@ func open(p: Object) -> void:
 
 
 func close() -> void:
-	if not _root.visible:
+	if not UiStyle.shown(_root):
 		return
 	_disconnect()
 	provider = null
-	_root.visible = false
+	UiStyle.fade_out(_root)
 	GameState.menu_open = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -86,15 +89,105 @@ func _disconnect() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not _root.visible:
+	if not UiStyle.shown(_root):
 		return
 	if event.is_action_pressed("pause_menu") or event.is_action_pressed("interact"):
 		close()
 		get_viewport().set_input_as_handled()
+	elif _nav(event):
+		get_viewport().set_input_as_handled()
+
+
+## Keyboard and controller: arrows / d-pad move between rows and tabs (the first
+## press lands on the first row), PageUp/PageDown or the shoulder buttons switch tabs.
+func _nav(event: InputEvent) -> bool:
+	var step := 0
+	if event is InputEventJoypadButton and event.pressed:
+		match (event as InputEventJoypadButton).button_index:
+			JOY_BUTTON_LEFT_SHOULDER: step = -1
+			JOY_BUTTON_RIGHT_SHOULDER: step = 1
+	if event.is_action_pressed("ui_page_up"):
+		step = -1
+	elif event.is_action_pressed("ui_page_down"):
+		step = 1
+	if step != 0:
+		var n := _tabs.get_children().filter(func(c: Node) -> bool: return not c.is_queued_for_deletion()).size()
+		if n > 1:
+			tab = wrapi(tab + step, 0, n)
+			refresh()
+			_focus_first.call_deferred()
+		return true
+	for a: String in ["ui_up", "ui_down", "ui_left", "ui_right"]:
+		if event.is_action_pressed(a):
+			var f := get_viewport().gui_get_focus_owner()
+			if f == null or not _root.is_ancestor_of(f):
+				_focus_first()
+				return true
+	return false
+
+
+## Focus the first live button in the list (or the selected tab if the list has none).
+func _focus_first() -> void:
+	var b := _first_button(_body)
+	if b == null:
+		var tabs := _tabs.get_children().filter(func(c: Node) -> bool: return not c.is_queued_for_deletion())
+		if tab < tabs.size():
+			b = tabs[tab] as Button
+	if b != null:
+		b.grab_focus()
+
+
+static func _first_button(n: Node) -> Button:
+	for c: Node in n.get_children():
+		if c.is_queued_for_deletion():
+			continue
+		if c is Button and not (c as Button).disabled and (c as Button).focus_mode != Control.FOCUS_NONE:
+			return c as Button
+		var deep := _first_button(c)
+		if deep != null:
+			return deep
+	return null
+
+
+## Where keyboard focus sits, as [area, row, button] so a rebuild can put it back.
+func _focus_path() -> Array:
+	var f := get_viewport().gui_get_focus_owner()
+	if f == null:
+		return []
+	if _tabs.is_ancestor_of(f):
+		return [&"tab", f.get_index(), 0]
+	if not _body.is_ancestor_of(f):
+		return []
+	var row: Node = f
+	while row.get_parent() != _body:
+		row = row.get_parent()
+	return [&"row", row.get_index(), f.get_index()]
+
+
+func _restore_focus(path: Array) -> void:
+	if path.is_empty():
+		return
+	var target: Control = null
+	if path[0] == &"tab":
+		var tabs := _tabs.get_children().filter(func(c: Node) -> bool: return not c.is_queued_for_deletion())
+		if int(path[1]) < tabs.size():
+			target = tabs[int(path[1])] as Control
+	else:
+		var rows := _body.get_children().filter(func(c: Node) -> bool: return not c.is_queued_for_deletion())
+		if rows.is_empty():
+			return
+		var row: Node = rows[mini(int(path[1]), rows.size() - 1)]
+		var buttons: Array = row.find_children("*", "Button", true, false).filter(func(b: Button) -> bool: return not b.disabled)
+		if buttons.is_empty():
+			_focus_first()
+			return
+		target = buttons[mini(int(path[2]), buttons.size() - 1)]
+	if target != null:
+		target.grab_focus()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not _root.visible and not GameState.menu_open and event.is_action_pressed("field_guide"):
+	if not UiStyle.shown(_root) and not GameState.menu_open and event.is_action_pressed("field_guide"):
 		FieldGuide.open()
 		get_viewport().set_input_as_handled()
 
@@ -104,7 +197,7 @@ func _mark_dirty() -> void:
 
 
 func _process(_delta: float) -> void:
-	if not _root.visible:
+	if not UiStyle.shown(_root):
 		return
 	if provider == null or not is_instance_valid(provider):
 		close()
@@ -125,6 +218,7 @@ func refresh() -> void:
 		c.queue_free()
 	var tabs: Array = provider.call("menu_tabs") if provider.has_method("menu_tabs") else []
 	_tabs.visible = not tabs.is_empty()
+	_fill_hints(tabs.size() > 1)
 	for i in tabs.size():
 		var b := tab_button(str(tabs[i]), i == tab)
 		var index := i
@@ -133,6 +227,7 @@ func refresh() -> void:
 			refresh())
 		_tabs.add_child(b)
 	var keep_scroll := _scroll.scroll_vertical
+	var keep_focus := _focus_path()
 	for c in _body.get_children():
 		c.queue_free()
 	if provider.has_method("menu_build_body"):
@@ -144,6 +239,21 @@ func refresh() -> void:
 		if items.is_empty():
 			_body.add_child(UiStyle.status("Nothing here right now.", "info", 16))
 	_scroll.set_deferred("scroll_vertical", keep_scroll)
+	if not keep_focus.is_empty():
+		_restore_focus.call_deferred(keep_focus)
+
+
+## Footer keycaps: close, and how to switch tabs when there are some.
+func _fill_hints(with_tabs: bool) -> void:
+	if _hint_tabs == int(with_tabs):
+		return
+	_hint_tabs = int(with_tabs)
+	for c in _hint_box.get_children():
+		c.queue_free()
+	var pairs: Array = [[KeyHints.key_for("interact") + "/Esc", "Close"], ["Arrows", "Move"]]
+	if with_tabs:
+		pairs.append(["PgUp/PgDn", "Switch Tab"])
+	_hint_box.add_child(UiStyle.paper_hints(pairs))
 
 
 ## Your stock as chips on the header strap ("[swatch] 370 Scrap").
@@ -151,6 +261,11 @@ func _fill_money() -> void:
 	for c in _money.get_children():
 		_money.remove_child(c)
 		c.queue_free()
+	# A provider may show its own stock instead: menu_stock() -> [[resource, amount], ...].
+	if provider != null and provider.has_method("menu_stock"):
+		for pair: Array in provider.call("menu_stock"):
+			_money.add_child(UiStyle.stock_chip(StringName(str(pair[0])), int(pair[1])))
+		return
 	var player := _local_player()
 	if player == null:
 		return
@@ -210,6 +325,7 @@ func _build() -> void:
 	_scroll = ScrollContainer.new()
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.follow_focus = true
 	inner.add_child(_scroll)
 	_body = VBoxContainer.new()
 	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -217,9 +333,9 @@ func _build() -> void:
 	_scroll.add_child(_body)
 	var footer := HBoxContainer.new()
 	inner.add_child(footer)
-	var hint := UiStyle.paper_hints([[KeyHints.key_for("interact") + "/Esc", "Close"]])
-	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	footer.add_child(hint)
+	_hint_box = HBoxContainer.new()
+	_hint_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer.add_child(_hint_box)
 	var close_b := wood_button("Close")
 	close_b.pressed.connect(close)
 	footer.add_child(close_b)

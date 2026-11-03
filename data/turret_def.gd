@@ -121,3 +121,32 @@ func role_line() -> String:
 	if has_upkeep():
 		parts.append("Upkeep: %s a shot" % upkeep_text())
 	return "   ·   ".join(parts)
+
+
+## The key numbers in one line, like a gun's (build menu, workshop, field guide):
+## "Damage 6  ·  6.7 Shots/s  ·  Range 80 m  ·  Splash 3 m".
+func stat_line(tier: int = 0) -> String:
+	var dmg := damage_at(tier)
+	var parts: PackedStringArray = ["Damage %s" % _num(dmg)]
+	var every := interval_at(tier)
+	parts.append(("%s Shots/s" % _num(1.0 / every)) if every < 1.0 else ("1 Shot / %s s" % _num(every)))
+	parts.append("Range %d m" % int(roundf(range_at(tier))))
+	match effect:
+		Effect.KNOCKBACK: parts.append("Knocks Bugs Off")
+		Effect.BURN: parts.append("Burning Patch %s m" % _num(effect_size))
+		Effect.SPLASH: parts.append("Splash %s m" % _num(effect_size))
+		Effect.PIN: parts.append("Pins %s s" % _num(effect_size))
+	if armor_pierce:
+		parts.append("Pierces Armour")
+	if not is_equal_approx(heavy_mult, 1.0):
+		parts.append("x%s vs Heavy" % _num(heavy_mult))
+	if anti_air:
+		parts.append("Fliers Only")
+	return "  ·  ".join(parts)
+
+
+## 6, 6.5, 0.3: whole numbers plain, the rest to one decimal.
+static func _num(v: float) -> String:
+	if is_equal_approx(v, roundf(v)):
+		return str(int(roundf(v)))
+	return ("%.2f" % v).trim_suffix("0") if v < 1.0 else "%.1f" % v

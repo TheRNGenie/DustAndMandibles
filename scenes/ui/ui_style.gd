@@ -693,10 +693,47 @@ static func fade_in(node: CanvasItem) -> void:
 	var old: Variant = node.get_meta(&"_fade") if node.has_meta(&"_fade") else null
 	if old is Tween and (old as Tween).is_valid():
 		(old as Tween).kill()
+	node.remove_meta(&"_closing")
+	if node is Control:
+		(node as Control).mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_INHERITED
 	node.modulate.a = 0.0
 	var tw := node.create_tween().set_ignore_time_scale().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tw.tween_property(node, "modulate:a", 1.0, FADE_TIME).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	node.set_meta(&"_fade", tw)
+
+
+## The matching close: the menu counts as closed at once (shown() is false, the
+## mouse passes through it) and only its picture fades out, then it hides.
+static func fade_out(node: CanvasItem) -> void:
+	if node == null:
+		return
+	var old: Variant = node.get_meta(&"_fade") if node.has_meta(&"_fade") else null
+	if old is Tween and (old as Tween).is_valid():
+		(old as Tween).kill()
+	if not node.is_inside_tree() or not node.visible:
+		node.visible = false
+		node.modulate.a = 1.0
+		return
+	node.set_meta(&"_closing", true)
+	if node is Control:
+		(node as Control).mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_DISABLED
+		var f := node.get_viewport().gui_get_focus_owner()
+		if f != null and (node as Control).is_ancestor_of(f):
+			f.release_focus()
+	var tw := node.create_tween().set_ignore_time_scale().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tw.tween_property(node, "modulate:a", 0.0, FADE_TIME * 0.8).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func() -> void:
+		node.visible = false
+		node.modulate.a = 1.0
+		node.remove_meta(&"_closing")
+		if node is Control:
+			(node as Control).mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_INHERITED)
+	node.set_meta(&"_fade", tw)
+
+
+## Open and not on its way out (a closing menu is still drawn while it fades).
+static func shown(node: CanvasItem) -> bool:
+	return node != null and node.visible and not node.has_meta(&"_closing")
 
 
 ## "60 Scrap", "1 Part", "5 Chitin": a count and its resource, the same everywhere.

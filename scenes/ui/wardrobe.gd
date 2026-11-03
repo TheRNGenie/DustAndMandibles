@@ -29,6 +29,11 @@ func menu_tagline() -> String:
 	return "Dress your crash-test dummy for the frontier. Your partner sees it too."
 
 
+## The header shows your Notches (what locked looks cost), not scrap and chitin.
+func menu_stock() -> Array:
+	return [[&"notches", Perks.profile.brands]]
+
+
 func menu_build_body(body: Control, _screen: MenuScreen) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)

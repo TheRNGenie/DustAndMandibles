@@ -11,7 +11,9 @@ var cliff_id: int = 0
 var _feed: VBoxContainer
 var _card: HudPromptCard
 var _prompt_text := ""
-var _over: PanelContainer
+var _over: Control
+var _over_strap: PanelContainer
+var _over_scroll: ScrollContainer
 var _paper: NewspaperFront
 var _over_label: Label
 var _keep_going: Button
@@ -40,36 +42,64 @@ func _ready() -> void:
 	_card = HudPromptCard.new()
 	add_child(_card)
 
-	_over = PanelContainer.new()
-	_over.add_theme_stylebox_override("panel", UiStyle.poster())
-	_over.set_anchors_preset(Control.PRESET_CENTER)
-	_over.offset_left = -280
-	_over.offset_right = 280
-	_over.offset_top = -120
-	_over.offset_bottom = 120
+	# End of the run: the shared menu frame (scrim, strap, paper, footer buttons)
+	# around the newsprint front page and the Notches report.
+	var over_layer := CanvasLayer.new()
+	over_layer.layer = 40 # over the rest of the HUD, under the menus
+	add_child(over_layer)
+	_over = Control.new()
+	_over.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_over.visible = false
 	_over.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_over)
+	over_layer.add_child(_over)
+	_over.add_child(UiStyle.scrim())
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_over.add_child(center)
+	var frame := UiStyle.panel("FramePanel")
+	center.add_child(frame)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 0)
+	frame.add_child(outer)
+	_over_strap = UiStyle.strap("The Run Is Over", "", 30)
+	outer.add_child(_over_strap)
+	var card := UiStyle.panel("PaperPanel")
+	outer.add_child(card)
+	var inner := VBoxContainer.new()
+	inner.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
+	card.add_child(inner)
+	_over_scroll = ScrollContainer.new()
+	_over_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	inner.add_child(_over_scroll)
 	var col := VBoxContainer.new()
-	_over.add_child(col)
+	col.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_over_scroll.add_child(col)
 	_over_label = UiStyle.label("", 26)
 	_over_label.visible = false # the newspaper carries the result now
 	col.add_child(_over_label)
 	_paper = NewspaperFront.new() # end-of-run front page (RunStats)
+	_paper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	col.add_child(_paper)
 	RunStats.reset() # a new world = a new run
 	col.add_child(BrandsReport.new()) # Perk: Brands earned this run
+	Perks.run_banked.connect(func(_r: Dictionary) -> void: _fit_over.call_deferred())
+	_over.resized.connect(func() -> void: _fit_over.call_deferred())
+	var footer := HBoxContainer.new()
+	footer.alignment = BoxContainer.ALIGNMENT_END
+	footer.add_theme_constant_override("separation", UiStyle.GAP_ROW)
+	inner.add_child(footer)
 	# After a win: keep the waves coming past the last one (host decides).
-	_keep_going = UiStyle.button("Keep going (endless)")
+	_keep_going = MenuScreen.wood_button("Keep Going (Endless)")
 	_keep_going.visible = false
 	_keep_going.pressed.connect(func() -> void: GameState.continue_endless())
-	col.add_child(_keep_going)
-	var back := UiStyle.button("Back to main menu")
+	footer.add_child(_keep_going)
+	var back := MenuScreen.wood_button("Back to Main Menu")
 	back.pressed.connect(func() -> void:
 		NetworkManager.leave()
 		GameState.reset()
 		get_tree().change_scene_to_file(NetworkManager.MENU_SCENE))
-	col.add_child(back)
+	footer.add_child(back)
 
 	_boss_box = VBoxContainer.new()
 	_boss_box.anchor_left = 0.5
@@ -81,7 +111,7 @@ func _ready() -> void:
 	add_child(_boss_box)
 	_boss_box.add_theme_constant_override("separation", 2)
 	for k in 2:
-		var label := _outlined("", 20, Palette.TEAM_WEST.lightened(0.2))
+		var label := _outlined("", 20, UiStyle.hud_c("bad"))
 		_boss_box.add_child(label)
 		var bar := UiStyle.bar(Palette.TEAM_WEST if k == 0 else Palette.TEAM_WEST.lerp(Palette.GLOW_YELLOW, 0.35),
 				Vector2(640, 22 if k == 0 else 18)) # one bar style everywhere
@@ -89,7 +119,7 @@ func _ready() -> void:
 		_boss_labels.append(label)
 		_boss_bars.append(bar)
 	WaveDirector.wave_announced.connect(_on_wave_announced)
-	Economy.notice.connect(func(t: String) -> void: add_line(t, Palette.GLOW_YELLOW))
+	Economy.notice.connect(func(t: String) -> void: add_line(t, UiStyle.c("title")))
 	GameState.game_over.connect(_on_game_over)
 	GameState.phase_changed.connect(func(p: GameState.Phase) -> void:
 		if p == GameState.Phase.WARNING:
@@ -99,11 +129,11 @@ func _ready() -> void:
 			_over.visible = false
 			GameState.menu_open = false
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-			add_line("Endless! The waves keep coming. How long can you hold?", Palette.GLOW_YELLOW)
+			add_line("Endless! The waves keep coming. How long can you hold?", UiStyle.c("title"))
 		)
 	GameState.weather_changed.connect(func(k: int) -> void:
 		if k != Weather.Kind.CLEAR or GameState.phase == GameState.Phase.WARNING:
-			add_line(Weather.BLURBS[k], Palette.TEAM_WEST if k == Weather.Kind.BLOOD_MOON else (Palette.SKY_TOP if k != Weather.Kind.SNOW else Palette.BONE)))
+			add_line(Weather.BLURBS[k], UiStyle.hud_c("bad") if k == Weather.Kind.BLOOD_MOON else (Palette.SKY_TOP if k != Weather.Kind.SNOW else UiStyle.c("hud"))))
 
 
 func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void:
@@ -111,7 +141,7 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 	_build_mode = player.build_mode
 	player.vitals.prompt_changed.connect(func(t: String) -> void: _prompt_text = t)
 	bugs.bug_killed.connect(_on_bug_killed)
-	builds.structure_event.connect(func(t: String) -> void: add_line(t, Palette.ROCK_C))
+	builds.structure_event.connect(func(t: String) -> void: add_line(t, Color(UiStyle.c("hud"), 0.8)))
 
 
 func _process(_delta: float) -> void:
@@ -149,15 +179,17 @@ func _update_boss_bar() -> void:
 		var boss := bosses[k]
 		if not _boss_seen.has(boss.get_instance_id()):
 			_boss_seen[boss.get_instance_id()] = true
-			add_line(boss.def.boss_tip if boss.def.boss_tip != "" else "%s is coming!" % boss.def.display_name.to_upper(), Palette.TEAM_WEST)
+			add_line(boss.def.boss_tip if boss.def.boss_tip != "" else "%s Is Coming!" % UiStyle.tc(boss.def.display_name), UiStyle.hud_c("bad"))
 		_boss_bars[k].max_value = boss.health.max_hp
 		_boss_bars[k].value = boss.health.hp
 		var status := boss.boss.hud_status() if boss.boss != null else ""
-		_boss_labels[k].text = "%s  -  %s%s" % [boss.def.display_name.to_upper(), WorldLayout.map().name_of(boss.cliff_id), # Maps:
-				("  -  " + status) if status != "" else ""]
+		_boss_labels[k].text = "%s  ·  %s%s" % [UiStyle.tc(boss.def.display_name), WorldLayout.map().name_of(boss.cliff_id), # Maps:
+				("  ·  " + status) if status != "" else ""]
 
 
-func add_line(text: String, color: Color = Palette.BONE) -> void:
+func add_line(text: String, color: Color = Color(0, 0, 0, 0)) -> void:
+	if color.a == 0.0:
+		color = UiStyle.c("hud")
 	# The same line again (e.g. a turret on a killing spree): bump a "x3" count
 	# on the last line instead of stacking copies.
 	if _feed.get_child_count() > 0:
@@ -206,7 +238,7 @@ func _fade_later(l: Label) -> void:
 
 func _on_bug_killed(bug_name: String, bug_cliff: int, source: String, source_cliff: int, loot: Dictionary) -> void:
 	if source_cliff == -2:
-		add_line(bug_name, Palette.ROCK_C) # a plain announcement (e.g. a bandit escaped)
+		add_line(bug_name, Color(UiStyle.c("hud"), 0.8)) # a plain announcement (e.g. a bandit escaped)
 		return
 	var scrap := int(loot.get(&"scrap", 0))
 	RunStats.note_kill(bug_name, source, scrap) # for the end-of-run newspaper
@@ -219,7 +251,7 @@ func _on_bug_killed(bug_name: String, bug_cliff: int, source: String, source_cli
 	else:
 		text = "A %s went down (+%d scrap)" % [bug_name, scrap]
 	var mine := source_cliff == cliff_id or bug_cliff == cliff_id
-	add_line(text, Palette.GLOW_YELLOW if mine else Palette.BONE)
+	add_line(text, UiStyle.c("title") if mine else UiStyle.c("hud"))
 
 
 func _on_wave_announced(heavy_cliff: int, west_share: float, lane_counts: Array) -> void:
@@ -228,15 +260,33 @@ func _on_wave_announced(heavy_cliff: int, west_share: float, lane_counts: Array)
 	if heavy_cliff >= 0:
 		var pct := maxf(west_share, 1.0 - west_share) if m.count() == 2 else west_share
 		heavy = "%s gets %d%%" % [m.name_of(heavy_cliff), int(roundf(pct * 100.0))]
-	add_line("Dust on the horizon! %s." % heavy, Palette.GLOW_YELLOW)
+	add_line("Dust on the horizon! %s." % heavy, UiStyle.c("title"))
 
 
 func _on_game_over(won: bool, reason: String) -> void:
 	_over_label.text = ("YOU WIN!\n" if won else "THE CANYON IS LOST\n") + reason
 	_paper.show_run(won, reason)
+	(_over_strap.find_child("Title", true, false) as Label).text = "The Canyon Held" if won else "The Canyon Fell"
+	_keep_going.visible = won and multiplayer.is_server() # the host decides whether to ride on
 	_over.visible = true
+	UiStyle.fade_in(_over)
+	_fit_over.call_deferred()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	GameState.menu_open = true
+
+
+## The front page scrolls only when the screen is too short for it.
+func _fit_over() -> void:
+	if not _over.visible:
+		return
+	# Wrapped lines only know their height once laid out at their real width.
+	for i in 2:
+		await get_tree().process_frame
+	var content := (_over_scroll.get_child(0) as Control).get_combined_minimum_size()
+	var frame := _over_strap.get_parent().get_parent() as Control
+	var chrome := frame.get_combined_minimum_size().y - _over_scroll.custom_minimum_size.y
+	var room := _over.size.y - 48.0 - chrome
+	_over_scroll.custom_minimum_size = Vector2(content.x, clampf(content.y, 120.0, maxf(room, 120.0)))
 
 
 func _cliff_owner_name(cid: int) -> String:

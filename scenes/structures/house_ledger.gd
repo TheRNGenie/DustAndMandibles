@@ -51,9 +51,9 @@ func menu_title() -> String:
 
 func menu_tagline() -> String:
 	var cid := home.cliff_id
-	return "House: %d / %d HP   |   %d floor%s, %s, %s" % [int(GameState.homestead_hp[cid]), int(GameState.homestead_max[cid]),
-			home.floors, "" if home.floors == 1 else "s", "boarded up" if home.boarded else "windows open",
-			"reinforced" if home.reinforced else "plain walls"]
+	return "House %d / %d HP  ·  %d Floor%s  ·  %s  ·  %s" % [int(GameState.homestead_hp[cid]), int(GameState.homestead_max[cid]),
+			home.floors, "" if home.floors == 1 else "s", "Boarded Up" if home.boarded else "Windows Open",
+			"Reinforced" if home.reinforced else "Plain Walls"]
 
 
 func menu_items(_tab: int) -> Array:

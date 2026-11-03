@@ -142,9 +142,11 @@ func menu_items(tab: int) -> Array:
 			var have := Economy.amount(cid, k)
 			var p := float(_prices.get(k, 0.0))
 			var base := float(MarketPrices.BASE[k])
-			var trend := "  - paying well!" if p > base * 1.15 else ("  - flooded, low price" if p < base * 0.85 else "")
+			var trend := " Paying well right now." if p > base * 1.15 else (" Flooded: the price is low." if p < base * 0.85 else "")
+			# Selling isn't about affording: the price never gets the "can't afford" cross.
 			out.append({"id": k, "name": NAMES[k], "icon": k, "desc": "You have %d.%s" % [have, trend],
-					"price": _price_text(k, p), "price_ok": have > 0, "disabled": "" if have > 0 else "Nothing to sell yet.",
+					"price": _price_text(k, p) + " Each", "price_ok": true,
+					"disabled": "" if have > 0 else "Nothing to sell yet.", "disabled_kind": "info",
 					"buttons": [[&"sell1", "Sell 1"], [&"sellall", "Sell all"]]})
 	else:
 		for s: StringName in SEEDS:

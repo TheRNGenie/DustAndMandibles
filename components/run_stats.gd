@@ -65,7 +65,7 @@ static func _top(d: Dictionary) -> Array:
 ## The front-page headline for a run that ended on `wave`.
 static func headline(won: bool, wave: int, map_name: String) -> String:
 	if won:
-		return "RANCHERS HOLD %s THROUGH %d WAVES" % [map_name.to_upper(), wave]
+		return "RANCHERS HOLD %s THROUGH %d WAVE%s" % [map_name.to_upper(), wave, "" if wave == 1 else "S"]
 	if wave <= 1:
 		return "%s FALLS ON THE FIRST NIGHT" % map_name.to_upper()
 	return "%s FALLS AFTER %d WAVES" % [map_name.to_upper(), wave]

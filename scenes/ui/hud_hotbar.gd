@@ -41,11 +41,11 @@ func _ready() -> void:
 		icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		icon.host = self
 		stack.add_child(icon)
-		var key := UiStyle.label(str((i + 1) % 10), 12, Palette.GLOW_YELLOW) # the 10th slot is key 0
+		var key := UiStyle.label(str((i + 1) % 10), 12, UiStyle.c("title")) # the 10th slot is key 0
 		key.autowrap_mode = TextServer.AUTOWRAP_OFF
 		key.position = Vector2(2, -2)
 		stack.add_child(key)
-		var count := UiStyle.label("", 12, Palette.BONE)
+		var count := UiStyle.label("", 12, UiStyle.c("hud"))
 		count.autowrap_mode = TextServer.AUTOWRAP_OFF
 		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		count.anchor_left = 1.0

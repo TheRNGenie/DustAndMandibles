@@ -63,7 +63,7 @@ func _show() -> void:
 	col.add_theme_constant_override("separation", 4)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(col)
-	var head := KeyHints.text("TOP GUNS  ·  %d bugs down" % _total, 13, Palette.BONE.darkened(0.25))
+	var head := KeyHints.text("Top Guns  ·  %d Bugs Down" % _total, 14, UiStyle.c("hud").darkened(0.2))
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(head)
 	var names := _by_source.keys()
@@ -74,20 +74,22 @@ func _show() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var l := KeyHints.text(n, 16, Palette.GLOW_YELLOW if i == 0 else Palette.BONE)
+		var lead := UiStyle.c("title") if i == 0 else UiStyle.c("hud")
+		var l := KeyHints.text(UiStyle.tc(n), 16, lead)
 		l.custom_minimum_size.x = 200
 		row.add_child(l)
-		# A little bar for each, scaled to the best.
-		var bar := ColorRect.new()
-		bar.color = Color(Palette.GLOW_YELLOW if i == 0 else Palette.BONE, 0.8)
-		bar.custom_minimum_size = Vector2(160.0 * float(_by_source[n]) / best, 10)
+		# The shared bar, scaled to the best gun.
+		var bar := UiStyle.bar(lead, Vector2(160, 10), best)
+		bar.value = int(_by_source[n])
 		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(bar)
-		row.add_child(KeyHints.text(str(_by_source[n]), 16, Palette.BONE))
+		var num := KeyHints.text(str(_by_source[n]), 16, UiStyle.c("hud"))
+		num.custom_minimum_size.x = 36
+		num.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(num)
 		col.add_child(row)
 	if _saved_by_me + _saved_by_them > 0:
-		var s := KeyHints.text("Your turrets saved your partner %d times  ·  theirs saved you %d" % [_saved_by_me, _saved_by_them], 14, Palette.ROCK_C.lightened(0.35))
+		var s := KeyHints.text("Your Turrets Saved Your Partner %d Times  ·  Theirs Saved You %d" % [_saved_by_me, _saved_by_them], 14, UiStyle.c("hud").darkened(0.15))
 		s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(s)
 	visible = true

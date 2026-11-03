@@ -17,9 +17,9 @@ const PART_PREFIX := "part_"
 
 ## Mounts: what the gun sits on. hp/turn are multipliers or overrides on the barrel's base.
 const MOUNTS: Dictionary = {
-	&"post": {"name": "Post", "desc": "A plain timber post: steady and sturdy.", "hp": 1.0, "turn": 1.0, "range": 1.0, "pitch": 0.0},
-	&"swivel": {"name": "Swivel", "desc": "A greased swivel: turns twice as fast, a little flimsy.", "hp": 0.8, "turn": 2.0, "range": 0.95, "pitch": 0.0},
-	&"tripod": {"name": "Tripod", "desc": "An iron tripod: tough, slow to turn, aims further down the wall.", "hp": 1.7, "turn": 0.6, "range": 1.0, "pitch": 12.0},
+	&"post": {"name": "Post", "desc": "A plain timber post: steady, no changes to the barrel.", "hp": 1.0, "turn": 1.0, "range": 1.0, "pitch": 0.0},
+	&"swivel": {"name": "Swivel", "desc": "A greased swivel: turns 2x as fast, 20% less HP, 5% less range.", "hp": 0.8, "turn": 2.0, "range": 0.95, "pitch": 0.0},
+	&"tripod": {"name": "Tripod", "desc": "An iron tripod: +70% HP, turns at 60% speed, aims 12° further down the wall.", "hp": 1.7, "turn": 0.6, "range": 1.0, "pitch": 12.0},
 }
 
 ## Barrels: how it shoots. These set the base stats.
@@ -40,10 +40,10 @@ const BARRELS: Dictionary = {
 
 ## Loads: what it fires. These change the effect.
 const LOADS: Dictionary = {
-	&"lead": {"name": "Lead", "word": "", "desc": "Plain lead: no change.", "color": Color("#8A8F96")},
-	&"explosive": {"name": "Explosive", "word": "Dynamite", "desc": "Every hit bursts: small splash damage around it.", "color": Color("#D8572A")},
-	&"fire": {"name": "Fire", "word": "Brush", "desc": "Sets the wall alight: leaves a burning patch.", "color": Color("#F2A33A")},
-	&"acid": {"name": "Acid", "word": "Etching", "desc": "Eats armour: pierces plates, +15% damage.", "color": Color("#8BC34A")},
+	&"lead": {"name": "Lead", "word": "", "desc": "Plain lead: no change to the barrel.", "color": Color("#8A8F96")},
+	&"explosive": {"name": "Explosive", "word": "Dynamite", "desc": "Every hit bursts: 1.6 m splash, 15% less damage (cannon shells burst 50% wider).", "color": Color("#D8572A")},
+	&"fire": {"name": "Fire", "word": "Brush", "desc": "Sets the wall alight: a burning patch of 2.2 m or more, 30% less damage.", "color": Color("#F2A33A")},
+	&"acid": {"name": "Acid", "word": "Etching", "desc": "Eats armour: pierces plates, 15% more damage.", "color": Color("#8BC34A")},
 }
 
 ## Every part's stockpile key, for drops and the Parts list.
@@ -73,7 +73,12 @@ static func part_name(key: StringName) -> String:
 
 static func part_desc(key: StringName) -> String:
 	var id := StringName(String(key).substr(PART_PREFIX.length()))
-	for d: Dictionary in [MOUNTS, BARRELS, LOADS]:
+	if BARRELS.has(id):
+		# A barrel sets the base numbers: show them the way the build menu does.
+		var b: Dictionary = BARRELS[id]
+		return "%s
+%s" % [b["desc"], def_for(design_id(&"post", id, &"lead")).stat_line()]
+	for d: Dictionary in [MOUNTS, LOADS]:
 		if d.has(id):
 			return str(d[id]["desc"])
 	return ""

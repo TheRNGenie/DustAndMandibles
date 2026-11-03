@@ -96,6 +96,8 @@ func _set_paused(on: bool) -> void:
 	ready_ids.clear()
 	get_tree().paused = on
 	_root.visible = on
+	if on:
+		UiStyle.fade_in(_root)
 	GameState.menu_open = on
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if on else Input.MOUSE_MODE_CAPTURED
 	var pm := get_parent().get_node_or_null("PauseMenu") as PauseMenu
@@ -149,63 +151,65 @@ func _sync_ready(r: Dictionary) -> void:
 func _build() -> void:
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	UiStyle.fit(_root) # Theme: bigger on 1440p and up
 	add_child(_root)
-	var dim := ColorRect.new()
-	dim.color = Color(0.08, 0.04, 0.03, 0.62)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_root.add_child(dim)
+	_root.add_child(UiStyle.scrim())
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(center)
-	var poster := PanelContainer.new()
-	poster.add_theme_stylebox_override("panel", UiStyle.poster())
-	poster.custom_minimum_size = Vector2(520, 300)
-	center.add_child(poster)
+	var frame := UiStyle.panel("FramePanel")
+	frame.custom_minimum_size = Vector2(540, 0)
+	center.add_child(frame)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 0)
+	frame.add_child(outer)
+	outer.add_child(UiStyle.strap("Paused", "The game waits until every rider presses Unpause.", 30))
+	var card := UiStyle.panel("PaperPanel")
+	outer.add_child(card)
 	var col := VBoxContainer.new()
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	col.add_theme_constant_override("separation", 18)
-	poster.add_child(col)
-	var title := UiStyle.label("PAUSED", 54, Palette.OUTLINE)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(title)
+	col.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
+	card.add_child(col)
 	_boxes = HBoxContainer.new()
 	_boxes.alignment = BoxContainer.ALIGNMENT_CENTER
-	_boxes.add_theme_constant_override("separation", 14)
+	_boxes.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
 	col.add_child(_boxes)
-	_status = UiStyle.label("", 16, Palette.OUTLINE)
-	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(_status)
-	var row := CenterContainer.new()
-	col.add_child(row)
-	var unpause := UiStyle.button("Unpause")
-	unpause.custom_minimum_size = Vector2(200, 48)
+	var footer := HBoxContainer.new()
+	footer.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
+	col.add_child(footer)
+	_status = UiStyle.label("", 16)
+	_status.theme_type_variation = "SoftInkLabel"
+	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer.add_child(_status)
+	var unpause := MenuScreen.wood_button("Unpause")
 	unpause.pressed.connect(press_unpause)
-	row.add_child(unpause)
+	footer.add_child(unpause)
 
 
-## One box per player: red until they press Unpause, then green.
+## One card per player: a tick and "Ready" once they press Unpause, else a cross and "Waiting".
 func _refresh() -> void:
 	for c in _boxes.get_children():
 		c.queue_free()
 	var peers := _peers()
 	for id in peers:
-		var cell := VBoxContainer.new()
-		cell.alignment = BoxContainer.ALIGNMENT_CENTER
-		var box := Panel.new()
-		box.custom_minimum_size = Vector2(76, 76)
-		var sb := StyleBoxFlat.new()
 		var go := ready_ids.has(id)
-		sb.bg_color = Color("#3FAE4A") if go else Color("#C23A2C")
-		sb.border_color = Palette.OUTLINE
-		sb.set_border_width_all(4)
-		sb.set_corner_radius_all(8)
-		box.add_theme_stylebox_override("panel", sb)
-		cell.add_child(box)
-		var name_l := UiStyle.label(_name_of(id), 14, Palette.OUTLINE)
+		var cell := UiStyle.panel("CardPanel")
+		cell.custom_minimum_size = Vector2(120, 0)
+		var v := VBoxContainer.new()
+		v.alignment = BoxContainer.ALIGNMENT_CENTER
+		v.add_theme_constant_override("separation", 4)
+		cell.add_child(v)
+		var m := UiStyle.mark("good" if go else "bad", UiStyle.c("good") if go else UiStyle.c("bad"), 34)
+		m.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		v.add_child(m)
+		var name_l := UiStyle.label(_name_of(id), 16)
 		name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		cell.add_child(name_l)
+		v.add_child(name_l)
+		var state := UiStyle.label("Ready" if go else "Waiting", 14, UiStyle.c("good") if go else UiStyle.c("ink_soft"))
+		state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(state)
 		_boxes.add_child(cell)
-	_status.text = "%d of %d ready to carry on" % [ready_ids.size(), peers.size()]
+	_status.text = "%d of %d Ready to Carry On" % [ready_ids.size(), peers.size()]
 
 
 func _name_of(id: int) -> String:
