@@ -68,7 +68,9 @@ func _ready() -> void:
 	ambience.bugs = bugs
 	ambience.airship = airship
 	add_child(ambience)
-	# Canyon Expeditions: the raid sites on the canyon floor.
+	# Canyon Expeditions: the raid sites on the canyon floor (a Story chapter's
+	# own set piece keeps its tunnel to itself).
+	SitePlan.skip_tunnels = StoryDirector.reserved_tunnels(cliffs)
 	var sites := SiteManager.new()
 	sites.name = "Sites"
 	add_child(sites)

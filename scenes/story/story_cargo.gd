@@ -11,6 +11,8 @@ const FALL_TIME := 4.5
 var kind := "valve"
 var title := "Pump Valve"
 var director: StoryDirector
+## Canyon Expeditions: it lies on the canyon floor and E puts it in your backpack.
+var on_floor := false
 var _body: Node3D
 var _chute: Node3D
 var _beacon: MeshInstance3D
@@ -123,6 +125,9 @@ func delivered() -> void:
 func interact_prompt() -> String:
 	if _carried or _falling:
 		return ""
+	if on_floor:
+		var w := Backpack.weight_of(director.chapter.pack_item()) if director != null else 0
+		return "%s  (weight %d)\nE: %s" % [title, w, "cut it out, into your backpack" if kind == "gland" else "into your backpack"]
 	return "%s\nE: pick it up" % title
 
 

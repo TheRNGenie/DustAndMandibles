@@ -73,6 +73,10 @@ static func roll_seed() -> int:
 
 ## The run's sites: 3-5 of them, each by a different tunnel, every kind at most
 ## once. `tunnels` is [[mouth, out], ...] (CliffBuilder.tunnel(i)).
+## Tunnels no site may take (Story: Down the Hole's main tunnel, Dry Season's wreck).
+static var skip_tunnels: Array[int] = []
+
+
 static func generate(tunnels: Array, run_seed: int) -> Array[Site]:
 	var out: Array[Site] = []
 	if tunnels.is_empty():
@@ -89,6 +93,8 @@ static func generate(tunnels: Array, run_seed: int) -> Array[Site]:
 	for ti: int in order:
 		if out.size() >= want:
 			break
+		if skip_tunnels.has(ti):
+			continue
 		var t: Array = tunnels[ti]
 		var mouth: Vector3 = t[0]
 		var way: Vector3 = t[1]

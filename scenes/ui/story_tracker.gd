@@ -70,11 +70,14 @@ func refresh() -> void:
 			match director.cargo_state:
 				StoryDirector.Cargo.NONE:
 					text = "%s  ·  %s" % [nights, "Watch the sky" if str(ch.objective.get("spawn", "")) == "airship_drop" else "She hasn't shown yet"]
+				StoryDirector.Cargo.PACKED:
+					text = "In %s backpack: get it up out of the canyon" % ("your" if director.carrier == multiplayer.get_unique_id() else director.carrier_name() + "'s")
+					kind = "warn"
 				StoryDirector.Cargo.FALLING:
 					text = "The %s is coming down!" % item
 					kind = "warn"
 				StoryDirector.Cargo.GROUND:
-					text = "On the plateau: follow the light"
+					text = "On the canyon floor: ride down for it" if ch.floor_job() else "On the plateau: follow the light"
 					kind = "warn"
 				StoryDirector.Cargo.CARRIED:
 					text = "%s carrying it: take it to %s" % [director.carrier_name(),
@@ -83,6 +86,13 @@ func refresh() -> void:
 				StoryDirector.Cargo.DELIVERED:
 					text = "%s delivered  ·  %s" % [item, nights]
 					kind = "good"
+		"blast":
+			if director.blast != null:
+				var st: Array = director.blast.status()
+				text = str(st[0])
+				kind = str(st[1])
+				if director.blast.blown:
+					text += "  ·  " + nights
 		"protect":
 			var total := director.loot_total()
 			if total > 0:
@@ -101,8 +111,8 @@ func refresh() -> void:
 				kind = "bad" if GameState.phase == GameState.Phase.WAVE else "warn"
 			else:
 				kind = "good"
-	if director.holding and not director.objective_done():
-		text = "The waves are done. Finish the job!"
+	if director.holding and not director.objective_done() and not (director.blast != null and director.blast.lit()):
+		text = "The waves are done. Finish the job!" + ("  ·  " + text if ch.floor_job() else "")
 		kind = "warn"
 	_status.text = text
 	_mark.kind = kind

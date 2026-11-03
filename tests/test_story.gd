@@ -34,7 +34,8 @@ func _bosses(plan: Dictionary) -> Array:
 
 
 func test_every_chapter_loads_and_is_sound() -> void:
-	assert_eq(StoryChapter.all().size(), 7, "seven playable chapters (7 comes later)")
+	assert_eq(StoryChapter.all().size(), 8, "eight playable chapters")
+	assert_eq(StoryChapter.PLANNED.size(), 0, "nothing left Coming Later")
 	var prev := 0
 	for ch in StoryChapter.all():
 		assert_eq(ch.problems(), [] as Array[String], ch.id)
@@ -131,7 +132,8 @@ func test_weather_and_maps() -> void:
 func test_next_chapter() -> void:
 	assert_eq(StoryChapter.next_id("ch1"), "ch2")
 	assert_eq(StoryChapter.next_id("ch4"), "ch5")
-	assert_eq(StoryChapter.next_id("ch6"), "ch8", "chapter 7 is an expedition, built later")
+	assert_eq(StoryChapter.next_id("ch6"), "ch7", "Down the Hole follows the storm")
+	assert_eq(StoryChapter.next_id("ch7"), "ch8")
 	assert_eq(StoryChapter.next_id("ch8"), "", "the Queen is the last")
 
 
@@ -235,22 +237,19 @@ func test_director_objective_rules() -> void:
 	d.free()
 
 
-func test_the_queen_needs_chapter_six_for_now() -> void:
+func test_the_queen_needs_down_the_hole() -> void:
 	var ch8 := StoryChapter.load_id("ch8")
-	assert_eq(ch8.required(), "ch6", "data flag: point it at ch7 once that's built")
-	assert_eq(StoryChapter.load_id("ch6").required(), "ch5", "the rest follow play order")
+	assert_eq(ch8.required(), "ch7", "the Queen comes after the tunnel's blown")
+	assert_eq(StoryChapter.load_id("ch7").required(), "ch6", "the rest follow play order")
 	assert_eq(StoryChapter.load_id("ch1").required(), "")
 	var p := StoryProgress.new()
-	for cid in ["ch1", "ch2", "ch3", "ch4", "ch5"]:
+	for cid in ["ch1", "ch2", "ch3", "ch4", "ch5", "ch6"]:
 		p.win(StoryChapter.load_id(cid))
-	assert_true(p.is_unlocked("ch6"))
+	assert_true(p.is_unlocked("ch7"))
 	assert_false(p.is_unlocked("ch8"))
-	assert_false(p.is_unlocked("ch7"), "a planned chapter is never playable")
-	p.win(StoryChapter.load_id("ch6"))
+	p.win(StoryChapter.load_id("ch7"))
 	assert_true(p.is_unlocked("ch8"))
 	assert_eq(p.next_up(), "ch8")
-	var later := StoryChapter.from_dict({"id": "ch8", "requires": "ch7"})
-	assert_false(later.problems().has("requires unknown chapter ch7"), "ch7 is a planned chapter")
 	var bad := StoryChapter.from_dict({"id": "ch8", "requires": "ch99"})
 	assert_true(bad.problems().has("requires unknown chapter ch99"))
 
@@ -260,7 +259,8 @@ func test_the_story_bosses() -> void:
 	assert_eq(StoryChapter.load_id("ch6").bosses_for(18), [&"thunder_cicada", &"mirage_mantis"] as Array[StringName])
 	assert_eq(StoryChapter.load_id("ch6").weather_for(17), Weather.Kind.DUST_STORM)
 	assert_eq(StoryChapter.load_id("ch6").weather_for(18), Weather.Kind.DUST_STORM)
-	assert_eq(StoryChapter.load_id("ch8").boss_for(20), &"hive_queen")
+	assert_eq(StoryChapter.load_id("ch8").boss_for(21), &"hive_queen")
+	assert_eq(StoryChapter.load_id("ch8").boss_for(20), &"acid_matriarch")
 
 
 func test_two_bosses_on_one_wave_take_different_cliffs() -> void:
@@ -331,3 +331,56 @@ func test_keep_counts_storeys_and_lanterns() -> void:
 		n.free()
 	l2.health.free()
 	l2.free()
+
+
+# ------------------------------------------------------------------ Canyon Expedition chapters
+
+func test_down_the_hole_data() -> void:
+	var ch7 := StoryChapter.load_id("ch7")
+	assert_eq(ch7.kind(), "blast")
+	assert_true(ch7.floor_job(), "the job's on the canyon floor")
+	assert_eq(ch7.map, &"canyon")
+	assert_eq(ch7.crates_for(1), 3, "solo carries three crates")
+	assert_eq(ch7.crates_for(2), 4)
+	assert_eq(ch7.crates_for(4), 6, "a posse of four carries six")
+	assert_true(ch7.fuse() >= 30.0, "long enough to reach a rope")
+	for key: String in ["down", "crate", "inside", "hunters", "charge", "armed", "lit", "blast", "buried", "reminder", "hold", "win", "lost"]:
+		assert_false(ch7.event_lines(key).is_empty(), "ch7 " + key)
+	assert_true(StoryChapter.load_id("ch8").sealed_tunnel, "the tunnel stays blown for the Queen")
+	assert_false(ch7.sealed_tunnel, "it's open until you blow it")
+	assert_true(Defs.turret(StringName(str(ch7.unlock()["id"]))) != null, "the blueprint is a real turret")
+
+
+func test_floor_fetches() -> void:
+	var ch2 := StoryChapter.load_id("ch2")
+	assert_eq(str(ch2.objective["spawn"]), "floor_wagon", "the valve's in the wrecked wagon")
+	assert_eq(ch2.pack_item(), &"pump_valve")
+	assert_true(ch2.floor_job())
+	var ch3 := StoryChapter.load_id("ch3")
+	assert_eq(str(ch3.objective["spawn"]), "boss_carcass", "the gland's in her carcass on the floor")
+	assert_eq(ch3.pack_item(), &"queen_gland")
+	for ch in [ch2, ch3]:
+		assert_true(Backpack.weight_of(ch.pack_item()) > 1, "%s's item weighs something" % ch.id)
+		assert_false(ch.event_lines("up").is_empty(), "%s says when it's out of the canyon" % ch.id)
+	# The old plateau stand-ins still pass the validator.
+	var old := StoryChapter.from_dict({"id": "ch2", "number": 2, "title": "X", "objective": {"kind": "fetch", "spawn": "airship_drop", "deliver_to": "well"}})
+	assert_false(old.floor_job())
+	assert_eq(old.pack_item(), &"")
+	assert_false("
+".join(old.problems()).contains("fetch needs spawn"), "airship_drop still a spawn")
+	var bad := StoryChapter.from_dict({"id": "x", "number": 1, "title": "X", "objective": {"kind": "fetch", "spawn": "floor_wagon", "deliver_to": "well"}})
+	assert_true("
+".join(bad.problems()).contains("pack_item"), "a floor fetch needs a pack item")
+	var blast := StoryChapter.from_dict({"id": "x", "number": 1, "title": "X", "objective": {"kind": "blast", "fuse": 5}})
+	var bp := "
+".join(blast.problems())
+	assert_true(bp.contains("blast needs crates") and bp.contains("fuse"), "blast data checked")
+
+
+func test_story_items_stay_out_of_the_stockpile() -> void:
+	var split := ExpeditionRules.split_story({&"scrap": 12, &"pump_valve": 1, &"dynamite": 2}, [&"pump_valve", &"dynamite"])
+	assert_eq(split[0], {&"scrap": 12}, "loot unpacks as usual")
+	assert_eq(split[1], {&"pump_valve": 1, &"dynamite": 2}, "the chapter keeps its items")
+	var pack := Backpack.make()
+	assert_eq(pack.add({BlastRules.ITEM: 3}), 2, "two dynamite crates to a pack")
+	assert_true(pack.speed_mult() < 0.75, "and you walk slow with them")

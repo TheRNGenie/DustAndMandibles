@@ -14,21 +14,30 @@ extends Node
 ##
 ## Objectives (StoryChapter.objective, the field a Canyon Expedition replaces later):
 ## - hold: survive the waves (losing a Homestead loses, as in any run).
-## - fetch: a thing to carry (E picks it up) to a well or a noticeboard. It
-##   comes by airship drop (Dry Season's pump valve) or drops where a boss dies
-##   (The Survey Map's Queen Spider gland).
+## - fetch: a thing to carry (E picks it up) to a well or a noticeboard. Canyon
+##   Expeditions: it lies on the canyon floor (Dry Season's pump valve in a
+##   wrecked supply wagon on the way to the main tunnel; The Survey Map's Queen
+##   Spider gland in her carcass, which always ends up on the floor), goes in
+##   your backpack (Expedition.story_items: never unpacked onto the stockpile,
+##   left where you fall if you're downed) and rides on your back once you're
+##   up. The plateau stand-ins still work from the data (spawn airship_drop /
+##   boss_drop).
+## - blast: Down the Hole's dynamite job (DownTheHole).
 ## - protect: payroll strongboxes by every house that Dragonfly Bandits rob;
 ##   shoot a bandit with a sack and the silver goes back. All of it gone loses.
 ## - keep: so many scaffold storeys (The Railroad's Secret, against the
 ##   Burrowing Beetle) or lantern posts (Dust and Thunder, whose Thunder Cicada
 ##   breaks lanterns in its screech ring) per held cliff, standing whenever a
 ##   night ends. Short when a night ends loses the chapter.
+## A floor job still open when the last wave is cleared puts the run back in a
+## build phase that never ends in a wave (GameState.story_hold_build), so the
+## team can go down and finish it.
 ##
 ## Debug (with --debug): --story=N plays chapter N, --storywave=W starts at wave W
 ## of it, --storyfetch carries the fetch item to you at once, --storywin /
 ## --storylose end the chapter after --seconds (screenshots of the end screen).
 
-enum Cargo { NONE, FALLING, GROUND, CARRIED, DELIVERED }
+enum Cargo { NONE, FALLING, GROUND, CARRIED, DELIVERED, PACKED }
 
 const DELIVER_REACH := 3.6
 ## Seconds between "a bandit's got a sack" lines.
@@ -48,6 +57,10 @@ var telegram: TelegramView
 var cargo_state := Cargo.NONE
 var carrier := 0
 var cargo: StoryCargo
+## The wreck or carcass a floor item lies in (every peer; stays when it's taken).
+var cargo_dressing: Node3D
+## Down the Hole's set piece (blast chapters), on every peer.
+var blast: DownTheHole
 # Protect: one strongbox per cliff; loot per box (every peer).
 var boxes: Array[StoryStrongbox] = []
 var in_flight := 0
@@ -80,6 +93,11 @@ func _exit_tree() -> void:
 	WaveDirector.plan_hook = Callable()
 	MechWell.valve_broken = false
 	BossBrain.screech_breaks_lanterns = false
+	Expedition.story_items.clear()
+	SitePlan.skip_tunnels = []
+	if Expedition.story_item_up.is_connected(_on_item_up):
+		Expedition.story_item_up.disconnect(_on_item_up)
+		Expedition.story_item_dropped.disconnect(_on_item_dropped)
 
 
 func _ready() -> void:
@@ -112,6 +130,19 @@ func _ready() -> void:
 	GameState.phase_changed.connect(_on_phase)
 	GameState.game_over.connect(_on_game_over)
 	_hook_bugs.call_deferred()
+	Expedition.story_items.clear()
+	if chapter.pack_item() != &"":
+		Expedition.story_items.append(chapter.pack_item())
+	Expedition.story_item_up.connect(_on_item_up)
+	Expedition.story_item_dropped.connect(_on_item_dropped)
+	if chapter.kind() == "blast":
+		blast = DownTheHole.new()
+		blast.name = "DownTheHole"
+		blast.director = self
+		blast.world = world
+		add_child(blast)
+	elif chapter.sealed_tunnel:
+		DownTheHole.seal_main(world)
 	if not multiplayer.is_server():
 		_tell_blueprints.rpc_id(1, Story.progress.blueprints)
 	_debug_flags()
@@ -199,6 +230,8 @@ func _on_phase(p: GameState.Phase) -> void:
 			_say_lines(chapter.lines(w, "wave"), "wave%d" % w)
 			if multiplayer.is_server() and chapter.kind() == "fetch" and cargo_state != Cargo.DELIVERED and cargo_state != Cargo.NONE:
 				_event.rpc("reminder")
+			elif multiplayer.is_server() and blast != null and not blast.blown:
+				_event.rpc("reminder")
 	if tracker != null:
 		tracker.refresh()
 
@@ -224,11 +257,14 @@ func _host_build(w: int) -> void:
 	if GameState.has_flag("--storycargo") and GameState.debug_enabled() and chapter.kind() == "fetch" and cargo_state == Cargo.NONE:
 		var p := GameState.flag_value("--storydropat").split(",")
 		var cliffs := world.get("cliffs") as CliffBuilder
-		_spawn_cargo.rpc(cliffs.plateau_point(_local_cliff(), p[0].to_float() if p.size() == 2 else 6.0, p[1].to_float() if p.size() == 2 else 2.0), false)
+		_spawn_cargo.rpc(cliffs.plateau_point(_local_cliff(), p[0].to_float() if p.size() == 2 else 6.0, p[1].to_float() if p.size() == 2 else 2.0), false, "")
 		return
 	if chapter.kind() == "fetch" and str(chapter.objective.get("spawn", "")) == "airship_drop":
 		if cargo_state == Cargo.NONE and w >= int(chapter.objective.get("drop_wave", chapter.first_wave)):
 			_airship_drop()
+	if chapter.kind() == "fetch" and str(chapter.objective.get("spawn", "")) == "floor_wagon":
+		if cargo_state == Cargo.NONE and w >= int(chapter.objective.get("drop_wave", chapter.first_wave)):
+			_floor_wagon()
 
 
 func _say_lines(lines: Array, key: String) -> void:
@@ -264,6 +300,8 @@ func _on_last_wave_cleared() -> void:
 		holding = true
 		_set_holding.rpc()
 		_event.rpc("hold")
+		if chapter.floor_job():
+			GameState.story_hold_build() # back to daylight: the job's down in the canyon
 
 
 @rpc("authority", "call_local", "reliable")
@@ -281,7 +319,26 @@ func objective_done() -> bool:
 			return loot_left() + in_flight > 0
 		"keep":
 			return chapter.keep_ok(count_keep() if is_inside_tree() else keep_have, held_count())
+		"blast":
+			return blast != null and blast.blown
 	return true
+
+
+## Host (DownTheHole): the tunnel blew. Waiting on it after the last wave? Then that's the chapter.
+func blast_done() -> void:
+	if holding and not finished:
+		get_tree().create_timer(6.0).timeout.connect(_win)
+
+
+## Tunnels the canyon-floor raid sites must leave alone in the chapter about to
+## be played (Down the Hole's main tunnel, before and after the blast). Pure on
+## the chapter data; called by the world before it builds the sites.
+static func reserved_tunnels(cliffs: CliffBuilder) -> Array[int]:
+	var out: Array[int] = []
+	var ch := Story.chapter()
+	if ch != null and cliffs != null and (ch.kind() == "blast" or ch.sealed_tunnel):
+		out.append(cliffs.main_tunnel())
+	return out
 
 
 func _win() -> void:
@@ -363,7 +420,33 @@ func _airship_drop() -> void:
 	if GameState.flag_value("--storydropat") != "" and GameState.debug_enabled():
 		var p := GameState.flag_value("--storydropat").split(",")
 		at = cliffs.plateau_point(_local_cliff(), p[0].to_float(), p[1].to_float())
-	_spawn_cargo.rpc(at, true)
+	_spawn_cargo.rpc(at, true, "")
+
+
+## Host: Dry Season's wrecked supply wagon on the canyon floor, part way from a
+## rope foot to the main tunnel (clear of the raid sites), the valve in its bed.
+func _floor_wagon() -> void:
+	var cliffs := world.get("cliffs") as CliffBuilder
+	var tn := cliffs.tunnel(cliffs.main_tunnel())
+	var anchor := RopeAnchor.of(_local_cliff())
+	var foot: Vector3 = anchor.foot_stand if anchor != null else (tn[0] as Vector3) + (tn[1] as Vector3) * 20.0
+	var at := wagon_point(foot, tn[0], tn[1])
+	at.y = cliffs.floor_height(at.x, at.z)
+	_spawn_cargo.rpc(at, false, "wagon")
+	_event.rpc("drop")
+
+
+## Where the wreck lies: 60% of the way from the rope foot to the tunnel's
+## mouth, nudged off the line if a raid site could stand there. Pure.
+static func wagon_point(foot: Vector3, mouth: Vector3, out: Vector3) -> Vector3:
+	var to := Vector3(mouth.x - foot.x, 0.0, mouth.z - foot.z)
+	var side := to.cross(Vector3.UP).normalized() if to.length() > 0.1 else Vector3.RIGHT
+	var base := foot + to * 0.6 + out * 0.0
+	for k: float in [0.0, 6.0, -6.0, 12.0, -12.0]:
+		var p := base + side * k
+		if not SitePlan.in_site_zone(p, 1.5):
+			return p
+	return base
 
 
 ## Host: where a dead boss leaves its prize: where it fell if that's up top,
@@ -373,21 +456,47 @@ func _boss_drop(bug: Bug) -> void:
 		return
 	var at := bug.global_position
 	var cliffs := world.get("cliffs") as CliffBuilder
+	if str(chapter.objective.get("spawn", "")) == "boss_carcass":
+		# Her carcass ends up on the canyon floor at the foot of her lane: killed on
+		# the wall she falls; killed up top, the crew tips her back over the edge.
+		var up_top := bug.state != Bug.State.CLIMBING and bug.state != Bug.State.CROSSING
+		_spawn_cargo.rpc(carcass_point(cliffs, bug.cliff_id, bug.lane_z), false, "carcass")
+		_event.rpc("drop")
+		if up_top:
+			_event.rpc("dumped")
+		return
 	if at.y < WorldLayout.CLIFF_HEIGHT - 1.0 or bug.state == Bug.State.CLIMBING:
 		at = cliffs.plateau_point(bug.cliff_id, 7.0, bug.lane_z)
-	_spawn_cargo.rpc(at, false)
+	_spawn_cargo.rpc(at, false, "")
 	_event.rpc("drop")
 
 
+## Where a boss's carcass lands: on the canyon floor a few metres out from the
+## foot of cliff `cid` at lane `z`.
+static func carcass_point(cliffs: CliffBuilder, cid: int, z: float) -> Vector3:
+	var foot := cliffs.face_point(cid, 0.5, z) + WorldLayout.inward(cid) * 5.0
+	return Vector3(foot.x, cliffs.floor_height(foot.x, foot.z), foot.z)
+
+
 @rpc("authority", "call_local", "reliable")
-func _spawn_cargo(at: Vector3, falling: bool) -> void:
+func _spawn_cargo(at: Vector3, falling: bool, dress: String) -> void:
 	if cargo != null and is_instance_valid(cargo):
 		cargo.queue_free()
+	if dress != "":
+		if cargo_dressing != null and is_instance_valid(cargo_dressing):
+			cargo_dressing.queue_free()
+		cargo_dressing = StoryFloorProps.dressing(dress)
+		cargo_dressing.name = "CargoDressing"
+		world.add_child(cargo_dressing)
+		cargo_dressing.global_position = at
+		cargo_dressing.rotation.y = fposmod(at.x * 0.37 + at.z * 0.11, TAU)
+		at = cargo_dressing.to_global(StoryFloorProps.item_spot(dress))
 	cargo = StoryCargo.new()
 	cargo.name = "Cargo"
 	cargo.kind = str(chapter.objective.get("item", "valve"))
 	cargo.title = item_name()
 	cargo.director = self
+	cargo.on_floor = chapter.pack_item() != &""
 	world.add_child(cargo)
 	cargo.global_position = at
 	cargo_state = Cargo.FALLING if falling else Cargo.GROUND
@@ -420,7 +529,16 @@ func _ask_pickup() -> void:
 func _pickup(peer: int) -> void:
 	if cargo_state != Cargo.GROUND or finished:
 		return
-	_set_cargo.rpc(Cargo.CARRIED, peer, cargo.global_position if cargo != null else Vector3.ZERO)
+	var item := chapter.pack_item()
+	if item != &"" and Expedition.is_down(peer):
+		# Canyon floor: into the backpack (it's heavy); it comes up with you.
+		if Expedition.add_to_backpack(peer, {item: 1}) <= 0:
+			Economy.notify(peer, "No room in your backpack for the %s. Ride up and unpack, then come back for it." % item_name())
+			return
+		_set_cargo.rpc(Cargo.PACKED, peer, cargo.global_position if cargo != null else Vector3.ZERO)
+		Economy.notify(peer, "The %s is in your backpack. Get it up out of the canyon." % item_name())
+	else:
+		_set_cargo.rpc(Cargo.CARRIED, peer, cargo.global_position if cargo != null else Vector3.ZERO)
 	if not _said.has("ev_pickup"):
 		_said["ev_pickup"] = true
 		_event.rpc("pickup")
@@ -437,7 +555,7 @@ func _set_cargo(state: int, who: int, at: Vector3) -> void:
 		elif state == Cargo.GROUND:
 			cargo.global_position = at
 			cargo.set_carried(false, false)
-		elif state == Cargo.CARRIED:
+		elif state == Cargo.CARRIED or state == Cargo.PACKED:
 			cargo.set_carried(true, who == multiplayer.get_unique_id())
 	if state == Cargo.DELIVERED and bool(chapter.objective.get("breaks_wells", false)):
 		MechWell.valve_broken = false
@@ -446,7 +564,7 @@ func _set_cargo(state: int, who: int, at: Vector3) -> void:
 
 
 func _follow_carrier() -> void:
-	if cargo_state != Cargo.CARRIED:
+	if cargo_state != Cargo.CARRIED and cargo_state != Cargo.PACKED:
 		return
 	var p := _player_of(carrier)
 	if p != null:
@@ -456,7 +574,11 @@ func _follow_carrier() -> void:
 func _host_fetch() -> void:
 	var auto_fetch := GameState.has_flag("--storyfetch") or (GameState.has_flag("--storyfetchlate") and holding)
 	if auto_fetch and GameState.debug_enabled() and cargo_state == Cargo.GROUND:
-		_pickup(multiplayer.get_unique_id())
+		_set_cargo.rpc(Cargo.CARRIED, multiplayer.get_unique_id(), cargo.global_position if cargo != null else Vector3.ZERO)
+	if cargo_state == Cargo.PACKED and _player_of(carrier) == null:
+		# The carrier left the game with it in their pack: it lies where they were.
+		_set_cargo.rpc(Cargo.GROUND, 0, _on_floor(cargo.global_position if cargo != null else Vector3.ZERO))
+		return
 	if cargo_state != Cargo.CARRIED:
 		return
 	var p := _player_of(carrier)
@@ -470,6 +592,30 @@ func _host_fetch() -> void:
 		_event.rpc("delivered")
 		if holding:
 			get_tree().create_timer(3.0).timeout.connect(_win)
+
+
+## Host (Expedition): a story item came up out of the canyon in someone's pack.
+func _on_item_up(peer: int, item: StringName, _units: int) -> void:
+	if finished or item != chapter.pack_item() or cargo_state != Cargo.PACKED:
+		return
+	_set_cargo.rpc(Cargo.CARRIED, peer, Vector3.ZERO)
+	if not _said.has("ev_up"):
+		_said["ev_up"] = true
+		_event.rpc("up")
+
+
+## Host (Expedition): its carrier went down on the floor: it lies where they fell.
+func _on_item_dropped(_peer: int, item: StringName, _units: int, pos: Vector3) -> void:
+	if finished or item != chapter.pack_item():
+		return
+	_set_cargo.rpc(Cargo.GROUND, 0, _on_floor(pos))
+
+
+func _on_floor(pos: Vector3) -> Vector3:
+	var cliffs := world.get("cliffs") as CliffBuilder
+	if cliffs == null or pos.y > WorldLayout.CANYON_FALL_Y:
+		return pos
+	return Vector3(pos.x, cliffs.floor_height(pos.x, pos.z), pos.z)
 
 
 ## The well or noticeboard within reach of `pos`, if any.
