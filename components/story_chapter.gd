@@ -13,22 +13,29 @@ extends RefCounted
 ## weather {"wave": weather name}, telegram {title, body}, radio {"wave": {build,
 ## wave, held: [[speaker, line]]}}, events {key: [[speaker, line]]}, journal
 ## {title, body}, rewards {notches, unlock {kind, id, name}}, headline_win,
-## headline_loss, sealed_tunnel (true: the main tunnel is blown shut all chapter).
+## headline_loss, sealed_tunnel (true: the main tunnel is blown shut all chapter),
+## telegram.from (who signed it; the Captain when left out), job_note (the
+## newspaper's line under the job), epilogue [{title, body}] (typed decree cards
+## after a win: The Reckoning) and closing [speaker, line] (the last word, after them).
 ##
 ## Canyon Expeditions: a fetch's `spawn` floor_wagon (Dry Season: the valve in a
 ## wrecked wagon on the canyon floor) or boss_carcass (The Survey Map: the gland
 ## in the Queen Spider's carcass, which always ends up on the floor) puts the
 ## item down there: it goes in your backpack and comes up with you. The old
 ## plateau stand-ins (airship_drop, boss_drop) still work. `blast` is Down the
-## Hole's dynamite job (DownTheHole, BlastRules).
+## Hole's dynamite job (DownTheHole, BlastRules). `salvage` is The Dry Gulch
+## Families' floor job (DryGulchFamilies: the families' papers from the ruined
+## homesteads and the board's harvest ledger from the amber crew's camp);
+## `reckoning` is The Reckoning's set piece (IronMandible: the board's train, its
+## amber furnace, the second blast and the Hive Mother).
 
 const DIR := "res://data/story/"
 ## The chapters that can be played, in play order.
-const IDS: Array[String] = ["ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "ch7", "ch8"]
+const IDS: Array[String] = ["ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "ch7", "ch8", "ch9", "ch10"]
 ## The rest of the story, shown as "Coming Later" on the chapter screen ([[number, title]]).
 const PLANNED: Array = []
 const SPEAKERS: Array[String] = ["stroud", "kettle", "pearl", "doc", "vane", "crane", "ezra", "lucky"]
-const KINDS: Array[String] = ["hold", "fetch", "protect", "keep", "blast"]
+const KINDS: Array[String] = ["hold", "fetch", "protect", "keep", "blast", "salvage", "reckoning"]
 ## Where a fetch item turns up: the plateau stand-ins, then the canyon floor ones.
 const SPAWNS: Array[String] = ["airship_drop", "boss_drop", "floor_wagon", "boss_carcass"]
 const FLOOR_SPAWNS: Array[String] = ["floor_wagon", "boss_carcass"]
@@ -59,6 +66,13 @@ var headline_win := ""
 var headline_loss := ""
 var requires := ""
 var sealed_tunnel := false
+var job_note := ""
+## Waves past the run's last one grow fast: the plan's own bugs are thinned to
+## at most this many (0 = as planned), before the chapter's boss and extras.
+var max_bugs := 0
+## Typed decree cards after a win ([{title, body}]) and the last word after them.
+var epilogue: Array = []
+var closing: Array = []
 
 static var _cache: Dictionary = {}
 
@@ -102,6 +116,10 @@ static func from_dict(d: Dictionary) -> StoryChapter:
 	ch.headline_loss = str(d.get("headline_loss", ""))
 	ch.requires = str(d.get("requires", ""))
 	ch.sealed_tunnel = bool(d.get("sealed_tunnel", false))
+	ch.job_note = str(d.get("job_note", ""))
+	ch.max_bugs = int(d.get("max_bugs", 0))
+	ch.epilogue = d.get("epilogue", [])
+	ch.closing = d.get("closing", [])
 	return ch
 
 
@@ -170,7 +188,7 @@ func objective_text() -> String:
 ## Is the job down on the canyon floor (an expedition)? Then a chapter whose
 ## waves are done waits in a build phase for it (GameState.story_hold_build).
 func floor_job() -> bool:
-	return kind() == "blast" or (kind() == "fetch" and FLOOR_SPAWNS.has(str(objective.get("spawn", ""))))
+	return kind() == "blast" or kind() == "salvage" or kind() == "reckoning" or (kind() == "fetch" and FLOOR_SPAWNS.has(str(objective.get("spawn", ""))))
 
 
 ## fetch: the item's backpack key ("pump_valve"), or "" for a plateau stand-in.
@@ -267,6 +285,8 @@ func speakers() -> Array[String]:
 			all_lines.append_array((radio[wk] as Dictionary).get(when, []))
 	for key: String in events:
 		all_lines.append_array(events[key])
+	if not closing.is_empty():
+		all_lines.append(closing)
 	for l: Variant in all_lines:
 		if l is Array and (l as Array).size() == 2 and not out.has(str(l[0])):
 			out.append(str(l[0]))
@@ -315,6 +335,8 @@ func apply_to_plan(plan: Dictionary, w: int) -> Dictionary:
 			var cliff: int = cliffs[(i0 + k0) % cliffs.size()] if cliffs.has(at) else at
 			groups.append({"bug": boss, "count": 1, "cliff": cliff, "lane": 2, "pulse": 0})
 			k0 += 1
+	if max_bugs > 0:
+		groups = thin(groups, max_bugs)
 	var extras: Array = extra_bugs.get(str(w), [])
 	var k := 0
 	for e: Array in extras:
@@ -331,6 +353,25 @@ func apply_to_plan(plan: Dictionary, w: int) -> Dictionary:
 			k += 1
 	var out := plan.duplicate()
 	out["groups"] = groups
+	return out
+
+
+## `groups` with every non-boss group's count scaled down so the whole is about
+## `cap` bugs (each group keeps at least one). Pure.
+static func thin(groups: Array, cap: int) -> Array:
+	var total := 0
+	for g: Dictionary in groups:
+		total += int(g["count"])
+	if total <= cap:
+		return groups
+	var k := float(cap) / float(total)
+	var out: Array = []
+	for g: Dictionary in groups:
+		var d := Defs.bug(StringName(str(g["bug"])))
+		var h := g.duplicate()
+		if d == null or d.behavior != BugDef.Behavior.BOSS:
+			h["count"] = maxi(int(round(float(g["count"]) * k)), 1)
+		out.append(h)
 	return out
 
 
@@ -364,6 +405,11 @@ func problems() -> Array[String]:
 			all_lines.append_array(radio[wk][when])
 	for key: String in events:
 		all_lines.append_array(events[key])
+	if not closing.is_empty():
+		all_lines.append(closing)
+	for card: Variant in epilogue:
+		if not card is Dictionary or str((card as Dictionary).get("title", "")) == "" or str((card as Dictionary).get("body", "")) == "":
+			out.append("an epilogue card needs a title and body")
 	for l: Variant in all_lines:
 		if not l is Array or (l as Array).size() != 2:
 			out.append("a line isn't [speaker, text]: %s" % str(l))
@@ -397,6 +443,20 @@ func problems() -> Array[String]:
 			out.append("blast needs crates")
 		if fuse() < 15.0:
 			out.append("blast fuse under 15 s")
+	if kind() == "salvage":
+		if int(objective.get("families", 0)) <= 0:
+			out.append("salvage needs families")
+		if int(objective.get("ledger_wave", 0)) < first_wave or int(objective.get("ledger_wave", 0)) > last_wave:
+			out.append("salvage needs a ledger_wave inside the chapter")
+	if kind() == "reckoning":
+		var mother := StringName(str(objective.get("boss", "")))
+		if mother == &"" or not bosses_for(last_wave).has(mother):
+			out.append("reckoning needs the boss it brings on the last wave")
+		if wave_count() < 2:
+			out.append("reckoning needs a train night and a boss night")
+	var u := unlock()
+	if str(u.get("kind", "")) == "amber_blueprint" and not StoryAmber.is_blueprint(str(u.get("id", ""))):
+		out.append("unknown amber blueprint %s" % str(u.get("id", "")))
 	if kind() == "fetch":
 		if not SPAWNS.has(str(objective.get("spawn", ""))):
 			out.append("fetch needs spawn airship_drop, boss_drop, floor_wagon or boss_carcass")

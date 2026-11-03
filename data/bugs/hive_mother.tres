@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="BugDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/bug_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"hive_mother"
+display_name = "The Hive Mother"
+behavior = 8
+max_hp = 5500.0
+climb_speed = 0.6
+walk_speed = 1.0
+cost = 0
+group_size = 1
+front_armor = 0.4
+scrap_drop = 600
+chitin_drop = 180
+breach_dps = 110.0
+size = 4.6
+shell_color = Color(0.86, 0.82, 0.72, 1)
+first_wave = 25
+counter = "Older than the Queen and crusted in amber: her old plates take 40% off shots from the front, so aim for the amber geode on her brow. Rings on your cliff mark where her amber hail lands (it gums every turret near it), her deep hum hastens her brood, and below a third her crust falls off and hatches."
+boss_tip = "THE HIVE MOTHER is climbing! Shoot the amber geode on her brow, spread your turrets from her hail and keep her on the wall."
+wanted_for = "FOR BEING OLDER THAN THE RAILROAD, AND MEANER"
+story_only = true

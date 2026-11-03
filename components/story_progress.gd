@@ -58,6 +58,8 @@ func win(ch: StoryChapter) -> Dictionary:
 		journal.append(ch.id)
 		got_page = true
 	var unlock: Dictionary = ch.unlock() if first else {}
+	# (Amber blueprints live in amber_blueprints only: `blueprints` hands out a free
+	# ready-built turret every later chapter, which amber turrets must never get.)
 	if str(unlock.get("kind", "")) == "blueprint" and not blueprints.has(str(unlock["id"])):
 		blueprints.append(str(unlock["id"]))
 	if str(unlock.get("kind", "")) == "amber_blueprint" and not amber_blueprints.has(str(unlock["id"])):

@@ -156,6 +156,8 @@ func record(ch: StoryChapter, won: bool) -> Dictionary:
 			var unlock: Dictionary = res["unlock"]
 			if str(unlock.get("kind", "")) == "cosmetic" and not Perks.profile.cosmetics.has(str(unlock["id"])):
 				Perks.profile.cosmetics.append(str(unlock["id"]))
+			if str(unlock.get("kind", "")) == "amber_blueprint":
+				StoryAmber.grant_blueprint(str(unlock["id"])) # WIRE TO AMBER AT MERGE (StoryAmber)
 			Perks.save()
 			Perks.profile_changed.emit()
 	save()

@@ -105,7 +105,7 @@ static func make_paper(ch: StoryChapter, k: float) -> PanelContainer:
 	col.add_child(head)
 	col.add_child(_ink("TELEGRAM  ·  RECEIVED AT DRY GULCH STATION  ·  1889", int(12 * k), RED, null))
 	col.add_child(_rule(k, 2))
-	var to := _ink("TO: THE RANCHERS ON THE CLIFFS          RE: %s" % str(ch.telegram.get("title", ch.title)).to_upper(), int(13 * k), FADED, _type_font())
+	var to := _ink("TO: %s          RE: %s" % [str(ch.telegram.get("to", "THE RANCHERS ON THE CLIFFS")).to_upper(), str(ch.telegram.get("title", ch.title)).to_upper()], int(13 * k), FADED, _type_font())
 	to.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	to.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(to)
@@ -128,7 +128,7 @@ static func make_paper(ch: StoryChapter, k: float) -> PanelContainer:
 		strip.add_child(l)
 		col.add_child(strip)
 	col.add_child(_rule(k, 1))
-	var sig := _ink("CAPT. A. STROUD  ·  AIRSHIP LUCKY MANDIBLE", int(14 * k), INK, _type_font())
+	var sig := _ink(str(ch.telegram.get("from", "CAPT. A. STROUD  ·  AIRSHIP LUCKY MANDIBLE")), int(14 * k), INK, _type_font())
 	sig.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	col.add_child(sig)
 	return paper

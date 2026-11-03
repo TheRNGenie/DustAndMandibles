@@ -39,6 +39,8 @@ static func build(def: BugDef) -> Dictionary:
 			return _collector(def.shell_color)
 		&"hive_queen":
 			return _hive_queen(def.shell_color)
+		&"hive_mother":
+			return _hive_mother(def.shell_color)
 		&"locust":
 			return _locust(def.shell_color)
 		&"hive_drone":
@@ -759,6 +761,153 @@ static func _hive_queen(shell: Color) -> Dictionary:
 	spec["crown"] = jewel
 	spec["belly"] = ab_c + Vector3(0, 0.5, 0.15) # on her back, where it shows from across the canyon
 	spec["mouth_at"] = hd + Vector3(0, -0.16, -0.32)
+	return spec
+
+
+# ------------------------------------------------------------------ the Hive Mother
+
+## The Queen's mother (Story, chapter 10: The Reckoning), sealed in the lower
+## hive since before the railroad: built like her daughter but older and
+## bigger, and worn. Her plates are bleached ash-ivory, cracked and scarred,
+## some broken off; her flanks and back are crusted with glowing hive amber
+## (nodules and crystal clusters, the board's whole fortune); her wings are
+## tattered strips; her head hangs low and heavy, with huge milky blind eyes
+## (no pupils), one antenna snapped to a stump and chipped sickle mandibles;
+## her crown is a broken ring of fused grey spikes round a big amber geode on
+## her brow (her weak spot).
+static func _hive_mother(shell: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1868
+	var st := MeshKit.begin()
+	var plate := shell.darkened(0.1)
+	var old := shell.darkened(0.24)
+	var scar := Color("#3A2E26")
+	var membrane := Color("#C9BFA2")
+	var amber := Color("#FFA62B")
+	var amber_deep := Color("#C66A12")
+	var milk := Color("#E4EEF0")
+	var wing := Color("#BDB49A")
+
+	# --- The abdomen: longer, lower and lumpier than her daughter's.
+	var ab_c := Vector3(0, 0.42, 1.32)
+	var ab_r := Vector3(0.98, 0.78, 1.36)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), ab_c), ab_r, 9, 18, membrane, 0.06, rng)
+	# Old plates over the back: cracked, a few broken off, scar lines across.
+	var bands := 8
+	for i in bands:
+		var t := lerpf(-0.82, 0.86, float(i) / float(bands - 1))
+		var k := sqrt(maxf(1.0 - t * t, 0.0))
+		var z := ab_c.z + t * ab_r.z
+		var w := ab_r.x * k + 0.08
+		var h := ab_r.y * k * 0.9 + 0.1
+		var b := Basis(Vector3.RIGHT, -0.12 + t * 0.12)
+		var c := Vector3(0, ab_c.y + ab_r.y * k * 0.14, z)
+		if i == 3 or i == 6:
+			# A broken plate: only one side left, the membrane raw beside it.
+			_e(st, c + b * Vector3(w * 0.45, h * 0.3, 0), Vector3(w * 0.6, h * 0.75, 0.19), old, 5, 12, 0.0, b)
+		else:
+			_e(st, c, Vector3(w, h, 0.21), plate if i % 2 == 0 else old, 6, 18, 0.0, b)
+		# Scars: dark gouges across the plate.
+		for j in 2:
+			var a := rng.randf_range(-0.9, 0.9)
+			var p := c + b * Vector3(sin(a) * w * 0.8, cos(a) * h * 0.95, 0.08)
+			MeshKit.add_box(st, Transform3D(b * Basis(Vector3.BACK, rng.randf_range(-0.6, 0.6)), p), Vector3(w * 0.55, 0.035, 0.05), scar)
+	# Amber crust: nodules and crystal clusters all over the back and flanks.
+	for n in 26:
+		var t := rng.randf_range(-0.8, 0.85)
+		var ring_k := sqrt(maxf(1.0 - t * t, 0.0))
+		var a := rng.randf_range(-1.6, 1.6)
+		var dir := Vector3(sin(a), cos(a) * 0.9, 0.0).normalized()
+		var p := ab_c + Vector3(dir.x * ab_r.x * ring_k, dir.y * ab_r.y * ring_k, t * ab_r.z)
+		var s := rng.randf_range(0.07, 0.17)
+		_e(st, p, Vector3(s, s * 0.8, s * 1.1), amber if n % 3 != 0 else amber_deep, 3, 8, 0.55 if n % 3 != 0 else 0.25)
+		if n % 4 == 0:
+			for q in 3:
+				var cd := (dir + Vector3(rng.randf_range(-0.5, 0.5), rng.randf_range(0.0, 0.6), rng.randf_range(-0.5, 0.5))).normalized()
+				_spike(st, p, cd, rng.randf_range(0.18, 0.34), 0.05, amber.lightened(0.1), 5)
+	# The tail end: a heavy, scarred tip dragging low.
+	_e(st, ab_c + Vector3(0, -0.12, ab_r.z * 0.98), Vector3(0.3, 0.25, 0.22), old, 5, 10)
+
+	# --- Waist and a hunched thorax, plates worn smooth, amber barnacles on it.
+	_e(st, Vector3(0, 0.38, 0.0), Vector3(0.26, 0.22, 0.2), old, 5, 10)
+	var th := Vector3(0, 0.52, -0.44)
+	_e(st, th, Vector3(0.56, 0.44, 0.46), shell, 7, 14)
+	_e(st, th + Vector3(0, 0.28, 0.06), Vector3(0.42, 0.18, 0.36), plate, 5, 12)
+	for sd: float in [-1.0, 1.0]:
+		var pb := Basis(Vector3.BACK, sd * 0.5)
+		_e(st, th + Vector3(sd * 0.4, 0.22, -0.02), Vector3(0.32, 0.1, 0.38), old, 5, 12, 0.0, pb)
+		MeshKit.add_box(st, Transform3D(pb, th + Vector3(sd * 0.42, 0.3, 0.05)), Vector3(0.36, 0.03, 0.04), scar)
+	for n in 7:
+		var p := th + Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(0.2, 0.42), rng.randf_range(-0.25, 0.3))
+		_e(st, p, Vector3.ONE * rng.randf_range(0.05, 0.1), amber, 3, 6, 0.5)
+
+	# --- Tattered wings: strips of old membrane, torn short, hanging off her shoulders.
+	for sd: float in [-1.0, 1.0]:
+		for k in 4:
+			var wb := Basis(Vector3.UP, -sd * (0.25 + k * 0.12)) * Basis(Vector3.BACK, sd * (0.55 + k * 0.06))
+			var wc := Vector3(sd * (0.5 + k * 0.05), 0.92 - k * 0.04, 0.05 + k * 0.18)
+			var strip := rng.randf_range(0.35, 0.7)
+			_e(st, wc, Vector3(0.07, 0.02, strip), wing.darkened(k * 0.06), 3, 8, 0.0, wb)
+
+	# --- The head: long and heavy, hanging low, with blind milky eyes.
+	var hd := Vector3(0, 0.58, -1.08)
+	_e(st, hd, Vector3(0.44, 0.32, 0.38), shell.lightened(0.03), 7, 14)
+	_e(st, hd + Vector3(0, 0.2, 0.05), Vector3(0.36, 0.14, 0.3), plate, 5, 12)
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.BACK, 0.4), hd + Vector3(0.15, 0.28, -0.1)), Vector3(0.3, 0.035, 0.04), scar)
+	for sd: float in [-1.0, 1.0]:
+		# Big, pale, pupil-less eyes with a faint cold sheen.
+		var ep := hd + Vector3(sd * 0.3, 0.06, -0.22)
+		_e(st, ep + Vector3(0, 0.02, 0.04), Vector3(0.24, 0.21, 0.14), old.darkened(0.35), 4, 10)
+		_e(st, ep, Vector3(0.22, 0.19, 0.17), milk, 5, 12, 0.35)
+		_e(st, ep + Vector3(sd * 0.04, 0.06, -0.12), Vector3(0.07, 0.05, 0.03), Color.WHITE, 3, 6, 0.6)
+	_e(st, hd + Vector3(0, -0.14, -0.3), Vector3(0.22, 0.11, 0.12), old, 4, 10)
+	# Mandibles: huge sickles, chipped (the left one snapped short).
+	for sd: float in [-1.0, 1.0]:
+		var m0 := hd + Vector3(sd * 0.22, -0.18, -0.26)
+		var pts := [m0, m0 + Vector3(sd * 0.12, -0.08, -0.22), m0 + Vector3(sd * 0.06, -0.13, -0.44), m0 + Vector3(-sd * 0.12, -0.13, -0.58)]
+		if sd < 0.0:
+			pts.resize(3)
+		_horn(st, pts, 0.07, old.darkened(0.25), 8)
+		for k in 2:
+			var p: Vector3 = (pts[1] as Vector3).lerp(pts[2], 0.3 + k * 0.4)
+			_spike(st, p, Vector3(-sd, -0.1, -0.3), 0.08, 0.026, IVORY.darkened(0.25), 5)
+	# Antennae: one long and drooping, the other snapped to a stump.
+	var a0 := hd + Vector3(0.14, 0.12, -0.3)
+	MeshKit.tube(st, [a0, a0 + Vector3(0.3, 0.3, -0.1), a0 + Vector3(0.6, 0.2, -0.45), a0 + Vector3(0.85, -0.25, -0.7)], [0.03, 0.025, 0.02, 0.012], 6, old)
+	var b0 := hd + Vector3(-0.14, 0.12, -0.3)
+	MeshKit.tube(st, [b0, b0 + Vector3(-0.12, 0.16, -0.05)], [0.032, 0.03], 6, old)
+	_e(st, b0 + Vector3(-0.12, 0.16, -0.05), Vector3.ONE * 0.04, scar, 3, 6)
+
+	# --- The broken crown: a ring of fused grey spikes, several snapped short,
+	# round a big amber geode on her brow (the weak spot).
+	var cr := hd + Vector3(0, 0.3, 0.04)
+	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, -0.25), cr), 0.31, 0.36, 0.1, 16, old.darkened(0.1))
+	for k in 9:
+		var a := lerpf(-1.25, 1.25, float(k) / 8.0)
+		var mid := absi(k - 4)
+		var tall: float = [0.62, 0.48, 0.4, 0.3, 0.24][mid]
+		if k == 2 or k == 5 or k == 7:
+			tall *= 0.35 # snapped
+		var base := cr + Vector3(sin(a) * 0.32, 0.05, -cos(a) * 0.12)
+		var dir := Vector3(sin(a) * 0.55, 1.0, 0.12).normalized()
+		_spike(st, base, dir, tall, 0.075 - mid * 0.005, shell.darkened(0.2), 6)
+		if k % 3 == 1:
+			_e(st, base + dir * tall * 0.4, Vector3(0.045, 0.06, 0.045), amber, 3, 6, 0.5)
+	var geode := cr + Vector3(0, 0.08, -0.36)
+	_e(st, geode + Vector3(0, 0, 0.03), Vector3(0.19, 0.18, 0.07), old.darkened(0.3), 4, 10)
+	for k in 5:
+		var a := TAU * float(k) / 5.0
+		_spike(st, geode + Vector3(cos(a) * 0.06, sin(a) * 0.06, -0.02), Vector3(cos(a) * 0.6, sin(a) * 0.6, -1.0), 0.12, 0.035, amber.lightened(0.15), 5)
+	BugBuilder._weak(st, geode, Vector3(0.13, 0.14, 0.08), amber)
+
+	# Legs: long and gnarled, set wide for her weight.
+	var legs := BugBuilder._legs(3, -0.7, -0.1, 0.46, 0.4, 1.15, -0.6)
+	var spec := _spec(st, legs, 0.95, 1.05, 0.15, old.darkened(0.12), geode, 0.32, 1.45, 0.66,
+			{"mouth": hd + Vector3(0, -0.2, -0.36), "mandible": 0.0, "antenna": 0.0, "color": old})
+	spec["eyes"] = {} # blind: no pupils or brows (her milky eyes are in the mesh)
+	spec["crown"] = geode
+	spec["belly"] = ab_c + Vector3(0, 0.55, 0.2)
+	spec["mouth_at"] = hd + Vector3(0, -0.2, -0.4)
 	return spec
 
 

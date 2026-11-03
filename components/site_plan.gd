@@ -146,10 +146,19 @@ static func reserve_zones(tunnels: Array) -> void:
 			_zones.append((t[0] as Vector3) + way * OUT_FROM_MOUTH + side * slide)
 
 
-static func in_site_zone(pos: Vector3, pad: float = 1.0) -> bool:
+## Story ground the dressing keeps clear too (chapters 9-10: the homesteads,
+## the camp, the railroad; StoryDirector.reserve_story_ground).
+static var story_zones: Array[Vector3] = []
+
+
+static func in_site_zone(pos: Vector3, pad: float = 1.0, story_too: bool = true) -> bool:
 	for z in _zones:
 		if Vector2(pos.x - z.x, pos.z - z.z).length() < RADIUS + pad:
 			return true
+	if story_too:
+		for z in story_zones:
+			if Vector2(pos.x - z.x, pos.z - z.z).length() < RADIUS + pad:
+				return true
 	return false
 
 

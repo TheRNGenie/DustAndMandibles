@@ -40,6 +40,7 @@ func _ready() -> void:
 	var dressing := Node3D.new()
 	dressing.name = "Dressing"
 	add_child(dressing)
+	StoryDirector.reserve_story_ground(cliffs) # Story: chapters 9-10 keep their floor clear
 	WorldDressing.new(cliffs, dressing, WORLD_SEED + 1).build()
 	vfx = VfxPool.new()
 	vfx.name = "Vfx"

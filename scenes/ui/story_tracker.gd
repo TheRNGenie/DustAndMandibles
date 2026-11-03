@@ -93,6 +93,11 @@ func refresh() -> void:
 				kind = str(st[1])
 				if director.blast.blown:
 					text += "  ·  " + nights
+		"salvage", "reckoning":
+			if director.piece != null:
+				var st: Array = director.piece.call("status")
+				text = str(st[0])
+				kind = str(st[1])
 		"protect":
 			var total := director.loot_total()
 			if total > 0:

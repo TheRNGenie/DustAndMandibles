@@ -139,6 +139,19 @@ func _portrait_frame() -> Control:
 	return ring
 
 
+## Seconds a line stays up.
+static func line_seconds(line: String) -> float:
+	return 3.0 + line.split(" ", false).size() * 0.3
+
+
+## Seconds until everything queued has been said.
+func queued_seconds() -> float:
+	var t := maxf(_hold, 0.0) if _showing else 0.0
+	for l: Array in _queue:
+		t += line_seconds(str(l[1]))
+	return t
+
+
 ## Queues a line from `who` (StoryChapter.SPEAKERS).
 func say(who: String, line: String) -> void:
 	StoryPortrait.face_texture(self, who) # start rendering now, so it's ready
@@ -159,7 +172,7 @@ func _next() -> void:
 	_name.text = StoryChapter.speaker_name(who)
 	_role.text = StoryChapter.speaker_role(who)
 	_text.text = str(l[1])
-	_hold = 3.0 + str(l[1]).split(" ", false).size() * 0.3
+	_hold = line_seconds(str(l[1]))
 	if not _card.visible:
 		_slide(true)
 	else:

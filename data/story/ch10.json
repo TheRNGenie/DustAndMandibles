@@ -1,0 +1,83 @@
+{
+	"id": "ch10",
+	"number": 10,
+	"title": "The Reckoning",
+	"map": "canyon",
+	"requires": "ch9",
+	"sealed_tunnel": true,
+	"max_bugs": 4000,
+	"first_wave": 24,
+	"last_wave": 25,
+	"blurb": "Cornelius Vane is coming in person, with Ezra Kettle beside him, aboard the Iron Mandible: the board's armoured harvest train. He means to blast the lower hive again, seal the canyon and bury the evidence with the settlers. Something under the lower hive has been waiting longer than he has.",
+	"start_bonus": {"scrap": 2500, "chitin": 200},
+	"objective": {"kind": "reckoning", "text": "Stop the Iron Mandible and Bury the Hive Mother", "boss": "hive_mother"},
+	"bosses": {"25": "hive_mother"},
+	"extra_bugs": {"24": [["wolf_spider", 14], ["rattler_beetle", 8], ["brood_mother", 3], ["dragonfly_bandit", 6]], "25": [["wolf_spider", 10], ["spitter_scorpion", 8], ["brood_mother", 3]]},
+	"weather": {},
+	"telegram": {
+		"title": "Concluding Operations",
+		"to": "The Persons Remaining at Dry Gulch",
+		"from": "C. VANE  ·  CHAIRMAN  ·  WESTERN PLAINS & PACIFIC",
+		"body": "THE IRON MANDIBLE ARRIVES AT DUSK STOP THE COMPANY WILL CONCLUDE ITS MINING OPERATIONS STOP CLEAR THE CANYON FLOOR STOP ANY PERSON REMAINING DOES SO AT HIS OWN RISK STOP THE THIRTY DEGREE LAW REMAINS IN FORCE STOP"
+	},
+	"radio": {
+		"24": {
+			"build": [
+				["stroud", "That's his train coming up the canyon. Vane brought the whole board. And Ezra Kettle."],
+				["pearl", "I've wired the survey, the ledger, the telegrams and Pell's boot to every paper in the territory."],
+				["doc", "That third car is a furnace. It burns hive amber. The smoke will drive every bug in the canyon mad."],
+				["vane", "Ranchers. You did fine work for the company. Now stand clear of my railroad."]
+			],
+			"wave": [["stroud", "Furnace is lit and the swarm's boiling! Shoot out that furnace!"], ["kettle", "Turrets can't dip to it. Thirty degrees. His law. Rifles, ranchers. Your own hands."]],
+			"held": [["doc", "His charges are on a timer. Whatever's under the lower hive, it's about to hear us."]]
+		},
+		"25": {
+			"build": [
+				["kettle", "Pearl. Put me on the territorial wire. I've something to say about my father."],
+				["kettle", "Ezra Kettle brokered the blast of 1889. I rigged it. He knew what was down there."],
+				["pearl", "Wired, word for word. The land office has it. Marshals are riding for the rim."],
+				["ezra", "Silas. Son. Think about what you're doing to this family."],
+				["kettle", "I am, Pa. First time in my life."]
+			],
+			"wave": [["stroud", "That's no queen. That's her mother. Everything you have, ranchers!"]]
+		}
+	},
+	"events": {
+		"train": [["stroud", "There she is. The Iron Mandible. Plated like a bank vault, and a furnace on her back."]],
+		"furnace_hit": [["kettle", "That's it! Keep putting lead in that firebox!"]],
+		"furnace_half": [["pearl", "Her plates are glowing cherry. One more good push."]],
+		"furnace_down": [["stroud", "Furnace is DOWN! The swarm's turning... on the train."]],
+		"vane": [
+			["vane", "Stroud! Stroud, I'm on the wreck. Covering fire, for the love of God!"],
+			["stroud", "Every barrel on these rims stops at thirty degrees, Mr. Vane. Your law."],
+			["vane", "Then break it! I'll pardon the lot of you! I'll sign whatever you..."],
+			["vane", "Somebody cover f-"],
+			["doc", "...The wire's dead."]
+		],
+		"crane": [["doc", "An airship's lifting off the far rim. Crane, with the board's strongboxes."], ["pearl", "Let him run. He's carrying more than money."]],
+		"second": [["doc", "His charges. On a timer. The lower hive is open. Oh, no. No, no."]],
+		"ezra": [["stroud", "Marshals have Ezra Kettle in irons on the east rim."], ["ezra", "This company built the territory. Hang me and you hang the territory."]],
+		"mother_half": [["kettle", "Pearl, wire this too. I'm riding down. Her gallery's mine to shut."], ["stroud", "Kettle! Get back up that rope!"]],
+		"mother_set": [["kettle", "Charge is set at her gallery. Keep her on the wall, ranchers. A little longer."]],
+		"mother_seal": [["kettle", "Tell 'em a Kettle finally blew the right tunnel."]],
+		"sealed": [["stroud", "The gallery's down. She's down."], ["pearl", "Silas? ...Silas."], ["stroud", "He's not coming up."]],
+		"hold": [["stroud", "That furnace is still burning. Shoot it out, or none of this ends."]],
+		"win": [["stroud", "Nobody gets this canyon back. But the men who took it are under it."]],
+		"lost": [["stroud", "The canyon's lost and Vane walks. Not tonight, ranchers. Again."]]
+	},
+	"epilogue": [
+		{"title": "Cornelius Vane, Chairman", "body": "Died on the floor of Dry Gulch, aboard his own train, in sight of four rifles that could not lawfully fire. The thirty-degree law was repealed the following spring."},
+		{"title": "Ezra Kettle, Director", "body": "Tried at Prescott on a survey, a ledger, two telegrams, a governor's boot and his son's word on the wire. Hanged in March. He did not look at the gallery."},
+		{"title": "Ashby Crane, Agent of the Board", "body": "Found three weeks later in a Kansas City hotel, still smiling, his pockets full of hive amber. The amber had hatched."},
+		{"title": "The Western Plains & Pacific", "body": "The Western Plains & Pacific was dissolved in 1891. Dry Gulch has no railroad."}
+	],
+	"closing": ["stroud", "Nobody gets this canyon back. But the men who took it are under it."],
+	"journal": {
+		"title": "Specimen Notes, No. 10",
+		"body": "The gallery is sealed. Silas sealed it, and stayed with it.\n\nThe bounty board is gone from the rim. Nobody pays for dead bugs any more, and the amber is ours, if we want it.\n\nI have stopped writing specimen notes. There is nothing left down there I wish to name.\n\n- E. Whitlow, Rail Car 9"
+	},
+	"rewards": {"notches": 200, "unlock": {"kind": "amber_blueprint", "id": "mandible_lance", "name": "The Iron Mandible's Wreck: Mandible Lance Blueprint (Amber)"}},
+	"job_note": "No railroad left to pay.",
+	"headline_win": "IRON MANDIBLE WRECKED; Railroad Chairman Dead in Dry Gulch",
+	"headline_loss": "Board's Train Seals Dry Gulch; Settlers Buried With the Evidence"
+}

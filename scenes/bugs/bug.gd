@@ -310,10 +310,19 @@ func is_hidden() -> bool:
 	return state == State.BURROWED
 
 
+## Story (The Reckoning): while the Iron Mandible's amber furnace burns, bugs
+## near it (ReckoningRules.FRENZY_RADIUS) move faster. Set on every peer.
+static var frenzy_lit := false
+static var frenzy_at := Vector3.ZERO
+
+
 ## Current movement multiplier (status effects).
 func speed() -> float:
 	var boss_k := boss.speed_mult() if boss != null else 1.0
-	return status.speed_multiplier() * (2.0 if smoker else 1.0) * _env_speed() * boss_k
+	var frenzy := 1.0
+	if frenzy_lit:
+		frenzy = ReckoningRules.frenzy(Vector2(global_position.x - frenzy_at.x, global_position.z - frenzy_at.z).length(), true)
+	return status.speed_multiplier() * (2.0 if smoker else 1.0) * _env_speed() * boss_k * frenzy
 
 
 static var _env_frame := -1

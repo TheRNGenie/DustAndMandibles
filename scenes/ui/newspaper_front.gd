@@ -89,7 +89,7 @@ func show_chapter(ch: StoryChapter, won: bool, reason: String, result: Dictionar
 			pay.append(str(unlock.get("name", "")))
 		if bool(result.get("journal", false)):
 			pay.append("a page of Doc Whitlow's journal")
-		_story("The Job", "%s: done. %s" % [ch.objective_text(), "The railroad pays on time, for once."])
+		_story("The Job", "%s: done. %s" % [ch.objective_text(), ch.job_note if ch.job_note != "" else "The railroad pays on time, for once."])
 		if not pay.is_empty():
 			_story("Rewards", "Paid out: %s." % ", ".join(pay))
 	else:

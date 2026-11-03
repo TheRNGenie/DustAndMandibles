@@ -1,0 +1,70 @@
+{
+	"id": "ch9",
+	"number": 9,
+	"title": "The Dry Gulch Families",
+	"map": "canyon",
+	"requires": "ch8",
+	"sealed_tunnel": true,
+	"max_bugs": 4000,
+	"first_wave": 22,
+	"last_wave": 23,
+	"blurb": "The Queen is dead, and the board has voided your charter for it. Amber crews and hired guns are riding in to strip the canyon. Down on the far floor stand the four homesteads the 1889 blast emptied, and nobody has opened their doors since. Bring up what the families left behind.",
+	"start_bonus": {"scrap": 2100, "chitin": 170},
+	"objective": {"kind": "salvage", "text": "Bring Up the Families' Papers and the Board's Ledger", "families": 4, "ledger_wave": 23},
+	"bosses": {"23": "bone_collector"},
+	"extra_bugs": {"22": [["wolf_spider", 12], ["rattler_beetle", 6], ["spitter_scorpion", 6]], "23": [["brood_mother", 4], ["wolf_spider", 10], ["dragonfly_bandit", 6], ["spitter_scorpion", 6]]},
+	"weather": {},
+	"telegram": {
+		"title": "What They Left Behind",
+		"body": "CHARTER VOID BY ORDER OF THE BOARD STOP THIRTY DAYS TO VACATE STOP AMBER CREWS DIGGING THE UPPER HIVE STOP FOUR HOMESTEADS STILL STAND ON THE FAR FLOOR STOP BRING UP EVERY DEED AND LETTER STOP PEARL WILL READ THEM STOP"
+	},
+	"radio": {
+		"22": {
+			"build": [
+				["stroud", "Thirty days, the man says. Charter's void. His amber crews are already in the canyon."],
+				["doc", "Four homesteads still stand on the far floor. Nobody has opened those doors since the blast."],
+				["pearl", "Bring me whatever paper's in them. Deeds, letters. Paper remembers what men pay to forget."]
+			],
+			"wave": [["stroud", "The crews are digging into the upper hive. Hear that? They've stirred up the whole nest!"]],
+			"held": [["kettle", "Crews hit a resin seam under the east wall. They'll dig all night, damn them."]]
+		},
+		"23": {
+			"build": [
+				["doc", "The crews have pitched a camp at the far end. Derrick, tents, the board's own pennant."],
+				["stroud", "Whatever the board writes down, it keeps in a strongbox. Go and open it."],
+				["kettle", "If their ledger names the men who rigged that blast, my name's in it. Read it anyway."]
+			],
+			"wave": [["stroud", "Every bug the crews woke is coming up at once. Hold both rims!"]]
+		}
+	},
+	"events": {
+		"down": [["pearl", "Mind your step down there. Those houses waited this long. They can wait for you to be careful."]],
+		"papers": [["doc", "A tin box on the table, the lid not even shut. They left in a hurry."]],
+		"letter_haldane": [["pearl", "Haldane. 'Railroad man says sign or be buried with the mine. Martha says sign. I won't.'"], ["pearl", "He never signed. Here's his deed. And here's the board's copy, signed for him."]],
+		"letter_ortega": [["pearl", "Ortega, to a sister in Santa Fe: 'The ground hums at night. The children hear it.'"], ["doc", "Seven months before the blast. They heard the hive. Somebody told them it was the wind."]],
+		"letter_brannigan": [["pearl", "Brannigan: 'Mr. Crane came smiling with a bank draft. Said the mine was safe as church.'"], ["stroud", "Ashby Crane. Smiling. Of course he was."]],
+		"letter_lindqvist": [["pearl", "Lindqvist. Never posted: 'Blasting at dawn, they say. We leave tomorrow. Tomorrow will be fine.'"], ["pearl", "Nobody's coming for these. We'll keep them anyway."]],
+		"camp": [["doc", "There. The crew's camp, dug in right over the old seam. Their strongbox is by the derrick."]],
+		"ledger_taken": [["pearl", "Wire traffic out of that camp. Some Kansas City fence, asking for Crane."], ["lucky", "Tell Mr. Crane: Lucky Moreau pays for amber, not excuses. Ship it or don't."]],
+		"ledger": [
+			["pearl", "The board's harvest ledger. Every family's claim, and beside each one, the amber taken from under it."],
+			["stroud", "Haldane, forty pounds. Ortega, sixty. They priced the families by the pound."],
+			["kettle", "Two signatures at the bottom. Cornelius Vane, Chairman. And beside his..."],
+			["kettle", "Ezra Kettle. Director. My father brokered that blast. Then he sent his own son down to rig it."],
+			["pearl", "Silas?"],
+			["stroud", "Silas. Answer me."],
+			["doc", "His wire's gone dead, Captain. Let him be."]
+		],
+		"hold": [["stroud", "Night's done, and those papers are still on the floor. Down you go."]],
+		"win": [["pearl", "Four families and one ledger. That's a case, Captain. Somebody's going to answer for it."], ["stroud", "Silas hasn't said a word since. Leave his bench be."]],
+		"lost": [["stroud", "The crews have the floor. The papers are ash. Regroup, ranchers, and we go again."]]
+	},
+	"journal": {
+		"title": "Specimen Notes, No. 9",
+		"body": "No specimens tonight. Letters. Four families, one ledger, and two signatures at the bottom of it.\n\nI had thought the hive the worst thing in this canyon.\n\nSilas has not spoken since. I have stopped asking him to.\n\n- E. Whitlow, Rail Car 9"
+	},
+	"rewards": {"notches": 140, "unlock": {"kind": "amber_blueprint", "id": "queens_bell", "name": "The Board's Ledger: Queen's Bell Blueprint (Amber)"}},
+	"job_note": "Nobody paid for this one.",
+	"headline_win": "BOARD'S LEDGER FOUND: Dry Gulch Families 'Priced by the Pound'",
+	"headline_loss": "Amber Crews Overrun Dry Gulch; Settlers' Papers Lost to the Hive"
+}

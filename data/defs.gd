@@ -34,6 +34,7 @@ const BUGS: Dictionary = {
 	&"thunder_cicada": preload("res://data/bugs/thunder_cicada.tres"),
 	&"bone_collector": preload("res://data/bugs/bone_collector.tres"),
 	&"hive_queen": preload("res://data/bugs/hive_queen.tres"), # Story only (chapter 8)
+	&"hive_mother": preload("res://data/bugs/hive_mother.tres"), # Story only (chapter 10)
 	&"locust": preload("res://data/bugs/locust.tres"),
 	&"hive_drone": preload("res://data/bugs/hive_drone.tres"),
 }

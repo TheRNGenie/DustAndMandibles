@@ -34,7 +34,7 @@ func _bosses(plan: Dictionary) -> Array:
 
 
 func test_every_chapter_loads_and_is_sound() -> void:
-	assert_eq(StoryChapter.all().size(), 8, "eight playable chapters")
+	assert_eq(StoryChapter.all().size(), 10, "ten playable chapters")
 	assert_eq(StoryChapter.PLANNED.size(), 0, "nothing left Coming Later")
 	var prev := 0
 	for ch in StoryChapter.all():
@@ -134,7 +134,9 @@ func test_next_chapter() -> void:
 	assert_eq(StoryChapter.next_id("ch4"), "ch5")
 	assert_eq(StoryChapter.next_id("ch6"), "ch7", "Down the Hole follows the storm")
 	assert_eq(StoryChapter.next_id("ch7"), "ch8")
-	assert_eq(StoryChapter.next_id("ch8"), "", "the Queen is the last")
+	assert_eq(StoryChapter.next_id("ch8"), "ch9", "the families follow the Queen")
+	assert_eq(StoryChapter.next_id("ch9"), "ch10")
+	assert_eq(StoryChapter.next_id("ch10"), "", "the Reckoning is the last")
 
 
 func test_progress_unlocks_in_order() -> void:
@@ -176,7 +178,7 @@ func test_progress_round_trip_and_bad_data() -> void:
 	assert_eq(q.journal, ["ch1", "ch2"] as Array[String])
 	assert_eq(q.tried, p.tried)
 	assert_eq(q.blueprints, p.blueprints)
-	var junk := StoryProgress.from_dict({"done": {"ch9": {}, "ch1": "x"}, "journal": "nope"})
+	var junk := StoryProgress.from_dict({"done": {"ch99": {}, "ch1": "x"}, "journal": "nope"})
 	assert_true(junk.done.is_empty(), "unknown and broken chapters dropped")
 	assert_true(StoryProgress.from_dict(null).done.is_empty())
 
@@ -198,6 +200,9 @@ func test_blueprint_rewards_are_real_turrets() -> void:
 		match str(u.get("kind", "")):
 			"blueprint":
 				assert_true(Defs.turret(StringName(str(u["id"]))) != null, "%s blueprint %s" % [ch.id, u["id"]])
+			"amber_blueprint":
+				# Hive amber is another branch's: StoryAmber names the ids it will wire up.
+				assert_true(StoryAmber.is_blueprint(str(u["id"])), "%s amber blueprint %s" % [ch.id, u["id"]])
 			"cosmetic":
 				var parts := str(u["id"]).split(":")
 				assert_true(PerkTable.cosmetic_price(parts[0], parts[1]) > 0, "%s cosmetic %s is a bought one" % [ch.id, u["id"]])
