@@ -1071,6 +1071,8 @@ func _take_screenshot(path: String) -> void:
 		add_child(load("res://scenes/debug/craft_views.gd").new())
 	if GameState.flag_value("--crewview") != "": # Crewed: crewed gun views (scenes/debug/crewed_views.gd)
 		add_child(load("res://scenes/debug/crewed_views.gd").new())
+	if GameState.flag_value("--specialview") != "": # Steam Cannon / Flood Gate / Twin Mortar / Bola Launcher views
+		add_child(load("res://scenes/debug/special_views.gd").new())
 	if (GameState.has_flag("--showcase") or GameState.flag_value("--showcase") != "") and multiplayer.is_server():
 		_showcase()
 	if GameState.flag_value("--buildmode") != "" and player != null:

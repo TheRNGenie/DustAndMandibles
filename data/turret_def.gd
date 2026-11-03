@@ -69,6 +69,14 @@ const HEAVY_HP := 100.0
 @export var crew_yaw_arc_deg: float = 75.0
 ## Crewed: how far the barrel may lift above horizontal while manned, in degrees.
 @export var crew_pitch_up_deg: float = 35.0
+## Special shot for the newer control / area / pin turrets (TurretEffects):
+## &"steam" a scalding cone that knocks the highest few climbers off and slows the
+## rest, &"flood" a flood down a lane-wide band of the far wall, &"twin" a fire
+## shell and a blast shell together, &"bola" bolas that tangle several bugs.
+## Empty: the shot does just what `effect` says.
+@export var special: StringName = &""
+## Steam: most climbers one blast knocks off; Bola: bugs one throw tangles.
+@export var special_count: int = 0
 
 
 ## Armour-plated or 100+ HP: the bugs big-game guns are for and swarm guns struggle with.
@@ -131,7 +139,12 @@ func stat_line(tier: int = 0) -> String:
 	var every := interval_at(tier)
 	parts.append(("%s Shots/s" % _num(1.0 / every)) if every < 1.0 else ("1 Shot / %s s" % _num(every)))
 	parts.append("Range %d m" % int(roundf(range_at(tier))))
-	match effect:
+	match special:
+		&"steam": parts.append("Steam Cone: Knocks %d Off, Slows the Rest" % special_count)
+		&"flood": parts.append("Floods a %s m Lane" % _num(effect_size))
+		&"twin": parts.append("Fire + Blast %s m" % _num(effect_size))
+		&"bola": parts.append("Tangles %d Bugs %s s" % [special_count, _num(effect_size)])
+	match effect if special == &"" else -1:
 		Effect.KNOCKBACK: parts.append("Knocks Bugs Off")
 		Effect.BURN: parts.append("Burning Patch %s m" % _num(effect_size))
 		Effect.SPLASH: parts.append("Splash %s m" % _num(effect_size))

@@ -7,24 +7,32 @@ extends RefCounted
 const HEAVY_SLIP := 3.0
 
 ## Bosses only slip a little, and at most once every BOSS_SLIP_GAP seconds, so
-## one Water Cannon can't hold a boss on the wall forever.
-const BOSS_SLIP := 1.0
-const BOSS_SLIP_GAP := 6.0
+## one Water Cannon can't hold a boss on the wall forever (the gap is shared with
+## the Steam Cannon and Flood Gate: SpecialShotRules.slip_for).
+const BOSS_SLIP := SpecialShotRules.BOSS_SLIP
+const BOSS_SLIP_GAP := SpecialShotRules.BOSS_SLIP_GAP
 
 
 static func _slip_for(target: Bug) -> float:
-	if target.boss == null:
-		return HEAVY_SLIP
-	var now := Time.get_ticks_msec() / 1000.0
-	if now - float(target.get_meta(&"water_slip_t", -100.0)) < BOSS_SLIP_GAP:
-		return 0.0
-	target.set_meta(&"water_slip_t", now)
-	return BOSS_SLIP
+	return SpecialShotRules.slip_for(target, HEAVY_SLIP)
 
 
 static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 	var source := "%s's %s" % [t.owner_name, t.def.display_name]
 	var dir := (aim - t.muzzle_position()).normalized()
+	match t.def.special:
+		&"steam":
+			_steam(t, target, aim, source)
+			return
+		&"flood":
+			_flood(t, target, source)
+			return
+		&"twin":
+			_twin(t, target, aim, damage, source)
+			return
+		&"bola":
+			_bola(t, target, aim, dir, source)
+			return
 	match t.def.effect:
 		TurretDef.Effect.HITSCAN:
 			target.receive_hit(damage, aim, dir, t.def.armor_pierce, 1.0, source, t.cliff_id)
@@ -92,6 +100,84 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 					bugs.splash(cliff, aim, radius, damage, source, owner_cliff)
 				else:
 					bugs.add_fire(cliff, aim, radius, damage, 5.0, source, owner_cliff))
+
+
+# ------------------------------------------------------------------ special shots
+# Who they catch and what they do: SpecialShotRules. What they look like: SpecialShotFx.
+
+static func _steam(t: Turret, target: Bug, aim: Vector3, source: String) -> void:
+	var muzzle := t.muzzle_position()
+	var axis := (aim - muzzle).normalized()
+	var reach := t.def.range * t.range_multiplier() + 4.0
+	var caught: Array = [target]
+	for b in Turret.bug_manager.climbers_on(target.cliff_id):
+		if b != target and not b.untargetable() and SpecialShotRules.in_cone(muzzle, axis, b.global_position, SpecialShotRules.STEAM_HALF_ANGLE_DEG, reach):
+			caught.append(b)
+	BossFx.on_water(t, target) # steam is water too: it washes acid off nearby turrets
+	for b: Bug in caught:
+		var dmg := t.def.damage_at(t.tier, TurretDef.is_heavy(b.def))
+		b.receive_hit(dmg, b.global_position, (b.global_position - muzzle).normalized(), false, 1.0, source, t.cliff_id)
+	SpecialShotRules.steam_wash(caught, t.def.special_count, source, t.cliff_id)
+
+
+static func _flood(t: Turret, target: Bug, source: String) -> void:
+	var cliff := target.cliff_id
+	var centre := target.lane_z
+	var half := t.def.effect_size * 0.5
+	var owner_cliff := t.cliff_id
+	var dmg := t.def.damage_at(t.tier)
+	var bugs_ref: WeakRef = weakref(Turret.bug_manager)
+	var tree := t.get_tree()
+	BossFx.on_water(t, target)
+	# The water reaches the far lip, then runs down the band: each bug is washed
+	# as the sheet's front passes it.
+	tree.create_timer(SpecialShotRules.FLOOD_ARRIVE).timeout.connect(func() -> void:
+		var bugs := bugs_ref.get_ref() as BugManager
+		if bugs == null:
+			return
+		for b: Bug in SpecialShotRules.flood_band(bugs.climbers_on(cliff), centre, half):
+			var wait := maxf(WorldLayout.CLIFF_HEIGHT - b.climb_y, 0.0) / SpecialShotRules.FLOOD_SPEED
+			var bref: WeakRef = weakref(b)
+			tree.create_timer(maxf(wait, 0.01)).timeout.connect(func() -> void:
+				var bb := bref.get_ref() as Bug
+				if bb != null and bb.is_alive():
+					bb.receive_hit(dmg, bb.global_position, Vector3.DOWN, false, 1.0, source, owner_cliff)
+					SpecialShotRules.flood_wash([bb], source, owner_cliff)))
+
+
+static func _twin(t: Turret, target: Bug, aim: Vector3, damage: float, source: String) -> void:
+	var bugs_ref: WeakRef = weakref(Turret.bug_manager)
+	var cliff := target.cliff_id
+	var radius := t.def.effect_size * t.range_multiplier()
+	var owner_cliff := t.cliff_id
+	var dps := SpecialShotRules.TWIN_FIRE_DPS * t.def.damage_at(t.tier) / maxf(t.def.damage, 0.001)
+	if GameState.weather == Weather.Kind.WINDY:
+		aim += Vector3(0, 0, WeatherFx.wind_sign() * randf_range(1.0, 3.0))
+	var fire_at := SpecialShotRules.twin_fire_point(aim)
+	t.get_tree().create_timer(t.def.flight_time).timeout.connect(func() -> void:
+		var bugs := bugs_ref.get_ref() as BugManager
+		if bugs == null:
+			return
+		bugs.splash(cliff, aim, radius, damage, source, owner_cliff)
+		bugs.add_fire(cliff, fire_at, radius, dps, SpecialShotRules.TWIN_FIRE_TIME, source + SpecialShotRules.FIRE_SHELL, owner_cliff))
+
+
+static func _bola(t: Turret, target: Bug, aim: Vector3, dir: Vector3, source: String) -> void:
+	var caught := SpecialShotRules.bola_pick(target, Turret.bug_manager.climbers_on(target.cliff_id), t.def.special_count)
+	var refs: Array = caught.map(func(b: Bug) -> WeakRef: return weakref(b))
+	var dmg := t.def.damage_at(t.tier)
+	var secs := t.def.effect_size
+	var owner_cliff := t.cliff_id
+	t.get_tree().create_timer(maxf(t.def.flight_time, 0.01)).timeout.connect(func() -> void:
+		for r: WeakRef in refs:
+			var b := r.get_ref() as Bug
+			if b == null or not b.is_alive():
+				continue
+			b.receive_hit(dmg, aim, dir, false, 1.0, source, owner_cliff)
+			var hold := SpecialShotRules.bola_time(b, secs)
+			if hold > 0.0 and b.is_alive():
+				b.status.root(hold)
+				b.show_bola.rpc(hold))
 
 
 ## Colour of the shot's streak or lob.

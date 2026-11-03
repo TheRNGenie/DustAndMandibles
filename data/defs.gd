@@ -58,6 +58,11 @@ const TURRETS: Dictionary = {
 	&"whaler": preload("res://data/turrets/whaler.tres"),
 	&"thunder_mule": preload("res://data/turrets/thunder_mule.tres"),
 	&"sky_hound": preload("res://data/turrets/sky_hound.tres"),
+	# Control / area / pin additions (special shots in TurretEffects).
+	&"steam_cannon": preload("res://data/turrets/steam_cannon.tres"),
+	&"flood_gate": preload("res://data/turrets/flood_gate.tres"),
+	&"twin_mortar": preload("res://data/turrets/twin_mortar.tres"),
+	&"bola_launcher": preload("res://data/turrets/bola_launcher.tres"),
 }
 
 const STRUCTURES: Dictionary = {
@@ -97,13 +102,14 @@ const BUILD_ORDER: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"wat
 	&"chili_mortar", &"dynamite_lobber", &"lasso_harpoon", &"scaffold", &"scattergun_post", &"sharpshooter_tower", &"barbed_wire", &"bear_trap",
 	&"dynamite_crate", &"palisade", &"lantern_post", &"rain_catcher", &"farm_plot", &"porch_repeater", &"rooftop_cannon",
 	&"duck_gun", &"sky_sweeper", &"net_thrower", &"powder_flak", &"firework_battery",
+	&"steam_cannon", &"bola_launcher", &"twin_mortar", &"flood_gate",
 	&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound"] # Crewed
 
 ## Build menu (B) categories, in tab order.
 const BUILD_CATEGORIES: Array[Dictionary] = [
 	{"name": "Farming", "items": [&"farm_plot", &"rain_catcher"]},
 	{"name": "Cliff Turrets", "items": [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar",
-		&"dynamite_lobber", &"lasso_harpoon", &"scaffold"]},
+		&"dynamite_lobber", &"lasso_harpoon", &"steam_cannon", &"bola_launcher", &"twin_mortar", &"flood_gate", &"scaffold"]},
 	{"name": "Crewed Guns", "items": [&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound"]}, # Crewed
 	{"name": "Tactical", "items": [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post"]},
 	{"name": "Air Defense", "items": [&"duck_gun", &"sky_sweeper", &"net_thrower", &"powder_flak", &"firework_battery"]},

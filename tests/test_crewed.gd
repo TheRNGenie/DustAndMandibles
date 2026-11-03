@@ -20,10 +20,15 @@ func test_crewed_defs_are_registered_and_listed() -> void:
 	assert_false(Defs.is_crewed(&"farm_plot"))
 
 
+## Late-game turrets, priced like the crewed guns (not counted below).
+const LATE: Array[StringName] = [&"flood_gate"]
+
+
 func test_crewed_guns_cost_more_than_any_normal_turret() -> void:
 	var priciest := 0
 	for id: StringName in Defs.TURRETS:
-		if not Defs.is_crewed(id):
+		# Late turrets (the Flood Gate) are priced on their own scale.
+		if not Defs.is_crewed(id) and id not in LATE:
 			priciest = maxi(priciest, Defs.cost_of(id))
 	for id in CREWED:
 		var c := Defs.cost_of(id)

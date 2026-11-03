@@ -13,6 +13,8 @@ static func build(id: StringName, team: Color) -> Dictionary:
 		return CraftBuilder.build(id, team)
 	if CrewedBuilder.has(id): # Crewed: the 2 x 2 crewed guns (gen/crewed_builder.gd)
 		return CrewedBuilder.build(id, team)
+	if ContraptionBuilder.has(id): # Steam Cannon, Flood Gate, Twin Mortar, Bola Launcher (gen/contraption_builder.gd)
+		return ContraptionBuilder.build(id, team)
 	match id:
 		&"buffalo_rifle":
 			return _buffalo(team)

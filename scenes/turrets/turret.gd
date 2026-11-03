@@ -378,6 +378,12 @@ func _draw_shot() -> void:
 	var from := _muzzle.global_position
 	var spread := deg_to_rad(def.spread_deg)
 	var to := aim_point + Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * from.distance_to(aim_point) * spread
+	if def.special != &"":
+		# Steam cone, flood, twin shells, bolas (scenes/vfx/special_shot_fx.gd).
+		if vfx != null:
+			SpecialShotFx.draw(self, vfx)
+		Audio.play_at(def.sound if Audio.has_sound(def.sound) else &"cannon", from)
+		return
 	if vfx != null:
 		if def.flight_time > 0.0:
 			vfx.lob(from, to, def.flight_time, TurretEffects.shot_color(def))

@@ -326,6 +326,38 @@
         "The cloud keeps stinging anything that flies through it.",
         "Turns almost all the way round: it covers your own sky too."
       ]
+    },
+    "steam_cannon": {
+      "lore": "A coal-fired boiler bolted to a brass nozzle. Every blast is a cone of scalding steam: the highest climbers in it let go and fall, and everything left in the fog crawls.",
+      "tips": [
+        "Knocks off up to three small climbers a blast, the highest first.",
+        "Heavy bugs only slip a little; bosses barely at all.",
+        "Pair it with a Gatling Post: slowed bugs are easy pickings."
+      ]
+    },
+    "flood_gate": {
+      "lore": "A dammed timber tank on the lip. It takes twenty seconds to fill, then throws the sluice and sends a flood down a whole lane of the far wall.",
+      "tips": [
+        "Washes every small bug in a lane-wide band off the wall at once.",
+        "Heavy bugs slip a few metres; bosses hardly budge.",
+        "Best on a lane the bugs crowd into."
+      ]
+    },
+    "twin_mortar": {
+      "lore": "Two tubes on one carriage. Each salvo drops a blast shell on the pack and a chili fire shell just above it, so whatever lives through the bang climbs into the flames.",
+      "tips": [
+        "Eats a chili and a scrap every salvo.",
+        "Slow shells: fast bugs are gone before they land.",
+        "Can't touch fliers."
+      ]
+    },
+    "bola_launcher": {
+      "lore": "A spring gun with a revolving drum of bolas. Each throw wraps two climbers in weighted rope and holds them where they cling.",
+      "tips": [
+        "Tangles two bugs at once; almost no damage.",
+        "Hold a heavy bug in a Buffalo Rifle's sights.",
+        "Bosses shake it off after a second."
+      ]
     }
   },
   "crops": {
