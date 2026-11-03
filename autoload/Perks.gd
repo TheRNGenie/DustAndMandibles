@@ -494,7 +494,7 @@ func _on_players_changed() -> void:
 ## Lobby roster: "  ·  7 perks".
 func roster_note(peer_id: int) -> String:
 	var n := loadout_of(peer_id).size()
-	return "  -  %d perk%s" % [n, "" if n == 1 else "s"] if n > 0 else ""
+	return "  ·  %d Perk%s" % [n, "" if n == 1 else "s"] if n > 0 else ""
 
 
 # ------------------------------------------------------------------ the run
