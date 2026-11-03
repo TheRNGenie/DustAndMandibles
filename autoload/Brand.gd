@@ -204,7 +204,10 @@ func cheat(peer_id: int, game: String) -> int:
 		bans[peer_id] = BrandTable.ban_until(GameState.wave)
 		_sync_bans()
 		Economy.notify(peer_id, "The pit boss caught you cheating! You're barred from the tables until wave %d." % int(bans[peer_id]))
-		_caught_fx.rpc(peer_id) if NetworkManager.is_online() else _caught_fx(peer_id)
+		if NetworkManager.is_online():
+			_caught_fx.rpc(peer_id)
+		else:
+			_caught_fx(peer_id)
 		return -1
 	return 1
 

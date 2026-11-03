@@ -109,3 +109,80 @@ func test_turret_part_prizes() -> void:
 			assert_true(CraftTable.is_part(k))
 	assert_true(got > 40 and got < 180, "about 5 in 100 wins: %d" % got)
 	assert_eq(CasinoRules.prize_text({&"part_swivel": 1}), "a Swivel mount")
+
+
+func test_blackjack_double_and_split() -> void:
+	assert_true(CasinoRules.bj_can_double([5, 6]))
+	assert_false(CasinoRules.bj_can_double([5, 6, 2]), "only on two cards")
+	assert_false(CasinoRules.bj_can_double([1, 13]), "not on a natural")
+	assert_true(CasinoRules.bj_can_split([8, 8], 1))
+	assert_false(CasinoRules.bj_can_split([8, 8], 2), "one split a round")
+	assert_false(CasinoRules.bj_can_split([10, 13], 1), "same rank only")
+	# A doubled 20 against 18 pays even money on the doubled bet.
+	assert_eq(CasinoRules.bj_settle([[5, 6, 9]], [40], [10, 8]), [80] as Array[int])
+	# Split 21 on two cards is not a natural (1:1), and a split bust loses alone.
+	assert_eq(CasinoRules.bj_settle([[1, 13], [1, 5, 10, 9]], [20, 20], [10, 9]), [40, 0] as Array[int])
+	assert_eq(CasinoRules.bj_payout([1, 13], [10, 9], 20, true), 40)
+	assert_eq(CasinoRules.bj_payout([10, 9], [10, 9], 20, true), 20)
+
+
+func test_baccarat_banker_rule_and_calls() -> void:
+	assert_true(CasinoRules.bac_banker_draws(5, -1), "player stood: banker draws on 0-5")
+	assert_false(CasinoRules.bac_banker_draws(6, -1))
+	assert_true(CasinoRules.bac_banker_draws(3, 9))
+	assert_false(CasinoRules.bac_banker_draws(3, 8))
+	assert_true(CasinoRules.bac_banker_draws(6, 7))
+	assert_false(CasinoRules.bac_banker_draws(6, 5))
+	assert_false(CasinoRules.bac_banker_draws(7, 1))
+	assert_eq(CasinoRules.bac_explain([9, 13], [2, 3]), PackedStringArray(["Natural 9! No more cards."]))
+	var calls := CasinoRules.bac_explain([2, 2, 6], [3, 3, 1])
+	assert_eq(calls[0], "Player on 4 draws.")
+	assert_eq(calls[1], "Banker on 6 draws against a Player third card of 6.")
+	assert_eq(CasinoRules.bac_explain([3, 4], [2, 2, 5])[1], "Banker on 4 draws.")
+
+
+func test_roulette_wheel_order() -> void:
+	var order := CasinoRules.WHEEL_ORDER
+	assert_eq(order.size(), 37)
+	var seen := {}
+	for n: int in order:
+		seen[n] = true
+	assert_eq(seen.size(), 37, "every number once")
+	assert_eq(order[0], 0)
+	assert_eq(order[1], 32)
+	assert_eq(order[36], 26)
+	for i in range(1, 37):
+		var a := CasinoRules.roulette_colour(order[i])
+		var b := CasinoRules.roulette_colour(order[i % 36 + 1])
+		assert_true(a != b, "red and black alternate round the wheel (%d, %d)" % [order[i], order[i % 36 + 1]])
+
+
+func test_roulette_layout_payouts() -> void:
+	assert_eq(CasinoRules.roulette_settle({"n17": 10}, 17), 360)
+	assert_eq(CasinoRules.roulette_settle({"n17": 10}, 18), 0)
+	assert_eq(CasinoRules.roulette_settle({"red": 20, "black": 20}, 0), 0, "zero takes the outside bets")
+	assert_eq(CasinoRules.roulette_settle({"n0": 10}, 0), 360)
+	assert_eq(CasinoRules.roulette_settle({"dozen2": 10, "col3": 10}, 24), 60, "24: 2nd dozen and the top column")
+	assert_eq(CasinoRules.roulette_settle({"dozen3": 10, "col1": 10}, 24), 0)
+	assert_eq(CasinoRules.roulette_settle({"red": 10, "odd": 10, "low": 10, "n1": 10}, 1), 20 + 20 + 20 + 360)
+	assert_true(CasinoRules.roulette_spot_wins("col1", 34) and CasinoRules.roulette_spot_wins("col2", 35) and CasinoRules.roulette_spot_wins("col3", 36))
+	assert_true(CasinoRules.roulette_spot_wins("dozen1", 12) and CasinoRules.roulette_spot_wins("dozen3", 25))
+	# Every spot returns its fair share less the zero (36/37) on average.
+	for spot: String in ["n5", "red", "even", "high", "dozen1", "col2"]:
+		var back := 0
+		for n in 37:
+			back += CasinoRules.roulette_settle({spot: 10}, n)
+		assert_eq(back, 360, spot)
+	var clean := CasinoRules.roulette_clean({"n40": 10, "red": -5, "black": 10, "odd": 400, "seven": 10, "col2": 20})
+	assert_eq(clean, {"black": 10, "col2": 20})
+
+
+func test_shell_moves_are_shared() -> void:
+	var a := CasinoRules.shell_moves(1234)
+	var b := CasinoRules.shell_moves(1234)
+	assert_eq(a, b, "every peer animates the same shuffle")
+	assert_true((a["swaps"] as Array).size() >= 5)
+	for sw: Array in a["swaps"]:
+		assert_true(int(sw[0]) < int(sw[1]) and int(sw[1]) <= 2)
+	var t := CasinoRules.shell_tracked({"start": 0, "swaps": [[0, 1, 1.0], [1, 2, 1.0], [0, 1, 1.0]]})
+	assert_eq(t, 2)

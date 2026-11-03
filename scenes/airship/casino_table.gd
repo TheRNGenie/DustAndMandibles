@@ -6,6 +6,13 @@ extends CasinoGame
 const BETS: Array = [10, 20, 50, 100]
 
 var _label: Label3D
+## Every peer: when each card on the felt is (or was) dealt, in local seconds,
+## keyed by the table's own names ("h0:1", "d:0", "flip"...), so the screen can
+## slide them in one by one however often it is rebuilt.
+var deal_times: Dictionary = {}
+var deal_last := 0.0
+var _deal_round := -1
+const DEAL_GAP := 0.42
 
 
 func _ready() -> void:
@@ -61,3 +68,28 @@ func _pay_later(peer_id: int, amounts: Dictionary, seconds: float) -> void:
 	if amounts.is_empty():
 		return
 	get_tree().create_timer(seconds, false).timeout.connect(_pay.bind(peer_id, amounts))
+
+
+## Every peer: stamps the cards in `keys` (in dealing order) that are new this
+## view; a new round clears the felt first.
+func stamp_deal(round_id: int, keys: Array, gap: float = DEAL_GAP) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if round_id != _deal_round:
+		_deal_round = round_id
+		deal_times.clear()
+		deal_last = now - gap + 0.1
+	for k: Variant in keys:
+		if deal_times.has(k):
+			continue
+		deal_last = maxf(now, deal_last + gap)
+		deal_times[k] = deal_last
+
+
+## The dealing animation's length for this view (cards still to land + a beat).
+func deal_anim_length() -> float:
+	return deal_last + 0.45 - view_at
+
+
+## A card's look-only suit, the same on every peer.
+static func card_suit(round_id: int, key: String) -> int:
+	return absi(hash("%d/%s" % [round_id, key])) % 4
