@@ -131,9 +131,30 @@ const WAVE_CONFIG: WaveConfig = preload("res://data/wave_config.tres")
 
 static func bug(id: StringName) -> BugDef:
 	var d := BUGS.get(id) as BugDef
+	if d == null and String(id).ends_with("@slow"):
+		return _slow_bug(StringName(String(id).trim_suffix("@slow")))
 	if d == null and String(id).contains("@"):
 		# Kill-method variants ("rattler_beetle@bullet"), made from the base bug.
 		d = (load("res://scenes/bugs/bug_variants.gd") as GDScript).call("get_def", id) as BugDef
+	return d
+
+
+## Tutorial: "dust_mite@slow" is a Dust Mite that climbs and walks at 60% speed
+## (same look and name), so the scripted tutorial wave stays gentle.
+static var _slow: Dictionary = {}
+static func _slow_bug(base: StringName) -> BugDef:
+	if _slow.has(base):
+		return _slow[base]
+	var src := BUGS.get(base) as BugDef
+	if src == null:
+		return null
+	var d := src.duplicate() as BugDef
+	d.id = StringName("%s@slow" % base)
+	d.variant_of = base
+	d.climb_speed *= 0.6
+	d.walk_speed *= 0.6
+	d.scrap_drop = 0
+	_slow[base] = d
 	return d
 
 

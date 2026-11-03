@@ -38,6 +38,7 @@ var _roster_box: VBoxContainer
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	GameState.reset()
+	GameState.tutorial = false # back from the tutorial (or never in it)
 	# [Foundation] --continue (tests): resume the saved run on the automatic start.
 	if GameState.has_flag("--continue"):
 		RunSave.pending = RunSave.read()
@@ -67,6 +68,8 @@ func _ready() -> void:
 	elif not first and NetworkManager.menu_message != "":
 		_show_connect(NetworkManager.menu_message)
 		NetworkManager.menu_message = ""
+	elif first and _tutorial_launch():
+		_on_tutorial.call_deferred()
 	elif GameState.has_flag("--host") or _test_launch():
 		_auto_ready = true
 		_on_host()
@@ -194,6 +197,11 @@ func _build_ui() -> void:
 	var join_btn := _button("Join Game")
 	join_btn.pressed.connect(_on_join)
 	_connect_box.add_child(join_btn)
+	# Tutorial: a short guided solo run on the canyon (TutorialRun).
+	var tut_btn := _button("Tutorial")
+	tut_btn.tooltip_text = "A short guided game: the core loop in about five minutes. Not saved."
+	tut_btn.pressed.connect(_on_tutorial)
+	_connect_box.add_child(tut_btn)
 	_connect_box.add_child(_ledger_button()) # Perk
 	var secrets_btn := _button("Secrets") # Theme: code entry for secret cosmetics
 	secrets_btn.pressed.connect(func() -> void: _secrets.open())
@@ -344,6 +352,22 @@ func _ledger_button() -> Button:
 	var b := _button("Rancher's Ledger")
 	b.pressed.connect(func() -> void: _ledger.open())
 	return b
+
+
+## Tutorial: an offline solo game on the canyon (no lobby, no port, no CPU),
+## scripted by TutorialRun. Never saved, never pays Notches.
+func _on_tutorial() -> void:
+	RunSave.pending = {}
+	NetworkManager.local_name = _player_name()
+	NetworkManager.cpu_quality = -1
+	NetworkManager.map_id = MapDef.CANYON
+	GameState.tutorial = true
+	get_tree().change_scene_to_file(NetworkManager.WORLD_SCENE)
+
+
+## --tutorialrun / --tutorialstep=N (tests, screenshots) start the tutorial at once.
+func _tutorial_launch() -> bool:
+	return GameState.has_flag("--tutorialrun") or GameState.flag_value("--tutorialstep") != ""
 
 
 ## Debug/test launches go straight into a solo game, no menu clicks

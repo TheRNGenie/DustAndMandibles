@@ -693,7 +693,7 @@ func _on_game_over(won: bool, _reason: String) -> void:
 	# An endless run banks again when it finally falls: only pay what's new.
 	var before := BrandRules.earnings(int(_banked["waves"]), last, int(_banked["saves"]), bool(_banked["won"]), has_partner)
 	var earned := int(full["total"]) - (int(before["total"]) if bool(_banked["rode"]) else 0)
-	var test_run := GameState.has_flag("--debug") and not GameState.has_flag("--perkearn")
+	var test_run := (GameState.has_flag("--debug") and not GameState.has_flag("--perkearn")) or GameState.tutorial # the tutorial pays no Notches
 	if not test_run:
 		profile.bank_run(earned, GameState.wave, won)
 		save()

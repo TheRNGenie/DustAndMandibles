@@ -35,6 +35,10 @@ var end_reason := ""
 var menu_open: bool = false
 ## Debug: Homesteads take no damage.
 var god_mode: bool = false
+## The tutorial run (main menu > Tutorial): a gentle scripted solo game that is
+## never saved and never pays Notches. Not cleared by reset() (start_run calls
+## it); the main menu clears it.
+var tutorial := false
 ## Command-line flags (anything after `--` on the command line).
 var flags: PackedStringArray = PackedStringArray()
 

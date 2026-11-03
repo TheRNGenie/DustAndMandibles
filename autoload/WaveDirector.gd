@@ -95,6 +95,9 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 
 
 func _make_plan() -> Dictionary:
+	# Tutorial: the first wave is a handful of slow Dust Mites (TutorialRun).
+	if GameState.tutorial and GameState.wave <= 1:
+		return TutorialRun.wave_plan()
 	_planner.variants = tally.unlocked
 	_planner.boss_seen = boss_seen
 	_planner.cliff_count = WorldLayout.cliff_count() # Maps: this run's map
