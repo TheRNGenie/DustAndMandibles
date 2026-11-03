@@ -433,13 +433,28 @@ static func panel(variation: String = "PaperPanel") -> PanelContainer:
 	return p
 
 
+## The type scale: every UI font size snaps to one of these steps (fine print,
+## small, body, emphasis, header, title, and three display sizes), so text
+## sizes line up across every screen.
+const TYPE_SCALE: Array[int] = [12, 14, 16, 18, 22, 30, 40, 54, 64]
+
+
+## The nearest step of the type scale (ties go up).
+static func ts(size: int) -> int:
+	var best := TYPE_SCALE[0]
+	for s in TYPE_SCALE:
+		if absi(s - size) <= absi(best - size):
+			best = s
+	return best
+
+
 ## A label; by default in the set's ink (follows live swaps). Pass a colour to pin it.
 static func label(text: String, size: int = 16, color: Color = Color(0, 0, 0, 0)) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", ts(size))
 	if color.a > 0.0:
 		l.add_theme_color_override("font_color", color)
 	else:
@@ -455,7 +470,7 @@ static func title(text: String, size: int = 30, on_header: bool = false) -> Labe
 	l.uppercase = true
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.theme_type_variation = "HeaderTitle" if on_header else "TitleLabel"
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", ts(size))
 	return l
 
 

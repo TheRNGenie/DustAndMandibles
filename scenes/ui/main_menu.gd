@@ -503,12 +503,12 @@ func _line_edit(placeholder: String, value: String) -> LineEdit:
 	e.placeholder_text = placeholder
 	e.text = value
 	e.custom_minimum_size.y = 40
-	e.add_theme_font_size_override("font_size", 17)
+	e.add_theme_font_size_override("font_size", 18)
 	return e
 
 
 func _button(text: String) -> Button:
 	var b := UiStyle.button(text) # Theme: big title-screen buttons
 	b.custom_minimum_size.y = 56
-	b.add_theme_font_size_override("font_size", 21)
+	b.add_theme_font_size_override("font_size", 22)
 	return b

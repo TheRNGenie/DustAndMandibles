@@ -145,7 +145,7 @@ func _build() -> void:
 		quit.pressed.connect(func() -> void: get_tree().quit())
 		footer.add_child(quit)
 	for b: Node in col.find_children("*", "Button", true, false):
-		(b as Button).add_theme_font_size_override("font_size", 15)
+		(b as Button).add_theme_font_size_override("font_size", 16)
 
 
 func _add_tab(tab_name: String, content: Control) -> void:
