@@ -64,9 +64,9 @@ func host(port: int = DEFAULT_PORT) -> Error:
 	if MapDef.IDS.has(flag_map):
 		map_id = flag_map
 	var err := peer.create_server(port, MAX_PLAYERS - 1)
-	# Debug/test launches: if the port is taken (another test or game is running),
-	# try the next few so parallel automated runs don't hang on the menu.
-	if err != OK and GameState.has_flag("--debug") and not GameState.has_flag("--host"):
+	# If the port is taken (another copy of the game, or something else on this
+	# PC), try the next few: the invite code carries whichever port we got.
+	if err != OK:
 		for i in range(1, 32):
 			peer = ENetMultiplayerPeer.new()
 			err = peer.create_server(port + i, MAX_PLAYERS - 1)
