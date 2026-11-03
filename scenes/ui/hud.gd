@@ -144,7 +144,6 @@ func _ready() -> void:
 	plaque.add_child(_hint_label)
 	GameState.ready_countdown_changed.connect(func(_s: float) -> void: _update_hint())
 	GameState.levers_changed.connect(_update_hint) # Waterworks
-	GameState.phase_changed.connect(_on_phase_slowmo)
 	GameState.phase_changed.connect(func(_p: GameState.Phase) -> void: _flash_phase())
 	GameState.skip_votes_changed.connect(func(_v: int, _n: int) -> void: _update_hint())
 
@@ -220,30 +219,6 @@ func _update_phase_label() -> void:
 		_phase_label.text = "Wave %d  -  %s  -  Levers %d/%d" % [GameState.wave, title, GameState.skip_votes, maxi(NetworkManager.players.size(), 1)]
 	else:
 		_phase_label.text = "Wave %d  -  %s  -  %d:%02d" % [GameState.wave, title, secs / 60, secs % 60]
-
-
-var _last_phase := -1
-
-
-## The last kill of a wave lands in slow motion for a moment (solo only: slowing
-## time on one machine of an online game would put it out of step).
-func _on_phase_slowmo(p: GameState.Phase) -> void:
-	var was := _last_phase
-	_last_phase = p
-	if was != GameState.Phase.WAVE or p != GameState.Phase.BUILD:
-		return
-	if not GameState.is_solo() or GameState.has_flag("--fast") or GameState.flag_value("--soak") != "":
-		return
-	Engine.time_scale = 0.3
-	print("[slowmo] last kill of the wave")
-	get_tree().create_timer(0.9, true, false, true).timeout.connect(func() -> void:
-		var tw := get_tree().create_tween()
-		tw.set_ignore_time_scale(true)
-		tw.tween_property(Engine, "time_scale", 1.0, 0.4))
-
-
-func _exit_tree() -> void:
-	Engine.time_scale = 1.0 # never leave the menu or the next run slowed
 
 
 func _flash_phase() -> void:
