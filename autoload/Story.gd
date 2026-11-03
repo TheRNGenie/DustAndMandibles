@@ -31,7 +31,16 @@ func _ready() -> void:
 
 
 func path() -> String:
-	return "user://story_debug.json" if GameState.has_flag("--debug") else "user://story.json"
+	return "user://story_debug.json" if GameState.has_flag("--debug") or _amber_test() else "user://story.json"
+
+
+## The amber debug views (--amberall, --amberview, --lucky...) can unlock
+## blueprints without --debug; they must never touch the real progress file.
+func _amber_test() -> bool:
+	for f: Variant in GameState.flags:
+		if str(f).begins_with("--amber") or str(f) == "--lucky":
+			return true
+	return false
 
 
 func save() -> void:
