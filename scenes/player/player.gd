@@ -106,6 +106,10 @@ func _ready() -> void:
 	lighter.name = "Lighter"
 	lighter.player = self
 	gun.add_child(lighter)
+	# Built after world.gd set our authority, so they'd default to the host's (1):
+	# a client's grapple rope and zippo RPCs were refused on every other peer.
+	for n: Node in [grapple, whip, lighter]:
+		n.set_multiplayer_authority(get_multiplayer_authority())
 	rig = DummyRig.new()
 	rig.name = "Rig"
 	add_child(rig)
