@@ -9,6 +9,9 @@ var _hp_bar: ProgressBar
 var _smoke: Label
 var _scrap: Label
 var _chitin: Label
+## Solo on the canyon: the other cliff's stockpile, on a small labelled line.
+var _scrap_other: Label
+var _chitin_other: Label
 var _homes: Array[ProgressBar] = []
 var _captions: Array[Label] = []
 var _downed: Label
@@ -27,6 +30,7 @@ func _ready() -> void:
 	panel.offset_left = 24
 	panel.offset_top = -132
 	panel.offset_right = 300
+	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN # a second stockpile line grows it upward
 	panel.offset_bottom = -24
 	add_child(panel)
 	var col := VBoxContainer.new()
@@ -37,9 +41,11 @@ func _ready() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 18)
 	col.add_child(row)
-	_scrap = _counter(row, Palette.METAL.lightened(0.2), "SCRAP")
-	_chitin = _counter(row, Palette.BEETLE_TEAL.lightened(0.15), "CHITIN")
-	_smoke = UiStyle.label("", 13, Palette.BONE)
+	_scrap = _counter(row, &"scrap")
+	_scrap_other = _scrap.get_meta(&"other") as Label
+	_chitin = _counter(row, &"chitin")
+	_chitin_other = _chitin.get_meta(&"other") as Label
+	_smoke = UiStyle.label("", 13, UiStyle.c("hud"))
 	_smoke.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_smoke.add_theme_color_override("font_outline_color", Palette.OUTLINE)
 	_smoke.add_theme_constant_override("outline_size", 4)
@@ -70,7 +76,7 @@ func _ready() -> void:
 		box.offset_right = box.offset_left + 260.0
 		box.offset_top = 16 + (0 if i == 0 else (i - 1) * 50)
 		add_child(box)
-		var caption := UiStyle.label("", 16, Palette.BONE)
+		var caption := UiStyle.label("", 16, UiStyle.c("hud"))
 		caption.add_theme_color_override("font_outline_color", Palette.OUTLINE)
 		caption.add_theme_constant_override("outline_size", 6)
 		box.add_child(caption)
@@ -79,7 +85,7 @@ func _ready() -> void:
 		_homes.append(bar)
 		_captions.append(caption)
 
-	_downed = UiStyle.label("", 34, Palette.TEAM_WEST)
+	_downed = UiStyle.label("", 34, UiStyle.hud_c("bad"))
 	_downed.set_anchors_preset(Control.PRESET_CENTER)
 	_downed.offset_left = -400
 	_downed.offset_right = 400
@@ -103,12 +109,12 @@ func bind_player(player: Player) -> void:
 		_hp_bar.value = hp)
 	if player.cigarette != null:
 		player.cigarette.changed.connect(func(left: float) -> void:
-			_smoke.text = ("SMOKING  %ds   (faster, sharper eyes)" % int(ceilf(left))) if left > 0.0 else "")
+			_smoke.text = ("Smoking  ·  %s  ·  Faster, Sharper Eyes" % UiStyle.clock(left)) if left > 0.0 else "")
 	player.vitals.needs_changed.connect(func(f: float, w: float) -> void:
 		_food_icon.set_level(f)
 		_water_icon.set_level(w))
 	player.vitals.downed_changed.connect(func(is_down: bool, secs: float) -> void:
-		_downed.text = "DOWNED - back on your feet in %d s" % int(ceilf(secs)) if is_down else "")
+		_downed.text = "Downed  ·  Back on Your Feet in %s" % UiStyle.clock(secs) if is_down else "")
 	_refresh_homes()
 	_refresh_resources()
 
@@ -137,13 +143,17 @@ func _refresh_homes() -> void:
 func _refresh_resources() -> void:
 	# Maps: with the team's shared pool (CPU teammates) every cliff reads the
 	# same stockpile, so show it once; on 3-4 cliff maps show your own.
-	if GameState.is_solo() and not Economy.shared and WorldLayout.cliff_count() == 2:
-		# Solo on the canyon builds on both cliffs, so show both stockpiles.
-		_scrap.text = "%d / %d" % [Economy.amount(0, &"scrap"), Economy.amount(1, &"scrap")]
-		_chitin.text = "%d / %d" % [Economy.amount(0, &"chitin"), Economy.amount(1, &"chitin")]
-	else:
-		_scrap.text = str(Economy.amount(cliff_id, &"scrap"))
-		_chitin.text = str(Economy.amount(cliff_id, &"chitin"))
+	_scrap.text = str(Economy.amount(cliff_id, &"scrap"))
+	_chitin.text = str(Economy.amount(cliff_id, &"chitin"))
+	# Solo on the canyon you build on both cliffs: the big number is the cliff
+	# you stand on, and a small labelled line under it is the other cliff's pile.
+	var other := 1 - cliff_id
+	var both := GameState.is_solo() and not Economy.shared and WorldLayout.cliff_count() == 2 and other >= 0
+	for pair: Array in [[_scrap_other, &"scrap"], [_chitin_other, &"chitin"]]:
+		var l := pair[0] as Label
+		l.visible = both
+		if both:
+			l.text = "%s: %d" % [WorldLayout.map().name_of(other), Economy.amount(other, pair[1])]
 
 
 ## A breaching bug stole from a stockpile: a red "-N" rises off the counter and fades.
@@ -155,7 +165,7 @@ func _on_stolen(cid: int, amounts: Dictionary) -> void:
 		var counter := counters.get(r) as Label
 		if counter == null:
 			continue
-		var l := UiStyle.label("-%d" % int(amounts[r]), 20, Palette.TEAM_WEST.lightened(0.15))
+		var l := UiStyle.label("-%d" % int(amounts[r]), 20, UiStyle.hud_c("bad"))
 		l.add_theme_color_override("font_outline_color", Palette.OUTLINE)
 		l.add_theme_constant_override("outline_size", 6)
 		l.autowrap_mode = TextServer.AUTOWRAP_OFF
@@ -173,32 +183,37 @@ func _on_stolen(cid: int, amounts: Dictionary) -> void:
 		flash.tween_property(counter, "modulate", Color.WHITE, 0.8)
 
 
-## A coloured chip, a small caption and a big number.
-func _counter(parent: HBoxContainer, color: Color, caption: String) -> Label:
+## A currency swatch, a small caption and a big number (plus a hidden small line
+## for the other cliff's stockpile, kept on the number's "other" meta).
+func _counter(parent: HBoxContainer, resource: StringName) -> Label:
 	var box := HBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	parent.add_child(box)
-	var chip := Panel.new()
-	chip.custom_minimum_size = Vector2(18, 18)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = color
-	sb.border_color = Palette.OUTLINE
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(4)
-	chip.add_theme_stylebox_override("panel", sb)
-	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	box.add_child(chip)
+	var chip := UiStyle.swatch(UiStyle.resource_color(resource), 18)
+	chip.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	chip.custom_minimum_size.y = 18
+	var chip_box := MarginContainer.new()
+	chip_box.add_theme_constant_override("margin_top", 18)
+	chip_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip_box.add_child(chip)
+	box.add_child(chip_box)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", -4)
 	box.add_child(v)
-	var cap := UiStyle.label(caption, 11, Palette.BONE.darkened(0.2))
+	var cap := UiStyle.label(UiStyle.tc(String(resource)), 12, Color(UiStyle.c("hud"), 0.75))
 	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	cap.autowrap_mode = TextServer.AUTOWRAP_OFF
 	v.add_child(cap)
-	var num := UiStyle.label("0", 24, Palette.BONE)
+	var num := UiStyle.label("0", 24, UiStyle.c("hud"))
 	num.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	num.autowrap_mode = TextServer.AUTOWRAP_OFF
 	v.add_child(num)
+	var other := UiStyle.label("", 12, Color(UiStyle.c("hud"), 0.75))
+	other.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	other.autowrap_mode = TextServer.AUTOWRAP_OFF
+	other.visible = false
+	v.add_child(other)
+	num.set_meta(&"other", other)
 	return num
 
 

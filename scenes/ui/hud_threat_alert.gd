@@ -5,8 +5,9 @@ extends Control
 ## the highest one: red for your own cliff ("call for cover"), amber for a
 ## cliff your turrets protect, pale for the rest. Every line names its cliff
 ## ("3 at North Butte"), yours first. Rings once each time it starts.
-## With colour-blind shapes on, your cliff is a square marked "!!" and your
-## partner's a diamond marked "!", on the markers and on the card's lines.
+## Every alert also has a shape, so it never relies on colour alone: your cliff
+## is a square marked "!!", a cliff you cover a diamond marked "!", the rest a
+## small circle; the Colour-Blind Shapes setting draws them larger.
 
 const TOP_SHARE := 0.65 # how far up the face counts as "near the top"
 const SCAN := 0.4
@@ -96,7 +97,7 @@ func _scan() -> void:
 			continue
 		var n := int(_threats[cid]["count"])
 		var text := "%d at %s%s" % [n, m.name_of(cid), " (Yours)" if cid == mine else ""]
-		_label_box.add_child(_line(text, color_for(cid), cid == mine))
+		_label_box.add_child(_line(text, color_for(cid), cid == mine, _covers(cid)))
 	_card.visible = _label_box.get_child_count() > 0
 	if _card.visible:
 		_center.call_deferred()
@@ -115,21 +116,20 @@ func _covers(cid: int) -> bool:
 ## Red for your cliff, amber for a cliff you cover, pale for the others.
 func color_for(cid: int) -> Color:
 	if cid == player.cliff_id:
-		return Palette.TEAM_WEST.lightened(0.35)
-	return Palette.GLOW_YELLOW if _covers(cid) else Palette.BONE.darkened(0.15)
+		return UiStyle.hud_c("bad")
+	return UiStyle.hud_c("warn") if _covers(cid) else UiStyle.c("hud").darkened(0.15)
 
 
-func _line(s: String, color: Color, mine: bool) -> Control:
+func _line(s: String, color: Color, mine: bool, covered: bool) -> Control:
 	var l := KeyHints.text(s, 14, color)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	if not Settings.colorblind:
-		return l
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_BEGIN
 	row.add_theme_constant_override("separation", 6)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var glyph := Glyph.new()
 	glyph.mine = mine
+	glyph.covered = covered
 	glyph.color = color
 	row.add_child(glyph)
 	row.add_child(l)
@@ -139,6 +139,7 @@ func _line(s: String, color: Color, mine: bool) -> Control:
 ## The colour-blind shape for an alert line: square "!!" (yours), diamond "!" (theirs).
 class Glyph extends Control:
 	var mine := false
+	var covered := true
 	var color := Color.WHITE
 
 	func _init() -> void:
@@ -147,13 +148,19 @@ class Glyph extends Control:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
-		HudThreatAlert.draw_shape(self, size * 0.5, 8.5, mine, color)
+		HudThreatAlert.draw_shape(self, size * 0.5, 8.5, mine, color, covered)
 
 
 ## Draws an alert shape on any canvas item: a square with "!!" for your own
-## cliff in colour-blind mode, otherwise a diamond with "!".
-static func draw_shape(ci: CanvasItem, p: Vector2, r: float, mine: bool, color: Color) -> void:
-	var square := mine and Settings.colorblind
+## cliff, a diamond with "!" for one you cover, a small plain circle otherwise.
+static func draw_shape(ci: CanvasItem, p: Vector2, r: float, mine: bool, color: Color, covered: bool = true) -> void:
+	if Settings.colorblind:
+		r *= 1.25
+	if not mine and not covered:
+		ci.draw_circle(p, r * 0.62, Color(Palette.OUTLINE, 0.85))
+		ci.draw_circle(p, r * 0.62 - 2.5, color)
+		return
+	var square := mine
 	var pts := _shape_points(p, r, square)
 	ci.draw_colored_polygon(pts, Color(Palette.OUTLINE, 0.85))
 	ci.draw_colored_polygon(_shape_points(p, r - 3.0, square), color)
@@ -191,7 +198,7 @@ func _draw() -> void:
 		return # headless or a tiny window
 	for cid: int in _threats:
 		var pos: Vector3 = _threats[cid]["pos"]
-		var color := Palette.TEAM_WEST.lightened(0.2) if cid == player.cliff_id else (Palette.GLOW_YELLOW if _covers(cid) else Palette.BONE.darkened(0.15))
+		var color := color_for(cid)
 		var behind := cam.is_position_behind(pos + Vector3.UP)
 		var p := cam.unproject_position(pos + Vector3.UP * 1.5)
 		if behind:
@@ -207,4 +214,4 @@ func _draw() -> void:
 			draw_colored_polygon(PackedVector2Array([tip, p + dir.orthogonal() * 10.0, p - dir.orthogonal() * 10.0]), color)
 		var pulse := 1.0 + 0.15 * sin(Time.get_ticks_msec() * 0.01)
 		var r := 11.0 * pulse
-		draw_shape(self, p, r, cid == player.cliff_id, color)
+		draw_shape(self, p, r, cid == player.cliff_id, color, _covers(cid))

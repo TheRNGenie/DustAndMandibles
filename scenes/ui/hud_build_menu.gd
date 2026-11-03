@@ -10,7 +10,7 @@ const COLS := 3
 const TILE := Vector2(168, 128)
 const ICON_SIZE := 68
 ## Room kept clear under the panel for the hotbar and the resources card.
-const BOTTOM_CLEAR := 130.0
+const BOTTOM_CLEAR := 160.0 # clears the resource card (two lines tall in solo)
 
 var build_mode: BuildMode
 var _panel: PanelContainer
@@ -19,6 +19,7 @@ var _grid: GridContainer
 var _scrap: Label
 var _detail_name: Label
 var _detail_cost: Label
+var _detail_stats: Label
 var _detail_desc: Label
 var _detail_where: Label
 var _detail_id: StringName = &""
@@ -50,7 +51,7 @@ func _ready() -> void:
 	var title := UiStyle.title("Build", 30, true) # Theme
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
-	_scrap = KeyHints.text("", 16, Palette.BONE)
+	_scrap = KeyHints.text("", 16, UiStyle.c("hud"))
 	_scrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(_scrap)
 
@@ -89,15 +90,20 @@ func _ready() -> void:
 	col.add_child(_rule())
 	var detail := VBoxContainer.new()
 	detail.add_theme_constant_override("separation", 4)
-	detail.custom_minimum_size.y = 104
+	detail.custom_minimum_size.y = 124
 	col.add_child(detail)
 	var dhead := HBoxContainer.new()
 	detail.add_child(dhead)
-	_detail_name = KeyHints.text("", 18, Palette.BONE)
+	_detail_name = KeyHints.text("", 18, UiStyle.c("hud"))
 	_detail_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	dhead.add_child(_detail_name)
 	_detail_cost = KeyHints.text("", 16, UiStyle.c("title"))
 	dhead.add_child(_detail_cost)
+	# The key numbers on one line, like a gun's in the shop.
+	_detail_stats = KeyHints.text("", 14, UiStyle.c("title"))
+	_detail_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail_stats.custom_minimum_size.x = WIDTH - 40
+	detail.add_child(_detail_stats)
 	_detail_desc = KeyHints.text("", 14, UiStyle.c("hud"))
 	_detail_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_desc.custom_minimum_size.x = WIDTH - 40
@@ -209,7 +215,7 @@ func _tile(i: int, id: StringName, payer: int) -> Button:
 	if not affordable:
 		icon.modulate = Color(1, 1, 1, 0.45)
 	col.add_child(icon)
-	var name_l := KeyHints.text(Defs.name_of(id), 14, Palette.BONE)
+	var name_l := KeyHints.text(Defs.name_of(id), 14, UiStyle.c("hud"))
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_l.clip_text = true
 	col.add_child(name_l)
@@ -232,7 +238,7 @@ func _tile(i: int, id: StringName, payer: int) -> Button:
 
 func _show_detail(id: StringName, payer: int) -> void:
 	if id == &"":
-		for l: Label in [_detail_name, _detail_cost, _detail_desc, _detail_where]:
+		for l: Label in [_detail_name, _detail_cost, _detail_stats, _detail_desc, _detail_where]:
 			l.text = ""
 		return
 	var cost := Perks.build_cost(multiplayer.get_unique_id(), id) # Perk: build discounts
@@ -242,11 +248,27 @@ func _show_detail(id: StringName, payer: int) -> void:
 	_detail_cost.add_theme_color_override("font_color", UiStyle.c("title") if affordable else UiStyle.hud_c("bad"))
 	if not affordable and not CraftTable.is_craft(id):
 		_detail_cost.text += "  ·  Can't Afford"
+	_detail_stats.text = Defs.turret(id).stat_line() if Defs.is_turret(id) else _structure_stats(id)
+	_detail_stats.visible = _detail_stats.text != ""
 	_detail_desc.text = BuildMode._description(id)
 	# Turrets (Helper 3): their one job, weakness and any upkeep on a second line.
 	if Defs.is_turret(id) and Defs.turret(id).role_line() != "":
 		_detail_desc.text += "\n" + Defs.turret(id).role_line()
 	_detail_where.text = _where(id)
+
+
+## Walls, traps and the like: their toughness (and reach, for traps and lights).
+static func _structure_stats(id: StringName) -> String:
+	var d := Defs.structure(id)
+	if d == null:
+		return ""
+	var parts: PackedStringArray = ["%s HP" % TurretDef._num(d.max_hp)]
+	match d.kind:
+		StructureDef.Kind.BARBED_WIRE, StructureDef.Kind.BEAR_TRAP, StructureDef.Kind.DYNAMITE_CRATE:
+			parts.append("Reach %s m" % TurretDef._num(d.radius))
+		StructureDef.Kind.LANTERN:
+			parts.append("Lights %s m" % TurretDef._num(d.radius))
+	return "  ·  ".join(parts)
 
 
 static func _where(id: StringName) -> String:

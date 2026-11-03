@@ -20,11 +20,12 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var ribbon := PanelContainer.new()
+	# The set's HUD card stretched edge to edge, trimmed top and bottom.
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(Palette.WOOD_DARK, 0.88)
-	sb.border_color = Palette.OUTLINE
-	sb.border_width_top = 4
-	sb.border_width_bottom = 4
+	sb.bg_color = Color(UiStyle.c("hud_bg"), 0.9)
+	sb.border_color = UiStyle.c("hud_rim")
+	sb.border_width_top = 3
+	sb.border_width_bottom = 3
 	sb.content_margin_top = 10
 	sb.content_margin_bottom = 12
 	ribbon.add_theme_stylebox_override("panel", sb)
@@ -38,11 +39,12 @@ func _ready() -> void:
 	_box.add_theme_constant_override("separation", 0)
 	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ribbon.add_child(_box)
-	_title = KeyHints.text("", 64, Palette.GLOW_YELLOW)
+	_title = KeyHints.text("", 64, UiStyle.c("title"))
+	_title.add_theme_font_override("font", UiStyle.display_font())
 	_title.add_theme_constant_override("outline_size", 12)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_box.add_child(_title)
-	_sub = KeyHints.text("", 22, Palette.BONE)
+	_sub = KeyHints.text("", 22, UiStyle.c("hud"))
 	_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_box.add_child(_sub)
 	modulate.a = 0.0
@@ -53,13 +55,13 @@ func _ready() -> void:
 func _on_phase(p: GameState.Phase) -> void:
 	match p:
 		GameState.Phase.WAVE:
-			show_card("WAVE %d" % GameState.wave, _pick("wave"), Palette.GLOW_YELLOW)
+			show_card("Wave %d" % GameState.wave, _pick("wave"), UiStyle.c("title"))
 			Audio.play_ui(&"thunder", -6.0)
 			if player != null and is_instance_valid(player):
 				player.add_shake(0.7)
 		GameState.Phase.BUILD:
 			if GameState.wave > 1:
-				show_card("WAVE %d HELD" % (GameState.wave - 1), _pick("held"), Palette.BONE)
+				show_card("Wave %d Held" % (GameState.wave - 1), _pick("held"), UiStyle.hud_c("good"))
 				Audio.play_ui(&"bell", -4.0)
 
 

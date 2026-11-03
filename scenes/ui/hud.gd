@@ -11,6 +11,7 @@ var _speed_lines: SpeedLines
 var _crosshair: Control
 var _scope: ScopeOverlay
 var _phase_label: Label
+var _phase_icon: PhaseIcon
 var _hint_label: Label
 ## "[G] not yet" under the plaque while the ready countdown runs.
 var status: HudStatus
@@ -132,11 +133,19 @@ func _ready() -> void:
 	var plaque := VBoxContainer.new()
 	plaque.add_theme_constant_override("separation", 0)
 	banner.add_child(plaque)
+	# The phase reads by shape as well as words: a sun for daybreak, a warning
+	# triangle when dust is on the horizon, a bug while a wave is on.
+	var phase_row := HBoxContainer.new()
+	phase_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	phase_row.add_theme_constant_override("separation", 8)
+	plaque.add_child(phase_row)
+	_phase_icon = PhaseIcon.new()
+	phase_row.add_child(_phase_icon)
 	_phase_label = Label.new()
 	_phase_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_phase_label.add_theme_font_size_override("font_size", 22)
 	_phase_label.theme_type_variation = "HudLabel" # Theme
-	plaque.add_child(_phase_label)
+	phase_row.add_child(_phase_label)
 	_plaque_font()
 	UiStyle.notifier.changed.connect(_plaque_font)
 	_hint_label = Label.new()
@@ -236,6 +245,7 @@ func _update_phase_label() -> void:
 
 func _flash_phase() -> void:
 	_update_hint()
+	_phase_icon.queue_redraw()
 	var tw := create_tween()
 	_phase_label.scale = Vector2(1.15, 1.15)
 	tw.tween_property(_phase_label, "scale", Vector2.ONE, 0.25)
@@ -499,3 +509,58 @@ class ScopeOverlay extends Control:
 				PackedVector2Array([c + Vector2(0.6, 0.22) * r, c + Vector2(0.55, 0.5) * r])]:
 			draw_polyline(b, dark, 3.0, true)
 			draw_polyline(b, ink, 1.2, true)
+
+
+## The plaque's phase shape: sun (building), warning triangle (a wave is
+## coming), bug (wave on); nothing in the lobby or at the end.
+class PhaseIcon extends Control:
+	func _init() -> void:
+		custom_minimum_size = Vector2(22, 22)
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _process(_d: float) -> void:
+		var on := GameState.phase in [GameState.Phase.BUILD, GameState.Phase.WARNING, GameState.Phase.WAVE]
+		if visible != on:
+			visible = on
+		if get_meta(&"p", -1) != GameState.phase:
+			set_meta(&"p", GameState.phase)
+			queue_redraw()
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var r := minf(size.x, size.y) * 0.5
+		var ink := Color(UiStyle.c("outline"), 0.9)
+		match GameState.phase:
+			GameState.Phase.BUILD:
+				var sun := UiStyle.c("title")
+				for i in 8:
+					var d := Vector2.from_angle(TAU * i / 8.0)
+					draw_line(c + d * r * 0.55, c + d * r * 0.98, ink, 4.0, true)
+					draw_line(c + d * r * 0.55, c + d * r * 0.92, sun, 2.0, true)
+				draw_circle(c, r * 0.5, ink)
+				draw_circle(c, r * 0.4, sun)
+			GameState.Phase.WARNING:
+				var tri := PackedVector2Array([c + Vector2(0, -r), c + Vector2(r, r * 0.85), c + Vector2(-r, r * 0.85)])
+				draw_colored_polygon(tri, ink)
+				var inner := PackedVector2Array([c + Vector2(0, -r * 0.62), c + Vector2(r * 0.7, r * 0.66), c + Vector2(-r * 0.7, r * 0.66)])
+				draw_colored_polygon(inner, UiStyle.hud_c("warn"))
+				draw_line(c + Vector2(0, -r * 0.2), c + Vector2(0, r * 0.25), ink, 2.5)
+				draw_circle(c + Vector2(0, r * 0.45), 1.6, ink)
+			GameState.Phase.WAVE:
+				var bug := UiStyle.hud_c("bad")
+				for side: float in [-1.0, 1.0]:
+					for k in 3:
+						var y := (k - 1) * r * 0.42
+						draw_line(c + Vector2(side * r * 0.3, y), c + Vector2(side * r * 0.95, y + (k - 1) * r * 0.25), ink, 3.0, true)
+				draw_circle(c + Vector2(0, -r * 0.62), r * 0.3, ink)
+				var body := PackedVector2Array()
+				for i in 16:
+					var a := TAU * i / 16.0
+					body.append(c + Vector2(cos(a) * r * 0.42, r * 0.12 + sin(a) * r * 0.66))
+				draw_colored_polygon(body, ink)
+				var inner_body := PackedVector2Array()
+				for i in 16:
+					var a := TAU * i / 16.0
+					inner_body.append(c + Vector2(cos(a) * r * 0.3, r * 0.12 + sin(a) * r * 0.54))
+				draw_colored_polygon(inner_body, bug)
