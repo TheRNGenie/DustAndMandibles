@@ -20,6 +20,7 @@ var menu_open := false
 var category := 1
 var selected := 0
 var _ghost: MeshInstance3D
+var _ghost_frame: MeshInstance3D
 var _ghost_mat: StandardMaterial3D
 var _cell := Vector2i(-1, -1)
 var _cliff := -1
@@ -41,6 +42,14 @@ func _ready() -> void:
 	_ghost.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ghost.visible = false
 	add_child(_ghost)
+	# The free scaffold storey a turret will go up inside, shown round its ghost.
+	_ghost_frame = MeshInstance3D.new()
+	_ghost_frame.mesh = ScaffoldNode.mesh_for(1)
+	_ghost_frame.material_override = _ghost_mat
+	_ghost_frame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_ghost_frame.position.y = -ScaffoldNode.DECK
+	_ghost_frame.visible = false
+	_ghost.add_child(_ghost_frame)
 	_coverage = CoveragePreview.new()
 	_coverage.cliffs = cliffs
 	# Lives in the world, not under the player (it spans the whole canyon).
@@ -225,8 +234,12 @@ func _process(delta: float) -> void:
 	_ghost.visible = true
 	_ghost.global_position = Buildable.footprint_center(cliffs, _cliff, selected_id(), _cell)
 	var bm0 := BuildManager.instance
+	_ghost_frame.visible = false
 	if Defs.is_turret(selected_id()) and Buildable.is_turret_cell(_cell):
-		_ghost.global_position.y += ScaffoldNode.LEVEL_HEIGHT * maxi(bm0.stack_level(_cliff, _cell), 0)
+		var lvl := maxi(bm0.placement_level(selected_id(), _cliff, _cell), 0)
+		_ghost.global_position.y += ScaffoldNode.turret_height(lvl)
+		# A new storey goes up with it (a fresh frame, or one more on top).
+		_ghost_frame.visible = lvl > bm0.scaffold_levels(_cliff, _cell)
 	elif selected_id() == &"scaffold":
 		_ghost.global_position.y += ScaffoldNode.LEVEL_HEIGHT * bm0.scaffold_levels(_cliff, _cell)
 	_ghost.rotation.y = WorldLayout.facing_canyon_yaw(_cliff)
@@ -256,7 +269,7 @@ func _update_coverage() -> void:
 		return
 	var level := 0
 	if Buildable.is_turret_cell(_cell) and _cell.x >= 0:
-		level = maxi(BuildManager.instance.stack_level(_cliff, _cell), 0)
+		level = maxi(BuildManager.instance.placement_level(id, _cliff, _cell), 0)
 	_coverage.show_for(id, _cliff, _ghost.global_position, level, _ok)
 
 

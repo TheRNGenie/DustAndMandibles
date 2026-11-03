@@ -113,6 +113,14 @@ func _ready() -> void:
 		_zip_test()
 	elif GameState.has_flag("--grappletest"):
 		_grapple_test()
+	elif GameState.has_flag("--grappleprobe"):
+		_grapple_probe()
+	elif GameState.has_flag("--grapplewall"):
+		_grapple_wall_test()
+	elif GameState.has_flag("--framecover"):
+		_frame_cover()
+	elif GameState.flag_value("--frameview") != "":
+		_frame_view(GameState.flag_value("--frameview"))
 	elif GameState.flag_value("--stress") != "":
 		_stress(int(GameState.flag_value("--stress")))
 	elif GameState.flag_value("--exportdummy") != "":
@@ -588,7 +596,7 @@ func _stack_test() -> void:
 	print("[stack] empty cell: stack_level %d (ghost level)" % bm.stack_level(0, cell))
 	for id: StringName in [&"gatling_post", &"buffalo_rifle", &"duck_gun", &"water_cannon"]:
 		var before := Economy.amount(0, &"scrap")
-		var lvl := bm.stack_level(0, cell)
+		var lvl := bm.placement_level(id, 0, cell)
 		var ok := bm.is_free_for(id, 0, cell)
 		bm.build(id, 0, cell)
 		await get_tree().create_timer(0.3).timeout
@@ -1336,6 +1344,210 @@ func _grapple_test() -> void:
 	g.reel_test = false
 	Input.action_release("alt_fire")
 	print("[grapple] reel in: %.1f m from the hook -> %.1f m after 1.5 s holding left click" % [d0, d1])
+	get_tree().quit()
+
+
+## --grappleprobe: rays (the hook's mask) from each lip and from mid-air in
+## the gap at every cliff face; logs what each one catches.
+func _grapple_probe() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var cliffs := world.get("cliffs") as CliffBuilder
+	var space := (world as Node3D).get_world_3d().direct_space_state
+	var n := WorldLayout.cliff_count()
+	var hits := 0
+	var total := 0
+	for cid in n:
+		for other in n:
+			for y: float in [15.0, 30.0, 45.0, 55.0]:
+				for z: float in [-10.0, 0.0, 10.0]:
+					var target := cliffs.face_point(other, y, z)
+					var from := cliffs.plateau_point(cid, 1.0, 0.0) + Vector3.UP * 1.6
+					if cid == other:
+						# Own face: from out over the gap, as when you've dropped off the lip.
+						from = target + WorldLayout.inward(other) * 12.0 + Vector3.UP * 4.0
+					var dir := (target - from).normalized()
+					var q := PhysicsRayQueryParameters3D.create(from, from + dir * 250.0, Grapple.MASK)
+					var hit := space.intersect_ray(q)
+					total += 1
+					var what := "MISS (want %.1f, long ray: %s)" % [from.distance_to(target), "nothing" if hit.is_empty() else "%s %.1f" % [(hit["collider"] as Node).name, from.distance_to(hit["position"])]]
+					if not hit.is_empty() and from.distance_to(hit["position"]) <= Grapple.RANGE:
+						hits += 1
+						what = "%s %.1f m (want %.1f)" % [(hit["collider"] as Node).name, from.distance_to(hit["position"]), from.distance_to(target)]
+					print("[gprobe] cliff %d -> face %d y %.0f z %.0f: %s" % [cid, other, y, z, what])
+	print("[gprobe] %d/%d caught" % [hits, total])
+	get_tree().quit()
+
+
+## --framecover [--map=..]: a gatling goes up in its frame (ground level) on
+## row-0 cells of every cliff; logs how much of the covered wall it can see
+## (arc + line of sight, the turret's own check) from where it stands, against
+## the same gun 3 m up (where the first turret used to stand on its scaffold).
+func _frame_cover() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var bm := BuildManager.instance
+	var cliffs := Bug.cliffs
+	var space := (world as Node3D).get_world_3d().direct_space_state
+	var tot := [0, 0, 0, 0, 0, 0]
+	for cid in WorldLayout.cliff_count():
+		Economy.earn(cid, {&"scrap": 2000})
+		for col: int in [3, 9, 15]:
+			bm.build(&"gatling_post", cid, Vector2i(0, col))
+	await get_tree().create_timer(1.0).timeout
+	for t: Node in get_tree().get_nodes_in_group("turrets"):
+		var tu := t as Turret
+		if tu.cell.x != 0:
+			continue
+		var m0 := tu._sight_point()
+		var other := tu.covers
+		var zc := cliffs.plateau_coords(other, m0).y
+		var seen := [0, 0, 0, 0, 0]
+		var n := 0
+		for y in range(2, 59, 2):
+			for dz in range(-12, 13, 3):
+				var fp := cliffs.face_point(other, float(y), zc + dz) + WorldLayout.inward(other) * 0.8
+				n += 1
+				for k in 5:
+					var m := m0 + Vector3.UP * ([0.0, 3.0, 1.0, 1.5, 2.0][k] as float)
+					var pl := tu.pitch_limit()
+					if not Targeting.in_arc(m, fp, pl, tu.def.range * tu.range_multiplier()):
+						continue
+					if space.intersect_ray(PhysicsRayQueryParameters3D.create(m, fp, WorldLayout.LAYER_WORLD)).is_empty():
+						seen[k] += 1
+		tot[0] += n
+		tot[1] += seen[0]
+		tot[2] += seen[1]
+		tot[3] += seen[2]
+		tot[4] += seen[3]
+		tot[5] += seen[4]
+		print("[fcover] cliff %d col %d level %d: sees %d/%d of the wall in the frame, %d/%d from 3 m up" % [tu.cliff_id, tu.cell.y, tu.level, seen[0], n, seen[1], n])
+	print("[fcover] total of %d: in the frame %d, 3 m up %d; 1 m up %d, 1.5 m up %d, 2 m up %d" % [tot[0], tot[1], tot[2], tot[3], tot[4], tot[5]])
+	get_tree().quit()
+
+
+## --frameview=<png> [--frameangle=deg] [--framedist=m]: turrets in their
+## scaffold frames (one, two and three storeys on the local cliff), seen from
+## the plateau behind them; saves the picture and quits.
+func _frame_view(path: String) -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var bm := BuildManager.instance
+	var player := world.call("local_player") as Player
+	var cid := player.cliff_id
+	Economy.earn(cid, {&"scrap": 3000})
+	var stacks := [[&"gatling_post"], [&"buffalo_rifle", &"gatling_post"], [&"water_cannon", &"duck_gun", &"buffalo_rifle"]]
+	var cols := [5, 7, 9]
+	for i in 3:
+		for id: StringName in stacks[i]:
+			bm.build(id, cid, Vector2i(0, cols[i]))
+			await get_tree().create_timer(0.1).timeout
+	await get_tree().create_timer(1.0).timeout
+	var mid := Buildable.cell_center(Bug.cliffs, cid, Vector2i(0, 7))
+	var inward := WorldLayout.inward(cid)
+	var along := inward.cross(Vector3.UP).normalized()
+	var ang := deg_to_rad(GameState.flag_value("--frameangle").to_float() if GameState.flag_value("--frameangle") != "" else 35.0)
+	var dist := GameState.flag_value("--framedist").to_float() if GameState.flag_value("--framedist") != "" else 11.0
+	var cam := Camera3D.new()
+	cam.fov = 50.0
+	world.add_child(cam)
+	var back := (-inward * cos(ang) + along * sin(ang)).normalized()
+	cam.global_position = mid + back * dist + Vector3.UP * 4.5
+	cam.look_at(mid + Vector3.UP * 2.6, Vector3.UP)
+	cam.current = true
+	for i in 3:
+		await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(path)
+	get_tree().quit()
+
+
+## --grapplewall [--map=..]: step off your lip, and on the way down hook the
+## facing wall (pull), then hang off it on a swing rope; logs whether the fall
+## was called off and whether you ever ended up inside or through the rock.
+## With --gshot=<png> it saves a view mid-swing instead of quitting at the end.
+func _grapple_wall_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var cliffs := world.get("cliffs") as CliffBuilder
+	var player := world.call("local_player") as Player
+	var g := player.grapple
+	g.test_mode = true
+	player.hotbar_use_grapple()
+	var cid := player.cliff_id
+	var other := 1 if cid == 0 else 0
+	var inward := WorldLayout.inward(cid)
+	player.global_position = cliffs.plateau_point(cid, 0.0, 0.0) + inward * 3.5 + Vector3.UP * 0.5
+	player.velocity = inward * 3.0
+	var t := 0.0
+	while not player.is_plummeting() and t < 4.0:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+	for i in 20:
+		await get_tree().physics_frame
+	print("[gwall] falling after %.1f s at y %.1f, plummeting %s" % [t, player.global_position.y, player.is_plummeting()])
+	var aim_at := func(p: Vector3) -> void:
+		var d := (p - player.camera.global_position).normalized()
+		player.rotation.y = atan2(-d.x, -d.z)
+		player.head.rotation.x = asin(clampf(d.y, -1.0, 1.0))
+	# The space a body may occupy: from mid-gap toward the wall, the rock must
+	# not come before the body does.
+	var space := player.get_world_3d().direct_space_state
+	var worst := [0.0]
+	var check := func(face_cid: int) -> void:
+		var c := player.global_position + Vector3.UP * 0.9
+		var mid := c + WorldLayout.inward(face_cid) * 8.0
+		var q := PhysicsRayQueryParameters3D.create(mid, c, WorldLayout.LAYER_WORLD, [player.get_rid()])
+		var hit := space.intersect_ray(q)
+		if not hit.is_empty():
+			worst[0] = maxf(worst[0], (hit["position"] as Vector3).distance_to(c))
+	var target := cliffs.face_point(other, player.global_position.y - 4.0, 2.0)
+	aim_at.call(target)
+	await get_tree().physics_frame
+	Input.action_press("fire")
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	Input.action_release("fire")
+	print("[gwall] pull hooked: %s (anchor %.1f m off the aimed rock), plummeting %s" % [g.is_active(), g.anchor.distance_to(target), player.is_plummeting()])
+	t = 0.0
+	while g.is_active() and t < 5.0:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		check.call(other)
+	print("[gwall] pull arrived in %.2f s, %.1f m from the hook, worst depth into rock %.2f m" % [t, (player.global_position + Vector3.UP * 0.9).distance_to(g.anchor), worst[0]])
+	# Swing: hook the wall above you and hang there, pumping into the rock.
+	for i in 30:
+		await get_tree().physics_frame
+	var up := cliffs.face_point(other, player.global_position.y + 9.0, 6.0)
+	aim_at.call(up)
+	await get_tree().physics_frame
+	Input.action_press("alt_fire")
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	print("[gwall] swing hooked: %s, plummeting %s" % [g.is_active(), player.is_plummeting()])
+	worst[0] = 0.0
+	Input.action_press("move_forward")
+	var shot := GameState.flag_value("--gshot")
+	for i in 180:
+		await get_tree().physics_frame
+		check.call(other)
+		if i == 120 and shot != "":
+			# Look back along the gap for the picture.
+			player.rotation.y += PI * 0.75
+			player.head.rotation.x = 0.35
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png(shot)
+	Input.action_release("move_forward")
+	print("[gwall] swing 3 s: still hooked %s, rope %.1f m, now %.1f m from the hook, worst depth into rock %.2f m, y %.1f" % [g.is_active(), g._rope_len, (player.global_position + Vector3.UP * 0.9).distance_to(g.anchor), worst[0], player.global_position.y])
+	# Reel up the wall.
+	g.reel_test = true
+	for i in 120:
+		await get_tree().physics_frame
+		check.call(other)
+	g.reel_test = false
+	Input.action_release("alt_fire")
+	await get_tree().physics_frame
+	print("[gwall] reeled 2 s: %.1f m from the hook, worst depth %.2f m, released %s" % [(player.global_position + Vector3.UP * 0.9).distance_to(g.anchor), worst[0], not g.is_active()])
 	get_tree().quit()
 
 
