@@ -89,6 +89,5 @@ static func sack_mesh() -> ArrayMesh:
 static func _flag_mesh() -> ArrayMesh:
 	var st := MeshKit.begin()
 	MeshKit.add_cylinder(st, Transform3D(Basis.IDENTITY, Vector3(0, 0.75, 0)), 0.02, 0.02, 1.5, 5, Color("#6B4A2A"), false, 0.0)
-	MeshKit.quad(st, Vector3(0, 1.48, 0), Vector3(0.42, 1.38, 0), Vector3(0.42, 1.18, 0), Vector3(0, 1.22, 0), Vector3.BACK, MeshKit.vcol(Color("#E0483C")))
-	MeshKit.quad(st, Vector3(0, 1.22, 0), Vector3(0.42, 1.18, 0), Vector3(0.42, 1.38, 0), Vector3(0, 1.48, 0), Vector3.FORWARD, MeshKit.vcol(Color("#E0483C")))
+	MeshKit.add_box(st, Transform3D(Basis.IDENTITY, Vector3(0.22, 1.33, 0)), Vector3(0.42, 0.24, 0.02), Color("#E0483C"))
 	return MeshKit.finish(st)

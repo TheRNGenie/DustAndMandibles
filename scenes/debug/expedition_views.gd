@@ -41,8 +41,31 @@ func _run() -> void:
 			_fill(me, {&"scrap": 6})
 		"rideup":
 			_to_floor(player, anchor)
+			_fill(me, {&"scrap": 5, &"chitin": 3})
 			await get_tree().create_timer(0.5).timeout
 			player.start_rope(anchor, false)
+		"lock":
+			# Ready up, go down (the lever drops), try again from the floor (refused), come up, ready.
+			GameState.toggle_ready()
+			await get_tree().create_timer(0.5).timeout
+			print("[exp] lock: ready up top -> votes %d countdown %.1f" % [GameState.skip_votes, GameState.ready_countdown])
+			_to_floor(player, anchor)
+			await get_tree().create_timer(1.0).timeout
+			print("[exp] lock: went down -> votes %d countdown %.1f levers %s" % [GameState.skip_votes, GameState.ready_countdown, str(GameState.levers)])
+			GameState.toggle_ready()
+			await get_tree().create_timer(0.5).timeout
+			print("[exp] lock: tried from the floor -> votes %d countdown %.1f" % [GameState.skip_votes, GameState.ready_countdown])
+			player.respawn()
+			await get_tree().create_timer(1.0).timeout
+			GameState.toggle_ready()
+			await get_tree().create_timer(0.5).timeout
+			print("[exp] lock: back up and ready -> votes %d countdown %.1f" % [GameState.skip_votes, GameState.ready_countdown])
+		"downed":
+			_to_floor(player, anchor)
+			_fill(me, {&"scrap": 8, &"chitin": 4})
+			await get_tree().create_timer(1.5).timeout
+			player.vitals.apply_damage(99999.0)
+			player.rotation.y = atan2(-anchor.inward.x, -anchor.inward.z)
 		"floor", "down":
 			_to_floor(player, anchor)
 			player.rotation.y = atan2(anchor.inward.x, anchor.inward.z)
@@ -76,7 +99,8 @@ func _run() -> void:
 	log_t.timeout.connect(func() -> void:
 		print("[exp] t pos %s down %s trip %s pack %s floor %.1f bugs %d sacks %d levers %s" % [str(player.global_position.snapped(Vector3.ONE * 0.1)),
 				str(Expedition.down.keys()), player.on_trip(), str(Expedition.local_pack()), Expedition.floor_time(me),
-				Bug.floor_bugs.size(), Expedition.sack_count(), str(GameState.levers)]))
+				Bug.floor_bugs.size(), Expedition.sack_count(), str(GameState.levers)])
+		print("[exp] chitin %d scrap %d" % [Economy.amount(player.cliff_id, &"chitin"), Economy.team_scrap()]))
 
 
 func _to_floor(player: Player, anchor: RopeAnchor) -> void:

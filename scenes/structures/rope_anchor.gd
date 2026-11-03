@@ -270,8 +270,8 @@ func _build() -> void:
 	# The hanging rope (stretched to the chair each frame) and the chair.
 	_rope = MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.025
-	cyl.bottom_radius = 0.025
+	cyl.top_radius = 0.04
+	cyl.bottom_radius = 0.04
 	cyl.height = 1.0
 	cyl.radial_segments = 6
 	cyl.rings = 1
