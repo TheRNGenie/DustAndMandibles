@@ -448,6 +448,9 @@ func _check_strongroom() -> void:
 		var pl := Expedition.player_node(peer)
 		if pl != null and is_inside(pl) and pl.global_position.distance_to(at) < 5.5:
 			_say_once("strongroom")
+			# The Board's stores: a share of the amber and the Amber Kiln's blueprint.
+			Amber.grant_all(6, "the Board's strongroom")
+			Story.unlock_amber_blueprint(&"amber_kiln")
 			return
 
 
