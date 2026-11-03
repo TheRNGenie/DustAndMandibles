@@ -202,3 +202,29 @@ func test_every_speaker_has_a_portrait_look() -> void:
 	for who in StoryChapter.SPEAKERS:
 		assert_true(StoryPortrait.CAST.has(who), who)
 		assert_true(StoryChapter.speaker_name(who) != who, who + " has a name")
+
+
+func test_director_objective_rules() -> void:
+	var d := StoryDirector.new()
+	d.chapter = StoryChapter.load_id("ch1")
+	assert_true(d.objective_done(), "hold: done once the waves are")
+	d.chapter = StoryChapter.load_id("ch2")
+	assert_false(d.objective_done(), "fetch: not until delivered")
+	d.cargo_state = StoryDirector.Cargo.CARRIED
+	assert_false(d.objective_done())
+	d.cargo_state = StoryDirector.Cargo.DELIVERED
+	assert_true(d.objective_done())
+	d.chapter = StoryChapter.load_id("ch4")
+	var box := StoryStrongbox.new()
+	box.loot = 0
+	d.boxes.append(box)
+	d.in_flight = 1
+	assert_true(d.objective_done(), "protect: a sack still in the air can be shot back")
+	d.in_flight = 0
+	assert_false(d.objective_done(), "protect: every sack gone")
+	box.loot = 3
+	assert_eq(d.loot_left(), 3)
+	assert_eq(d.loot_total(), 10)
+	assert_true(d.objective_done())
+	box.free()
+	d.free()

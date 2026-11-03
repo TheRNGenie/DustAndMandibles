@@ -200,6 +200,12 @@ func _begin() -> void:
 
 
 func _host_build(w: int) -> void:
+	# Debug: --storycargo puts the chapter's fetch item on the ground at --storydropat (screenshots).
+	if GameState.has_flag("--storycargo") and GameState.debug_enabled() and chapter.kind() == "fetch" and cargo_state == Cargo.NONE:
+		var p := GameState.flag_value("--storydropat").split(",")
+		var cliffs := world.get("cliffs") as CliffBuilder
+		_spawn_cargo.rpc(cliffs.plateau_point(_local_cliff(), p[0].to_float() if p.size() == 2 else 6.0, p[1].to_float() if p.size() == 2 else 2.0), false)
+		return
 	if chapter.kind() == "fetch" and str(chapter.objective.get("spawn", "")) == "airship_drop":
 		if cargo_state == Cargo.NONE and w >= int(chapter.objective.get("drop_wave", chapter.first_wave)):
 			_airship_drop()
@@ -417,7 +423,8 @@ func _follow_carrier() -> void:
 
 
 func _host_fetch() -> void:
-	if GameState.has_flag("--storyfetch") and GameState.debug_enabled() and cargo_state == Cargo.GROUND:
+	var auto_fetch := GameState.has_flag("--storyfetch") or (GameState.has_flag("--storyfetchlate") and holding)
+	if auto_fetch and GameState.debug_enabled() and cargo_state == Cargo.GROUND:
 		_pickup(multiplayer.get_unique_id())
 	if cargo_state != Cargo.CARRIED:
 		return
@@ -446,7 +453,7 @@ func _delivery_target(pos: Vector3) -> Node3D:
 		if Vector2(d.x, d.z).length() < DELIVER_REACH and absf(d.y) < 4.0:
 			return node
 	# Debug: --storyfetch delivers anywhere after a moment's carry.
-	if GameState.has_flag("--storyfetch") and GameState.debug_enabled() and cargo_state == Cargo.CARRIED:
+	if (GameState.has_flag("--storyfetch") or GameState.has_flag("--storyfetchlate")) and GameState.debug_enabled() and cargo_state == Cargo.CARRIED:
 		var nodes := get_tree().get_nodes_in_group(group)
 		if not nodes.is_empty():
 			return nodes[0] as Node3D
