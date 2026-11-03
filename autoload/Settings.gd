@@ -28,7 +28,7 @@ const REMAPPABLE: Dictionary = {
 	"smoke": "Smoke a cigarette",
 	"throw_rock": "Throw a rock",
 	"melee": "Quick melee (whip)",
-	"ready_up": "Ready (skip build phase)",
+	"ready_up": "Throw your generator lever (ready up)",
 	"ping": "Ping (hold for the ping wheel)",
 	"overview_map": "Canyon map",
 	"emote": "Emote (tap: tip hat, hold: wheel)",

@@ -18,6 +18,7 @@ extends RefCounted
 ##   guns: {cliff: {weapon: mod code}}
 ##   bosses_seen: [boss id, ...]  (oldest first, so Continue never repeats a boss early)
 ##   brands: {cliff: brand id}  (each rider's brand, the CPU partner's too; BrandTable ids)
+##   waterworks: {cliff: {tank, lever}}  (each water tower's level, each generator lever)
 
 const VERSION := 1
 const DIR := "user://saves"
@@ -132,11 +133,13 @@ static func normalize(raw: Dictionary) -> Dictionary:
 		if str(key).is_valid_int():
 			brands[int(str(key))] = String(BrandTable.valid(raw_brands[key]))
 	out["brands"] = brands
+	# Waterworks: older saves have empty towers and every lever up.
+	out["waterworks"] = Waterworks.normalize_saved(raw.get("waterworks", {}), cliffs)
 	return out
 
 
 static func _build(b: Dictionary, cliffs: int = 2) -> Dictionary:
-	var out := {"type": StringName(str(b["type"])), "cliff": clampi(_i(b, "cliff", 0), 0, maxi(cliffs, 2) - 1), # Maps: one per cliff of the saved map
+	var out := {"type": StringName(str(b["type"])), "cliff": clampi(_i(b, "cliff", 0), 0, maxi(cliffs - 1, 0)), # Maps: any cliff of the map
 			"row": _i(b, "row", 0), "col": _i(b, "col", 0), "level": maxi(_i(b, "level", 0), 0),
 			"owner": str(b.get("owner", "")), "hp": _f(b, "hp", -1.0), "tier": maxi(_i(b, "tier", 0), 0),
 			"levels": clampi(_i(b, "levels", 1), 1, 3), "paid": maxi(_i(b, "paid", 1), 0), "armed": _b(b, "armed", true), "stored": _i(b, "stored", 0)}

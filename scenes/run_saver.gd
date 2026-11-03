@@ -121,6 +121,11 @@ func capture() -> Dictionary:
 	data["perks"] = perks
 	data["guns"] = guns
 	data["brands"] = Brand.save_state() # Brand: each cliff's brand
+	var works := {}
+	for cid in WorldLayout.cliff_count(): # Waterworks: tower levels and levers
+		var t := WaterTower.of(cid)
+		works[cid] = {"tank": t.stored if t != null else 0.0, "lever": GameState.lever_thrown(cid)}
+	data["waterworks"] = works
 	var seen: Variant = WaveDirector.get("boss_seen")
 	data["bosses_seen"] = (seen as Array).duplicate() if seen is Array else []
 	return data
@@ -209,6 +214,7 @@ func resume(data: Dictionary) -> bool:
 		Economy.gained = (eco["gained"] as Dictionary).duplicate()
 		Economy.cpu_spent = (eco["cpu_spent"] as Dictionary).duplicate(true)
 	Economy._push()
+	_restore_waterworks(data.get("waterworks", {}))
 	var players: Dictionary = data["players"]
 	for cid: int in players:
 		var p: Dictionary = players[cid]
@@ -219,6 +225,25 @@ func resume(data: Dictionary) -> bool:
 			(data["builds"] as Array).size(), Economy.amount(0, &"scrap"), Economy.amount(1, &"scrap")])
 	set_deferred("_resuming", false)
 	return true
+
+
+## Waterworks: the towers' water and any levers that were thrown.
+func _restore_waterworks(works: Dictionary) -> void:
+	for cid: int in works:
+		var w: Dictionary = works[cid]
+		var t := WaterTower.of(cid)
+		if t != null:
+			t.set_level(float(w.get("tank", 0.0)))
+		if not bool(w.get("lever", false)) or GameState.phase != GameState.Phase.BUILD:
+			continue
+		var peer := 0
+		for id: int in NetworkManager.players:
+			if NetworkManager.cliff_of(id) == cid:
+				peer = id
+		if peer > 0:
+			GameState._add_vote(peer)
+		elif NetworkManager.has_cpu() and NetworkManager.cpu_cliffs().has(cid):
+			GameState.throw_cpu_lever(cid)
 
 
 func _restore_builds(builds: Array) -> void:

@@ -219,6 +219,8 @@ static func action_for(target: Object) -> Array:
 		return [&"water", &"water"]
 	if target is WaterSource:
 		return [&"pump", &""]
+	if target is Generator or target is TowerTap: # Waterworks: the breaker lever, the tower tap
+		return [&"pump", &""]
 	if target is SalvagePile:
 		return [&"salvage", &""] if (target as SalvagePile).available else [&"", &""]
 	if target is LootDrop:

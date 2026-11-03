@@ -24,7 +24,7 @@ static var _process: ParticleProcessMaterial
 
 
 ## Dust at `mouth` (a tunnel whose bugs come out along `way_out`) for `seconds`; bigger bugs, more dust.
-static func play(parent: Node, mouth: Vector3, way_out: Vector3, size: float, seconds: float) -> void: # Maps: direction, not wall
+static func play(parent: Node, mouth: Vector3, way_out: Vector3, size: float, seconds: float, sound: bool = true) -> void: # Maps: direction, not wall
 	if parent == null or not parent.is_inside_tree():
 		return
 	_ensure()
@@ -40,7 +40,8 @@ static func play(parent: Node, mouth: Vector3, way_out: Vector3, size: float, se
 	var out := Vector3(way_out.x, 0.35, way_out.z).normalized()
 	e.global_transform = Transform3D(Basis.looking_at(out, Vector3.UP), mouth + Vector3(0, 1.2, 0))
 	e.emitting = true
-	Audio.play_at(&"thunder", mouth, -6.0)
+	if sound: # (the pumps' ground rumble plays its own, once)
+		Audio.play_at(&"thunder", mouth, -6.0)
 	var tree := parent.get_tree()
 	tree.create_timer(seconds).timeout.connect(func() -> void:
 		if is_instance_valid(e):
