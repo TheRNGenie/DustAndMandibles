@@ -143,6 +143,9 @@ func _ready() -> void:
 	# menu's Leave does (with --host --startafter the menu then starts a new game).
 	if GameState.flag_value("--leaveafter") != "":
 		get_tree().create_timer(GameState.flag_value("--leaveafter").to_float()).timeout.connect(_test_leave)
+		# --orphans: what earlier games left behind, 2 s into each new one.
+		if GameState.flag_value("--orphans") != "":
+			get_tree().create_timer(2.0).timeout.connect(_print_leftovers)
 
 	# --fstoggle=S (crash tests): flip fullscreen/windowed every S seconds (not saved).
 	if GameState.flag_value("--fstoggle") != "":
@@ -157,6 +160,16 @@ func _test_toggle_fullscreen() -> void:
 	var fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
 	print("[test] fullscreen -> %s" % (not fs))
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if fs else DisplayServer.WINDOW_MODE_FULLSCREEN)
+
+
+func _print_leftovers() -> void:
+	print("[leftovers] mem %.1f MB  nodes %d  objects %d  resources %d  orphans %d  video %.0f MB" % [
+			Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
+			Performance.get_monitor(Performance.OBJECT_COUNT), Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT),
+			Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT), Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0])
+	for top: Node in get_tree().root.get_children():
+		print("    %5d  %s" % [top.find_children("*", "", true, false).size(), top.name])
+	DebugTools.print_orphan_summary("new world")
 
 
 func _test_leave() -> void:
