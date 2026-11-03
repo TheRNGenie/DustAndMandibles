@@ -128,6 +128,20 @@ func _ready() -> void:
 	if GameState.flag_value("--leaveafter") != "":
 		get_tree().create_timer(GameState.flag_value("--leaveafter").to_float()).timeout.connect(_test_leave)
 
+	# --fstoggle=S (crash tests): flip fullscreen/windowed every S seconds (not saved).
+	if GameState.flag_value("--fstoggle") != "":
+		var ft := Timer.new()
+		ft.wait_time = maxf(GameState.flag_value("--fstoggle").to_float(), 0.5)
+		ft.autostart = true
+		ft.timeout.connect(_test_toggle_fullscreen)
+		add_child(ft)
+
+
+func _test_toggle_fullscreen() -> void:
+	var fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+	print("[test] fullscreen -> %s" % (not fs))
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if fs else DisplayServer.WINDOW_MODE_FULLSCREEN)
+
 
 func _test_leave() -> void:
 	print("[test] leaving to the menu")
