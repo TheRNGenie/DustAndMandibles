@@ -18,7 +18,12 @@ func _ready() -> void:
 	if GameState.flag_value("--act") != "":
 		_act_shot(GameState.flag_value("--act"))
 	var shot := GameState.flag_value("--shot")
-	if shot != "":
+	if GameState.flag_value("--mapshot") != "" or GameState.has_flag("--rangecheck"):
+		# Maps: free-camera map screenshots and the turret range check.
+		var views: Node = preload("res://scenes/debug/map_views.gd").new()
+		views.set("world", world)
+		add_child(views)
+	elif shot != "":
 		_take_screenshot(shot)
 	elif GameState.flag_value("--soak") != "":
 		_soak(GameState.flag_value("--soak").to_float())
@@ -195,7 +200,7 @@ func _ready() -> void:
 		_autobuild()
 		var bmv := world.get("bugs") as BugManager
 		for i in 12:
-			bmv.spawn_group(&"dust_mite", 1, i % 2, i % 5, float(i % 4) * 12.0 + 5.0)
+			bmv.spawn_group(&"dust_mite", 1, i % WorldLayout.cliff_count(), i % 5, float(i % 4) * 12.0 + 5.0)
 		Pings.instance.call("_send", 1)
 		await get_tree().create_timer(2.0).timeout
 		var hud := world.get("hud") as Hud
@@ -851,7 +856,7 @@ func _reinvest(builds: BuildManager) -> void:
 	var turret_cycle: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"water_cannon",
 		&"gatling_post", &"chili_mortar", &"dynamite_lobber", &"lasso_harpoon"]
 	var trap_cycle: Array[StringName] = [&"lantern_post", &"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"rain_catcher"]
-	for cid in 2:
+	for cid in WorldLayout.cliff_count():
 		var i := 0
 		for col in Buildable.COLS:
 			var id := turret_cycle[i % turret_cycle.size()]
@@ -983,16 +988,18 @@ func _autobuild() -> void:
 	var builds := world.get("builds") as BuildManager
 	if GameState.has_flag("--light"):
 		# Realistic start: what the starting scrap buys, then reinvest each build phase.
-		for cid in 2:
+		for cid in WorldLayout.cliff_count():
 			for col: int in [6, 13]:
 				builds.build(&"gatling_post", cid, Vector2i(0, col))
 		GameState.phase_changed.connect(func(p: GameState.Phase) -> void:
 			if p == GameState.Phase.BUILD:
 				_reinvest(builds))
 		return
-	for cid in 2:
+	# Maps: every cliff; the bigger maps also need guns on both lip ends.
+	var cols: Array = [3, 6, 9, 12, 15] if WorldLayout.map().is_canyon() else [1, 3, 6, 9, 12, 15, 17]
+	for cid in WorldLayout.cliff_count():
 		Economy.earn(cid, {&"scrap": 1000})
-		for col: int in [3, 6, 9, 12, 15]:
+		for col: int in cols:
 			builds.build(&"gatling_post", cid, Vector2i(0, col))
 		for col: int in [5, 11]:
 			builds.build(&"buffalo_rifle", cid, Vector2i(0, col))
@@ -1014,7 +1021,7 @@ func _stress(count: int) -> void:
 	if pl != null:
 		pl.head.rotation.x = -0.35
 	for i in count:
-		bm.spawn_group(ids[i % ids.size()], 1, i % 2, i % 5, float(i % 7) * 4.0)
+		bm.spawn_group(ids[i % ids.size()], 1, i % WorldLayout.cliff_count(), i % 5, float(i % 7) * 4.0)
 	await get_tree().create_timer(1.0).timeout
 	var pic := GameState.flag_value("--stressshot")
 	if pic != "":

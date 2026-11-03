@@ -79,9 +79,9 @@ func _local_player() -> Player:
 func capture() -> Dictionary:
 	var data := {"wave": GameState.wave, "phase": GameState.phase, "endless": GameState.endless,
 			"weather": GameState.weather, "cpu_quality": NetworkManager.cpu_quality,
-			"saved_at": int(Time.get_unix_time_from_system())}
+			"saved_at": int(Time.get_unix_time_from_system()), "map": String(WorldLayout.map().id)}
 	var homes: Array = []
-	for cid in 2:
+	for cid in WorldLayout.cliff_count():
 		var h := Homestead.of(cid)
 		homes.append({"hp": GameState.homestead_hp[cid], "max": GameState.homestead_max[cid],
 				"floors": h.floors if h != null else 1, "boarded": h != null and h.boarded,
@@ -111,7 +111,7 @@ func capture() -> Dictionary:
 	# Perks: each human's locked loadout and Barn Raising, and the guns they own.
 	var perks := {}
 	var guns := {}
-	for cid in 2:
+	for cid in WorldLayout.cliff_count():
 		var peer := Perks.peer_for_cliff(cid)
 		if peer <= 0:
 			continue
@@ -181,7 +181,7 @@ func resume(data: Dictionary) -> bool:
 	GameState.endless = bool(data["endless"])
 	# The houses first (their storeys carry the house-turret mounts).
 	var homes: Array = data["homesteads"]
-	for cid in 2:
+	for cid in mini(homes.size(), WorldLayout.cliff_count()):
 		var h: Dictionary = homes[cid]
 		var home := Homestead.of(cid)
 		if home != null:
@@ -189,7 +189,7 @@ func resume(data: Dictionary) -> bool:
 		if float(h["max"]) > 0.0:
 			GameState.homestead_max[cid] = float(h["max"])
 			GameState.homestead_hp[cid] = clampf(float(h["hp"]), 1.0, float(h["max"]))
-	GameState._sync_homesteads_reliable.rpc(GameState.homestead_hp[0], GameState.homestead_hp[1], GameState.homestead_max[0], GameState.homestead_max[1])
+	GameState._sync_homesteads_reliable.rpc(GameState.homestead_hp, GameState.homestead_max)
 	_restore_builds(data["builds"])
 	for w: Dictionary in data["wells"]:
 		var well := world.get_node_or_null(NodePath(str(w["path"]))) as WaterSource

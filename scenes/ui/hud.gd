@@ -258,6 +258,19 @@ func _show_message(text: String) -> void:
 
 
 ## Wooden sign panel (StyleBoxFlat only, no textures).
+## Maps: who holds cliff `cid`: a player's name, a CPU teammate's, or "empty".
+static func owner_name(cid: int) -> String:
+	for id: int in NetworkManager.players:
+		if int((NetworkManager.players[id] as Dictionary)["cliff"]) == cid:
+			return str((NetworkManager.players[id] as Dictionary)["name"])
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		for n: Node in tree.get_nodes_in_group("cpu_teammates"):
+			if int(n.get("cliff_id")) == cid:
+				return str(n.get("display_name"))
+	return "you" if GameState.is_solo() else "empty"
+
+
 static func wood_sign_style() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Palette.WOOD

@@ -68,7 +68,13 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 					var g: Dictionary = more[i]
 					g["pulse"] = int(g["pulse"]) % int(_plan["pulses"])
 					groups.append(g)
-			_announce.rpc(WavePlanner.heavier_cliff(float(_plan["west_share"])), float(_plan["west_share"]), _lane_counts())
+			# Maps: on bigger maps the share sent is the heaviest cliff's own.
+			var shares: Array = _plan.get("shares", [])
+			if shares.size() > 2:
+				var hc := WavePlanner.heaviest(shares)
+				_announce.rpc(hc, float(shares[maxi(hc, 0)]), _lane_counts())
+			else:
+				_announce.rpc(WavePlanner.heavier_cliff(float(_plan["west_share"])), float(_plan["west_share"]), _lane_counts())
 		GameState.Phase.WAVE:
 			if _plan.is_empty():
 				_plan = _make_plan()
@@ -81,6 +87,8 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 
 func _make_plan() -> Dictionary:
 	_planner.variants = tally.unlocked
+	_planner.cliff_count = WorldLayout.cliff_count() # Maps: this run's map
+	_planner.weights = _live_weights()
 	return _planner.plan(GameState.wave)
 
 
@@ -118,9 +126,29 @@ func note_kill(def: BugDef, source: String) -> void:
 		_variant_unlocked.rpc(v)
 
 
+## Maps: the map's spawn weights, minus any cliff nobody holds (a lobby that
+## started short without CPU teammates). Solo play holds every cliff.
+func _live_weights() -> Array[float]:
+	var w := WorldLayout.map().spawn_weights()
+	if GameState.is_solo() or not NetworkManager.is_online():
+		return w
+	var total := 0.0
+	for cid in w.size():
+		if not NetworkManager.cliff_held(cid):
+			w[cid] = 0.0
+		total += w[cid]
+	if total <= 0.0:
+		return WorldLayout.map().spawn_weights()
+	for cid in w.size():
+		w[cid] /= total
+	return w
+
+
 ## Bugs per [cliff][lane], so the warning HUD can show the busiest lanes.
 func _lane_counts() -> Array:
-	var counts := [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]
+	var counts := []
+	for cid in WorldLayout.cliff_count(): # Maps: one row per cliff
+		counts.append([0, 0, 0, 0, 0])
 	for g: Dictionary in _plan["groups"]:
 		var row: Array = counts[int(g["cliff"])]
 		row[int(g["lane"])] = int(row[int(g["lane"])]) + int(g["count"])

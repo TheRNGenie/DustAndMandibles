@@ -47,14 +47,18 @@ var _rng := RandomNumberGenerator.new()
 var _threat_z: Array[float] = []
 
 
-func setup(q: int, cid: int, world_cliffs: CliffBuilder, pool: VfxPool) -> void:
+## CPU teammates' names, in order (one per empty cliff).
+const NAMES := ["Dusty", "Rusty", "Sandy"]
+
+
+func setup(q: int, cid: int, world_cliffs: CliffBuilder, pool: VfxPool, index: int = 0) -> void:
 	quality = clampi(q, 0, 2)
 	cliff_id = cid
 	cliffs = world_cliffs
 	vfx = pool
 	_q = QUALITY[quality]
-	display_name = "%s (CPU)" % NAME
-	_rng.seed = 7331 + quality
+	display_name = "%s (CPU)" % NAMES[clampi(index, 0, NAMES.size() - 1)]
+	_rng.seed = 7331 + quality + index * 101
 
 
 func _ready() -> void:
@@ -254,7 +258,9 @@ func _deposit_task() -> bool:
 			print("[cpu] put %s in the deposit box" % str(_carry))
 		box.deposit(_carry.duplicate())
 		_carry.clear()
-		Economy.notify_cliff(WorldLayout.other_cliff(cliff_id), "%s left a harvest in the deposit box." % display_name))
+		# Maps: tell every human (on the canyon that's just the partner).
+		for pid: int in NetworkManager.players:
+			Economy.notify(pid, "%s left a harvest in %s's deposit box." % [display_name, WorldLayout.map().name_of(cliff_id)]))
 	return true
 
 

@@ -2,8 +2,9 @@ class_name HudThreatAlert
 extends Control
 ## Partner alerts. When bugs get near the top of a cliff (or come over it) a
 ## small alert card appears under the plaque and a marker on screen points at
-## the highest one: red for your own cliff ("call for cover"), amber for your
-## partner's (the one your turrets protect). Rings once each time it starts.
+## the highest one: red for your own cliff ("call for cover"), amber for a
+## cliff your turrets protect, pale for the rest. Every line names its cliff
+## ("3 at North Butte"), yours first. Rings once each time it starts.
 ## With colour-blind shapes on, your cliff is a square marked "!!" and your
 ## partner's a diamond marked "!", on the markers and on the card's lines.
 
@@ -16,7 +17,7 @@ var _card: PanelContainer
 var _label_box: VBoxContainer
 ## cliff id -> {"count": int, "pos": Vector3} for this scan.
 var _threats: Dictionary = {}
-var _was := {0: false, 1: false}
+var _was := {}
 
 
 func _ready() -> void:
@@ -78,24 +79,44 @@ func _scan() -> void:
 			t["pos"] = b.global_position
 		_threats[b.cliff_id] = t
 	var mine := player.cliff_id
-	var theirs := WorldLayout.other_cliff(mine)
+	var m := WorldLayout.map()
 	for c in _label_box.get_children():
 		_label_box.remove_child(c)
 		c.queue_free()
-	if _threats.has(mine):
-		var n := int(_threats[mine]["count"])
-		_label_box.add_child(_line("%d at Yours" % n, Palette.TEAM_WEST.lightened(0.35), true))
-	if _threats.has(theirs):
-		var n := int(_threats[theirs]["count"])
-		_label_box.add_child(_line("%d at Theirs" % n, Palette.GLOW_YELLOW, false))
+	# Yours first, then the cliffs your turrets cover (biggest share first), then the rest.
+	var order: Array[int] = [mine]
+	for cid in m.covered_cliffs(mine):
+		if not order.has(cid):
+			order.append(cid)
+	for cid in m.count():
+		if not order.has(cid):
+			order.append(cid)
+	for cid in order:
+		if not _threats.has(cid):
+			continue
+		var n := int(_threats[cid]["count"])
+		var text := "%d at %s%s" % [n, m.name_of(cid), " (yours)" if cid == mine else ""]
+		_label_box.add_child(_line(text, color_for(cid), cid == mine))
 	_card.visible = _label_box.get_child_count() > 0
 	if _card.visible:
 		_center.call_deferred()
-	for cid: int in [mine, theirs]:
+	for cid in order:
 		var now := _threats.has(cid)
-		if now and not _was[cid]:
+		if now and not bool(_was.get(cid, false)) and (cid == mine or _covers(cid)):
 			Audio.play_ui(&"bell" if cid == mine else &"wheel_tick", -4.0 if cid == mine else -2.0)
 		_was[cid] = now
+
+
+## Does the local player's cliff send turret fire at cliff `cid`?
+func _covers(cid: int) -> bool:
+	return WorldLayout.map().cover_share(player.cliff_id, cid) > 0.0
+
+
+## Red for your cliff, amber for a cliff you cover, pale for the others.
+func color_for(cid: int) -> Color:
+	if cid == player.cliff_id:
+		return Palette.TEAM_WEST.lightened(0.35)
+	return Palette.GLOW_YELLOW if _covers(cid) else Palette.BONE.darkened(0.15)
 
 
 func _line(s: String, color: Color, mine: bool) -> Control:
@@ -170,7 +191,7 @@ func _draw() -> void:
 		return # headless or a tiny window
 	for cid: int in _threats:
 		var pos: Vector3 = _threats[cid]["pos"]
-		var color := Palette.TEAM_WEST.lightened(0.2) if cid == player.cliff_id else Palette.GLOW_YELLOW
+		var color := Palette.TEAM_WEST.lightened(0.2) if cid == player.cliff_id else (Palette.GLOW_YELLOW if _covers(cid) else Palette.BONE.darkened(0.15))
 		var behind := cam.is_position_behind(pos + Vector3.UP)
 		var p := cam.unproject_position(pos + Vector3.UP * 1.5)
 		if behind:

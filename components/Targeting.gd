@@ -1,11 +1,16 @@
 class_name Targeting
 extends RefCounted
 ## THE cross-defense rule, in one place: a turret may only shoot bugs that are
-## climbing the OTHER cliff. Breachers (bugs that crested onto a plateau) are
+## climbing the cliff its spot on the grid covers (on the canyon, the OTHER
+## cliff; on bigger maps MapDef.covered_cliff splits a lip between neighbours),
+## never its own. Breachers (bugs that crested onto a plateau) are
 ## never turret targets; only players and traps can hurt them.
 
 ## Can a turret owned by `turret_cliff` target a bug climbing `bug_cliff`?
-static func cliff_allows(turret_cliff: int, bug_cliff: int, bug_is_climbing: bool) -> bool:
+## `covered` is the cliff the turret's spot covers (-1: any cliff but its own).
+static func cliff_allows(turret_cliff: int, bug_cliff: int, bug_is_climbing: bool, covered: int = -1) -> bool:
+	if covered >= 0:
+		return bug_is_climbing and bug_cliff == covered and bug_cliff != turret_cliff
 	return bug_is_climbing and bug_cliff != turret_cliff
 
 

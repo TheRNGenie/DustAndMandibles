@@ -196,6 +196,8 @@ func cliff_more(cid: int, id: StringName) -> float:
 func _cliff_of_peer(peer_id: int) -> int:
 	if NetworkManager.is_online():
 		return NetworkManager.cliff_of(peer_id)
+	if GameState.flag_value("--cliff") != "": # Maps:
+		return int(GameState.flag_value("--cliff"))
 	return WorldLayout.EAST if GameState.has_flag("--east") else WorldLayout.WEST
 
 
@@ -481,7 +483,7 @@ func _start_of_run() -> void:
 			if n > 0:
 				got.append("%d scaffold%s" % [n, "" if n == 1 else "s"])
 		if lo.has(&"stout_timbers"):
-			for c in 2:
+			for c in WorldLayout.cliff_count():
 				if peer_for_cliff(c) == peer:
 					GameState.raise_homestead_max(c, roundf(GameState.homestead_max[c] * PerkTable.amount_in(lo, &"stout_timbers")))
 			got.append("a stouter Homestead")

@@ -155,10 +155,6 @@ static func is_structure_cell(cell: Vector2i) -> bool:
 	return zone_ok(&"", cell)
 
 
-## Which cliff a world position is on (by side of the canyon), or -1 over the gap.
+## Which cliff a world position is on (behind which lip), or -1 over the gap.
 static func cliff_at(pos: Vector3) -> int:
-	if pos.x < -WorldLayout.HALF_GAP + 0.5:
-		return WorldLayout.WEST
-	if pos.x > WorldLayout.HALF_GAP - 0.5:
-		return WorldLayout.EAST
-	return -1
+	return WorldLayout.map().cliff_at(pos)

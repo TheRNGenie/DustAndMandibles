@@ -59,7 +59,7 @@ func _on_wanted_died(bug: Bug, source: String, source_cliff: int) -> void:
 	if not _posters.has(base) or bool(_posters[base]["paid"]):
 		return
 	var amount := bounty_of(bug.def)
-	var to_cliff := source_cliff if source_cliff == WorldLayout.WEST or source_cliff == WorldLayout.EAST else bug.cliff_id
+	var to_cliff := source_cliff if source_cliff >= 0 and source_cliff < WorldLayout.cliff_count() else bug.cliff_id # Maps:
 	Economy.earn(to_cliff, {&"scrap": amount})
 	var who := source if source != "" else "Somebody"
 	_paid.rpc(base, who)
@@ -93,7 +93,7 @@ func _post(def: BugDef) -> void:
 	_posters[base] = {"vp": vp, "stamp": vp.get_node("Paper/Stamp"), "paid": false, "def": def}
 	_order.append(base)
 	var slot := _order.size() - 1
-	for cid in 2:
+	for cid in WorldLayout.cliff_count(): # Maps:
 		var home := Homestead.of(cid)
 		if home != null:
 			home.add_child(_make_quad(vp.get_texture(), slot))

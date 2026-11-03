@@ -462,7 +462,7 @@ func _plateau_entry() -> Vector3:
 
 ## Direction from the cliff into the canyon.
 func _outward() -> Vector3:
-	return Vector3(-WorldLayout.side_sign(cliff_id), 0.0, 0.0)
+	return WorldLayout.inward(cliff_id) # Maps:
 
 
 ## Projects a point onto the surface under the bug (for foot placement).

@@ -9,6 +9,9 @@ var _status: Label
 var _roster: Label
 var _ready_btn: CheckButton
 var _cpu_pick: OptionButton
+## Maps: the host picks the map in the lobby (everyone sees it).
+var _map_pick: OptionButton
+var _map_label: Label
 var _connect_box: VBoxContainer
 var _lobby_box: VBoxContainer
 var _solo_btn: Button
@@ -91,7 +94,7 @@ func _build_ui() -> void:
 		var cont := _button("Continue last run (wave %d)" % int(saved["wave"]))
 		cont.pressed.connect(func() -> void: _on_continue())
 		_connect_box.add_child(cont)
-	var host_btn := _button("Host game (west cliff)")
+	var host_btn := _button("Host game")
 	host_btn.pressed.connect(func() -> void:
 		RunSave.pending = {}
 		_on_host())
@@ -104,7 +107,7 @@ func _build_ui() -> void:
 	row.add_child(_ip_edit)
 	row.add_child(_port_edit)
 	_connect_box.add_child(row)
-	var join_btn := _button("Join game (east cliff)")
+	var join_btn := _button("Join game")
 	join_btn.pressed.connect(_on_join)
 	_connect_box.add_child(join_btn)
 	_connect_box.add_child(_ledger_button()) # Perk
@@ -126,9 +129,20 @@ func _build_ui() -> void:
 	_ready_btn.add_theme_color_override("font_color", Palette.OUTLINE)
 	_ready_btn.toggled.connect(func(on: bool) -> void: NetworkManager.set_ready(on))
 	_lobby_box.add_child(_ready_btn)
-	# Host: an optional CPU partner for the empty cliff.
+	# Maps: the host picks the map; everyone else sees which one.
+	_map_pick = OptionButton.new()
+	for id: StringName in MapDef.IDS:
+		_map_pick.add_item("Map: %s (%d players)" % [MapDef.display_name_of(id), MapDef.players_of(id)])
+	_map_pick.item_selected.connect(func(i: int) -> void:
+		if not NetworkManager.set_map(MapDef.IDS[i]):
+			_status.text = "Too many players in the lobby for that map."
+		_refresh())
+	_lobby_box.add_child(_map_pick)
+	_map_label = _label("", 15, Palette.WOOD_DARK)
+	_lobby_box.add_child(_map_label)
+	# Host: optional CPU teammates for the empty cliffs.
 	_cpu_pick = OptionButton.new()
-	for label: String in ["No CPU partner", "CPU partner: Low", "CPU partner: Medium", "CPU partner: High"]:
+	for label: String in ["No CPU teammates", "CPU teammates: Low", "CPU teammates: Medium", "CPU teammates: High"]:
 		_cpu_pick.add_item(label)
 	_cpu_pick.selected = NetworkManager.cpu_quality + 1
 	_cpu_pick.item_selected.connect(func(i: int) -> void: NetworkManager.set_cpu(i - 1))
@@ -192,6 +206,7 @@ func _on_continue() -> void:
 	if not NetworkManager.is_online():
 		return
 	RunSave.pending = saved
+	NetworkManager.set_map(StringName(str(saved.get("map", "canyon")))) # Maps: the saved run's map
 	if int(saved["cpu_quality"]) >= 0:
 		NetworkManager.set_cpu(int(saved["cpu_quality"]))
 	_status.text = "Continuing your run at wave %d. Start alone or with the CPU, or wait for your partner." % int(saved["wave"])
@@ -242,21 +257,29 @@ func _show_lobby(message: String) -> void:
 
 func _refresh() -> void:
 	var lines: PackedStringArray = []
+	# Maps: one line per cliff of the chosen map, by cliff name.
+	var map := MapDef.by_id(NetworkManager.map_id)
 	for id: int in NetworkManager.players:
 		var p: Dictionary = NetworkManager.players[id]
-		var cliff := "West" if int(p["cliff"]) == WorldLayout.WEST else "East"
+		var cliff := map.name_of(int(p["cliff"]))
 		var tick := "[ready]" if bool(p["ready"]) else "[not ready]"
-		lines.append("%s cliff: %s %s%s" % [cliff, str(p["name"]), tick, Perks.roster_note(id)]) # Perk: perk count
+		lines.append("%s: %s %s%s" % [cliff, str(p["name"]), tick, Perks.roster_note(id)]) # Perk: perk count
 	if NetworkManager.has_cpu():
-		var cpu_side := "West" if NetworkManager.cpu_cliff() == WorldLayout.WEST else "East"
-		lines.append("%s cliff: %s (CPU, %s) [ready]" % [cpu_side, CpuTeammate.NAME, NetworkManager.CPU_QUALITY_NAMES[NetworkManager.cpu_quality]])
-	elif NetworkManager.players.size() < NetworkManager.MAX_PLAYERS:
-		lines.append("(waiting for a partner...)")
+		var free := NetworkManager.cpu_cliffs()
+		for i in free.size():
+			lines.append("%s: %s (CPU, %s) [ready]" % [map.name_of(free[i]), CpuTeammate.NAMES[mini(i, CpuTeammate.NAMES.size() - 1)], NetworkManager.CPU_QUALITY_NAMES[NetworkManager.cpu_quality]])
+	elif NetworkManager.players.size() < NetworkManager.max_players():
+		var waiting := NetworkManager.max_players() - NetworkManager.players.size()
+		lines.append("(waiting for a partner...)" if waiting == 1 else "(room for %d more...)" % waiting)
 	_roster.text = "\n".join(lines)
 	_solo_btn.visible = multiplayer.is_server() and NetworkManager.is_online()
-	_solo_btn.text = "Start with CPU partner" if NetworkManager.has_cpu() else "Start alone (testing)"
+	var cpus := NetworkManager.cpu_cliffs().size() if NetworkManager.has_cpu() else 0
+	_solo_btn.text = ("Start with CPU partner" if cpus == 1 else "Start with %d CPU teammates" % cpus) if cpus > 0 else "Start alone (testing)"
 	_cpu_pick.visible = multiplayer.is_server()
 	_cpu_pick.selected = NetworkManager.cpu_quality + 1
+	_map_pick.visible = multiplayer.is_server()
+	_map_pick.selected = MapDef.IDS.find(NetworkManager.map_id)
+	_map_label.text = "%s: %s" % [map.display_name, map.blurb]
 
 
 # ------------------------------------------------------------------ styling helpers

@@ -72,7 +72,7 @@ func _make_weeds() -> void:
 	var mat := Materials.toon(0.01)
 	var total := TUMBLEWEEDS_FLOOR + TUMBLEWEEDS_PLATEAU * 2
 	for i in total:
-		var where := -1 if i < TUMBLEWEEDS_FLOOR else (i - TUMBLEWEEDS_FLOOR) % 2
+		var where := -1 if i < TUMBLEWEEDS_FLOOR else (i - TUMBLEWEEDS_FLOOR) % WorldLayout.cliff_count()
 		var root := Node3D.new()
 		add_child(root)
 		var mi := MeshInstance3D.new()
@@ -113,6 +113,8 @@ func _update_weeds(delta: float) -> void:
 		var a := float(w["a"]) + float(w["drift"]) * delta
 		var where := int(w["where"])
 		var lim := 88.0 if where < 0 else 32.0
+		if not WorldLayout.map().is_canyon():
+			lim = 20.0 if where < 0 else WorldLayout.map().span_v - 6.0 # stay in the basin / on the top
 		var fade := 1.0
 		if absf(z) > lim:
 			# Off the end: come back in at the other end.
@@ -121,8 +123,10 @@ func _update_weeds(delta: float) -> void:
 		fade = clampf((lim - absf(z)) / 4.0, 0.0, 1.0)
 		if where < 0:
 			a = clampf(a, -14.0, 14.0)
-		else:
+		elif WorldLayout.map().is_canyon():
 			a = clampf(a, 33.0, 43.0)
+		else:
+			a = clampf(a, 31.0, 36.0)
 		w["z"] = z
 		w["a"] = a
 		var ground: Vector3
@@ -281,9 +285,11 @@ func _update_devil(delta: float) -> void:
 	_devil_next = _rng.randf_range(DEVIL_EVERY.x, DEVIL_EVERY.y)
 	_devil_t = DEVIL_LIFE
 	# Out on the canyon floor most of the time, sometimes across a plateau's back.
-	_devil_cliff = -1 if _rng.randf() < 0.6 else _rng.randi() % 2
+	_devil_cliff = -1 if _rng.randf() < 0.6 else _rng.randi() % WorldLayout.cliff_count()
 	var z := _rng.randf_range(-50.0, 50.0)
-	if _devil_cliff < 0:
+	if _devil_cliff < 0 and not WorldLayout.map().is_canyon():
+		_devil_pos = WorldLayout.map().center + Vector3(_rng.randf_range(-12.0, 12.0), 0, clampf(z, -12.0, 12.0))
+	elif _devil_cliff < 0:
 		_devil_pos = cliffs.warp(Vector3(_rng.randf_range(-8.0, 8.0), 0, z))
 	else:
 		_devil_pos = cliffs.plateau_point(_devil_cliff, _rng.randf_range(20.0, 34.0), clampf(z, -22.0, 22.0))
@@ -323,11 +329,13 @@ func scatter_birds() -> void:
 	if _birds == null:
 		return
 	for i in BIRDS:
-		var cid := i % 2
+		var cid := i % WorldLayout.cliff_count()
 		var z := _rng.randf_range(-35.0, 35.0)
+		if not WorldLayout.map().is_canyon():
+			z = clampf(z, -WorldLayout.map().span_v + 3.0, WorldLayout.map().span_v - 3.0)
 		var p := cliffs.plateau_point(cid, _rng.randf_range(0.5, 3.0), z) + Vector3.UP * 0.2
 		_bird_pos[i] = p
-		var away := Vector3(WorldLayout.side_sign(cid) * _rng.randf_range(0.3, 1.0), _rng.randf_range(1.2, 2.0), _rng.randf_range(-1.0, 1.0))
+		var away := -WorldLayout.inward(cid) * _rng.randf_range(0.3, 1.0) + Vector3(0, _rng.randf_range(1.2, 2.0), _rng.randf_range(-1.0, 1.0))
 		_bird_vel[i] = away.normalized() * _rng.randf_range(5.0, 8.0)
 		_bird_phase[i] = _rng.randf() * TAU
 	_birds_t = 9.0

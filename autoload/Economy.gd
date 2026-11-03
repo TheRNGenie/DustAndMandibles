@@ -33,7 +33,7 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 	if not held or not multiplayer.is_server():
 		return
 	var pay := EconomyLedger.wave_pay(GameState.wave - 1)
-	for cid in 2:
+	for cid in WorldLayout.cliff_count():
 		earn(cid, {&"scrap": pay})
 		if cid == 0 or not GameState.is_solo():
 			notify_cliff(cid, "Town bounty for holding wave %d: +%d scrap." % [GameState.wave - 1, pay])
@@ -45,7 +45,7 @@ var _in_wave := false
 
 ## Host (or offline): back to starting resources.
 func reset() -> void:
-	ledger.reset({&"scrap": Defs.WAVE_CONFIG.start_scrap, &"water": 6, &"herbs": 1})
+	ledger.reset({&"scrap": Defs.WAVE_CONFIG.start_scrap, &"water": 6, &"herbs": 1}, WorldLayout.cliff_count())
 	gained.clear()
 	cpu_spent.clear()
 	if shared:
@@ -54,7 +54,7 @@ func reset() -> void:
 
 
 ## Host: turn on the shared team pool for CPU teammates (`team_size` counts
-## humans and CPUs). Both cliffs' stockpiles merge into one.
+## humans and CPUs). Every cliff's stockpile merges into one.
 func enable_shared_pool(team_size: int, cpus: int) -> void:
 	shared = true
 	cpu_share = CpuBudget.share(cpus, team_size)
@@ -63,7 +63,8 @@ func enable_shared_pool(team_size: int, cpus: int) -> void:
 
 
 func _merge_pools() -> void:
-	ledger.transfer(1, 0, (ledger.stock[1] as Dictionary).duplicate())
+	for cid in range(1, ledger.stock.size()):
+		ledger.transfer(cid, 0, (ledger.stock[cid] as Dictionary).duplicate())
 	gained.clear()
 	for r: StringName in ledger.stock[0]:
 		gained[r] = int(ledger.stock[0][r])
@@ -192,12 +193,12 @@ func _notice(text: String) -> void:
 func _push() -> void:
 	if multiplayer.is_server() and NetworkManager.is_online():
 		_sync.rpc(ledger.stock)
-	for cid in 2:
+	for cid in ledger.stock.size():
 		resources_changed.emit(cid)
 
 
 @rpc("authority", "reliable")
 func _sync(stock: Dictionary) -> void:
 	ledger.stock = stock
-	for cid in 2:
+	for cid in ledger.stock.size():
 		resources_changed.emit(cid)

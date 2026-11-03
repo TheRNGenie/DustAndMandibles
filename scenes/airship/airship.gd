@@ -40,6 +40,9 @@ static func visits(_w: int) -> bool:
 
 ## The boarding ring's world position (grapple target).
 static func ring_position() -> Vector3:
+	var m := WorldLayout.map()
+	if not m.is_canyon():
+		return m.airship_ring # bigger maps: over the middle, a grapple away from every lip
 	return ARCH_CROWN + Vector3(0, RING_ABOVE_ARCHES, 0)
 
 

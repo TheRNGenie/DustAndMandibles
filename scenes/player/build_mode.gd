@@ -245,7 +245,11 @@ func _update_coverage() -> void:
 	if _coverage.cliffs == null:
 		_coverage.cliffs = cliffs
 	if _heatmap.is_inside_tree():
-		_heatmap.show_wall(WorldLayout.other_cliff(player.cliff_id) if active else -1)
+		# The wall the aimed spot covers (bigger maps split a lip between cliffs).
+		var wall := WorldLayout.other_cliff(player.cliff_id)
+		if _cliff >= 0 and _cell.x >= 0:
+			wall = WorldLayout.map().covered_cliff(_cliff, _cell.y)
+		_heatmap.show_wall(wall if active else -1)
 	var id := selected_id()
 	if not active or not _ghost.visible or not Defs.is_turret(id):
 		_coverage.hide_preview()
@@ -359,7 +363,9 @@ func _rebuild_grid() -> void:
 	var id := selected_id()
 	var cliffs_to_show: Array[int] = [player.cliff_id]
 	if GameState.is_solo():
-		cliffs_to_show = [WorldLayout.WEST, WorldLayout.EAST]
+		cliffs_to_show.clear()
+		for cid in WorldLayout.cliff_count():
+			cliffs_to_show.append(cid)
 	var cells: Array = []
 	for cid in cliffs_to_show:
 		if Defs.is_house_turret(id):
@@ -385,6 +391,9 @@ func _rebuild_grid() -> void:
 		mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, WorldLayout.facing_canyon_yaw(cid)), pos))
 		var taken := bm.cell_taken(cid, c) if (c.x >= 0 and not Defs.is_turret(id) and id != &"scaffold") else not bm.is_free_for(id, cid, c)
 		var col: Color = ZONE_COLORS.get(Buildable.zone(c), Color("#9FD27A")) if c.x >= 0 else Color("#9FD27A")
+		if c.x >= 0 and Defs.is_turret(id) and not WorldLayout.map().is_canyon():
+			# Bigger maps: tint each spot by the cliff it covers.
+			col = col.lerp(Palette.team_color(WorldLayout.map().covered_cliff(cid, c.y)), 0.65)
 		col.a = 0.8
 		if taken:
 			col = Color(0.55, 0.15, 0.12, 0.45)

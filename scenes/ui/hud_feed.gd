@@ -141,7 +141,7 @@ func _update_boss_bar() -> void:
 		add_line("THE IRON TUMBLEWEED IS CLIMBING! Partner's turrets hit its back, shoot its glowing belly from above.", Palette.TEAM_WEST)
 	_boss_bar.max_value = boss.health.max_hp
 	_boss_bar.value = boss.health.hp
-	_boss_label.text = "THE IRON TUMBLEWEED  -  %s cliff" % ("west" if boss.cliff_id == WorldLayout.WEST else "east")
+	_boss_label.text = "THE IRON TUMBLEWEED  -  %s" % WorldLayout.map().name_of(boss.cliff_id)
 
 
 func add_line(text: String, color: Color = Palette.BONE) -> void:
@@ -196,10 +196,11 @@ func _on_bug_killed(bug_name: String, bug_cliff: int, source: String, source_cli
 
 
 func _on_wave_announced(heavy_cliff: int, west_share: float, lane_counts: Array) -> void:
-	var heavy := "Both cliffs equally"
+	var m := WorldLayout.map()
+	var heavy := "Both cliffs equally" if m.count() == 2 else "Every cliff about equally"
 	if heavy_cliff >= 0:
-		heavy = "%s cliff gets %d%%" % ["West" if heavy_cliff == WorldLayout.WEST else "East",
-				int(roundf(maxf(west_share, 1.0 - west_share) * 100.0))]
+		var pct := maxf(west_share, 1.0 - west_share) if m.count() == 2 else west_share
+		heavy = "%s gets %d%%" % [m.name_of(heavy_cliff), int(roundf(pct * 100.0))]
 	add_line("Dust on the horizon! %s." % heavy, Palette.GLOW_YELLOW)
 
 
@@ -215,7 +216,7 @@ func _cliff_owner_name(cid: int) -> String:
 		var p: Dictionary = NetworkManager.players[id]
 		if int(p["cliff"]) == cid:
 			return str(p["name"])
-	return "the west" if cid == WorldLayout.WEST else "the east"
+	return "the " + WorldLayout.map().name_of(cid)
 
 
 static func _outlined(text: String, size: int, color: Color) -> Label:

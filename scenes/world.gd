@@ -1,7 +1,8 @@
 extends Node3D
 ## Root of the game world. Generates the canyon, lighting and dressing at load,
 ## then the host spawns one player per peer once everyone has loaded.
-## Running this scene directly (no lobby) plays offline; --east spawns you on the east cliff.
+## Running this scene directly (no lobby) plays offline; --east spawns you on the east cliff,
+## --cliff=N on cliff N, --map=canyon|mesa|buttes picks the map.
 
 const PLAYER_SCENE: PackedScene = preload("res://scenes/player/player.tscn")
 const SKY_SHADER: Shader = preload("res://shaders/sky.gdshader")
@@ -22,6 +23,12 @@ var saver: RunSaver
 
 
 func _ready() -> void:
+	# Maps: build the lobby's map (offline runs: --map=).
+	var map_id := NetworkManager.map_id
+	if not NetworkManager.is_online() and GameState.flag_value("--map") != "":
+		map_id = StringName(GameState.flag_value("--map").to_lower())
+	MapDef.select(map_id)
+	print("[map] %s (%d cliffs)" % [WorldLayout.map().display_name, WorldLayout.cliff_count()])
 	_build_environment()
 	var terrain := Node3D.new()
 	terrain.name = "Terrain"
@@ -134,7 +141,7 @@ func _on_peer_loaded(id: int) -> void:
 	for peer_id: int in roster:
 		spawner.spawn({"peer": peer_id, "cliff": int((roster[peer_id] as Dictionary)["cliff"])})
 	if NetworkManager.has_cpu():
-		_spawn_cpu()
+		_spawn_cpus()
 	else:
 		Economy.shared = false # no CPU this run: separate stockpiles again
 	# [Foundation hook] Continue last run: rebuild the saved run instead of a new one.
@@ -144,14 +151,17 @@ func _on_peer_loaded(id: int) -> void:
 		GameState.start_run()
 
 
-## Host: the CPU partner takes the empty cliff and the team shares one pool.
-func _spawn_cpu() -> void:
-	var cpu := CpuTeammate.new()
-	cpu.name = "CPU"
-	cpu.setup(NetworkManager.cpu_quality, NetworkManager.cpu_cliff(), cliffs, vfx)
-	add_child(cpu)
-	Economy.enable_shared_pool(NetworkManager.players.size() + 1, 1)
-	print("[cpu] %s partner on cliff %d" % [NetworkManager.CPU_QUALITY_NAMES[NetworkManager.cpu_quality], cpu.cliff_id])
+## Host: CPU teammates take every empty cliff and the team shares one pool
+## (each CPU may spend 1 / team size of it, see CpuBudget).
+func _spawn_cpus() -> void:
+	var free := NetworkManager.cpu_cliffs()
+	for i in free.size():
+		var cpu := CpuTeammate.new()
+		cpu.name = "CPU" if i == 0 else "CPU%d" % (i + 1)
+		cpu.setup(NetworkManager.cpu_quality, free[i], cliffs, vfx, i)
+		add_child(cpu)
+		print("[cpu] %s teammate %s on cliff %d (%s)" % [NetworkManager.CPU_QUALITY_NAMES[NetworkManager.cpu_quality], cpu.display_name, cpu.cliff_id, WorldLayout.map().name_of(cpu.cliff_id)])
+	Economy.enable_shared_pool(NetworkManager.players.size() + free.size(), free.size())
 
 
 ## Lobby roster, or a single offline player when the scene runs on its own.
@@ -159,6 +169,8 @@ func _roster() -> Dictionary:
 	if NetworkManager.is_online():
 		return NetworkManager.players
 	var cid := WorldLayout.EAST if GameState.has_flag("--east") else WorldLayout.WEST
+	if GameState.flag_value("--cliff") != "":
+		cid = clampi(int(GameState.flag_value("--cliff")), 0, WorldLayout.cliff_count() - 1)
 	return {1: {"name": "Rancher", "cliff": cid, "ready": true}}
 
 

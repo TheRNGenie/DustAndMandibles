@@ -56,7 +56,7 @@ func _refresh() -> void:
 	var lines: PackedStringArray = []
 	for id: int in NetworkManager.players:
 		var p: Dictionary = NetworkManager.players[id]
-		var cliff := "West cliff" if int(p["cliff"]) == WorldLayout.WEST else "East cliff"
+		var cliff := WorldLayout.map().name_of(int(p["cliff"])) # Maps:
 		var me := " (you)" if id == multiplayer.get_unique_id() else ""
 		lines.append("%s: %s%s" % [cliff, str(p["name"]), me])
 	if lines.is_empty():

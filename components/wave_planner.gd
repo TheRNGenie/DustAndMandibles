@@ -21,14 +21,20 @@ var bug_defs: Array[BugDef] = []
 var rng := RandomNumberGenerator.new()
 ## Kill-method variant ids the players have unlocked (mixed in by plan()).
 var variants: Array[StringName] = []
+# Maps: how many cliffs the map has, and how likely bugs are to pick each (MapDef).
+var cliff_count := 2
+var weights: Array[float] = [0.5, 0.5]
 var _seed := 0
 
 
-func _init(cfg: WaveConfig, defs: Array[BugDef], seed_value: int = 0) -> void:
+func _init(cfg: WaveConfig, defs: Array[BugDef], seed_value: int = 0, map: MapDef = null) -> void:
 	config = cfg
 	bug_defs = defs
 	_seed = seed_value
 	rng.seed = seed_value
+	var m := map if map != null else MapDef.get_current() # Maps:
+	cliff_count = m.count()
+	weights = m.spawn_weights()
 
 
 ## Bugs that may appear in wave w.
@@ -84,12 +90,17 @@ func pulse_times(shape: StringName) -> Array[float]:
 
 ## Returns {"groups": Array of {"bug": StringName, "count": int, "cliff": int, "lane": int, "pulse": int},
 ##          "pulses": int, "pulse_times": Array[float], "shape": StringName,
-##          "west_share": float, "spent": [west, east]}
+##          "west_share": float, "shares": [one per cliff], "spent": [one per cliff]}
 func plan(w: int) -> Dictionary:
 	var budget := config.budget(w)
 	var west_share := config.west_share_for(w, rng.randf())
-	var pools := [budget * west_share, budget * (1.0 - west_share)]
-	var spent := [0.0, 0.0]
+	# Maps: one pool per cliff (the canyon's two from the west share).
+	var shares := split(west_share)
+	var pools := []
+	var spent := []
+	for cid in cliff_count:
+		pools.append(budget * shares[cid])
+		spent.append(0.0)
 	var shape := shape_for(w)
 	var times := pulse_times(shape)
 	var pulses := times.size()
@@ -99,11 +110,11 @@ func plan(w: int) -> Dictionary:
 	# wave it's introduced, and on every boss wave after that.
 	for d in options:
 		if d.behavior == BugDef.Behavior.BOSS and (d.first_wave == w or shape == BOSS):
-			var boss_cliff := WorldLayout.WEST if west_share >= 0.5 else WorldLayout.EAST
+			var boss_cliff := heaviest(shares, true) # Maps:
 			groups.append({"bug": d.id, "count": 1, "cliff": boss_cliff, "lane": 2, "pulse": 0})
 	# Make sure every bug introduced this wave shows up on both cliffs.
 	for newest in _newest(options, w):
-		for cid in 2:
+		for cid in cliff_count:
 			var c := float(newest.cost * newest.group_size)
 			if pools[cid] - spent[cid] >= c:
 				groups.append(_group(newest, cid, pulses))
@@ -113,19 +124,39 @@ func plan(w: int) -> Dictionary:
 		_spend(groups, spent, pools, options.filter(func(d: BugDef) -> bool: return d.behavior == BugDef.Behavior.FLIER), config.flier_share, pulses, false)
 	elif shape == BOSS:
 		_spend(groups, spent, pools, options.filter(func(d: BugDef) -> bool: return is_brute(d)), config.brute_share, pulses, true)
-	for cid in 2:
+	for cid in cliff_count:
 		_fill(groups, spent, cid, pools[cid], options, pulses)
 	_mix_variants(groups)
 	_scale_counts(groups, config.bug_count(w))
 	return {"groups": groups, "pulses": pulses, "pulse_times": times, "shape": shape,
-			"west_share": west_share, "spent": spent}
+			"west_share": west_share, "shares": shares, "spent": spent}
+
+
+## Maps: each cliff's share of the wave's budget. Two cliffs: the configured
+## west share. More: the map's spawn weights, with one cliff (picked per wave)
+## leaned on as hard as the configured split is lopsided.
+func split(west_share: float) -> Array[float]:
+	var out: Array[float] = []
+	if cliff_count == 2:
+		out.assign([west_share, 1.0 - west_share])
+		return out
+	var heavy := rng.randi_range(0, cliff_count - 1)
+	var lean := absf(west_share - 0.5) * 3.0
+	var total := 0.0
+	for cid in cliff_count:
+		var s := weights[cid] * (1.0 + (lean if cid == heavy else 0.0))
+		out.append(s)
+		total += s
+	for cid in cliff_count:
+		out[cid] /= maxf(total, 0.0001)
+	return out
 
 
 ## Spends `share` of each cliff's pool on `kinds` (brutes come in the first pulses).
 func _spend(groups: Array, spent: Array, pools: Array, kinds: Array, share: float, pulses: int, up_front: bool) -> void:
 	if kinds.is_empty():
 		return
-	for cid in 2:
+	for cid in spent.size():
 		_fill(groups, spent, cid, float(spent[cid]) + float(pools[cid]) * share, kinds, pulses)
 	if up_front:
 		for g: Dictionary in groups:
@@ -227,3 +258,17 @@ static func heavier_cliff(west_share: float) -> int:
 	if absf(west_share - 0.5) < 0.01:
 		return -1
 	return WorldLayout.WEST if west_share > 0.5 else WorldLayout.EAST
+
+
+## Maps: the cliff with the biggest share (ties go to the lowest id). Without
+## `always`, -1 when every cliff gets about the same.
+static func heaviest(shares: Array, always: bool = false) -> int:
+	var best := 0
+	var lo := INF
+	for cid in shares.size():
+		lo = minf(lo, float(shares[cid]))
+		if float(shares[cid]) > float(shares[best]):
+			best = cid
+	if not always and float(shares[best]) - lo < 0.02:
+		return -1
+	return best

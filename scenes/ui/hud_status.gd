@@ -61,13 +61,14 @@ func _ready() -> void:
 	_food_icon.kind = &"food"
 	needs.add_child(_food_icon)
 
-	for i in 2:
+	# Maps: one bar per cliff. Yours top-left; the others stacked top-right.
+	for i in WorldLayout.cliff_count():
 		var box := VBoxContainer.new()
 		box.anchor_left = 0.0 if i == 0 else 1.0
 		box.anchor_right = box.anchor_left
 		box.offset_left = 24.0 if i == 0 else -284.0
 		box.offset_right = box.offset_left + 260.0
-		box.offset_top = 16
+		box.offset_top = 16 + (0 if i == 0 else (i - 1) * 50)
 		add_child(box)
 		var caption := UiStyle.label("", 16, Palette.BONE)
 		caption.add_theme_color_override("font_outline_color", Palette.OUTLINE)
@@ -112,12 +113,19 @@ func bind_player(player: Player) -> void:
 	_refresh_resources()
 
 
-## Left bar = your Homestead, right bar = your partner's.
+## Top-left bar = your Homestead, the others top-right (labelled by cliff,
+## with whoever holds it).
 func _refresh_homes() -> void:
-	var order: Array[int] = [cliff_id, WorldLayout.other_cliff(cliff_id)]
-	for i in 2:
+	var order: Array[int] = [cliff_id]
+	for cid in WorldLayout.cliff_count():
+		if cid != cliff_id:
+			order.append(cid)
+	for i in mini(order.size(), _homes.size()):
 		var cid := order[i]
-		_captions[i].text = "Yours" if i == 0 else "Theirs"
+		if cid >= GameState.homestead_hp.size():
+			continue
+		var who := "yours" if i == 0 else Hud.owner_name(cid)
+		_captions[i].text = "%s  (%s)" % [WorldLayout.map().name_of(cid), who]
 		_homes[i].max_value = maxf(GameState.homestead_max[cid], 1.0)
 		_homes[i].value = GameState.homestead_hp[cid]
 		_homes[i].add_theme_stylebox_override("fill", _fill(Palette.team_color(cid)))
@@ -125,9 +133,14 @@ func _refresh_homes() -> void:
 
 func _refresh_resources() -> void:
 	if GameState.is_solo():
-		# Solo builds on both cliffs, so show both stockpiles.
-		_scrap.text = "%d / %d" % [Economy.amount(0, &"scrap"), Economy.amount(1, &"scrap")]
-		_chitin.text = "%d / %d" % [Economy.amount(0, &"chitin"), Economy.amount(1, &"chitin")]
+		# Solo builds on every cliff, so show every stockpile.
+		var sc: PackedStringArray = []
+		var ch: PackedStringArray = []
+		for cid in WorldLayout.cliff_count():
+			sc.append(str(Economy.amount(cid, &"scrap")))
+			ch.append(str(Economy.amount(cid, &"chitin")))
+		_scrap.text = " / ".join(sc)
+		_chitin.text = " / ".join(ch)
 	else:
 		_scrap.text = str(Economy.amount(cliff_id, &"scrap"))
 		_chitin.text = str(Economy.amount(cliff_id, &"chitin"))

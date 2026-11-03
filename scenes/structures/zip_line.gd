@@ -9,26 +9,47 @@ const SEGMENTS := 24
 
 var a := Vector3.ZERO
 var b := Vector3.ZERO
+## The houses at either end (a = cliff_a's tower).
+var cliff_a := 0
+var cliff_b := 1
 
 
-## Creates or removes the line to match the two houses.
+## Which houses get a line between them: the canyon's two; on bigger maps each
+## house and its neighbours round the ring.
+static func pairs() -> Array:
+	var n := WorldLayout.cliff_count()
+	if n <= 2:
+		return [[0, 1]]
+	var out: Array = []
+	for i in n:
+		out.append([i, (i + 1) % n])
+	return out
+
+
+## Creates or removes the lines to match the houses' towers.
 static func refresh(tree: SceneTree) -> void:
-	var w := Homestead.of(WorldLayout.WEST)
-	var e := Homestead.of(WorldLayout.EAST)
-	var existing: ZipLine = null
+	var existing := {}
 	for n: Node in tree.get_nodes_in_group("zip_lines"):
-		existing = n as ZipLine
-	var want := w != null and e != null and w.tower and e.tower
-	if not want:
-		if existing != null:
-			existing.queue_free()
-		return
-	if existing != null:
-		return
-	var line := ZipLine.new()
-	line.name = "ZipLine"
-	w.get_parent().add_child(line)
-	line.setup(w.zip_anchor_global(), e.zip_anchor_global())
+		var z := n as ZipLine
+		if not z.is_queued_for_deletion():
+			existing["%d_%d" % [z.cliff_a, z.cliff_b]] = z
+	for pr: Array in pairs():
+		var ha := Homestead.of(int(pr[0]))
+		var hb := Homestead.of(int(pr[1]))
+		var key := "%d_%d" % [int(pr[0]), int(pr[1])]
+		var want := ha != null and hb != null and ha.tower and hb.tower
+		if not want:
+			if existing.has(key):
+				(existing[key] as ZipLine).queue_free()
+			continue
+		if existing.has(key):
+			continue
+		var line := ZipLine.new()
+		line.name = "ZipLine" if WorldLayout.cliff_count() <= 2 else "ZipLine%s" % key
+		line.cliff_a = int(pr[0])
+		line.cliff_b = int(pr[1])
+		ha.get_parent().add_child(line)
+		line.setup(ha.zip_anchor_global(), hb.zip_anchor_global())
 
 
 static func current(tree: SceneTree) -> ZipLine:
@@ -36,6 +57,16 @@ static func current(tree: SceneTree) -> ZipLine:
 		if not (n as Node).is_queued_for_deletion():
 			return n as ZipLine
 	return null
+
+
+## Every standing line that ends at cliff `cid`'s house.
+static func lines_from(tree: SceneTree, cid: int) -> Array[ZipLine]:
+	var out: Array[ZipLine] = []
+	for n: Node in tree.get_nodes_in_group("zip_lines"):
+		var z := n as ZipLine
+		if not z.is_queued_for_deletion() and (z.cliff_a == cid or z.cliff_b == cid):
+			out.append(z)
+	return out
 
 
 ## A point on the cable, t from 0 (west) to 1 (east).

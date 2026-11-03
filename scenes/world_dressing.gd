@@ -18,13 +18,14 @@ func _init(cliff_builder: CliffBuilder, parent_node: Node3D, seed_value: int = 9
 
 
 func build() -> void:
-	for cid in 2:
+	for cid in WorldLayout.cliff_count():
 		_build_homestead_area(cid)
 		_scatter_props(cid)
 		_build_boundary(cid)
 	_build_nests()
 	_build_webs()
-	CanyonDressing.build(parent, cliffs, 5151)
+	if WorldLayout.map().is_canyon():
+		CanyonDressing.build(parent, cliffs, 5151)
 
 
 ## A heavy spider infestation: orb webs all over both canyon walls (thicker low
@@ -33,10 +34,14 @@ func _build_webs() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7171
 	var st := MeshKit.begin()
-	for cid in 2:
-		for i in 200:
+	var m := WorldLayout.map()
+	var canyon := m.is_canyon()
+	for cid in m.count():
+		for i in (200 if canyon else 110):
 			var far := i >= 160
 			var z := rng.randf_range(-88.0, 88.0) if not far else rng.randf_range(92.0, 260.0) * (1.0 if rng.randf() < 0.5 else -1.0)
+			if not canyon:
+				z = rng.randf_range(-m.span_v + 4.0, m.span_v - 4.0)
 			var y := 2.5 + pow(rng.randf(), 1.7) * 50.0
 			var n := cliffs.face_normal(cid, y, z)
 			var c := cliffs.face_point(cid, y, z) + n * 0.12
@@ -45,11 +50,17 @@ func _build_webs() -> void:
 	for i in 130:
 		var x := rng.randf_range(-17.0, 17.0)
 		var z := rng.randf_range(-88.0, 88.0)
+		if not canyon:
+			# Round the foot of a random wall.
+			var fc := rng.randi() % m.count()
+			var fp := cliffs.face_point(fc, 0.0, rng.randf_range(-m.span_v + 4.0, m.span_v - 4.0)) + m.cliff(fc).inward * rng.randf_range(2.0, 9.0)
+			x = fp.x
+			z = fp.z
 		WebBuilder.sheet(st, rng, Vector3(x, 0.0, z), rng.randf_range(1.5, 4.0), floor_h)
 		if rng.randf() < 0.35:
 			WebBuilder.egg_sacs(st, rng, Vector3(x, cliffs.floor_height(x, z), z))
 	# Long strands slung across the canyon, sagging in the middle.
-	for i in 30:
+	for i in (30 if canyon else 0):
 		var y := rng.randf_range(3.0, 18.0)
 		var z1 := rng.randf_range(-85.0, 85.0)
 		var z2 := z1 + rng.randf_range(-6.0, 6.0)
@@ -199,18 +210,22 @@ func _scatter_props(cid: int) -> void:
 	# Cacti and rocks outside the build area, a few small rocks inside it.
 	var placed := 0
 	var tries := 0
+	# Bigger maps: only on this cliff's own top (its plateau ends sooner).
+	var m := WorldLayout.map()
+	var max_d := 55.0 if m.is_canyon() else 38.0
+	var max_z := 70.0 if m.is_canyon() else m.span_v - 5.0
 	while placed < 14 and tries < 200:
 		tries += 1
-		var d := _rng.randf_range(4.0, 55.0)
-		var z := _rng.randf_range(-70.0, 70.0)
+		var d := _rng.randf_range(4.0, max_d)
+		var z := _rng.randf_range(-max_z, max_z)
 		var in_build_area := d < WorldLayout.PLATEAU_DEPTH + 2.0 and absf(z) < WorldLayout.PLATEAU_WIDTH * 0.5 + 2.0
 		if in_build_area or _in_walkway(d, z):
 			continue
 		add_mesh(PropBuilder.cactus(_rng.randi()), ground(cid, d, z), _rng.randf() * TAU, "", true)
 		placed += 1
 	for i in 26:
-		var d := _rng.randf_range(2.0, 58.0)
-		var z := _rng.randf_range(-80.0, 80.0)
+		var d := _rng.randf_range(2.0, max_d + 3.0)
+		var z := _rng.randf_range(-80.0, 80.0) if m.is_canyon() else _rng.randf_range(-max_z, max_z)
 		var size := _rng.randf_range(0.5, 2.6)
 		if d < WorldLayout.PLATEAU_DEPTH + 1.0 and absf(z) < WorldLayout.PLATEAU_WIDTH * 0.5 + 1.0:
 			continue # the build area stays clear
@@ -219,7 +234,7 @@ func _scatter_props(cid: int) -> void:
 		add_mesh(PropBuilder.rock(_rng.randi(), size), ground(cid, d, z) + Vector3(0, -0.2 * size, 0),
 				_rng.randf() * TAU, "", size > 0.8)
 	# Rocks and cacti on the canyon floor.
-	if cid == 0:
+	if cid == 0 and m.is_canyon():
 		for i in 30:
 			var x := _rng.randf_range(-18.0, 18.0)
 			var z := _rng.randf_range(-85.0, 85.0)
@@ -254,23 +269,38 @@ func _build_boundary(cid: int) -> void:
 		d -= 2.5
 	add_mesh(BuildingBuilder.fence(pts, 600 + cid), Vector3.ZERO, 0.0, "Fence%d" % cid)
 
-	var s := WorldLayout.side_sign(cid)
 	var wall_h := 8.0
 	var y := WorldLayout.CLIFF_HEIGHT + wall_h * 0.5 - 1.0
-	var gap := WorldLayout.HALF_GAP
-	_add_wall(Vector3(s * (gap + depth + 0.5), y, 0), Vector3(1, wall_h, WorldLayout.PLATEAU_WIDTH + 2.0))
-	_add_wall(Vector3(s * (gap + (depth + 2.0) * 0.5 - 1.0), y, -half_w - 0.5), Vector3(depth + 4.0, wall_h, 1))
-	_add_wall(Vector3(s * (gap + (depth + 2.0) * 0.5 - 1.0), y, half_w + 0.5), Vector3(depth + 4.0, wall_h, 1))
+	var m := WorldLayout.map()
+	if m.is_canyon():
+		var s := WorldLayout.side_sign(cid)
+		var gap := WorldLayout.HALF_GAP
+		_add_wall(Vector3(s * (gap + depth + 0.5), y, 0), Vector3(1, wall_h, WorldLayout.PLATEAU_WIDTH + 2.0))
+		_add_wall(Vector3(s * (gap + (depth + 2.0) * 0.5 - 1.0), y, -half_w - 0.5), Vector3(depth + 4.0, wall_h, 1))
+		_add_wall(Vector3(s * (gap + (depth + 2.0) * 0.5 - 1.0), y, half_w + 0.5), Vector3(depth + 4.0, wall_h, 1))
+		return
+	# Other maps: the same three walls in the cliff's own frame (the side walls
+	# follow a butte's slanted edge faces).
+	var c := m.cliff(cid)
+	var yaw := atan2(c.along.x, c.along.z)
+	var back := WorldLayout.plateau_to_world(cid, depth + 0.5, 0.0, y)
+	_add_wall(back, Vector3(1, wall_h, WorldLayout.PLATEAU_WIDTH + 2.0), yaw)
+	for sgn: float in [-1.0, 1.0]:
+		var zz := sgn * (half_w + 0.5)
+		var a := WorldLayout.plateau_to_world(cid, -1.0, zz, y)
+		var b := WorldLayout.plateau_to_world(cid, depth + 3.0, zz, y)
+		_add_wall((a + b) * 0.5, Vector3(1, wall_h, a.distance_to(b)), atan2(b.x - a.x, b.z - a.z))
 
 
 static func _in_walkway(_d: float, _z: float) -> bool:
 	return false
 
 
-func _add_wall(pos: Vector3, size: Vector3) -> void:
+func _add_wall(pos: Vector3, size: Vector3, yaw: float = 0.0) -> void:
 	var body := StaticBody3D.new()
 	body.name = "BoundaryWall"
 	body.position = pos
+	body.rotation.y = yaw
 	# Only players collide with boundary walls; bullets and bugs pass through.
 	body.collision_layer = WorldLayout.LAYER_PLAYER_BLOCKER
 	body.collision_mask = 0
@@ -284,6 +314,13 @@ func _add_wall(pos: Vector3, size: Vector3) -> void:
 
 ## Bug nests on the canyon floor (spawn points from M2 on).
 func _build_nests() -> void:
+	if not WorldLayout.map().is_canyon():
+		# Bigger maps: a mound beside every other tunnel.
+		for i in range(0, cliffs.tunnel_count(), 2):
+			var t := cliffs.tunnel(i)
+			var at: Vector3 = t[0] + (t[1] as Vector3).cross(Vector3.UP) * 6.0
+			add_mesh(PropBuilder.nest_mound(700 + i), Vector3(at.x, cliffs.floor_height(at.x, at.z) - 0.4, at.z), _rng.randf() * TAU, "Nest%d" % i)
+		return
 	var nest_z: Array[float] = [-28.0, 4.0, 32.0]
 	for i in nest_z.size():
 		var z := nest_z[i]

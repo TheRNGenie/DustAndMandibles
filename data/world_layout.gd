@@ -45,22 +45,41 @@ const MASK_SHOTS := LAYER_WORLD | LAYER_BUG | LAYER_STRUCTURE | LAYER_TRAP
 const CANYON_FALL_Y := CLIFF_HEIGHT - 6.0
 
 
-## -1 for the west cliff, +1 for the east cliff.
+## -1 for the west cliff, +1 for the east cliff (canyon only: other maps use
+## MapDef frames, see inward()).
 static func side_sign(cliff_id: int) -> float:
 	return -1.0 if cliff_id == WEST else 1.0
 
 
-## Converts plateau coordinates (d = metres back from the lip, z = along the canyon)
+## The map this run plays on.
+static func map() -> MapDef:
+	return MapDef.get_current()
+
+
+## How many cliffs (players' plateaus) the map has.
+static func cliff_count() -> int:
+	return MapDef.get_current().count()
+
+
+## Horizontal direction from a cliff's lip out over the gap (into the canyon).
+static func inward(cliff_id: int) -> Vector3:
+	return MapDef.get_current().cliff(cliff_id).inward
+
+
+## Converts plateau coordinates (d = metres back from the lip, z = along the lip)
 ## to a world position at height y.
 static func plateau_to_world(cliff_id: int, d: float, z: float, y: float) -> Vector3:
-	return Vector3(side_sign(cliff_id) * (HALF_GAP + d), y, z)
+	var m := MapDef.get_current()
+	if m.is_canyon():
+		return Vector3(side_sign(cliff_id) * (HALF_GAP + d), y, z)
+	return m.to_world(cliff_id, m.prow_u(cliff_id, z) - d, z) + Vector3(0, y, 0)
 
 
-## Y rotation that makes a node's forward (-Z) face the canyon from this cliff.
+## Y rotation that makes a node's forward (-Z) face the gap from this cliff.
 static func facing_canyon_yaw(cliff_id: int) -> float:
-	return side_sign(cliff_id) * PI * 0.5
+	return MapDef.get_current().facing_yaw(cliff_id)
 
 
-## The other player's cliff.
+## The cliff this one's turrets mostly cover (on the canyon: the other player's cliff).
 static func other_cliff(cliff_id: int) -> int:
-	return EAST if cliff_id == WEST else WEST
+	return MapDef.get_current().main_target(cliff_id)
