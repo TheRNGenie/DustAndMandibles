@@ -78,5 +78,7 @@ func _finish() -> void:
 	var won := CasinoRules.bj_payout(_hand["player"], _hand["dealer"], bet)
 	_pay(peer, {&"scrap": won} if won > 0 else {})
 	var result := "BLACKJACK! You win %d" % won if won > bet * 2 else ("You win %d scrap" % won if won > bet else ("Push, bet returned" if won == bet else "Dealer wins"))
+	if won > bet:
+		result += _part_bonus(peer)
 	_send_view(true, result)
 	_hand = {}

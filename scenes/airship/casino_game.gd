@@ -295,6 +295,16 @@ func _take(peer_id: int, amount: int) -> bool:
 	return false
 
 
+## Host: a win sometimes comes with a turret part (CasinoRules.PART_CHANCE).
+## Pays it and returns a line naming it for the result, or "".
+func _part_bonus(peer_id: int) -> String:
+	var key := CasinoRules.part_bonus(_rng)
+	if key == &"":
+		return ""
+	_pay(peer_id, {key: 1})
+	return " The house throws in a %s for the Workshop!" % CraftTable.part_name(key)
+
+
 func _pay(peer_id: int, amounts: Dictionary) -> void:
 	if not amounts.is_empty():
 		Economy.earn(_cliff(peer_id), amounts)

@@ -40,5 +40,7 @@ func _act(peer_id: int, action: StringName, choice: int, bet: int) -> void:
 	_pay(peer_id, {&"scrap": won} if won > 0 else {})
 	var verdict := "%s wins" % String(r["winner"]).capitalize() if r["winner"] != "tie" else "Tie"
 	var outcome := ("you win %d scrap" % won) if won > bet else ("bet returned" if won == bet else "you lose")
+	if won > bet:
+		outcome += _part_bonus(peer_id)
 	_broadcast({"kind": "cards", "peer": peer_id, "result": "%s - %s" % [verdict, outcome],
 			"rows": [["Banker", r["banker"], CasinoRules.bac_value(r["banker"])], ["Player", r["player"], CasinoRules.bac_value(r["player"])]]})

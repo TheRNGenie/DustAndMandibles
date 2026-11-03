@@ -17,8 +17,12 @@ const SLOT_BONUS: Dictionary = {"CHILI": {&"seed_chili": 3}, "STAR": {&"upgrade_
 const WHEEL_WEDGES: Array[Array] = [
 	["BUST", {}], ["50 SCRAP", {&"scrap": 50}], ["UPGRADE TOKEN", {&"upgrade_token": 1}], ["BUST", {}],
 	["120 SCRAP", {&"scrap": 120}], ["3 CHILI SEEDS", {&"seed_chili": 3}], ["BUST", {}], ["JACKPOT 25 CHITIN", {&"chitin": 25}],
-	["30 SCRAP", {&"scrap": 30}], ["4 HERBS", {&"herbs": 4}],
+	["30 SCRAP", {&"scrap": 30}], ["4 HERBS", {&"herbs": 4}], ["TURRET PART", {&"turret_part": 1}],
 ]
+## A wheel prize that stands for one random crafting part (CraftTable.random_part).
+const WHEEL_PART := &"turret_part"
+## Chance that a winning hand, spin or pull also pays out a random turret part.
+const PART_CHANCE := 0.05
 
 
 static func new_shoe(rng: RandomNumberGenerator, decks: int = 4) -> Array[int]:
@@ -205,11 +209,21 @@ static func slot_return_rate() -> float:
 	return rate
 
 
+## A winner's bonus: a random turret part key now and then (PART_CHANCE), else &"".
+static func part_bonus(rng: RandomNumberGenerator) -> StringName:
+	if rng.randf() >= PART_CHANCE:
+		return &""
+	return CraftTable.random_part(rng)
+
+
 ## "120 scrap + 1 upgrade token" for result lines.
 static func prize_text(amounts: Dictionary) -> String:
 	var parts: PackedStringArray = []
 	for k: Variant in amounts.keys():
 		var n := int(amounts[k])
+		if CraftTable.is_part(StringName(k)):
+			parts.append(("a %s" % CraftTable.part_name(StringName(k))) if n == 1 else ("%d x %s" % [n, CraftTable.part_name(StringName(k))]))
+			continue
 		var label := String(k).replace("seed_", "").replace("_", " ")
 		if String(k).begins_with("seed_"):
 			label += " seed" if n == 1 else " seeds"

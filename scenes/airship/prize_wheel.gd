@@ -74,7 +74,7 @@ func ui_title() -> String:
 
 
 func ui_rules() -> String:
-	return "%d chitin a spin. Scrap, chili seeds, herbs, a turret upgrade token, or the 25-chitin jackpot. Three wedges bust." % COST
+	return "%d chitin a spin. Scrap, chili seeds, herbs, a turret upgrade token, a turret part, or the 25-chitin jackpot. Three wedges bust." % COST
 
 
 func ui_currency() -> StringName:
@@ -119,10 +119,15 @@ func _act(peer_id: int, action: StringName, _choice: int, _bet: int) -> void:
 		return
 	var i := _rng.randi() % WEDGES.size()
 	var prize: Dictionary = WEDGES[i][1]
-	_pay(peer_id, prize)
 	var label := String(WEDGES[i][0])
+	var won_text := label.to_lower()
+	if prize.has(CasinoRules.WHEEL_PART): # one random turret part for the Workshop
+		var key := CraftTable.random_part(_rng)
+		prize = {key: 1}
+		won_text = "a %s for the Workshop" % CraftTable.part_name(key)
+	_pay(peer_id, prize)
 	_broadcast({"kind": "wheel", "peer": peer_id, "wedge": i, "spinning": true,
-			"result": "Bust! Better luck next spin." if label == "BUST" else "You won %s!" % label.to_lower()})
+			"result": "Bust! Better luck next spin." if label == "BUST" else "You won %s!" % won_text})
 
 
 func menu_build_body(body: Control, screen: MenuScreen) -> void:
