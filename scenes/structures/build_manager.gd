@@ -372,6 +372,13 @@ func _do_demolish(peer_id: int, n: Node3D) -> void:
 		else:
 			sc.set_levels(sc.levels - 1)
 		return
+	# Crafted turrets go back into the stockpile as their item, to place again.
+	var t_id: Variant = n.get("def").get("id") if n is Turret else null
+	if t_id != null and CraftTable.is_craft(t_id):
+		Economy.earn(cid, {StringName(t_id): 1})
+		Economy.notify(peer_id, "Picked up the %s. Place it again from the Crafted tab (B)." % Defs.name_of(t_id))
+		n.queue_free()
+		return
 	Economy.earn(cid, {&"scrap": sell_price(peer_id, n)})
 	n.queue_free()
 

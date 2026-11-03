@@ -2375,6 +2375,15 @@ func _craft_test() -> void:
 		if n.get("def") != null and n.get("def").id == design:
 			placed += 1
 	print("[craft] placed: ", placed, "  held now: ", Economy.amount(0, design), "  name: ", CraftTable.name_of(design))
+	# Pick it back up (X) and place it again.
+	for n: Node in get_tree().get_nodes_in_group("turrets"):
+		if n.get("def") != null and n.get("def").id == design:
+			bm._do_demolish(multiplayer.get_unique_id(), n)
+	await get_tree().create_timer(0.5).timeout
+	print("[craft] picked up, held: ", Economy.amount(0, design), "  scrap: ", Economy.amount(0, &"scrap"))
+	bm.build(design, 0, cell)
+	await get_tree().create_timer(0.5).timeout
+	print("[craft] placed again, held: ", Economy.amount(0, design))
 
 
 

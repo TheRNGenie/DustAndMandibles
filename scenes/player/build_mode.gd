@@ -353,6 +353,8 @@ func _sell_hint() -> String:
 	var id: Variant = n.get("build_id") if n.get("build_id") != null else (n.get("def").get("id") if n.get("def") != null else null)
 	if id == null:
 		return "Sell"
+	if CraftTable.is_craft(id):
+		return "Pick Up %s" % Defs.name_of(id)
 	return "Sell %s +%d" % [Defs.name_of(id), BuildManager.instance.sell_price(multiplayer.get_unique_id(), n)]
 
 
