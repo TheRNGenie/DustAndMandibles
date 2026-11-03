@@ -29,7 +29,7 @@
 				],
 				[
 					"stroud",
-					"Your guns can't dip at your own wall. Thirty degrees, by law. So you cover your partner's."
+					"Your guns can't dip more than thirty degrees. By law."
 				],
 				[
 					"kettle",
@@ -43,13 +43,13 @@
 			"wave": [
 				[
 					"stroud",
-					"Here they come. Watch the far wall, not your feet."
+					"Here they come. Steady now."
 				]
 			],
 			"held": [
 				[
 					"stroud",
-					"First night held. Patch up, plant something, and keep your partner's wall clean."
+					"First night held. Patch up and plant something."
 				]
 			]
 		},
@@ -63,7 +63,7 @@
 			"wave": [
 				[
 					"stroud",
-					"Bigger batch tonight. Mind the lanes on your partner's side."
+					"Bigger batch tonight. Mind the lanes."
 				]
 			]
 		},

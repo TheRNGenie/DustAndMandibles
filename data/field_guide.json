@@ -56,7 +56,7 @@
       "tips": [
         "Every climber you hit slides a few metres back down the wall.",
         "Big bugs slide less; bosses barely budge, and not twice in a row.",
-        "Useless for killing: pair it with your partner's turrets."
+        "Useless for killing: pair it with turrets that hit hard."
       ]
     },
     "harpoon_pistol": {
@@ -166,7 +166,7 @@
     "iron_tumble": {
       "lore": "The boss: a giant silver rhinoceros beetle with a horn like a church steeple and a tumbleweed stuck on its back. It comes on the last wave and rams the house when it reaches the top.",
       "tips": [
-        "Your partner's turrets hit its back as it climbs.",
+        "Turrets across the canyon hit its back as it climbs.",
         "Shoot its glowing belly from above."
       ]
     },
@@ -535,7 +535,7 @@
     "sarsaparilla": {
       "lore": "A twining vine with heart-shaped leaves and a thick, knobbly root that brews the canyon's best tonic. You don't grow it for yourself: you grow it for whoever is guarding your wall.",
       "tips": [
-        "Hold a root (hotbar 4) and left click to send your partner a tonic: their turrets, the ones covering YOUR wall, fire 15% faster.",
+        "Hold a root (hotbar 4) and left click to send your partner a tonic: their turrets fire 15% faster.",
         "Each tonic adds 60 s, stacking up to 3 minutes. The clock only runs during a wave, so send them any time.",
         "Can't use it yourself? Store roots in your partner's deposit box and let them brew for you.",
         "The market won't buy it. Seeds are at the airship market."
