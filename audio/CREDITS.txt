@@ -46,3 +46,34 @@ step_*, equip, chest_open, scribble, jump (.ogg)
                  - Kenney "RPG Audio" pack, CC0
                    https://opengameart.org/content/50-rpg-sound-effects
                    copied by tools/audio/import_foley.py
+
+Ambience (tools/audio/import_ambience.py; played by scenes/ambience.gd)
+---------------------------------------------------------------------
+All CC0 1.0 (public domain dedication).
+amb_chitter_bed.ogg   "Katydid_rattle_insect_chorus.wav" by lukewarm_sound, Freesound
+                      https://freesound.org/s/637065/
+                      pitched down to 68%, band-passed, tail crossfaded into a 9 s loop.
+amb_chitter_near.ogg  "Crayfish clicking sound - out of water" by felix.blume, Freesound
+                      https://freesound.org/s/867031/
+                      plus "Grasshopper" by straget (Freesound 401939), trimmed by
+                      AntumDeluge, OpenGameArt https://opengameart.org/content/grasshopper
+                      180 shell clicks and the leg rasps cut out and scattered
+                      (pitched down 20-50%) into a dense 8 s swarm loop.
+amb_wind.ogg          "Wind" (Wind, Wind2) by IgnasD, OpenGameArt
+                      https://opengameart.org/content/wind
+                      the two takes crossfaded back to back into an 11 s loop.
+amb_wind_gust.ogg     "wind whoosh loop" by sketchman3, OpenGameArt
+                      https://opengameart.org/content/wind-whoosh-loop
+airship_creak*.ogg    "Tree Creaking" by AntumDeluge (from Department64), OpenGameArt
+                      https://opengameart.org/content/tree-creaking
+                      three groans cut out, one also pitched down 18%.
+
+Music (tools/audio/import_music.py)
+-----------------------------------
+All CC0 1.0. Cut to a loop (tail crossfaded over the head) and loudness-matched.
+build_theme.ogg       "Desert Settlement" by Vitalezzz, OpenGameArt
+                      https://opengameart.org/content/desert-settlement
+wave_theme_1.ogg      "The Cowboy's Theme" (from "Wild West Music") by Umplix, OpenGameArt
+                      https://opengameart.org/content/wild-west-music
+wave_theme_2.ogg      "Spaghetti Western" by Julie Damsgaard / Spring Spring, OpenGameArt
+                      https://opengameart.org/content/spaghetti-western

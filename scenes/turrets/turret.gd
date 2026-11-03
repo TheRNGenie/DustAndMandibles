@@ -305,7 +305,7 @@ func _lit_near(pos: Vector3) -> bool:
 
 ## Range from the upgrade tier and the scaffold level it stands on.
 func range_multiplier() -> float:
-	return TurretDef.range_mult(tier, level) * perk_range # Perk: Long Sights
+	return TurretDef.range_mult(tier, level) * perk_range * (Homestead.LOOKOUT_RANGE if Homestead.lookout_cliffs.has(cliff_id) else 1.0) # Perk: Long Sights; house lookout floor
 
 
 func muzzle_position() -> Vector3:

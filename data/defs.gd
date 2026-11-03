@@ -108,6 +108,8 @@ const BUILD_CATEGORIES: Array[Dictionary] = [
 	{"name": "Tactical", "items": [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post"]},
 	{"name": "Air Defense", "items": [&"duck_gun", &"sky_sweeper", &"net_thrower", &"powder_flak", &"firework_battery"]},
 	{"name": "Last Resorts", "items": [&"scattergun_post", &"sharpshooter_tower", &"porch_repeater", &"rooftop_cannon"]},
+	# Crafted: filled at runtime with the crafted turret items your cliff holds (BuildMode.category_items).
+	{"name": "Crafted", "items": []},
 ]
 
 ## Turrets that come standing on a free scaffold (every turret except the last
@@ -136,6 +138,8 @@ static func bug(id: StringName) -> BugDef:
 
 
 static func turret(id: StringName) -> TurretDef:
+	if CraftTable.is_craft(id): # Crafted at the Workshop: built from its parts
+		return CraftTable.def_for(id)
 	return TURRETS.get(id) as TurretDef
 
 
@@ -158,12 +162,12 @@ static func seed_of(crop_id: StringName) -> StringName:
 
 
 static func is_turret(id: StringName) -> bool:
-	return TURRETS.has(id)
+	return TURRETS.has(id) or not CraftTable.parse(id).is_empty()
 
 
 # Crewed: a 2 x 2 gun with a seat (ground level only, nothing stacks on it).
 static func is_crewed(id: StringName) -> bool:
-	return TURRETS.has(id) and turret(id).crewed
+	return is_turret(id) and turret(id).crewed
 
 
 ## The items of a build category by its name ([] if there's no such category).
@@ -176,11 +180,11 @@ static func category_items(cat_name: String) -> Array:
 
 ## Mounted on the house rather than placed on the grid.
 static func is_house_turret(id: StringName) -> bool:
-	return TURRETS.has(id) and turret(id).guards_house
+	return is_turret(id) and turret(id).guards_house
 
 
 static func cost_of(id: StringName) -> int:
-	if TURRETS.has(id):
+	if is_turret(id):
 		return turret(id).cost_scrap
 	if STRUCTURES.has(id):
 		return structure(id).cost_scrap
@@ -188,7 +192,7 @@ static func cost_of(id: StringName) -> int:
 
 
 static func name_of(id: StringName) -> String:
-	if TURRETS.has(id):
+	if is_turret(id):
 		return turret(id).display_name
 	if STRUCTURES.has(id):
 		return structure(id).display_name

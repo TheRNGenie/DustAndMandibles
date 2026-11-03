@@ -85,7 +85,7 @@ func capture() -> Dictionary:
 		var h := Homestead.of(cid)
 		homes.append({"hp": GameState.homestead_hp[cid], "max": GameState.homestead_max[cid],
 				"floors": h.floors if h != null else 1, "boarded": h != null and h.boarded,
-				"reinforced": h != null and h.reinforced, "tower": h != null and h.tower})
+				"reinforced": h != null and h.reinforced, "tower": h != null and h.tower, "workshop": h != null and h.workshop, "porch": h != null and h.porch})
 	data["homesteads"] = homes
 	var builds: Array = []
 	var bm := BuildManager.instance
@@ -198,7 +198,7 @@ func resume(data: Dictionary) -> bool:
 		var h: Dictionary = homes[cid]
 		var home := Homestead.of(cid)
 		if home != null:
-			home._set_state.rpc(int(h["floors"]), bool(h["boarded"]), bool(h["reinforced"]), bool(h["tower"]))
+			home._set_state.rpc(int(h["floors"]), bool(h["boarded"]), bool(h["reinforced"]), bool(h["tower"]), bool(h.get("workshop", false)), bool(h.get("porch", false)))
 		if float(h["max"]) > 0.0:
 			GameState.homestead_max[cid] = float(h["max"])
 			GameState.homestead_hp[cid] = clampf(float(h["hp"]), 1.0, float(h["max"]))

@@ -44,6 +44,24 @@ func _shoot() -> void:
 			var side := out.cross(Vector3.UP).normalized()
 			target = mid + Vector3(0, 2.6, 0)
 			eye = mid + out * 12.5 + side * 3.0 + Vector3(0, 4.5, 0)
+	elif spec.begins_with("porch:"):
+		# --mapcam=porch:<cliff>: the shaded porch on the front of a cliff's house (built for the shot).
+		var ph := Homestead.of(int(spec.substr(6)))
+		if ph != null:
+			ph._set_state(ph.floors, ph.boarded, ph.reinforced, ph.tower, ph.workshop, true)
+			var pb := ph.global_transform.basis
+			var front := ph.global_position - pb.z.normalized() * (HouseBuilder.D * 0.5 + 1.5)
+			target = front + Vector3(0, 1.3, 0)
+			eye = front - pb.z.normalized() * 9.0 + pb.x.normalized() * 3.0 + Vector3(0, 3.0, 0)
+	elif spec.begins_with("workshop:"):
+		# --mapcam=workshop:<cliff>: the Workshop shed on the back of a cliff's house (built for the shot).
+		var home := Homestead.of(int(spec.substr(9)))
+		if home != null:
+			home._set_state(home.floors, home.boarded, home.reinforced, home.tower, true)
+			var b := home.global_transform.basis
+			var back := home.global_position + b.z.normalized() * (HouseBuilder.D * 0.5 + 1.3)
+			target = back + Vector3(0, 1.1, 0)
+			eye = back + b.z.normalized() * 5.0 + b.x.normalized() * 2.5 + Vector3(0, 2.2, 0)
 	elif spec.begins_with("well:"):
 		# --mapcam=well:<cliff>[:run][:side]: close on a cliff's pump jack (run: pumping).
 		var parts := spec.split(":")

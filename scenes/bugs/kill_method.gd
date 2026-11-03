@@ -47,5 +47,12 @@ static func classify(source: String) -> StringName:
 				TurretDef.Effect.PIN:
 					return TRAP
 			return OTHER
+	# Crafted turrets ("Logan's Swivel Brush Peppergun"): by their effect.
+	if source.contains("Long Tom") or source.contains("Peppergun") or source.contains("Thumper") or source.contains("Hose"):
+		if source.contains("Brush"):
+			return FIRE
+		if source.contains("Dynamite") or source.contains("Thumper"):
+			return BLAST
+		return BULLET
 	# Players' guns and whips carry the player's own name.
 	return BULLET

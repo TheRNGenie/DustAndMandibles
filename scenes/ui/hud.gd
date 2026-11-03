@@ -112,7 +112,7 @@ func _ready() -> void:
 	_center_label.offset_top = 60
 	_center_label.offset_bottom = 110
 	_center_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_center_label.add_theme_font_size_override("font_size", 28)
+	_center_label.add_theme_font_size_override("font_size", 30)
 	_center_label.add_theme_color_override("font_color", UiStyle.c("title")) # Theme
 	_center_label.add_theme_font_override("font", UiStyle.display_font())
 	_center_label.add_theme_color_override("font_outline_color", Palette.OUTLINE)
@@ -133,7 +133,7 @@ func _ready() -> void:
 	banner.add_child(plaque)
 	_phase_label = Label.new()
 	_phase_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_phase_label.add_theme_font_size_override("font_size", 24)
+	_phase_label.add_theme_font_size_override("font_size", 22)
 	_phase_label.theme_type_variation = "HudLabel" # Theme
 	_phase_label.add_theme_font_override("font", UiStyle.display_font())
 	plaque.add_child(_phase_label)

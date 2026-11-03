@@ -91,3 +91,21 @@ func test_prize_wheel_has_useful_prizes() -> void:
 func test_prize_text() -> void:
 	assert_eq(CasinoRules.prize_text({&"scrap": 600, &"upgrade_token": 1}), "600 scrap + 1 upgrade token")
 	assert_eq(CasinoRules.prize_text({&"seed_chili": 3}), "3 chili seeds")
+
+
+func test_turret_part_prizes() -> void:
+	var has_part := false
+	for w: Array in CasinoRules.WHEEL_WEDGES:
+		has_part = has_part or (w[1] as Dictionary).has(CasinoRules.WHEEL_PART)
+	assert_true(has_part, "the wheel has a turret part wedge")
+	assert_true(CasinoRules.PART_CHANCE > 0.0 and CasinoRules.PART_CHANCE <= 0.1, "part bonuses stay modest")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var got := 0
+	for i in 2000:
+		var k := CasinoRules.part_bonus(rng)
+		if k != &"":
+			got += 1
+			assert_true(CraftTable.is_part(k))
+	assert_true(got > 40 and got < 180, "about 5 in 100 wins: %d" % got)
+	assert_eq(CasinoRules.prize_text({&"part_swivel": 1}), "a Swivel mount")

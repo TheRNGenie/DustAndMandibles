@@ -167,7 +167,7 @@ func _column(id: StringName) -> Control:
 	b.text = "Ride Unbranded" if id == BrandTable.NONE else "Take %s" % BrandTable.name_of(id)
 	b.custom_minimum_size = Vector2(0, 46)
 	b.focus_mode = Control.FOCUS_NONE
-	b.add_theme_font_size_override("font_size", 17)
+	b.add_theme_font_size_override("font_size", 18)
 	for pair: Array in [["normal", "button"], ["hover", "button_hover"], ["pressed", "button_pressed"], ["disabled", "button_disabled"]]:
 		b.add_theme_stylebox_override(pair[0], _set_box(set_id, pair[1]))
 	var s: Dictionary = UiStyle.SETS[set_id]

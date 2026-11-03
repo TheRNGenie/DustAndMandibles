@@ -203,24 +203,11 @@ func _counter(parent: HBoxContainer, color: Color, caption: String) -> Label:
 
 
 static func _fill(color: Color) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = color
-	sb.set_corner_radius_all(3)
-	return sb
+	return UiStyle.bar_fill(color) # one bar style everywhere (UiStyle.bar)
 
 
 func _bar(color: Color, max_value: float) -> ProgressBar:
-	var bar := ProgressBar.new()
-	bar.custom_minimum_size = Vector2(240, 18)
-	bar.max_value = max_value
-	bar.value = max_value
-	bar.show_percentage = false
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Palette.OUTLINE
-	bg.set_corner_radius_all(3)
-	bar.add_theme_stylebox_override("background", bg)
-	bar.add_theme_stylebox_override("fill", _fill(color))
-	return bar
+	return UiStyle.bar(color, Vector2(240, 18), max_value)
 
 
 ## A small rounded card with a water drop or a corn cob, shown only when that need

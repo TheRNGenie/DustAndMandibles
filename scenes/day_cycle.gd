@@ -55,6 +55,10 @@ const KEYS: Array = [
 const STAGES: Array = [[5.0, "DEAD OF NIGHT"], [7.0, "DAYBREAK"], [11.0, "MORNING"], [13.0, "HIGH NOON"],
 	[17.0, "AFTERNOON"], [19.0, "SUNDOWN"], [23.0, "NIGHTFALL"], [24.0, "MIDNIGHT"]]
 
+## Free CC0 western tracks (audio/CREDITS.txt): a calm guitar piece between waves.
+const BUILD_MUSIC := &"build_theme"
+const BUILD_MUSIC_DB := -8.0
+
 
 func _ready() -> void:
 	instance = self
@@ -64,7 +68,7 @@ func _ready() -> void:
 		clock = GameState.flag_value("--hour").to_float()
 	_target = clock
 	_apply_now()
-	Audio.play_music(&"build_loop")
+	Audio.play_music(BUILD_MUSIC, 2.5, BUILD_MUSIC_DB)
 
 
 ## Hour of the day, 0-24.
@@ -97,16 +101,16 @@ func _on_phase(p: GameState.Phase) -> void:
 			clock = maxf(clock, _wave_start(GameState.wave))
 			_target = _wave_start(GameState.wave) + HOURS_PER_WAVE
 			_rate = HOURS_PER_WAVE / WAVE_SECONDS
-			Audio.play_music(&"wave_loop")
+			Audio.play_music(AmbienceMix.wave_track(GameState.wave, GameState.weather), 2.5, AmbienceMix.wave_music_db(GameState.wave))
 		GameState.Phase.WARNING:
-			Audio.play_music(&"wave_loop")
+			Audio.play_music(AmbienceMix.wave_track(GameState.wave, GameState.weather), 2.5, AmbienceMix.wave_music_db(GameState.wave))
 		GameState.Phase.BUILD, GameState.Phase.LOBBY:
 			if GameState.flag_value("--hour") != "":
 				return
 			# Finish the wave's quarter day quickly, then hold still until the next wave.
 			_target = _wave_start(GameState.wave)
 			_rate = maxf(absf(_target - clock) / CATCH_UP_SECONDS, 0.01)
-			Audio.play_music(&"build_loop")
+			Audio.play_music(BUILD_MUSIC, 2.5, BUILD_MUSIC_DB)
 		GameState.Phase.GAME_OVER:
 			_rate = 0.0
 			Audio.play_music(&"")

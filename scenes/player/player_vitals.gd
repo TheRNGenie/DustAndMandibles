@@ -106,7 +106,12 @@ static func need_strain(v: float) -> float:
 
 ## Health regen (your "wind") multiplier: hunger and thirst each take up to 30%.
 func regen_mult() -> float:
-	return (1.0 - 0.3 * need_strain(food) - 0.3 * need_strain(water)) * Perks.local_more(&"trail_rations") # Perk: Second Wind
+	var porch := 1.0
+	if Homestead.porch_cliffs.has(player.cliff_id):
+		var home := Homestead.of(player.cliff_id)
+		if home != null and home.under_porch(player.global_position):
+			porch = Homestead.PORCH_REGEN # resting under the shaded porch
+	return (1.0 - 0.3 * need_strain(food) - 0.3 * need_strain(water)) * Perks.local_more(&"trail_rations") * porch # Perk: Second Wind
 
 
 ## Sprint speed multiplier: up to 8% slower when both run dry.

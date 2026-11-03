@@ -433,13 +433,63 @@ static func panel(variation: String = "PaperPanel") -> PanelContainer:
 	return p
 
 
+## The one bar style for health, boss, water and progress bars: a dark inked
+## trough with an outline, and a fill with a lighter lip along its top edge.
+static func bar(color: Color, min_size: Vector2 = Vector2(240, 18), max_value: float = 100.0) -> ProgressBar:
+	var b := ProgressBar.new()
+	b.custom_minimum_size = min_size
+	b.max_value = max_value
+	b.value = max_value
+	b.show_percentage = false
+	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(Palette.OUTLINE, 0.85)
+	bg.border_color = Palette.OUTLINE
+	bg.set_border_width_all(2)
+	bg.set_corner_radius_all(4)
+	bg.shadow_color = Color(0, 0, 0, 0.25)
+	bg.shadow_size = 2
+	b.add_theme_stylebox_override("background", bg)
+	b.add_theme_stylebox_override("fill", bar_fill(color))
+	return b
+
+
+## The fill of a bar(): the colour with a lighter lip on top (call again to recolour).
+static func bar_fill(color: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = color
+	sb.border_color = color.lightened(0.35)
+	sb.border_width_top = 3
+	sb.set_corner_radius_all(3)
+	sb.expand_margin_left = -2
+	sb.expand_margin_right = -2
+	sb.expand_margin_top = -2
+	sb.expand_margin_bottom = -2
+	return sb
+
+
+## The type scale: every UI font size snaps to one of these steps (fine print,
+## small, body, emphasis, header, title, and three display sizes), so text
+## sizes line up across every screen.
+const TYPE_SCALE: Array[int] = [12, 14, 16, 18, 22, 30, 40, 54, 64]
+
+
+## The nearest step of the type scale (ties go up).
+static func ts(size: int) -> int:
+	var best := TYPE_SCALE[0]
+	for s in TYPE_SCALE:
+		if absi(s - size) <= absi(best - size):
+			best = s
+	return best
+
+
 ## A label; by default in the set's ink (follows live swaps). Pass a colour to pin it.
 static func label(text: String, size: int = 16, color: Color = Color(0, 0, 0, 0)) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", ts(size))
 	if color.a > 0.0:
 		l.add_theme_color_override("font_color", color)
 	else:
@@ -455,7 +505,7 @@ static func title(text: String, size: int = 30, on_header: bool = false) -> Labe
 	l.uppercase = true
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.theme_type_variation = "HeaderTitle" if on_header else "TitleLabel"
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", ts(size))
 	return l
 
 
