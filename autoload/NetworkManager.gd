@@ -12,6 +12,8 @@ signal server_closed
 signal player_left(peer_id: int)
 ## The host's invite changed (the router opened up, the online lobby got its code...).
 signal invite_changed
+## A new round-trip measurement came in (ping_note() changed).
+signal ping_changed
 
 const DEFAULT_PORT := DirectBackend.DEFAULT_PORT
 const DEFAULT_ADDRESS := DirectBackend.DEFAULT_ADDRESS
@@ -21,6 +23,8 @@ const WORLD_SCENE := "res://scenes/world.tscn"
 const MENU_SCENE := "res://scenes/main_menu.tscn"
 ## An online join that hasn't connected by then gives up.
 const ONLINE_JOIN_TIMEOUT_SEC := 30.0
+## How often each link is pinged (host <-> each client) for get_ping_ms().
+const PING_INTERVAL_SEC := 1.0
 
 ## peer_id -> {"name": String, "cliff": int, "ready": bool}. Owned by the host, mirrored on clients.
 var players: Dictionary = {}
@@ -48,6 +52,12 @@ var last_error := ""
 ## Bumped by leave(), so an online join still searching knows it was abandoned.
 var _join_ticket := 0
 var _host_port := DEFAULT_PORT
+## Measured round trips: peer id -> ms (host: each client; client: {1: host}).
+var _rtt: Dictionary = {}
+var _ping_wait := 0.0
+var _pongs := 0
+## Shown by the main menu when it opens (e.g. "The host left the game.").
+var menu_message := ""
 
 
 func _ready() -> void:
@@ -270,6 +280,7 @@ func leave() -> void:
 		_peer.close()
 	_peer = null
 	_started = false
+	_rtt.clear()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	players.clear()
 	players_changed.emit()
@@ -280,6 +291,11 @@ func leave() -> void:
 func invite_code() -> String:
 	var code := (_backend if _backend != null else direct).invite_code()
 	return code if code != "" else "..."
+
+
+## Is this game on the online backend (an Epic lobby) rather than direct?
+func in_online_lobby() -> bool:
+	return _backend != null and _backend == online
 
 
 ## One line on where the invite works, for the lobby and the Social tab.
@@ -371,7 +387,64 @@ func get_ping_ms() -> int:
 		for id: int in players:
 			if id != 1:
 				target = id
-	return _backend.ping_ms(_peer, target) if _backend != null else 0
+	return ping_to(target)
+
+
+## Round trip to one peer in ms (0 = not known yet): the transport's own figure
+## when it has one (ENet), else our own ping RPCs (Epic P2P has none).
+func ping_to(peer_id: int) -> int:
+	if _peer == null or peer_id == multiplayer.get_unique_id():
+		return 0
+	var own := _backend.ping_ms(_peer, peer_id) if _backend != null else 0
+	return own if own > 0 else int(_rtt.get(peer_id, 0))
+
+
+## "  -  42 ms" for a lobby roster row ("" when there's nothing to show): the
+## host sees each partner's ping, a partner sees their own ping to the host.
+func ping_note(peer_id: int) -> String:
+	if not is_online():
+		return ""
+	var ms := 0
+	if multiplayer.is_server():
+		ms = ping_to(peer_id)
+	elif peer_id == multiplayer.get_unique_id():
+		ms = ping_to(1)
+	return "  -  %d ms" % ms if ms > 0 else ""
+
+
+func _process(delta: float) -> void:
+	if _peer == null or _peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		return
+	_ping_wait -= delta
+	if _ping_wait > 0.0:
+		return
+	_ping_wait = PING_INTERVAL_SEC
+	var now := Time.get_ticks_msec()
+	if multiplayer.is_server():
+		for id: int in players:
+			if id != 1:
+				_ping.rpc_id(id, now)
+	elif players.has(multiplayer.get_unique_id()):
+		_ping.rpc_id(1, now)
+
+
+@rpc("any_peer", "unreliable")
+func _ping(sent_ms: int) -> void:
+	_pong.rpc_id(multiplayer.get_remote_sender_id(), sent_ms)
+
+
+@rpc("any_peer", "unreliable")
+func _pong(sent_ms: int) -> void:
+	var ms := Time.get_ticks_msec() - sent_ms
+	if ms < 0 or ms > 30000:
+		return
+	var id := multiplayer.get_remote_sender_id()
+	var old := int(_rtt.get(id, 0))
+	_rtt[id] = ms if old <= 0 else roundi(lerpf(old, ms, 0.3)) # smoothed
+	_pongs += 1
+	if _pongs % 15 == 1 and OS.get_cmdline_user_args().has("--netlog"):
+		print("[net] ping to peer %d: %d ms (get_ping_ms %d)" % [id, int(_rtt[id]), get_ping_ms()])
+	ping_changed.emit()
 
 
 func set_ready(value: bool) -> void:
@@ -397,6 +470,7 @@ func _on_peer_connected(_id: int) -> void:
 
 
 func _on_peer_disconnected(id: int) -> void:
+	_rtt.erase(id)
 	if multiplayer.is_server() and players.has(id):
 		players.erase(id)
 		_broadcast()
@@ -483,4 +557,6 @@ func _on_connection_failed() -> void:
 
 func _on_server_disconnected() -> void:
 	leave()
+	menu_message = "The host left the game, or the connection to them dropped."
+	print("[net] lost the host: back to the menu")
 	server_closed.emit()

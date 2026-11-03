@@ -20,6 +20,7 @@ var _lobby_box: VBoxContainer
 var _invite_card: Control
 var _invite_code: Label
 var _invite_note: Label
+var _copy_btn: Button
 var _solo_btn: Button
 var _auto_ready := false
 var _settings: PauseMenu
@@ -41,7 +42,12 @@ func _ready() -> void:
 	NetworkManager.players_changed.connect(_refresh)
 	NetworkManager.connected_to_host.connect(_on_connected)
 	NetworkManager.connection_failed.connect(func(reason: String) -> void: _show_connect(reason))
-	NetworkManager.server_closed.connect(func() -> void: _show_connect("The host left the game."))
+	NetworkManager.server_closed.connect(func() -> void:
+		NetworkManager.menu_message = ""
+		_show_connect("The host left the game."))
+	NetworkManager.ping_changed.connect(func() -> void:
+		if _lobby_box.visible:
+			_fill_roster())
 	var flag_name := GameState.flag_value("--name")
 	if flag_name != "":
 		_name_edit.text = flag_name
@@ -70,7 +76,8 @@ func _ready() -> void:
 			_ip_edit.text = ip
 		_on_join()
 	else:
-		_show_connect("")
+		_show_connect(NetworkManager.menu_message) # e.g. why the last game ended
+		NetworkManager.menu_message = ""
 
 
 func _build_ui() -> void:
@@ -178,6 +185,7 @@ func _build_ui() -> void:
 	_invite_code.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	inv_row.add_child(_invite_code)
 	var copy_btn := UiStyle.button("Copy Code")
+	_copy_btn = copy_btn
 	copy_btn.pressed.connect(func() -> void:
 		DisplayServer.clipboard_set(NetworkManager.invite_code())
 		_status.text = "Invite code copied. Send it to your friend.")
@@ -377,7 +385,14 @@ func _refresh_invite() -> void:
 	if _invite_card == null:
 		return
 	_invite_card.visible = NetworkManager.is_online() and multiplayer.is_server()
-	_invite_code.text = "Invite Code:  " + NetworkManager.invite_code()
+	var code := NetworkManager.invite_code()
+	var pending := code == "..." # the online lobby is still being made
+	if NetworkManager.in_online_lobby():
+		_invite_code.text = "Creating lobby..." if pending else "Lobby  " + code
+	else:
+		_invite_code.text = "Invite Code:  " + code
+	if _copy_btn != null:
+		_copy_btn.disabled = pending
 	_invite_note.text = NetworkManager.invite_note()
 
 
@@ -428,7 +443,7 @@ func _fill_roster() -> void:
 		var p: Dictionary = NetworkManager.players[id]
 		var tick := "ready" if bool(p["ready"]) else "not ready"
 		_roster_box.add_child(_roster_row(Brand.mark_of(id), "%s: %s" % [map.name_of(int(p["cliff"])), str(p["name"])],
-				"%s%s" % [tick, Perks.roster_note(id)], bool(p["ready"])))
+				"%s%s%s" % [tick, Perks.roster_note(id), NetworkManager.ping_note(id)], bool(p["ready"])))
 	if NetworkManager.has_cpu():
 		var free := NetworkManager.cpu_cliffs()
 		for i in free.size():
