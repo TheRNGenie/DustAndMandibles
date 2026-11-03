@@ -138,3 +138,29 @@ func test_bosses_seen_round_trip_and_defaults() -> void:
 	assert_eq(RunSave.decode(RunSave.encode(_sample()))["bosses_seen"], [], "an older save has met no bosses")
 	assert_eq(RunSave.normalize({"bosses_seen": [3, "", "hive_wagon", null]})["bosses_seen"], [&"hive_wagon"], "junk entries skipped")
 	assert_eq(RunSave.normalize({"bosses_seen": "nope"})["bosses_seen"], [])
+
+
+func test_builds_keep_cliffs_2_and_3_on_bigger_maps() -> void:
+	var d := _sample()
+	d["map"] = "buttes"
+	d["builds"] = [
+		{"type": &"gatling_post", "cliff": 3, "row": 0, "col": 4, "level": 1, "owner": "Sandy"},
+		{"type": &"scaffold", "cliff": 2, "row": 0, "col": 4, "levels": 3, "paid": 1},
+	]
+	var back := RunSave.decode(RunSave.encode(d))
+	assert_eq(int(back["builds"][0]["cliff"]), 3, "West Butte build stays on cliff 3")
+	assert_eq(int(back["builds"][1]["cliff"]), 2, "South Butte scaffold stays on cliff 2")
+	assert_eq(int(back["builds"][1]["paid"]), 1, "only the bought level refunds")
+	assert_eq(int(RunSave.normalize({"map": "buttes", "builds": [{"type": "scaffold", "cliff": 9}]})["builds"][0]["cliff"]), 3, "junk cliff clamped to the map")
+	assert_eq(int(RunSave.normalize({"map": "mesa", "builds": [{"type": "scaffold", "cliff": 9}]})["builds"][0]["cliff"]), 2, "three cliffs on the mesa")
+
+
+func test_turret_perks_overtime_and_scavenger_survive() -> void:
+	var d := _sample()
+	d["builds"] = [{"type": &"gatling_post", "cliff": 0, "row": 0, "col": 3, "level": 1, "owner": "Ada", "perk": [1.1, 0.9, 1.2, 0.3, 1.3]}]
+	var g: Dictionary = RunSave.decode(RunSave.encode(d))["builds"][0]
+	assert_almost(float(g["perk"][3]), 0.3, 0.001, "Overtime mend")
+	assert_almost(float(g["perk"][4]), 1.3, 0.001, "Scrap Scavenger")
+	var old: Dictionary = RunSave.decode(RunSave.encode(_sample()))["builds"][1]
+	assert_almost(float(old["perk"][3]), 0.0, 0.001, "older save: no mend")
+	assert_almost(float(old["perk"][4]), 1.0, 0.001, "older save: plain scrap")

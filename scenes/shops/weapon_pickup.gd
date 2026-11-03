@@ -68,7 +68,7 @@ func interact_prompt() -> String:
 	if item_id != &"":
 		return "E: pick up %s" % String(Hotbar.NAMES.get(item_id, String(item_id))).to_lower()
 	var w := Gun.weapon(weapon_id)
-	return "E: pick up %s%s" % [w.display_name, (" (level %d)" % level) if level > 0 else ""]
+	return "E: pick up %s%s" % [w.display_name, (" (level %d)" % WeaponMods.level(level)) if WeaponMods.level(level) > 0 else ""] # the code also holds mods and the Dino glass
 
 
 func local_interact(holding: bool) -> void:

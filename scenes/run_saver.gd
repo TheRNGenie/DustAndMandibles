@@ -141,9 +141,9 @@ func _capture_build(n: Node) -> Dictionary:
 		if t.health.dead:
 			return {}
 		b.merge({"type": t.def.id, "level": t.level, "owner": t.owner_name, "tier": t.tier, "hp": t.health.hp,
-				"perk": [t.perk_range, t.perk_rate, t.perk_hp]}, true)
+				"perk": [t.perk_range, t.perk_rate, t.perk_hp, t.perk_mend, Perks.kill_scrap_mult("%s's %s" % [t.owner_name, t.def.display_name])]}, true)
 	elif n is ScaffoldNode:
-		b.merge({"type": &"scaffold", "levels": (n as ScaffoldNode).levels}, true)
+		b.merge({"type": &"scaffold", "levels": (n as ScaffoldNode).levels, "paid": (n as ScaffoldNode).paid_levels}, true)
 	elif n is StructureNode:
 		var s := n as StructureNode
 		if s.health.dead:
@@ -264,12 +264,16 @@ func _restore_builds(builds: Array) -> void:
 			t.perk_range = float(perk[0])
 			t.perk_rate = float(perk[1])
 			t.perk_hp = float(perk[2])
+			t.perk_mend = float(perk[3]) # Perk: Overtime
+			if float(perk[4]) != 1.0: # Perk: Scrap Scavenger
+				(Perks.get("_turret_scrap") as Dictionary)["%s's %s" % [t.owner_name, t.def.display_name]] = float(perk[4])
 			t.tier = clampi(int(b["tier"]), 0, TurretDef.MAX_TIER)
 			t.health.setup(t.def.hp_at(t.tier) * t.perk_hp)
 			if float(b["hp"]) > 0.0:
 				t.health.hp = minf(float(b["hp"]), t.health.max_hp)
 		elif n is ScaffoldNode:
 			(n as ScaffoldNode).set_levels(int(b["levels"]))
+			(n as ScaffoldNode).paid_levels = clampi(int(b["paid"]), 0, int(b["levels"])) # free levels stay free
 		elif n is StructureNode:
 			var s := n as StructureNode
 			if float(b["hp"]) > 0.0:

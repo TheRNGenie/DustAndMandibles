@@ -142,10 +142,12 @@ static func _build(b: Dictionary, cliffs: int = 2) -> Dictionary:
 	var out := {"type": StringName(str(b["type"])), "cliff": clampi(_i(b, "cliff", 0), 0, maxi(cliffs - 1, 0)), # Maps: any cliff of the map
 			"row": _i(b, "row", 0), "col": _i(b, "col", 0), "level": maxi(_i(b, "level", 0), 0),
 			"owner": str(b.get("owner", "")), "hp": _f(b, "hp", -1.0), "tier": maxi(_i(b, "tier", 0), 0),
-			"levels": clampi(_i(b, "levels", 1), 1, 3), "armed": _b(b, "armed", true), "stored": _i(b, "stored", 0)}
+			"levels": clampi(_i(b, "levels", 1), 1, 3), "paid": maxi(_i(b, "paid", 1), 0), "armed": _b(b, "armed", true), "stored": _i(b, "stored", 0)}
 	var perk: Array = b.get("perk", []) if b.get("perk") is Array else []
 	out["perk"] = [float(perk[0]) if perk.size() > 0 else 1.0, float(perk[1]) if perk.size() > 1 else 1.0,
-			float(perk[2]) if perk.size() > 2 else 1.0]
+			float(perk[2]) if perk.size() > 2 else 1.0,
+			float(perk[3]) if perk.size() > 3 else 0.0, # Overtime mend share
+			float(perk[4]) if perk.size() > 4 else 1.0] # Scrap Scavenger multiplier
 	if b.get("crop") is Dictionary:
 		var c: Dictionary = b["crop"]
 		out["crop"] = {"id": StringName(str(c.get("id", ""))), "stage": clampi(_i(c, "stage", 0), 0, 3),
