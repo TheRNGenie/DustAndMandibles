@@ -33,12 +33,14 @@ var _secrets: SecretsScreen
 var _cinematic: MenuCinematic
 var _brand_row: HBoxContainer
 var _roster_box: VBoxContainer
+var _story: StoryScreen
 
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	GameState.reset()
 	GameState.tutorial = false # back from the tutorial (or never in it)
+	Story.chapter_id = "" # Story: back from a chapter (a lobby's host picks again)
 	# [Foundation] --continue (tests): resume the saved run on the automatic start.
 	if GameState.has_flag("--continue"):
 		RunSave.pending = RunSave.read()
@@ -170,9 +172,15 @@ func _build_ui() -> void:
 		var cont := _button("Continue Last Run (Wave %d)" % int(saved["wave"]))
 		cont.pressed.connect(func() -> void: _on_continue())
 		_connect_box.add_child(cont)
+	# Story: chapter select (StoryScreen), next to a normal run.
+	var story_btn := _button("Story")
+	story_btn.tooltip_text = "Chapters of the Dry Gulch story, solo or with friends."
+	story_btn.pressed.connect(func() -> void: _story.open())
+	_connect_box.add_child(story_btn)
 	var host_btn := _button("Host Game")
 	host_btn.pressed.connect(func() -> void:
 		RunSave.pending = {}
+		Story.chapter_id = ""
 		_on_host())
 	_connect_box.add_child(host_btn)
 	# Online (Epic lobby, works anywhere) or Direct (IP/LAN): the way out when online misbehaves.
@@ -308,6 +316,7 @@ func _build_ui() -> void:
 	var leave_btn := _button("Leave")
 	leave_btn.pressed.connect(func() -> void:
 		RunSave.pending = {}
+		Story.chapter_id = ""
 		NetworkManager.leave()
 		_show_connect(""))
 	for b: Button in [ledger_btn, leave_btn]:
@@ -330,6 +339,18 @@ func _build_ui() -> void:
 	add_child(_secrets)
 	_brands = BrandScreen.new() # Brand
 	add_child(_brands)
+	_story = StoryScreen.new() # Story: chapter select and Doc Whitlow's journal
+	add_child(_story)
+	_story.ride.connect(_on_story)
+	Story.changed.connect(_refresh)
+	if GameState.has_flag("--openstory"): # screenshots of the chapter screen
+		_story.open.call_deferred()
+	if GameState.flag_value("--storyshot") != "": # (with --openstory) save and quit
+		get_tree().create_timer(2.5).timeout.connect(func() -> void:
+			get_viewport().get_texture().get_image().save_png(GameState.flag_value("--storyshot"))
+			get_tree().quit())
+	if GameState.flag_value("--storyportraits") != "": # the radio portraits, big (scenes/debug/story_views.gd)
+		add_child(load("res://scenes/debug/story_views.gd").new())
 	_brands.picked.connect(func(_id: StringName) -> void: _refresh())
 	Brand.changed.connect(_refresh)
 	if GameState.has_flag("--openledger"): # screenshots of the perk screen
@@ -389,8 +410,24 @@ func _on_host() -> void:
 	if _auto_ready:
 		_ready_btn.set_pressed_no_signal(true)
 		NetworkManager.set_ready.call_deferred(true)
+	# Story (debug): --story=N hosts chapter N.
+	var story_n := int(GameState.flag_value("--story"))
+	if story_n > 0 and story_n <= StoryChapter.IDS.size() and GameState.debug_enabled():
+		Story.select(StoryChapter.IDS[story_n - 1])
 	if GameState.has_flag("--solo") or _test_launch():
 		NetworkManager.start_game.call_deferred()
+
+
+## Story: host chapter `cid` (the lobby then starts it alone or with friends).
+func _on_story(cid: String) -> void:
+	RunSave.pending = {}
+	await _on_host()
+	if not NetworkManager.is_online():
+		return
+	Story.select(cid)
+	var ch := Story.chapter()
+	_status.text = "Chapter %d: %s. Start alone, or send your invite code to your posse." % [ch.number, ch.title]
+	_refresh()
 
 
 ## [Foundation] Host the saved run: the lobby starts it from its saved wave.
@@ -505,6 +542,14 @@ func _refresh() -> void:
 	_map_pick.selected = MapDef.IDS.find(NetworkManager.map_id)
 	_map_title.text = "%s  ·  %d Cliffs" % [map.display_name, map.count()]
 	_map_label.text = map.blurb
+	# Story: the chapter card instead of the map pick; no CPU teammates in story.
+	var ch := Story.chapter()
+	if ch != null:
+		_map_row.visible = false
+		_map_title.text = "Chapter %d: %s" % [ch.number, ch.title]
+		_map_label.text = "%s  ·  Waves %d to %d  ·  %s\n%s" % [map.display_name, ch.first_wave, ch.last_wave, ch.objective_text(), ch.blurb]
+		if multiplayer.is_server() and NetworkManager.is_online():
+			_solo_btn.text = "Start Chapter Alone" if NetworkManager.players.size() <= 1 else "Start Chapter"
 
 
 # ------------------------------------------------------------------ styling helpers

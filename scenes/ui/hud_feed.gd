@@ -15,6 +15,7 @@ var _over: Control
 var _over_strap: PanelContainer
 var _over_scroll: ScrollContainer
 var _paper: NewspaperFront
+var _story_btn: Button
 var _over_label: Label
 var _keep_going: Button
 var _build_mode: BuildMode
@@ -94,6 +95,14 @@ func _ready() -> void:
 	_keep_going.visible = false
 	_keep_going.pressed.connect(func() -> void: GameState.continue_endless())
 	footer.add_child(_keep_going)
+	# Story: the host retries a lost chapter or rides on to the next one.
+	_story_btn = MenuScreen.wood_button("Retry Chapter")
+	_story_btn.visible = false
+	_story_btn.pressed.connect(func() -> void:
+		var next := str(_story_btn.get_meta("chapter", ""))
+		if next != "":
+			Story.restart(next))
+	footer.add_child(_story_btn)
 	var back := MenuScreen.wood_button("Back to Main Menu")
 	back.pressed.connect(func() -> void:
 		NetworkManager.leave()
@@ -265,14 +274,30 @@ func _on_wave_announced(heavy_cliff: int, west_share: float, lane_counts: Array)
 
 func _on_game_over(won: bool, reason: String) -> void:
 	_over_label.text = ("YOU WIN!\n" if won else "THE CANYON IS LOST\n") + reason
-	_paper.show_run(won, reason)
+	var ch := Story.chapter()
+	if ch != null:
+		_story_end.call_deferred(ch, won, reason) # after StoryDirector has booked the result
+	else:
+		_paper.show_run(won, reason)
 	(_over_strap.find_child("Title", true, false) as Label).text = "The Canyon Held" if won else "The Canyon Fell"
-	_keep_going.visible = won and multiplayer.is_server() # the host decides whether to ride on
+	_keep_going.visible = won and multiplayer.is_server() and ch == null # the host decides whether to ride on
 	_over.visible = true
 	UiStyle.fade_in(_over)
 	_fit_over.call_deferred()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	GameState.menu_open = true
+
+
+## Story: the chapter's front page, and the host's Retry / Next Chapter button.
+func _story_end(ch: StoryChapter, won: bool, reason: String) -> void:
+	_paper.show_chapter(ch, won, reason, Story.last_result)
+	(_over_strap.find_child("Title", true, false) as Label).text = ("Chapter %d Complete" if won else "Chapter %d Lost") % ch.number
+	var next := StoryChapter.next_id(ch.id) if won else ch.id
+	_story_btn.visible = multiplayer.is_server() and next != ""
+	_story_btn.set_meta("chapter", next)
+	if next != "":
+		_story_btn.text = "Retry Chapter" if not won else "Next: %s" % StoryChapter.load_id(next).title
+	_fit_over.call_deferred()
 
 
 ## The front page scrolls only when the screen is too short for it.

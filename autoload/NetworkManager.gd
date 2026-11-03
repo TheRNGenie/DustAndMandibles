@@ -503,7 +503,8 @@ func _register(player_name: String) -> void:
 	if not multiplayer.is_server():
 		return
 	var id := multiplayer.get_remote_sender_id()
-	if players.size() >= max_players():
+	# Story: a chapter lobby seats up to four (the chapter moves to a bigger map to fit them).
+	if players.size() >= (MAX_PLAYERS if Story.active() else max_players()):
 		_peer.disconnect_peer(id)
 		return
 	var taken := {}
@@ -541,6 +542,7 @@ func start_game() -> void:
 		_peer.refuse_new_connections = true
 	if _backend != null:
 		_backend.set_joinable(false) # the online lobby stops showing up in searches
+	Story.fit_map() # Story: the chapter's map, or a bigger one for a bigger posse
 	_start_game.rpc(String(map_id))
 
 

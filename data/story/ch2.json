@@ -1,0 +1,51 @@
+{
+	"id": "ch2",
+	"number": 2,
+	"title": "Dry Season",
+	"map": "mesa",
+	"first_wave": 6,
+	"last_wave": 8,
+	"blurb": "The wells have failed and a heat wave is rolling in. Catch the pump valve the airship drops, fit it to a well, and hold three hot nights.",
+	"start_bonus": {"scrap": 450, "chitin": 25},
+	"objective": {"kind": "fetch", "text": "Fit the New Pump Valve to a Well", "item": "valve", "item_name": "Pump Valve", "spawn": "airship_drop", "drop_wave": 6, "deliver_to": "well", "breaks_wells": true},
+	"bosses": {},
+	"extra_bugs": {"7": [["wolf_spider", 4]]},
+	"weather": {"7": "heat_wave", "8": "heat_wave"},
+	"telegram": {
+		"title": "The Wells Have Failed",
+		"body": "WELLS FAILING ACROSS THE GULCH STOP HEAT WAVE INBOUND STOP REPLACEMENT PUMP VALVE DROPPING FROM THE SHIP STOP FIT IT TO A WELL BEFORE YOUR TOWERS RUN DRY STOP HOLD THREE NIGHTS STOP"
+	},
+	"radio": {
+		"6": {
+			"build": [
+				["stroud", "Your pump valves cracked in the heat. Every well's bone dry till you fit a new one."],
+				["stroud", "Kicking a crate overboard now. Mind your heads. Mind the crate more."]
+			],
+			"wave": [["stroud", "Hold them off. No water, no crops. No crops, no supper."]]
+		},
+		"7": {
+			"build": [["pearl", "Heat wave's coming. I'm selling ice at the casino. It's mostly water. Mostly."]],
+			"wave": [["stroud", "Hundred and ten in the shade. Turrets run hot. Pace your shots."]]
+		},
+		"8": {
+			"build": [["kettle", "Barrels warp in this heat. The Board approves, so long as they warp upward."]],
+			"wave": [["stroud", "Last night of the heat. Keep that water flowing."]]
+		}
+	},
+	"events": {
+		"drop": [["stroud", "Valve's down on the plateau. Look for the parachute."]],
+		"pickup": [["kettle", "Careful with that. It's the last good valve this side of Tucson."]],
+		"delivered": [["stroud", "Valve's fitted. The pumps are drinking again. Fine plumbing, ranchers."]],
+		"reminder": [["stroud", "That valve's still lying out there. The wells won't wait forever."]],
+		"hold": [["stroud", "Wave's done, but nobody's fitted that valve. Get it to a well!"]],
+		"win": [["stroud", "Three dry nights held and the wells are flowing. Drinks are on Pearl."], ["pearl", "They are not."]],
+		"lost": [["stroud", "The heat took a house. Dust yourselves off. We'll try it again."]]
+	},
+	"journal": {
+		"title": "Specimen Notes, No. 2",
+		"body": "The bugs climb harder when the wells run low. They follow water up the rock like roots grown backwards.\n\nWhatever sleeps below is thirsty. I find that a very unwelcome thought.\n\n- E. Whitlow, Rail Car 9"
+	},
+	"rewards": {"notches": 40, "unlock": {"kind": "blueprint", "id": "craft_tripod_nozzle_lead", "name": "Silas's Blueprint: Tripod Hose"}},
+	"headline_win": "Wells Flow Again; Mesa Ranchers Beat the Heat",
+	"headline_loss": "Mesa Goes Dry; Valve 'Never Fitted'"
+}

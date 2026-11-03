@@ -71,6 +71,30 @@ func show_run(won: bool, reason: String) -> void:
 		_story("How It Ended", reason)
 
 
+## Story: the front page for a chapter that just ended (its headline, what the
+## job came to, and what it paid this rider).
+func show_chapter(ch: StoryChapter, won: bool, reason: String, result: Dictionary) -> void:
+	show_run(won, reason)
+	var m := WorldLayout.map()
+	_dateline.text = "CHAPTER %d  -  %s EDITION  -  WAVE %d  -  FIVE CENTS" % [ch.number, (m.display_name if m != null else "Canyon").to_upper(), maxi(GameState.wave, 1)]
+	_headline.text = ch.headline_win if won else ch.headline_loss
+	if won:
+		var pay: PackedStringArray = []
+		var unlock: Dictionary = result.get("unlock", {})
+		if not unlock.is_empty():
+			pay.append(str(unlock.get("name", "")))
+		if bool(result.get("journal", false)):
+			pay.append("a page of Doc Whitlow's journal")
+		_story("The Job", "%s: done. %s" % [ch.objective_text(), "The railroad pays on time, for once."])
+		if not pay.is_empty():
+			_story("Rewards", "Paid out: %s." % ", ".join(pay))
+	else:
+		_story("The Job", "%s: not done. The Captain says fly it again from the top." % ch.objective_text())
+	var said := ch.event_lines("win" if won else "lost")
+	if not said.is_empty():
+		_story("On the Wire", "\"%s\"  - %s" % [str(said[0][1]), StoryChapter.speaker_name(str(said[0][0]))])
+
+
 func _story(head: String, body: String) -> void:
 	var box := VBoxContainer.new()
 	box.custom_minimum_size = Vector2(280, 0)

@@ -1,0 +1,46 @@
+{
+	"id": "ch4",
+	"number": 4,
+	"title": "Bandits in the Bargain",
+	"map": "canyon",
+	"first_wave": 12,
+	"last_wave": 13,
+	"blurb": "The railroad's payroll sits in strongboxes by your houses, and dragonfly bandits can smell silver. Shoot them down before they clear the rim.",
+	"start_bonus": {"scrap": 900, "chitin": 60},
+	"objective": {"kind": "protect", "text": "Keep the Railroad Payroll From the Bandits", "thing": "strongbox", "thing_name": "Payroll Strongbox", "loot_each": 10},
+	"bosses": {},
+	"extra_bugs": {"12": [["dragonfly_bandit", 6]], "13": [["dragonfly_bandit", 10]]},
+	"weather": {},
+	"telegram": {
+		"title": "Payroll on the Cliffs",
+		"body": "RAILROAD PAYROLL LANDED ON YOUR CLIFFS STOP DRAGONFLY BANDITS WORKING THE GULCH STOP GUARD THE STRONGBOXES TWO NIGHTS STOP SHOOT ANY BUG CARRYING SILVER STOP CLIFF TURRETS CANNOT AIM UP STOP RIFLES AND ANTI AIR GUNS ONLY STOP"
+	},
+	"radio": {
+		"12": {
+			"build": [
+				["stroud", "The railroad's payroll is in those strongboxes by your houses. Bandits can smell silver."],
+				["pearl", "Dragonflies. They steal, they flutter, they never tip. Shoot them before they reach the boxes."],
+				["kettle", "Cliff turrets can't aim up, remember. Rifles and anti-air guns against the sky tonight."]
+			],
+			"wave": [["stroud", "Wings over the canyon! Guard those boxes!"]]
+		},
+		"13": {
+			"build": [["stroud", "Last night of the payroll. Then the railroad comes to collect. Hopefully just the silver."]],
+			"wave": [["stroud", "Here comes the whole flight. Every gun skyward!"]]
+		}
+	},
+	"events": {
+		"steal": [["stroud", "A bandit's got a sack of silver. Drop it before it clears the rim!"]],
+		"recovered": [["pearl", "Silver's back in the box. I counted. Twice."]],
+		"escaped": [["stroud", "One got away with a sack. The railroad will hear about that."]],
+		"win": [["stroud", "Payroll's safe and the bounty's paid. Mostly. Rest up, ranchers."], ["pearl", "I'd have taken a cut. For safekeeping."]],
+		"lost": [["stroud", "They cleaned out the boxes. The railroad's furious. We fly it again."]]
+	},
+	"journal": {
+		"title": "Specimen Notes, No. 4",
+		"body": "The dragonflies carry silver back down the hole. They do not eat it. Something below is collecting it.\n\nSomething below is saving up. For what, I would rather not guess in writing.\n\n- E. Whitlow, Rail Car 9"
+	},
+	"rewards": {"notches": 60, "unlock": {"kind": "blueprint", "id": "craft_swivel_rifle_explosive", "name": "Silas's Blueprint: Swivel Dynamite Long Tom"}},
+	"headline_win": "Payroll Safe; Dragonfly Gang Grounded",
+	"headline_loss": "Bandits Clean Out Railroad Payroll"
+}

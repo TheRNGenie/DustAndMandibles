@@ -40,7 +40,7 @@ func menu_tagline() -> String:
 
 
 func menu_tabs() -> Array:
-	return ["Guns", "Bugs", "Turrets", "Crops", "Basics"]
+	return ["Guns", "Bugs", "Turrets", "Crops", "Basics", "Journal"] # Story: Doc Whitlow's journal pages
 
 
 func menu_items(tab: int) -> Array:
@@ -111,6 +111,14 @@ func menu_items(tab: int) -> Array:
 			for key: Variant in basics:
 				var e: Dictionary = basics[key]
 				out.append(_item(StringName(str(key)), str(e.get("title", key)), StringName(str(e["icon"])) if e.has("icon") else null, str(e.get("lore", "")), str(e.get("stats", "")), e.get("tips", []), ""))
+		5:
+			# Story: one page per chapter won (StoryScreen.journal_pages), the rest torn out.
+			var n := 0
+			for v: Array in StoryScreen.journal_pages():
+				n += 1
+				var doc: Variant = StoryPortrait.texture(MenuScreen.instance, "doc") if MenuScreen.instance != null and bool(v[2]) else null
+				out.append({"id": "journal_%d" % n, "name": str(v[0]), "icon": doc, "desc": str(v[1]),
+						"price": "Chapter %d" % n if bool(v[2]) else "Not Yet", "price_ok": bool(v[2])})
 	return out
 
 
