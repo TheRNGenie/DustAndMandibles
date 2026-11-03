@@ -49,7 +49,8 @@ func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 		var t := n as Turret
 		if t == null or t.def == null or t.cliff_id != source_cliff:
 			continue
-		if "%s's %s" % [t.owner_name, t.def.display_name] != source:
+		var own := "%s's %s" % [t.owner_name, t.def.display_name]
+		if own != source and own + SpecialShotRules.FIRE_SHELL != source: # Twin Mortar's fire shell counts too
 			continue
 		var d := t.aim_point.distance_squared_to(bug.global_position)
 		if d < best_d:

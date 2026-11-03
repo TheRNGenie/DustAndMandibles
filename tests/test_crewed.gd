@@ -20,11 +20,13 @@ func test_crewed_defs_are_registered_and_listed() -> void:
 	assert_false(Defs.is_crewed(&"farm_plot"))
 
 
+
+
 func test_crewed_guns_cost_more_than_any_normal_turret() -> void:
 	var priciest := 0
 	for id: StringName in Defs.TURRETS:
-		# Tiers: the new Mid / Late guns (gen/tier_builder.gd) sit in the crewed price band by design.
-		if not Defs.is_crewed(id) and not TierBuilder.has(id):
+		# The new Mid / Late tier turrets sit in the crewed price band by design.
+		if not Defs.is_crewed(id) and not TierBuilder.has(id) and not ContraptionBuilder.has(id):
 			priciest = maxi(priciest, Defs.cost_of(id))
 	for id in CREWED:
 		var c := Defs.cost_of(id)

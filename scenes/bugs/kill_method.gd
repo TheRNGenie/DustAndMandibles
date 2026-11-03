@@ -34,10 +34,12 @@ static func classify(source: String) -> StringName:
 		return TRAP
 	if low.ends_with("dynamite crate"):
 		return BLAST
+	if source.ends_with(SpecialShotRules.FIRE_SHELL): # Twin Mortar's fire shell
+		return FIRE
 	for id: StringName in Defs.TURRETS:
 		var t := Defs.turret(id)
 		if source.ends_with(t.display_name):
-			if t.special != &"":
+			if t.special in [TurretDef.SPECIAL_CHAIN, TurretDef.SPECIAL_PIERCE, TurretDef.SPECIAL_SPIKE]:
 				# Tiers: ricocheting shot (Hornet's Nest), piercing rounds (Elephant
 				# Battery) and rail spikes are all bullets, whatever else they do.
 				return BULLET

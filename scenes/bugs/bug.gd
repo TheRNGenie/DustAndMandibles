@@ -691,6 +691,17 @@ func show_net(seconds: float) -> void:
 	get_tree().create_timer(seconds).timeout.connect(net.queue_free)
 
 
+## Every peer: bola ropes wound round the bug, weights hanging, for `seconds` (Bola Launcher).
+@rpc("authority", "call_local", "reliable")
+func show_bola(seconds: float) -> void:
+	var tangle := MeshInstance3D.new()
+	tangle.mesh = SpecialShotFx.bola_tangle_mesh(float(spec["body_radius"]))
+	tangle.material_override = Materials.toon(0.01)
+	tangle.position = Vector3(0, float(spec["clearance"]) * 0.3, 0)
+	add_child(tangle)
+	get_tree().create_timer(seconds).timeout.connect(tangle.queue_free)
+
+
 ## Host only: a hit from a player, turret or blast, via a Hitbox.
 func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, multiplier: float,
 		source: String, source_cliff: int) -> void:

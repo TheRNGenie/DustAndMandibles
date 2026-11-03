@@ -368,6 +368,21 @@ func _turret_choice() -> StringName:
 				elif crewed_built == 1:
 					pick = &"thunder_mule"
 				options.push_front(pick)
+			# Control, area and pin turrets by their role, once the basics stand: a
+			# Twin Mortar for swarms, a Bola Launcher to hold heavies for the rifles,
+			# a Steam Cannon for crowds near the top, and a Flood Gate for a long line.
+			var mine := _my_turrets()
+			var have := func(id: StringName) -> bool:
+				return mine.any(func(t: Node) -> bool: return t.get("def") != null and (t.get("def") as TurretDef).id == id)
+			if mine.size() >= 4:
+				if total - big >= 20 and not have.call(&"twin_mortar"):
+					options.append(&"twin_mortar")
+				if big > 0 and not have.call(&"bola_launcher"):
+					options.append(&"bola_launcher")
+				if not have.call(&"steam_cannon"):
+					options.append(&"steam_cannon")
+			if mine.size() >= 8 and not have.call(&"flood_gate"):
+				options.append(&"flood_gate")
 			options.append_array(cliff_turrets)
 	for id: StringName in options:
 		if Defs.is_turret(id) and Defs.is_unlocked(id, GameState.tier_wave()) and Economy.cpu_can_spend(display_name, {&"scrap": Defs.cost_of(id)}):
