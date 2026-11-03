@@ -82,6 +82,8 @@ static var _wing_mesh: ArrayMesh
 static var _wing_mat: ShaderMaterial
 var _heading := Vector3.FORWARD
 var _last_pos := Vector3.ZERO
+## Metres per second at the last update (velocity_hint).
+var _vel := Vector3.ZERO
 var _placed := false
 ## spec["clearance"] / spec["scale"] and the detail-check radius, read once (hot paths).
 var _clear := 0.0
@@ -352,6 +354,9 @@ func _pp(delta: float) -> void:
 			global_transform = Transform3D(_net_from.basis.orthonormalized().slerp(target.basis.orthonormalized(), k),
 					_net_from.origin.lerp(target.origin, k))
 	var spd := global_position.distance_to(_last_pos) / maxf(delta, 0.0001)
+	# Remember the velocity before _last_pos moves on (turrets lead shots with it).
+	if delta > 0.0001 and _last_pos != Vector3.ZERO:
+		_vel = (global_position - _last_pos) / delta
 	_last_pos = global_position
 	_update_visibility()
 	if boss != null:
@@ -654,7 +659,7 @@ func aim_for(from: Vector3) -> Vector3:
 
 ## Rough world velocity of the bug (for leading shots).
 func velocity_hint() -> Vector3:
-	return (global_position - _last_pos) * float(Engine.physics_ticks_per_second)
+	return _vel # (was read after _last_pos moved on, so it was always ~0)
 
 
 ## Every peer: a net wrapped round the bug for `seconds` (Net Thrower).
