@@ -21,6 +21,7 @@ const KEY_BINDINGS: Dictionary = {
 	"throw_rock": [KEY_V],
 	"melee": [KEY_Z],
 	"upgrade": [KEY_U],
+	"tier_up": [KEY_Y], # build mode: swap a turret for its next tech tier
 	"pause_menu": [KEY_ESCAPE],
 	"debug_overlay": [KEY_F3],
 	"ready_up": [KEY_G],

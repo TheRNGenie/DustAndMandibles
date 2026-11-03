@@ -1161,6 +1161,8 @@ func _take_screenshot(path: String) -> void:
 		lt.timeout.connect(func() -> void: player.whip.lash())
 	if GameState.has_flag("--crafttest") and multiplayer.is_server():
 		_craft_test.call_deferred()
+	if GameState.has_flag("--tieruptest") and multiplayer.is_server():
+		_tier_up_test.call_deferred()
 	if GameState.flag_value("--endat") != "": # --endat=S[:win]: end the run after S s (newspaper screenshots)
 		var parts := GameState.flag_value("--endat").split(":")
 		get_tree().create_timer(float(parts[0])).timeout.connect(func() -> void:
@@ -2466,3 +2468,31 @@ class _GlideSample:
 			jn += 1
 		return "glide: %d far bugs sampled, %d moving  still frames %.0f%%  jerk %.2f  step cv %.2f  bug0 steps(m/frame) %s" % [
 			bugs.size(), jn, 100.0 * still / maxi(total, 1), jerk / maxi(jn, 1), cv / maxi(jn, 1), ",".join(trace)]
+
+
+
+## --tieruptest (use with --startwave=10): build a Gatling Post, upgrade it once,
+## then step it up twice (Twin Gatling, Hornet's Nest) and log each step.
+func _tier_up_test() -> void:
+	await get_tree().create_timer(3.0).timeout
+	Economy.earn(0, {&"scrap": 600, &"chitin": 100})
+	var bm := BuildManager.instance
+	var me := multiplayer.get_unique_id()
+	var cell := Vector2i(0, 4)
+	bm.build(&"gatling_post", 0, cell)
+	await get_tree().create_timer(0.5).timeout
+	for step in 3:
+		var t: Turret = null
+		for n: Node in get_tree().get_nodes_in_group("turrets"):
+			if n is Turret and (n as Turret).cliff_id == 0 and (n as Turret).cell == cell and not n.is_queued_for_deletion():
+				t = n
+		if t == null:
+			print("[tierup] no turret")
+			return
+		print("[tierup] %s upgrade %d hp %d/%d level %d scrap %d" % [t.def.id, t.tier, int(t.health.hp), int(t.health.max_hp), t.level, Economy.amount(0, &"scrap")])
+		if step == 0:
+			bm._do_upgrade(me, t)
+			t.health.hp *= 0.5
+		if step < 2:
+			bm._do_tier_up(me, t)
+		await get_tree().create_timer(0.5).timeout

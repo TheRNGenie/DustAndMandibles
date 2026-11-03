@@ -267,3 +267,34 @@ static func name_of(id: StringName) -> String:
 	if STRUCTURES.has(id):
 		return structure(id).display_name
 	return String(id)
+
+
+# ------------------------------------------------------------------ tier step-up
+
+## Each turret's next tech tier (Early -> Mid -> Late in the same role). A built
+## turret can be swapped for it in place (Y in build mode) for TIER_UP_RATE of the
+## new turret's price, keeping its upgrade tier, scaffold level and health.
+const TIER_UP: Dictionary = {
+	&"gatling_post": &"twin_gatling", &"twin_gatling": &"hornets_nest",
+	&"buffalo_rifle": &"elephant_battery", &"elephant_battery": &"rail_spike_driver",
+	&"water_cannon": &"steam_cannon", &"steam_cannon": &"flood_gate",
+	&"chili_mortar": &"twin_mortar", &"dynamite_lobber": &"twin_mortar",
+	&"lasso_harpoon": &"bola_launcher",
+	&"duck_gun": &"powder_flak", &"sky_sweeper": &"net_thrower",
+	&"powder_flak": &"firework_battery", &"net_thrower": &"firework_battery",
+	&"scattergun_post": &"sharpshooter_tower", &"rooftop_cannon": &"gatling_porch",
+}
+## Stepping up costs this share of building the higher tier outright.
+const TIER_UP_RATE := 0.85
+
+
+## The turret `id` steps up to, or &"".
+static func tier_up_of(id: StringName) -> StringName:
+	var next: StringName = TIER_UP.get(id, &"")
+	return next if next != &"" and TURRETS.has(next) else &""
+
+
+## Scrap to step `id` up to its next tier (a bit under building that tier new).
+static func tier_up_cost(id: StringName) -> int:
+	var next := tier_up_of(id)
+	return int(ceil(cost_of(next) * TIER_UP_RATE)) if next != &"" else -1

@@ -480,6 +480,12 @@ func interact_prompt() -> String:
 		var payer := Economy.payer_cliff(multiplayer.get_unique_id(), cliff_id)
 		var price := "1 upgrade token" if Economy.amount(payer, UPGRADE_TOKEN) > 0 else "%d chitin" % Perks.discount(multiplayer.get_unique_id(), &"chitin_smith", upgrade_cost()) # Perk: Chitin Smith
 		text += "\nU: upgrade to %s (%s)" % [TurretDef.TIER_NAMES[tier + 1], price]
+	var next := Defs.tier_up_of(def.id)
+	if next != &"" and not (self is CrewedTurret):
+		if Defs.is_unlocked(next, GameState.tier_wave()):
+			text += "\n%s: step up to %s (%d scrap)" % [KeyHints.key_for("tier_up"), Defs.name_of(next), Defs.tier_up_cost(def.id)]
+		else:
+			text += "\nSteps up to %s at wave %d" % [Defs.name_of(next), Defs.unlock_wave(next)]
 	return text
 
 

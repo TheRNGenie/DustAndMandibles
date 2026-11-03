@@ -196,6 +196,10 @@ func upgrade_node(n: Node) -> void:
 	_call(&"upgrade", [n.name])
 
 
+func tier_up_node(n: Node) -> void:
+	_call(&"tier_up", [n.name])
+
+
 func _call(action: StringName, args: Array) -> void:
 	if multiplayer.is_server():
 		_handle(multiplayer.get_unique_id(), action, args)
@@ -223,6 +227,8 @@ func _handle(peer_id: int, action: StringName, args: Array) -> void:
 			_do_repair(peer_id, n)
 		&"upgrade":
 			_do_upgrade(peer_id, n)
+		&"tier_up":
+			_do_tier_up(peer_id, n)
 
 
 # ------------------------------------------------------------------ host logic
@@ -406,6 +412,44 @@ func _do_repair(peer_id: int, n: Node3D) -> void:
 	if not Economy.spend(payer, {&"scrap": int(ceil(REPAIR_CHUNK / REPAIR_HP_PER_SCRAP))}):
 		return
 	t.repair(REPAIR_CHUNK * Perks.more(peer_id, &"tinker")) # Perk: Tinker
+
+
+## Host: swap a built turret for its next tech tier in place (Defs.TIER_UP), for
+## a bit less than building that tier new. Keeps its upgrade tier, scaffold level
+## and how damaged it is.
+func _do_tier_up(peer_id: int, n: Node3D) -> void:
+	var t := n as Turret
+	if t == null or t is CrewedTurret or t.is_queued_for_deletion():
+		return
+	var cid := t.cliff_id
+	if not may_build(peer_id, cid) or GameState.phase == GameState.Phase.GAME_OVER:
+		return
+	var next := Defs.tier_up_of(t.def.id)
+	if next == &"":
+		return
+	if not Defs.is_unlocked(next, GameState.tier_wave()):
+		Economy.notify(peer_id, "%s: %s." % [Defs.name_of(next), Defs.lock_reason(next, GameState.tier_wave())])
+		return
+	var cost := Defs.tier_up_cost(t.def.id)
+	var payer := Economy.payer_cliff(peer_id, cid)
+	if not Economy.spend(payer, {&"scrap": cost}):
+		Economy.notify(peer_id, "Not enough scrap to step up to a %s (%d)." % [Defs.name_of(next), cost])
+		return
+	var upg := t.tier
+	var frac := t.health.fraction()
+	var cell := t.cell
+	var level := t.level
+	var old_name := t.def.display_name
+	t.queue_free()
+	_next_id += 1
+	var nt := _spawner.spawn({"id": _next_id, "type": next, "cliff": cid, "row": cell.x, "col": cell.y,
+			"level": level, "owner": _name_of(peer_id), "peer": peer_id}) as Turret
+	if nt != null:
+		for i in upg:
+			nt.upgrade()
+		nt.health.hp = maxf(nt.health.max_hp * frac, 1.0)
+	Economy.notify(peer_id, "%s stepped up to a %s." % [old_name, Defs.name_of(next)])
+	_upgraded.rpc(t.global_position)
 
 
 func _do_upgrade(peer_id: int, n: Node3D) -> void:

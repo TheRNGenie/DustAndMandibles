@@ -147,3 +147,21 @@ func test_rail_spike_skewers_a_line_down_the_wall() -> void:
 	# A shot that hits the wall head on still runs downward; one rising bends down.
 	assert_true(TierRules.spike_run(-n, n).is_equal_approx(Vector3.DOWN))
 	assert_true(TierRules.spike_run(Vector3(-1, 0.4, 1).normalized(), n).y < 0.0)
+
+
+func test_tier_up_chains_go_up_one_tier_in_the_same_family() -> void:
+	for id: StringName in Defs.TIER_UP:
+		var next := Defs.tier_up_of(id)
+		assert_true(next != &"", "%s steps up to a real turret" % id)
+		assert_eq(Defs.tier_of(next), Defs.tier_of(id) + 1, "%s -> %s is one tier up" % [id, next])
+		assert_false(Defs.is_crewed(next), "%s steps up to a 1x1 turret" % id)
+
+
+func test_tier_up_is_a_bit_cheaper_than_building_new() -> void:
+	assert_eq(Defs.tier_up_of(&"gatling_post"), &"twin_gatling")
+	assert_eq(Defs.tier_up_of(&"twin_gatling"), &"hornets_nest")
+	assert_eq(Defs.tier_up_of(&"hornets_nest"), &"")
+	for id: StringName in Defs.TIER_UP:
+		var c := Defs.tier_up_cost(id)
+		var full := Defs.cost_of(Defs.tier_up_of(id))
+		assert_true(c < full and c >= full * 0.8, "%s step-up %d vs %d new" % [id, c, full])

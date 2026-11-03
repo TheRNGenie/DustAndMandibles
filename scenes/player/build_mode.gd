@@ -105,6 +105,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_act_on_target(&"demolish")
 	elif event.is_action_pressed("upgrade"):
 		_act_on_target(&"upgrade")
+	elif event.is_action_pressed("tier_up"):
+		_act_on_target(&"tier_up")
 	elif active and not menu_open and event.is_action_pressed("build_camera"):
 		_build_cam.set_raised(not _build_cam.raised)
 		get_viewport().set_input_as_handled()
@@ -416,6 +418,9 @@ func _act_on_target(action: StringName) -> void:
 	if action == &"upgrade":
 		if c is Turret:
 			BuildManager.instance.upgrade_node(c)
+	elif action == &"tier_up":
+		if c is Turret:
+			BuildManager.instance.tier_up_node(c)
 	else:
 		BuildManager.instance.demolish_node(c)
 
