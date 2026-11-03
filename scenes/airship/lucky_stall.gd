@@ -52,27 +52,29 @@ func _ready() -> void:
 	glow.omni_range = 4.0
 	glow.position = Vector3(0, 1.5, -0.4)
 	add_child(glow)
-	var sign := Label3D.new()
-	sign.text = "LUCKY'S CURIOS\nno questions asked"
-	sign.font_size = 64
-	sign.pixel_size = 0.0045
-	sign.outline_size = 12
-	sign.modulate = AmberRules.GLOW
-	sign.outline_modulate = Color("#1E1014")
-	sign.position = Vector3(0, 2.62, -0.62)
-	sign.rotation.y = PI
-	sign.double_sided = false
-	add_child(sign)
+	# His board on the roof's front edge: the name, and the small print.
+	for line: Array in [["LUCKY'S CURIOS", 0.0034, 3.42, AmberRules.GLOW], ["no questions asked", 0.0019, 3.2, Palette.BONE]]:
+		var sign := Label3D.new()
+		sign.text = str(line[0])
+		sign.font_size = 72
+		sign.pixel_size = float(line[1])
+		sign.outline_size = 14
+		sign.modulate = line[3]
+		sign.outline_modulate = Color("#1E1014")
+		sign.position = Vector3(0, float(line[2]), -1.12)
+		sign.rotation.y = PI
+		sign.double_sided = false
+		add_child(sign)
 	_bubble = Label3D.new()
 	_bubble.font_size = 44
-	_bubble.pixel_size = 0.004
+	_bubble.pixel_size = 0.0032
 	_bubble.outline_size = 12
 	_bubble.width = 900.0
 	_bubble.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_bubble.modulate = Palette.BONE
 	_bubble.outline_modulate = Palette.OUTLINE
 	_bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_bubble.position = Vector3(0.35, 2.3, 0.1)
+	_bubble.position = Vector3(0.35, 2.15, -1.3)
 	_bubble.visible = false
 	add_child(_bubble)
 	Amber.changed.connect(_changed)
@@ -261,6 +263,11 @@ static func stall_mesh() -> ArrayMesh:
 		MeshKit.add_box(st, Transform3D(Basis(), Vector3(x, 1.4, 0.0)), Vector3(0.12, 2.8, 1.5), lacquer, 0.02, rng)
 		MeshKit.add_box(st, Transform3D(Basis(), Vector3(x, 1.4, -0.76)), Vector3(0.14, 2.8, 0.04), gold)
 	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.25), Vector3(0, 2.95, -0.05)), Vector3(3.3, 0.1, 2.0), velvet.darkened(0.3), 0.02, rng)
+	# The name board on the roof's front edge (the lettering is a Label3D).
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 3.3, -1.08)), Vector3(2.3, 0.5, 0.06), lacquer)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 3.3, -1.075)), Vector3(2.38, 0.56, 0.04), gold)
+	for x: float in [-0.9, 0.9]:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(x, 3.0, -1.0)), Vector3(0.05, 0.3, 0.05), gold.darkened(0.2))
 	for i in 16:
 		var x := -1.55 + i * 0.207
 		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(x, 2.66, -1.02)), 0.02, 0.035, 0.22, 5, gold)
@@ -275,7 +282,7 @@ static func stall_mesh() -> ArrayMesh:
 	for x: float in [-0.45, 0.45]:
 		for z: float in [-0.2, 0.2]:
 			MeshKit.add_box(st, Transform3D(Basis(), case_c + Vector3(x, 0.03, z)), Vector3(0.02, 0.3, 0.02), gold)
-	MeshKit.add_box(st, Transform3D(Basis(), case_c + Vector3(0, 0.18, 0)), Vector3(0.92, 0.015, 0.42), Color("#CFE8F0"), 0.0, null, 0.15)
+	MeshKit.add_box(st, Transform3D(Basis(), case_c + Vector3(0, 0.18, 0)), Vector3(0.92, 0.02, 0.42), gold.darkened(0.1))
 	# Cards fanned and a pair of dice by the till.
 	for i in 5:
 		MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, -0.5 + i * 0.22), Vector3(0.5 + i * 0.04, 1.14, -0.62)), Vector3(0.06, 0.004, 0.09), Palette.BONE if i != 2 else Color("#C8362B"))
@@ -288,8 +295,7 @@ static func stall_mesh() -> ArrayMesh:
 		MeshKit.add_box(st, Transform3D(Basis(), Vector3(-0.55, y, 0.55)), Vector3(1.1, 0.04, 0.22), lacquer.lightened(0.1))
 		for k in 4:
 			var p := Vector3(-0.95 + k * 0.26, y + 0.12, 0.55)
-			MeshKit.add_cylinder(st, Transform3D(Basis(), p), 0.07, 0.07, 0.2, 10, Color("#CFE8F0"), true, 0.1)
-			MeshKit.add_cylinder(st, Transform3D(Basis(), p + Vector3(0, -0.03, 0)), 0.06, 0.06, 0.12, 10, AmberRules.COLOR, true, 0.7)
+			MeshKit.add_cylinder(st, Transform3D(Basis(), p + Vector3(0, -0.02, 0)), 0.065, 0.065, 0.16, 10, AmberRules.COLOR.lerp(AmberRules.DEEP, 0.2 * (k % 2)), true, 0.45)
 			MeshKit.add_cylinder(st, Transform3D(Basis(), p + Vector3(0, 0.11, 0)), 0.072, 0.072, 0.025, 10, gold)
 	for i in 3:
 		var x := 0.6 + i * 0.28

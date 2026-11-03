@@ -211,7 +211,12 @@ func _think_lance(delta: float) -> void:
 	var spot := aim_point
 	if want:
 		var goal := _target.aim_for(global_position)
-		spot = spot.move_toward(goal, AmberRules.LANCE_DRAG * delta * (3.0 if spot.distance_to(goal) > 30.0 else 1.0))
+		# Lighting up, the beam strikes its target at once; already burning, it
+		# drags across the wall from bug to bug (and burns a trail on the way).
+		if not beam_on or spot.distance_to(goal) > 30.0:
+			spot = goal
+		else:
+			spot = spot.move_toward(goal, AmberRules.LANCE_DRAG * delta)
 		aim_point = spot
 		_idle_t = 0.0
 	var firing := want and Targeting.in_arc(_sight_point(), spot, pitch_limit(), def.range * range_multiplier() * weather_range()) \
@@ -310,7 +315,7 @@ func _draw_shot() -> void:
 			_recoil = 1.0
 			_idle_t = 0.0
 			var bell_at := _head.global_position + Vector3.UP * 0.9
-			AmberFx.toll_ring(get_tree().current_scene, bell_at, 9.0, Vector3.UP, 1.2)
+			AmberFx.toll_ring(get_tree().current_scene, bell_at, 5.0, Vector3.UP, 0.9)
 			# A ring rolls over the partner's wall where the bugs are.
 			var wall_up := WorldLayout.inward(covers) if covers >= 0 else Vector3.UP
 			AmberFx.toll_ring(get_tree().current_scene, aim_point, def.range * 0.35, wall_up, 1.6)

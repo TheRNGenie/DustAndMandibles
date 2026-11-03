@@ -14,7 +14,7 @@ extends RefCounted
 ##                   a glowing amber crystal between them.
 
 const BRASS := Color("#D6A74A")
-const GOLD := Color("#F0C24A")
+const GOLD := Color("#D4A23A")
 const IRON := Color("#34373E")
 const BRICK := Color("#8E4A30")
 const BRICK_DARK := Color("#6A3424")
@@ -160,7 +160,7 @@ static func _bell(team: Color) -> Dictionary:
 	MeshKit.add_box(base, Transform3D(Basis(), Vector3(0, 2.76, 0)), Vector3(0.34, 0.16, 0.26), IRON)
 	var bell_c := Vector3(0, 1.62, 0)
 	MeshKit.lathe(base, Transform3D(Basis(), bell_c), [Vector2(0.0, 1.08), Vector2(0.22, 1.06), Vector2(0.36, 0.98), Vector2(0.42, 0.8),
-			Vector2(0.44, 0.5), Vector2(0.5, 0.2), Vector2(0.62, -0.05), Vector2(0.7, -0.12), Vector2(0.66, -0.16), Vector2(0.56, -0.1)], 24, AmberRules.COLOR, Vector2.ONE, 0.55)
+			Vector2(0.44, 0.5), Vector2(0.5, 0.2), Vector2(0.62, -0.05), Vector2(0.7, -0.12), Vector2(0.66, -0.16), Vector2(0.56, -0.1)], 24, AmberRules.COLOR.darkened(0.08), Vector2.ONE, 0.22)
 	# Gold lip band, waist band and crown loops.
 	MeshKit.add_cylinder(base, Transform3D(Basis(), bell_c + Vector3(0, -0.1, 0)), 0.705, 0.69, 0.06, 24, GOLD, false)
 	MeshKit.add_cylinder(base, Transform3D(Basis(), bell_c + Vector3(0, 0.62, 0)), 0.445, 0.445, 0.05, 24, GOLD, false)
@@ -216,7 +216,7 @@ static func _lance(team: Color) -> Dictionary:
 			MeshKit.add_box(base, Transform3D(Basis(), Vector3(x, 0.34, z)), Vector3(0.06, 0.12, 0.12), GOLD)
 	# Glass fuel tank of glowing amber in a brass cage at the back, piped forward.
 	var tank := Vector3(0.0, 0.62, 0.62)
-	MeshKit.add_cylinder(base, Transform3D(ACROSS, tank), 0.26, 0.26, 1.2, 16, AmberRules.COLOR, true, 0.65)
+	MeshKit.add_cylinder(base, Transform3D(ACROSS, tank), 0.26, 0.26, 1.2, 16, AmberRules.COLOR, true, 0.35)
 	for x: float in [-0.58, -0.2, 0.2, 0.58]:
 		MeshKit.add_cylinder(base, Transform3D(ACROSS, tank + Vector3(x, 0, 0)), 0.28, 0.28, 0.04, 16, BRASS)
 	for k in 4:

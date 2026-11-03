@@ -465,6 +465,32 @@
         "Hold a heavy bug in a Buffalo Rifle's sights.",
         "Bosses shake it off after a second."
       ]
+    },
+    "amber_kiln": {
+      "lore": "A squat brick furnace mortar from the railroad's own smelting sheds, fed hive amber instead of coal. It lobs gobbets of molten resin that set harder than iron in seconds: anything it leaves below half health is sealed on the wall as an amber statue.",
+      "tips": [
+        "Statues block the climb: bugs behind one must step round it or stall. Bosses aren't entombed, only slowed while the amber sets.",
+        "Any other hit (your guns, other turrets' blasts) shatters a statue for a little scrap and chitin. The amber turrets' own shots never break one.",
+        "A statue crumbles by itself after about 24 s, and the bug inside dies with it.",
+        "Craft it at your Workshop's Amber tab: 10 hive amber, a Tripod mount, a Cannon barrel and a Fire load. The team fields only one."
+      ]
+    },
+    "queens_bell": {
+      "lore": "A great bell of cast hive amber in a gilded frame, struck by a steam hammer. The hive hears its queen in the note: every toll sets the ordinary bugs on your partner's wall upon each other and shakes fliers out of the sky.",
+      "tips": [
+        "Tolls every 9 s whenever anything's in reach: bugs in range bite their neighbours for 6 s instead of climbing.",
+        "Fliers in range drop: the fall hurts, and any that live lie stunned. Bosses are only stunned for 2 s a toll.",
+        "Still bound by the thirty-degree law: it reaches only the part of the wall a turret could aim at.",
+        "Craft it at your Workshop's Amber tab: 12 hive amber, a Post mount, a Nozzle barrel and an Explosive load. The team fields only one."
+      ]
+    },
+    "mandible_lance": {
+      "lore": "A heat lance on a rail carriage. Its emitter is a queen's mandible cut from the Iron Mandible wreck, and it burns amber from a glass tank: one continuous beam that reaches the whole of your partner's wall and cuts through everything in its way.",
+      "tips": [
+        "Everything in the beam's spot or along its line burns, armour or not. Where the beam drags from bug to bug it leaves a burning trail.",
+        "8 s of fire overheats it; it vents steam for 10 s. Idle, it cools off.",
+        "Craft it at your Workshop's Amber tab: 14 hive amber, a Tripod mount, a Rifle barrel and an Acid load. The team fields only one."
+      ]
     }
   },
   "crops": {
@@ -535,6 +561,16 @@
         "Left click with a root out to send a tonic.",
         "A green line under your health shows a tonic on your turrets, or yours on theirs."
       ]
+    },
+    "lucky_moreau": {
+      "title": "Lucky Moreau, the Fence",
+      "icon": "amber",
+      "lore": "A gambler in a black duster with a booth by the airship's starboard rail. \"I hear the railroad lost a strongbox. Got anything shiny?\" He deals only in hive amber.",
+      "tips": [
+        "He comes aboard once the story is past chapter 4, or from wave 8 in a normal run.",
+        "Sells Lucky's finish on the gunsmith's irons (they keep their level and mods), an exclusive wardrobe look, one-night favours (a supply drop, a bounty top-up) and the three amber turret blueprints.",
+        "Blueprints you buy or find are yours for good: the team can craft that turret in any run you ride in."
+      ]
     }
   },
   "sites": {
@@ -587,6 +623,14 @@
       "lore": "Loose pages of Doc Whitlow's field journal, blown into the tunnel mouths and left at the survey camp.",
       "tips": [
         "Each page you pick up reads out a line from the journal."
+      ]
+    },
+    "amber": {
+      "lore": "Hive amber: the resin the bugs build their nests from, set into glowing honey-gold lumps. It burns hotter than coal and sets harder than iron, and the railroad's board has been mining it in secret since '89.",
+      "tips": [
+        "Found only on the canyon floor: a few chips at some raid sites after each refill, more at bug nests and railroad wrecks.",
+        "Heavy: 4 backpack weight a chip. Yours alone, like chitin (never the team pot).",
+        "Lucky Moreau on the airship takes nothing else; the amber turrets are made of it."
       ]
     }
   }

@@ -15,9 +15,9 @@ extends RefCounted
 const ITEM := &"amber"
 const WEIGHT := 4
 const NAME := "Hive Amber"
-const COLOR := Color("#F2A01E")
-const GLOW := Color("#FFC94A")
-const DEEP := Color("#B85C10")
+const COLOR := Color("#E08A1C")
+const GLOW := Color("#FFB838")
+const DEEP := Color("#9A4A0E")
 
 const KILN := &"amber_kiln"
 const BELL := &"queens_bell"

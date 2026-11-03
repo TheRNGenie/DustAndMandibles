@@ -10,6 +10,8 @@ extends Node
 ##   --amberview=lucky             you on the airship in front of Lucky's stall.
 ##   --amberview=luckymenu         ...with his shop open (--ambertab=N picks the tab).
 ##   --amberview=loot              a raid site's amber pickup, close up.
+##   --amberview=workshop          the Workshop's Amber tab; crafts a kiln (logs the
+##                                 one-each refusal of a second) and opens the menu.
 ## --ambershot=<png> saves the view after --amberdelay=S seconds (default 6; the
 ## turret views count from the first shot) and quits, logging what happened.
 
@@ -24,6 +26,8 @@ var _cid := 0
 func _ready() -> void:
 	world = get_tree().current_scene as Node3D
 	_what = GameState.flag_value("--amberview")
+	if not GameState.flags.has("--alltiers"):
+		GameState.flags.append("--alltiers") # the amber turrets are Late tier (wave 10)
 	for i in 30:
 		await get_tree().physics_frame
 	var player := world.call("local_player") as Player
@@ -41,6 +45,8 @@ func _ready() -> void:
 			_lucky(player)
 		"loot":
 			_loot(player)
+		"workshop":
+			_workshop(player)
 		"kiln", "bell", "lance":
 			_single(player, {"kiln": AmberRules.KILN, "bell": AmberRules.BELL, "lance": AmberRules.LANCE}[_what])
 		_:
@@ -112,14 +118,14 @@ func _single(player: Player, id: StringName) -> void:
 	var bugs := world.get("bugs") as BugManager
 	match id:
 		AmberRules.KILN:
-			bugs.spawn_group(&"dust_mite", 10, far, lane, 36.0)
-			bugs.spawn_group(&"wolf_spider", 5, far, lane, 30.0)
-			bugs.spawn_group(&"rattler_beetle", 2, far, lane, 26.0)
-			bugs.spawn_group(&"dust_mite", 10, far, lane, 18.0)
+			bugs.spawn_group(&"wolf_spider", 6, far, lane, 40.0)
+			bugs.spawn_group(&"dust_mite", 10, far, lane, 38.0)
+			bugs.spawn_group(&"rattler_beetle", 2, far, lane, 34.0)
+			bugs.spawn_group(&"dust_mite", 12, far, lane, 30.0)
 		AmberRules.BELL:
-			bugs.spawn_group(&"dust_mite", 12, far, lane, 34.0)
-			bugs.spawn_group(&"wolf_spider", 6, far, lane, 30.0)
-			bugs.spawn_group(&"rattler_beetle", 2, far, lane, 28.0)
+			bugs.spawn_group(&"dust_mite", 12, far, lane, 42.0)
+			bugs.spawn_group(&"wolf_spider", 6, far, lane, 40.0)
+			bugs.spawn_group(&"rattler_beetle", 2, far, lane, 38.0)
 			_spawn_fliers(bugs, far, 4)
 		AmberRules.LANCE:
 			for l in [maxi(lane - 1, 0), lane, mini(lane + 1, 4)]:
@@ -151,9 +157,17 @@ func _save() -> void:
 	var path := GameState.flag_value("--ambershot")
 	if path == "":
 		return
+	# The lance: wait (up to 4 s) for the beam to be on, so the picture shows it.
+	var wait_until := Time.get_ticks_msec() + 4000
+	while _turret != null and is_instance_valid(_turret) and _turret.def.special == TurretDef.SPECIAL_LANCE and not _turret.beam_on and Time.get_ticks_msec() < wait_until:
+		await get_tree().physics_frame
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(path)
 	print("[amber] saved ", path)
+	if _turret != null and is_instance_valid(_turret) and _turret.def.special == TurretDef.SPECIAL_LANCE:
+		var bm := _turret.get("_beam") as MeshInstance3D
+		print("[amber] lance beam on %s, mesh visible %s at %s, aim %s, muzzle %s" % [_turret.beam_on, bm.visible, str(bm.global_position.snapped(Vector3.ONE * 0.1)),
+				str(_turret.aim_point.snapped(Vector3.ONE * 0.1)), str(_turret.muzzle_position().snapped(Vector3.ONE * 0.1))])
 	if _turret != null and is_instance_valid(_turret):
 		print("[amber] %s stats %s heat %.1f venting %s" % [_turret.def.id, str(_turret.stats), _turret.heat, _turret.venting])
 	print("[amber] bug tallies %s" % str(Bug.amber_stats))
@@ -218,12 +232,12 @@ func _lucky(player: Player) -> void:
 	await get_tree().physics_frame
 	print("[amber] Lucky open: %s (wave %d)" % [stall.visible, GameState.wave])
 	if player != null:
-		player.global_position = stall.to_global(Vector3(0.0, 0.3, -2.4))
+		player.global_position = stall.to_global(Vector3(2.2, 0.3, -2.6))
 		player.velocity = Vector3.ZERO
 	_cam = _camera()
 	_cam.fov = 62.0
-	_cam.global_position = stall.to_global(Vector3(-1.2, 1.75, -4.2))
-	_cam.look_at(stall.to_global(Vector3(0.1, 1.35, 0.0)), Vector3.UP)
+	_cam.global_position = stall.to_global(Vector3(-1.3, 2.1, -5.4))
+	_cam.look_at(stall.to_global(Vector3(0.1, 1.75, 0.0)), Vector3.UP)
 	await get_tree().create_timer(1.5).timeout
 	stall.say(AmberRules.LUCKY_GREETING, 30.0)
 	if _what == "luckymenu":
@@ -265,5 +279,30 @@ func _loot(player: Player) -> void:
 	_cam.look_at(pos + Vector3.UP * 0.2, Vector3.UP)
 	if player != null:
 		player.global_position = pos + Vector3(10, 0, 10)
+	await get_tree().create_timer(_delay()).timeout
+	_save()
+
+
+func _workshop(_player: Player) -> void:
+	var home := Homestead.of(_cid)
+	if home == null:
+		push_error("amber_views: no homestead")
+		get_tree().quit(1)
+		return
+	home.workshop = true
+	home._build_workshop()
+	var ws := home.get_node("Workshop") as Workshop
+	# Parts for two kilns and a bell; craft one kiln, then try a second (refused: one each).
+	Economy.earn(_cid, {&"part_tripod": 2, &"part_cannon": 2, &"part_fire": 2, &"part_post": 1, &"part_nozzle": 1, &"part_explosive": 1})
+	var before := Economy.amount(_cid, AmberRules.ITEM)
+	ws._craft(1, AmberRules.KILN)
+	ws._craft(1, AmberRules.KILN)
+	print("[amber] workshop: kilns held %d (want 1), amber %d -> %d, tripods left %d" % [Economy.amount(_cid, AmberRules.KILN), before,
+			Economy.amount(_cid, AmberRules.ITEM), Economy.amount(_cid, &"part_tripod")])
+	print("[amber] workshop: second kiln block: %s" % Amber.craft_block(AmberRules.KILN))
+	await get_tree().create_timer(0.5).timeout
+	MenuScreen.instance.open(ws)
+	MenuScreen.instance.tab = 2
+	MenuScreen.instance.refresh()
 	await get_tree().create_timer(_delay()).timeout
 	_save()

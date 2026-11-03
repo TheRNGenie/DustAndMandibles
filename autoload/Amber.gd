@@ -279,8 +279,7 @@ func _grant_look(slot: String, option: String) -> void:
 		Perks.profile.cosmetics.append(key)
 		if not GameState.has_flag("--debug"):
 			Perks.save()
-	Settings.set_look(slot, option)
-	Perks.profile_changed.emit()
+	Perks.profile_changed.emit() # (worn from the Wardrobe, like any look)
 
 
 @rpc("authority", "call_local", "reliable")

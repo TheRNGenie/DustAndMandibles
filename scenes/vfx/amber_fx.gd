@@ -79,7 +79,6 @@ static func splat(vfx: VfxPool, at: Vector3, normal: Vector3, radius: float) -> 
 		return
 	vfx.pop(at, AmberRules.COLOR, radius * 0.6)
 	vfx.pop(at, AmberRules.GLOW.lightened(0.2), radius * 0.35)
-	vfx.ichor_splat(at, normal, AmberRules.COLOR, radius * 0.9)
 	for i in 5:
 		vfx.spark(at, (normal + Vector3(randf_range(-0.8, 0.8), randf_range(-0.3, 0.9), randf_range(-0.8, 0.8))).normalized(), AmberRules.GLOW)
 
@@ -141,7 +140,7 @@ class FrenzyMark:
 	func _init() -> void:
 		text = "!!"
 		font_size = 96
-		pixel_size = 0.006
+		pixel_size = 0.013
 		outline_size = 18
 		modulate = Color("#FF7A1E")
 		outline_modulate = Color("#2B1B17")

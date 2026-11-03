@@ -97,6 +97,8 @@ func _ready() -> void:
 			print("[lever] t=%d phase %d countdown %.1f levers %s cpu %s" % [Time.get_ticks_msec() / 1000, GameState.phase, GameState.ready_countdown, str(GameState.levers), str(GameState.cpu_levers)]))
 	if GameState.flag_value("--act") != "":
 		_act_shot(GameState.flag_value("--act"))
+	if GameState.flag_value("--amberview") != "": # Hive amber: the amber turrets, Lucky's stall (scenes/debug/amber_views.gd)
+		add_child(load("res://scenes/debug/amber_views.gd").new())
 	if GameState.has_flag("--tiertest"): # Tiers: unlocks and the new turrets' specials, live (scenes/debug/tier_views.gd)
 		add_child(load("res://scenes/debug/tier_views.gd").new())
 	var shot := GameState.flag_value("--shot")
@@ -1109,8 +1111,6 @@ func _take_screenshot(path: String) -> void:
 		add_child(load("res://scenes/debug/crewed_views.gd").new())
 	if GameState.flag_value("--gunview") != "": # the frontier guns: lineup and each in action (scenes/debug/gun_views.gd)
 		add_child(load("res://scenes/debug/gun_views.gd").new())
-	if GameState.flag_value("--amberview") != "": # Hive amber: the amber turrets, Lucky's stall (scenes/debug/amber_views.gd)
-		add_child(load("res://scenes/debug/amber_views.gd").new())
 	if GameState.flag_value("--specialview") != "": # Steam Cannon / Flood Gate / Twin Mortar / Bola Launcher views
 		add_child(load("res://scenes/debug/special_views.gd").new())
 	if (GameState.has_flag("--showcase") or GameState.flag_value("--showcase") != "") and multiplayer.is_server():
