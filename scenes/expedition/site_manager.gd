@@ -49,6 +49,11 @@ var _floor_clock_t := 0.0
 func _ready() -> void:
 	instance = self
 	SitePlan.reset_cuts()
+	ExpeditionApi.debug_floor = GameState.flag_value("--floor") != ""
+	if ExpeditionApi.debug_floor:
+		var views: Node = load("res://scenes/debug/site_views.gd").new()
+		views.name = "SiteViews"
+		add_child(views)
 	ExpeditionApi.connect_noise(_on_noise)
 	if multiplayer.is_server():
 		var s := int(GameState.flag_value("--siteseed")) if GameState.flag_value("--siteseed") != "" else SitePlan.roll_seed()

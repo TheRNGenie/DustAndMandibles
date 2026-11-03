@@ -90,9 +90,9 @@ static func _wall_base(st: SurfaceTool, rng: RandomNumberGenerator, cliffs: Clif
 		for i in n:
 			var s := rng.randf_range(0.7, 2.6)
 			var at := Vector3(base.x, y, z) + out * rng.randf_range(0.5, 4.0) + Vector3(0, s * 0.35, rng.randf_range(-1.5, 1.5))
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at), Vector3(s, s * 0.7, s * 1.1), 5, 8, _rock_color(rng), 0.22, rng)
+			MeshKit.add_ellipsoid(st if not SitePlan.in_site_zone(at, s) else MeshKit.begin(), Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at), Vector3(s, s * 0.7, s * 1.1), 5, 8, _rock_color(rng), 0.22, rng)
 		# Scree: a low slope of rubble against the wall.
-		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(base.x, y, z) + out * 1.2), Vector3(2.5, 1.2, 3.5), 4, 8, Palette.ROCK_C.darkened(0.1), 0.25, rng)
+		MeshKit.add_ellipsoid(st if not SitePlan.in_site_zone(Vector3(base.x, y, z) + out * 1.2, 2.0) else MeshKit.begin(), Transform3D(Basis(), Vector3(base.x, y, z) + out * 1.2), Vector3(2.5, 1.2, 3.5), 4, 8, Palette.ROCK_C.darkened(0.1), 0.25, rng)
 
 
 ## The canyon floor: hoodoos, dead trees, skulls and a cracked dry wash.
@@ -106,12 +106,13 @@ static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerat
 		var segs := rng.randi_range(3, 5)
 		var r := rng.randf_range(0.8, 1.6)
 		var at := Vector3(x, y, z)
+		var hst := rock if not SitePlan.in_site_zone(at, r + 5.0) else MeshKit.begin() # Expeditions: not in a site
 		for k in segs:
 			var seg_h := h / segs
 			var rr := r * rng.randf_range(0.7, 1.15)
-			MeshKit.add_cylinder(rock, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at + Vector3(0, seg_h * 0.5, 0)), rr * 1.05, rr * 0.85, seg_h, 9, _rock_color(rng))
+			MeshKit.add_cylinder(hst, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at + Vector3(0, seg_h * 0.5, 0)), rr * 1.05, rr * 0.85, seg_h, 9, _rock_color(rng))
 			at += Vector3(rng.randf_range(-0.15, 0.15), seg_h, rng.randf_range(-0.15, 0.15))
-		MeshKit.add_ellipsoid(rock, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at + Vector3(0, r * 0.3, 0)), Vector3(r * 1.5, r * 0.55, r * 1.3), 5, 9, Color("#8A4A32"), 0.15, rng)
+		MeshKit.add_ellipsoid(hst, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at + Vector3(0, r * 0.3, 0)), Vector3(r * 1.5, r * 0.55, r * 1.3), 5, 9, Color("#8A4A32"), 0.15, rng)
 	# Dead trees: twisted grey trunks with forked branches.
 	for i in 12:
 		var z := rng.randf_range(-190.0, 190.0)
@@ -120,13 +121,14 @@ static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerat
 		var base := Vector3(x, y, z)
 		var top := base + Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(2.5, 4.5), rng.randf_range(-0.6, 0.6))
 		var bark := Color("#8C8378").darkened(rng.randf_range(0.0, 0.2))
-		MeshKit.add_limb(dry, base, top, 0.16, bark, 6)
+		var dst := dry if not SitePlan.in_site_zone(base, 2.0) else MeshKit.begin() # Expeditions: not in a site
+		MeshKit.add_limb(dst, base, top, 0.16, bark, 6)
 		for b in rng.randi_range(2, 4):
 			var from := base.lerp(top, rng.randf_range(0.45, 1.0))
 			var dir := Vector3(rng.randf_range(-1, 1), rng.randf_range(0.3, 1.0), rng.randf_range(-1, 1)).normalized()
 			var tip := from + dir * rng.randf_range(0.8, 1.8)
-			MeshKit.add_limb(dry, from, tip, 0.07, bark, 5)
-			MeshKit.add_limb(dry, tip, tip + (dir + Vector3(rng.randf_range(-0.6, 0.6), 0.3, rng.randf_range(-0.6, 0.6))).normalized() * 0.6, 0.035, bark, 4)
+			MeshKit.add_limb(dst, from, tip, 0.07, bark, 5)
+			MeshKit.add_limb(dst, tip, tip + (dir + Vector3(rng.randf_range(-0.6, 0.6), 0.3, rng.randf_range(-0.6, 0.6))).normalized() * 0.6, 0.035, bark, 4)
 	# Bleached cattle skulls with horns.
 	for i in 10:
 		var x := rng.randf_range(-14.0, 14.0)

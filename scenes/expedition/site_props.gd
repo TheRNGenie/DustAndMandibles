@@ -65,7 +65,7 @@ static func build(root: Node3D, site: SitePlan.Site, mgr: SiteManager) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = site.seed
 	# Every site gets a soft fill so it reads in the canyon's shadow.
-	_light(root, Vector3(0, 7.0, 1.0), Color("#FFE2B8"), 0.7, 16.0)
+	_light(root, Vector3(0, 7.0, 2.0), Color("#FFE6C0"), 1.3, 18.0)
 	match site.kind:
 		SitePlan.Kind.MOUTH:
 			_mouth(root, site, mgr, rng)
@@ -90,7 +90,9 @@ static func _mouth(root: Node3D, site: SitePlan.Site, mgr: SiteManager, rng: Ran
 	for s: float in [-1.0, 1.0]:
 		_solid(root, mgr, Vector2(s * 2.65, -3.9), Vector3(0.35, 4.4, 0.35))
 	# A tipped ore cart (a rail car, cut down), spilling its load.
-	_put(root, mgr, _mesh("cart", SiteBuilder.rail_car.bind(55)), Vector2(-3.6, 0.6), 0.5, Basis(Vector3.BACK, 1.25), 0.45, 0.42)
+	_put(root, mgr, _mesh("cart", SiteBuilder.rail_car.bind(55)), Vector2(-3.6, 0.6), 0.5, Basis(Vector3.BACK, 1.25), 0.6, 0.55)
+	_put(root, mgr, _mesh("husk3", SiteBuilder.husk.bind(3)), Vector2(4.6, -0.8), rng.randf() * TAU, Basis(), 0.0, 0.8)
+	_put(root, mgr, _mesh("crate_m", SiteBuilder.crate.bind(6, Vector3(1.0, 0.75, 0.75), true)), Vector2(3.9, 3.6), 0.6)
 	_solid(root, mgr, Vector2(-3.6, 0.6), Vector3(1.2, 1.0, 2.3), 0.5)
 	_put(root, mgr, _mesh("husk1", SiteBuilder.husk.bind(1)), Vector2(2.9, -1.2), rng.randf() * TAU, Basis(), 0.0, 1.3)
 	_put(root, mgr, _mesh("husk2", SiteBuilder.husk.bind(2)), Vector2(1.1, 3.4), rng.randf() * TAU, Basis(Vector3.BACK, 0.4), 0.0, 1.0)
@@ -161,8 +163,8 @@ static func _wreck(root: Node3D, site: SitePlan.Site, mgr: SiteManager, rng: Ran
 	_solid(root, mgr, Vector2(-0.6, -2.6), Vector3(9.0, 2.0, 2.4), 0.15)
 	_put(root, mgr, _mesh("tender", SiteBuilder.tender.bind(22)), Vector2(-5.6, -4.4), 0.6, Basis(Vector3.BACK, 0.5), 0.2)
 	_solid(root, mgr, Vector2(-5.6, -4.4), Vector3(2.4, 2.0, 3.8), 0.6)
-	_put(root, mgr, _mesh("car_a", SiteBuilder.rail_car.bind(23)), Vector2(3.0, 3.2), 0.35, Basis(Vector3.BACK, 0.12), 0.0)
-	_solid(root, mgr, Vector2(3.0, 3.2), Vector3(2.3, 2.0, 5.4), 0.35)
+	_put(root, mgr, _mesh("car_a", SiteBuilder.rail_car.bind(23)), Vector2(5.4, 2.0), 0.9, Basis(Vector3.BACK, 0.12), 0.0)
+	_solid(root, mgr, Vector2(5.4, 2.0), Vector3(2.3, 2.0, 5.4), 0.9)
 	_put(root, mgr, _mesh("car_b", SiteBuilder.rail_car.bind(24)), Vector2(-3.6, 2.6), -0.5, Basis(Vector3.BACK, 1.45), 1.1)
 	_solid(root, mgr, Vector2(-3.6, 2.6), Vector3(2.0, 2.2, 5.4), -0.5)
 	# The trestle bents holding her up (they come down in a collapse).

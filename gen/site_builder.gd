@@ -17,7 +17,7 @@ const IRON := Color("#3E3A38")
 const IRON_RUST := Color("#7A4630")
 const RUST := Color("#A0522D")
 const ROPE := Color("#C8A971")
-const BONE := Color("#EADBB8")
+const BONE := Color("#F2E4BE")
 const BONE_DARK := Color("#C4B08A")
 const DYNAMITE := Color("#C8362B")
 const EGG := Color("#D8E8A0")
@@ -92,32 +92,31 @@ static func carcass(seed_value: int, length: float = 11.0) -> ArrayMesh:
 		var t := float(i) / float(n - 1)
 		var p := Vector3(sin(t * PI) * bend, 0.9 + sin(t * PI) * 1.4 - t * 0.3, -length * 0.5 + t * length)
 		spine.append(p)
-	# Vertebrae: a disc and a tall spinous process on each.
+	# Vertebrae: a disc and a short spinous process on each.
 	for i in n:
 		var p := spine[i]
 		var fwd := (spine[mini(i + 1, n - 1)] - spine[maxi(i - 1, 0)]).normalized()
 		var s := 0.55 + 0.35 * sin(float(i) / float(n - 1) * PI)
 		MeshKit.add_cylinder(st, Transform3D(MeshKit.basis_from_y(fwd), p), s * 0.55, s * 0.55, 0.45, 9, bone.darkened(rng.randf() * 0.08))
-		MeshKit.add_limb(st, p, p + Vector3(0, s * 1.1, -0.15), s * 0.16, bone.darkened(0.05), 6)
-		for side: float in [-1.0, 1.0]:
-			MeshKit.add_limb(st, p, p + Vector3(side * s * 0.9, s * 0.15, 0), s * 0.12, bone.darkened(0.08), 5)
-	# Ribs: big arcs out, up and back in over the spine; a few snapped short.
+		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, -0.35), p + Vector3(0, s * 0.45, -0.1)), s * 0.2, s * 0.06, s * 0.8, 6, bone.darkened(0.05))
+	# Ribs: from either side of the spine out, up and curling back in, like
+	# fingers of a cupped hand, tips well apart; a few snapped short.
 	for i in range(3, n - 4):
 		var p := spine[i]
 		var t := float(i) / float(n - 1)
-		var w := 2.6 + 1.6 * sin(t * PI)
-		var h := 2.2 + 1.8 * sin(t * PI)
+		var w := 2.4 + 1.4 * sin(t * PI)
+		var h := 3.0 + 2.0 * sin(t * PI)
 		for side: float in [-1.0, 1.0]:
 			var pts: Array = []
 			var radii: Array = []
 			var broken := rng.randf() < 0.18
-			var steps := 9 if not broken else rng.randi_range(4, 6)
+			var reach := 0.82 if not broken else rng.randf_range(0.35, 0.55)
+			var steps := 10
 			for j in steps:
-				var k := float(j) / 8.0
-				# Out and down, then curving back in and up toward the top.
-				var ang := k * PI * 1.05
-				pts.append(p + Vector3(side * sin(ang) * w, -sin(ang * 0.5) * 0.4 + (1.0 - cos(ang)) * h * 0.5 - h * 0.35 * k * k, -k * 0.6))
-				radii.append(0.2 * (1.0 - k * 0.55))
+				var k := float(j) / float(steps - 1)
+				var th := k * PI * reach
+				pts.append(p + Vector3(side * (0.35 + w * sin(th)), (1.0 - cos(th)) * h * 0.5 - 0.5 * sin(th), -k * 0.5))
+				radii.append(0.22 * (1.0 - k * 0.6))
 			MeshKit.tube(st, pts, radii, 7, bone.darkened(rng.randf() * 0.07))
 	# Pelvis plate at the tail.
 	MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.RIGHT, 0.4), spine[0] + Vector3(0, 0.3, -0.4)), Vector3(1.6, 0.35, 1.1), 4, 12, bone.darkened(0.06), 0.1, rng)

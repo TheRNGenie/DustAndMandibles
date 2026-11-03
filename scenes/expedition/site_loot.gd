@@ -35,6 +35,7 @@ func setup(index: int, l: SitePlan.Loot, seed_value: int) -> void:
 		_mesh_cache[key] = SiteBuilder.loot(l.look, seed_value % 3 + 11)
 	_mi.mesh = _mesh_cache[key]
 	_mi.material_override = Materials.toon(0.012)
+	_mi.scale = Vector3.ONE * (1.6 if l.look == &"egg" else 1.3)
 	add_child(_mi)
 	# Small things bob and turn so they read as something to pick up.
 	_spin = l.look in [&"page", &"specimen", &"blueprint"]

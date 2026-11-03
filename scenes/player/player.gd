@@ -575,7 +575,7 @@ func _update_fall(delta: float) -> void:
 		return
 	if not _falling:
 		# Swinging or reeling on the grapple dips below the lip: that's not a fall.
-		if global_position.y < WorldLayout.CANYON_FALL_Y and not (grapple != null and grapple.is_active()):
+		if global_position.y < WorldLayout.CANYON_FALL_Y and not (grapple != null and grapple.is_active()) and not ExpeditionApi.debug_floor:
 			_falling = true
 			_fall_t = 0.0
 			fell_into_canyon.emit(0.0)

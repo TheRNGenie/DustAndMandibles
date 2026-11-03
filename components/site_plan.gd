@@ -17,9 +17,11 @@ const MAX_SITES := 5
 ## Site centres stand this far out from their tunnel's mouth, and at least
 ## this far from each other.
 const OUT_FROM_MOUTH := 9.0
-const MIN_SEPARATION := 14.0
+const MIN_SEPARATION := 17.0
 ## How far a site's props and loot spread from its centre.
 const RADIUS := 6.5
+## A site may slide this far along its wall (either way) to clear a neighbour.
+const SLIDES: Array[float] = [0.0, 3.5, -3.5, 6.0, -6.0]
 
 ## Egg smash: that tunnel sends this share of its bugs next wave.
 const SMASH_KEEP := 0.8
@@ -93,14 +95,21 @@ static func generate(tunnels: Array, run_seed: int) -> Array[Site]:
 		way.y = 0.0
 		way = way.normalized() if way.length() > 0.01 else Vector3.BACK
 		var kind := kinds[out.size() % kinds.size()]
-		# The tunnel mouth site sits right in the mouth; the rest out on the floor.
-		var c := mouth + way * (4.5 if kind == Kind.MOUTH else OUT_FROM_MOUTH)
-		var clear := true
-		for s in out:
-			if Vector2(s.pos.x - c.x, s.pos.z - c.z).length() < MIN_SEPARATION:
-				clear = false
+		# The tunnel mouth site sits right in the mouth; the rest out on the floor,
+		# slid along the wall if that clears a neighbour.
+		var side := way.cross(Vector3.UP).normalized()
+		var c := Vector3.INF
+		for slide: float in ([0.0] if kind == Kind.MOUTH else SLIDES):
+			var p := mouth + way * (4.5 if kind == Kind.MOUTH else OUT_FROM_MOUTH) + side * slide
+			var clear := true
+			for s in out:
+				if Vector2(s.pos.x - p.x, s.pos.z - p.z).length() < MIN_SEPARATION:
+					clear = false
+					break
+			if clear:
+				c = p
 				break
-		if not clear:
+		if c == Vector3.INF:
 			continue
 		var site := Site.new()
 		site.index = out.size()
@@ -111,6 +120,30 @@ static func generate(tunnels: Array, run_seed: int) -> Array[Site]:
 		site.pos = c
 		out.append(site)
 	return out
+
+
+## Every spot a site could take on this map (any seed): world dressing keeps
+## clear of them so a site never lands in a hoodoo or a pile of webs.
+static var _zones: Array[Vector3] = []
+
+
+static func reserve_zones(tunnels: Array) -> void:
+	_zones.clear()
+	for t: Array in tunnels:
+		var way: Vector3 = t[1]
+		way.y = 0.0
+		way = way.normalized() if way.length() > 0.01 else Vector3.BACK
+		var side := way.cross(Vector3.UP).normalized()
+		_zones.append((t[0] as Vector3) + way * 4.5)
+		for slide: float in SLIDES:
+			_zones.append((t[0] as Vector3) + way * OUT_FROM_MOUTH + side * slide)
+
+
+static func in_site_zone(pos: Vector3, pad: float = 1.0) -> bool:
+	for z in _zones:
+		if Vector2(pos.x - z.x, pos.z - z.z).length() < RADIUS + pad:
+			return true
+	return false
 
 
 static func _shuffle(a: Array, rng: RandomNumberGenerator) -> void:
@@ -236,7 +269,7 @@ const SPOTS: Array = [
 	[Vector2(-5.0, -2.0), Vector2(-5.0, 2.6), Vector2(0.0, -0.5), Vector2(4.8, 3.2), Vector2(1.8, 6.3), Vector2(-2.5, -5.6)],
 	[Vector2(-3.8, -0.8), Vector2(3.0, -1.6), Vector2(-0.2, -4.2), Vector2(0.9, -1.0), Vector2(4.0, 2.6), Vector2(-4.6, 3.8)],
 	[Vector2(0.0, 0.0), Vector2(1.8, 1.2), Vector2(-1.9, 0.9), Vector2(0.6, -2.2), Vector2(-1.0, 2.6), Vector2(2.5, -1.5)],
-	[Vector2(0.0, 1.6), Vector2(4.5, 1.4), Vector2(-1.6, 4.6), Vector2(-5.4, 0.6), Vector2(1.6, 5.4), Vector2(4.8, -3.6)],
+	[Vector2(0.0, 1.6), Vector2(2.8, 4.2), Vector2(-1.6, 4.6), Vector2(-5.4, 0.6), Vector2(1.6, 5.4), Vector2(4.8, -3.6)],
 ]
 
 
