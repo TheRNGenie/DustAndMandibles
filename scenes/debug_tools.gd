@@ -759,6 +759,9 @@ func _soak(seconds: float) -> void:
 	for i in 20:
 		await get_tree().process_frame
 	if GameState.has_flag("--autobuild") and multiplayer.is_server():
+		# Wait for every peer to load (builds made before that never reach them).
+		while not bool(world.get("_started")):
+			await get_tree().process_frame
 		_autobuild()
 	if GameState.flag_value("--showcase") != "":
 		_showcase()
@@ -950,6 +953,8 @@ func _take_screenshot(path: String) -> void:
 		player.rotation.y += deg_to_rad(parts[0].to_float())
 		player.head.rotation.x = deg_to_rad(parts[1].to_float())
 	if GameState.has_flag("--autobuild") and multiplayer.is_server():
+		while not bool(world.get("_started")): # every peer loaded (else the builds never reach them)
+			await get_tree().process_frame
 		_autobuild()
 	if GameState.flag_value("--crewview") != "": # Crewed: crewed gun views (scenes/debug/crewed_views.gd)
 		add_child(load("res://scenes/debug/crewed_views.gd").new())
@@ -1109,6 +1114,8 @@ func _take_screenshot(path: String) -> void:
 		player.build_mode.toggle()
 		player.build_mode.show_category(int(GameState.flag_value("--buildmenu")))
 		player.build_mode.open_menu()
+	if GameState.has_flag("--showmap"):
+		(world.get("hud") as Hud).overview.visible = true # the overview map (M) open in the shot
 	if GameState.flag_value("--pause") != "":
 		var pm := world.get_node("PauseMenu") as PauseMenu
 		pm.open()
