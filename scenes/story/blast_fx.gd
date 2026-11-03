@@ -139,7 +139,7 @@ func _process(delta: float) -> void:
 			continue
 		var life := 1.2 if (mi.material_override as StandardMaterial3D).blend_mode == BaseMaterial3D.BLEND_MODE_ADD else 5.0
 		var u := clampf(k / life, 0.0, 1.0)
-		mi.scale = Vector3.ONE * float(b[2]) * (1.0 - pow(1.0 - u, 3.0)) * 2.0
+		mi.scale = Vector3.ONE * float(b[2]) * (1.0 - pow(1.0 - u, 3.0)) * 3.0
 		mi.position.y += float(b[3]) * delta * (1.0 - u)
 		var m := mi.material_override as StandardMaterial3D
 		var a0 := 1.0 if m.blend_mode == BaseMaterial3D.BLEND_MODE_ADD else 0.85

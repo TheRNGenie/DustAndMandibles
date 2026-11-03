@@ -183,6 +183,27 @@ func _debug_flags() -> void:
 			var d := box.to_global(Vector3(0, 0.6, 0)) - p.global_position
 			p.rotation.y = atan2(-d.x, -d.z)
 			p.head.rotation.x = deg_to_rad(-14.0))
+	if GameState.has_flag("--storyfloorview"): # on the canyon floor in front of the fetch item (screenshots)
+		get_tree().create_timer(3.5).timeout.connect(func() -> void:
+			var p := world.call("local_player") as Player
+			if p == null or cargo == null or not is_instance_valid(cargo):
+				print("[story] floor view: no cargo yet")
+				return
+			var at := cargo.global_position
+			var dir := Vector3(cos(at.x), 0.0, sin(at.x)).normalized()
+			if GameState.flag_value("--storyfloordir") != "":
+				var a := deg_to_rad(GameState.flag_value("--storyfloordir").to_float())
+				dir = Vector3(cos(a), 0.0, sin(a))
+			var stand := at + dir * GameState.flag_value("--storyfloordist").to_float() if GameState.flag_value("--storyfloordist") != "" else at + dir * 4.5
+			var cl := world.get("cliffs") as CliffBuilder
+			stand.y = cl.floor_height(stand.x, stand.z) + 0.1
+			p.set("_trip", true)
+			p.global_position = stand
+			p.velocity = Vector3.ZERO
+			var d := at + Vector3.UP * 0.5 - (stand + Vector3.UP * 1.6)
+			p.rotation.y = atan2(-d.x, -d.z)
+			p.head.rotation.x = atan2(d.y, Vector2(d.x, d.z).length())
+			print("[story] floor view at %s, cargo %s" % [str(stand.snapped(Vector3.ONE * 0.1)), str(at.snapped(Vector3.ONE * 0.1))]))
 	if GameState.has_flag("--telegram"):
 		get_tree().create_timer(2.5).timeout.connect(func() -> void: telegram.open())
 
@@ -258,6 +279,11 @@ func _host_build(w: int) -> void:
 		var p := GameState.flag_value("--storydropat").split(",")
 		var cliffs := world.get("cliffs") as CliffBuilder
 		_spawn_cargo.rpc(cliffs.plateau_point(_local_cliff(), p[0].to_float() if p.size() == 2 else 6.0, p[1].to_float() if p.size() == 2 else 2.0), false, "")
+		return
+	# Debug: --storycarcass lays the boss's carcass (and its prize) at the foot of your cliff now.
+	if GameState.has_flag("--storycarcass") and GameState.debug_enabled() and cargo_state == Cargo.NONE 			and str(chapter.objective.get("spawn", "")) == "boss_carcass":
+		_spawn_cargo.rpc(carcass_point(world.get("cliffs") as CliffBuilder, _local_cliff(), -6.0), false, "carcass")
+		_event.rpc("drop")
 		return
 	if chapter.kind() == "fetch" and str(chapter.objective.get("spawn", "")) == "airship_drop":
 		if cargo_state == Cargo.NONE and w >= int(chapter.objective.get("drop_wave", chapter.first_wave)):

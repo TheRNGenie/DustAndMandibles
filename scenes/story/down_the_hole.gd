@@ -589,6 +589,14 @@ func _blow() -> void:
 	if not cliffs.sealed.has(main):
 		cliffs.sealed.append(main)
 	BlastFx.play(world, mouth, out)
+	# Debug: --ch7boomshot=<png> photographs the blast a beat after it goes up, then quits.
+	if GameState.debug_enabled() and GameState.flag_value("--ch7boomshot") != "":
+		var path := GameState.flag_value("--ch7boomshot")
+		var wait := GameState.flag_value("--ch7boomwait").to_float() if GameState.flag_value("--ch7boomwait") != "" else 0.5
+		get_tree().create_timer(wait).timeout.connect(func() -> void:
+			get_viewport().get_texture().get_image().save_png(path)
+			print("[ch7] boom shot %s" % path)
+			get_tree().quit())
 	if p != null:
 		var d := p.global_position.distance_to(mouth)
 		p.add_shake(BlastRules.blast_shake(d))
@@ -734,14 +742,16 @@ func _debug_view() -> void:
 				Expedition.add_to_backpack(me, {BlastRules.ITEM: 1})
 		"charge":
 			if multiplayer.is_server():
-				charges[0] = true
 				Expedition.add_to_backpack(me, {BlastRules.ITEM: 1})
 				_broadcast()
 			await get_tree().create_timer(0.3).timeout
 			var s := tunnel.spots[mini(1, tunnel.spots.size() - 1)]
 			var look := s.to_global(Vector3(0, 0.95, -0.2))
-			var stand := s.to_global(Vector3(-0.9, 0.0, 2.1))
+			var stand := s.to_global(Vector3(-1.3, 0.0, 3.0))
 			_place(p, stand + Vector3.UP * 0.1, look)
+			if GameState.has_flag("--ch7set"):
+				await get_tree().create_timer(2.5).timeout
+				request_set(s.index)
 		"fuse":
 			if multiplayer.is_server():
 				charges.fill(true)
@@ -755,21 +765,27 @@ func _debug_view() -> void:
 			if multiplayer.is_server():
 				charges.fill(true)
 				_broadcast()
-			p.set("_trip", false)
-			# Up on the opposite lip (or your own), looking down at the mouth.
-			var cid := p.cliff_id
-			for a in RopeAnchor.all():
-				if a.cliff_id != _nearest_cliff():
-					cid = a.cliff_id
-			var lip := cliffs.plateau_point(cid, 1.5, mouth.z + 22.0)
-			_place(p, lip + Vector3.UP * 0.2, mouth + Vector3.UP * 3.0)
+			if view == "sealed" or GameState.has_flag("--ch7lip"):
+				# Up on the opposite lip, looking down at the mouth.
+				p.set("_trip", false)
+				var cid := p.cliff_id
+				for a in RopeAnchor.all():
+					if a.cliff_id != _nearest_cliff():
+						cid = a.cliff_id
+				var lip := cliffs.plateau_point(cid, 0.8, clampf(mouth.z, -17.0, 17.0))
+				_place(p, lip + Vector3.UP * 0.2, mouth + Vector3.UP * 3.0)
+			else:
+				# Out on the floor, a long way back from the mouth.
+				var at := mouth + out * 36.0 + side * 14.0
+				_place(p, Vector3(at.x, cliffs.floor_height(at.x, at.z) + 0.1, at.z), mouth + Vector3.UP * 6.0)
 			if multiplayer.is_server():
-				fuse_left = _fuse_total
+				fuse_left = 0.5 if view == "sealed" else _fuse_total
 				_broadcast()
 	print("[ch7] view %s at %s" % [view, str(p.global_position.snapped(Vector3.ONE * 0.1))])
 
 
 func _place(p: Player, at: Vector3, look: Vector3) -> void:
+	p.set("_trip", at.y < WorldLayout.CANYON_FALL_Y)
 	p.global_position = at
 	p.velocity = Vector3.ZERO
 	var d := look - (at + Vector3.UP * 1.6)
