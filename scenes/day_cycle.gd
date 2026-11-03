@@ -15,6 +15,11 @@ const HOURS_PER_WAVE := 6.0
 ## time and waits there if the wave runs long.
 const WAVE_SECONDS := 150.0
 const CATCH_UP_SECONDS := 4.0
+## Sun bearing (yaw degrees) at sunrise and sunset: near the canyon's two ends.
+const SUN_YAW := Vector2(-15.0, 192.0)
+## Lowest the sun sits (degrees): high enough to clear the canyon's far rim so
+## golden-hour light still reaches the floor.
+const SUN_MIN_ELEVATION := 14.0
 
 var env: Environment
 var sun: DirectionalLight3D
@@ -45,8 +50,8 @@ const KEYS: Array = [
 	[8.5, Color("#FFE2B8"), 1.15, Color("#B08AB8"), Color("#4FA8D2"), Color("#F7D2A0")],
 	[12.0, Color("#FFF2D8"), 1.35, Color("#B898C0"), Color("#4FB8D8"), Color("#F7D9A0")],
 	[15.5, Color("#FFE2B8"), 1.2, Color("#B08AB8"), Color("#4FA8D2"), Color("#F5C890")],
-	[17.0, Color("#FFC27A"), 1.2, Color("#B888A8"), Color("#4A8CC8"), Color("#F8B070")],
-	[18.0, Color("#FF8A3A"), 1.0, Color("#8A5A8C"), Color("#3A5A98"), Color("#FF7A3A")],
+	[17.0, Color("#FFC870"), 1.25, Color("#A884A8"), Color("#4A8CC8"), Color("#F8B878")],
+	[18.0, Color("#FFA848"), 1.15, Color("#7E5E92"), Color("#3A5A98"), Color("#FF9A52")],
 	[18.8, Color("#FF6A5A"), 0.72, Color("#6A4A80"), Color("#2C3C78"), Color("#E0607A")],
 	[19.6, Color("#A27AC0"), 0.45, Color("#4E4478"), Color("#1C2552"), Color("#6A4C80")],
 	[21.0, Color("#8FA6D9"), 0.35, Color("#4A4E7A"), Color("#101838"), Color("#30386A")],
@@ -169,11 +174,14 @@ func _apply_now() -> void:
 		flash = maxf(flash - get_process_delta_time() * 4.0, 0.0)
 		ambient = ambient.lerp(Color("#E8F0FF"), flash)
 		energy += flash * 2.0
-	# The sun arcs east to west between 6:00 and 18:00; at night a moon takes over.
+	# The sun arcs over between 6:00 and 18:00, rising and setting near the two
+	# ends of the canyon so the low golden-hour light rakes along it and every
+	# pillar, turret and bug throws a long shadow down the floor. At night a
+	# moon takes over.
 	var day_t := (h - 6.0) / 12.0
 	if day_t >= 0.0 and day_t <= 1.0:
 		var elevation := sin(day_t * PI) * 68.0
-		sun.rotation_degrees = Vector3(-maxf(elevation, 8.0), lerpf(-100.0, 100.0, day_t), 0.0)
+		sun.rotation_degrees = Vector3(-maxf(elevation, SUN_MIN_ELEVATION), lerpf(SUN_YAW.x, SUN_YAW.y, day_t), 0.0)
 	else:
 		var night_t := fposmod(h - 18.0, 24.0) / 12.0
 		var moon_el := sin(night_t * PI) * 50.0
@@ -181,7 +189,9 @@ func _apply_now() -> void:
 	sun.light_color = sun_color
 	sun.light_energy = energy
 	env.ambient_light_color = ambient
-	env.fog_light_color = horizon
+	# Golden hour: the haze stays a soft dusty peach, so the low sun reads as
+	# warm light and long violet shadows rather than flooding everything orange.
+	env.fog_light_color = horizon.lerp(Color("#C89A9A"), golden_amount() * 0.45 * (1.0 - _storm))
 	sky.set_shader_parameter("top_color", top)
 	sky.set_shader_parameter("horizon_color", horizon)
 	# Clouds pick up the light: white by day, warm at dusk, dim blue-grey at night.

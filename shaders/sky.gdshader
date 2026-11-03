@@ -26,23 +26,54 @@ float hash(vec3 p) {
 	return fract((p.x + p.y) * p.z);
 }
 
-// Hard little stars on a cube-ish grid of directions, twinkling.
-float stars(vec3 dir) {
-	float s = 0.0;
-	for (int layer = 0; layer < 2; layer++) {
-		float scale = layer == 0 ? 90.0 : 190.0;
+// Hard little stars on a cube-ish grid of directions, twinkling, in three
+// layers: a dust of faint ones, a scatter of ordinary ones, and a few big
+// bright ones with a four-point toon glint. Slightly warm or cool by star.
+vec3 stars(vec3 dir) {
+	vec3 s = vec3(0.0);
+	vec3 t1 = normalize(cross(dir, vec3(0.0, 1.0, 0.001)));
+	vec3 t2 = cross(dir, t1);
+	for (int layer = 0; layer < 3; layer++) {
+		float scale = layer == 0 ? 90.0 : (layer == 1 ? 190.0 : 38.0);
+		float keep = layer == 0 ? 0.962 : (layer == 1 ? 0.925 : 0.982);
 		vec3 p = dir * scale;
 		vec3 cell = floor(p);
 		float h = hash(cell + float(layer) * 17.0);
-		if (h > (layer == 0 ? 0.965 : 0.93)) {
-			vec3 c = cell + vec3(hash(cell + 1.3), hash(cell + 2.7), hash(cell + 4.1));
-			float d = length(p - c);
-			float size = layer == 0 ? 0.28 : 0.18;
+		if (h > keep) {
+			vec3 c = cell + 0.2 + 0.6 * vec3(hash(cell + 1.3), hash(cell + 2.7), hash(cell + 4.1));
+			vec3 v = p - c;
+			float d = length(v);
 			float tw = 0.65 + 0.35 * sin(TIME * (1.5 + h * 4.0) + h * 40.0);
-			s += smoothstep(size, size * 0.4, d) * tw * (layer == 0 ? 1.0 : 0.6);
+			vec3 tint = mix(vec3(0.8, 0.88, 1.0), vec3(1.0, 0.86, 0.66), hash(cell + 7.7));
+			if (layer == 2) {
+				float core = smoothstep(0.2, 0.1, d);
+				float dx = abs(dot(v, t1));
+				float dy = abs(dot(v, t2));
+				float glint = (smoothstep(0.045, 0.0, dy) * smoothstep(0.75, 0.0, dx) + smoothstep(0.045, 0.0, dx) * smoothstep(0.75, 0.0, dy)) * (0.55 + 0.45 * tw);
+				s += mix(vec3(1.0), tint, 0.5) * (core * 1.6 + glint * 0.9);
+			} else {
+				float size = layer == 0 ? 0.28 : 0.18;
+				s += tint * smoothstep(size, size * 0.4, d) * tw * (layer == 0 ? 1.0 : 0.6);
+			}
 		}
 	}
 	return s;
+}
+
+// The Milky Way: a patchy band of starlight with a dark dust lane down it.
+float milky(vec3 dir, out float lane) {
+	vec3 bn = normalize(vec3(0.62, 0.38, -0.69));
+	float off = dot(dir, bn);
+	vec3 a = normalize(cross(bn, vec3(0.0, 1.0, 0.0)));
+	vec3 b = cross(bn, a);
+	vec2 uv = vec2(dot(dir, a), dot(dir, b));
+	float n1 = texture(cloud_noise, uv * 0.9 + vec2(0.31, 0.17)).r;
+	float n2 = texture(cloud_noise, uv * 2.7 + vec2(0.6, 0.4)).r;
+	float clumps = clamp(n1 * 0.7 + n2 * 0.5 - 0.35, 0.0, 1.0);
+	float width = 0.16 + (n1 - 0.5) * 0.1;
+	float band = 1.0 - smoothstep(0.0, width, abs(off));
+	lane = (1.0 - smoothstep(0.0, 0.035 + n2 * 0.03, abs(off + (n1 - 0.5) * 0.06))) * band;
+	return band * (0.35 + clumps);
 }
 
 void sky() {
@@ -69,14 +100,14 @@ void sky() {
 	if (dir.y < 0.0) {
 		col = mix(horizon_color.rgb, ground_color.rgb, smoothstep(0.0, 0.15, -dir.y));
 	}
-	// Night: stars and a faint band of dust across the sky.
+	// Night: stars and the Milky Way.
 	if (night > 0.0 && dir.y > 0.0) {
 		float fade = night * (1.0 - overcast) * smoothstep(0.0, 0.25, dir.y);
-		vec3 bd = normalize(vec3(0.45, 0.2, 1.0));
-		float band = 1.0 - smoothstep(0.0, 0.32, abs(dot(dir, normalize(cross(bd, vec3(0.0, 1.0, 0.3))))));
-		float dust = texture(cloud_noise, dir.xz * 0.6 + 0.3).r;
-		col += vec3(0.3, 0.32, 0.5) * band * (0.25 + dust * 0.5) * fade * 0.55;
-		col += vec3(1.0, 0.96, 0.88) * stars(dir) * fade * (1.0 + band * 0.6);
+		float lane;
+		float mw = milky(dir, lane);
+		col += vec3(0.32, 0.34, 0.55) * mw * fade * 0.42;
+		col = mix(col, col * 0.7, lane * fade * 0.6);
+		col += stars(dir) * fade * (1.0 + mw * 0.8) * (1.0 - lane * 0.7);
 	}
 	// Flat, hard-edged cartoon clouds.
 	if (dir.y > 0.02) {
@@ -106,8 +137,13 @@ void sky() {
 			vec2 m = vec2(dot(dir, side), dot(dir, upv)) / sqrt(msize * 2.0);
 			float maria = smoothstep(0.32, 0.25, length(m - vec2(0.25, 0.2))) + smoothstep(0.22, 0.15, length(m - vec2(-0.3, -0.1)))
 				+ smoothstep(0.15, 0.1, length(m - vec2(0.1, -0.4)));
-			vec3 moon = mix(vec3(1.0, 0.98, 0.9), vec3(0.72, 0.74, 0.82), clamp(maria, 0.0, 1.0)) * 1.4;
+			vec3 moon = mix(vec3(1.0, 0.97, 0.88), vec3(0.62, 0.64, 0.74), clamp(maria, 0.0, 1.0)) * 1.05;
+			// Toon terminator: a darker crescent band on the side away from the horizon glow.
+			moon *= mix(1.0, 0.82, smoothstep(0.35, 0.5, dot(m, vec2(-0.7, -0.7))));
 			col += vec3(0.4, 0.45, 0.65) * pow(max(to_sun, 0.0), 60.0) * 0.5 * night;
+			// A toon halo ring round the moon.
+			float ring = smoothstep(1.0 - msize * 2.4, 1.0 - msize * 2.15, to_sun) * 0.06 * night * (1.0 - overcast);
+			col += vec3(0.55, 0.6, 0.85) * ring;
 			col = mix(col, moon, disk * (1.0 - overcast * 0.7));
 		}
 	}

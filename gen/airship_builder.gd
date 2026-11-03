@@ -69,6 +69,24 @@ static func bulbs() -> ArrayMesh:
 		for i in 20:
 			MeshKit.add_box(st, Transform3D(Basis(), Vector3(lerpf(-DECK_W * 0.42, DECK_W * 0.42, float(i) / 19.0), -0.9, end * (DECK_L * 0.5 - 0.29))),
 					Vector3(0.18, 0.18, 0.05), Palette.GLOW_YELLOW, 0.0, null, 0.8)
+	# Festoons of casino bulbs: drooping in swags between the canopy posts down
+	# both sides, and strung up the rigging ropes to the envelope.
+	var hues: Array[Color] = [Palette.GLOW_YELLOW, Color("#FF6A3A"), Color("#FFF0C8"), Color("#FF4A6A")]
+	for sx: float in [-1.0, 1.0]:
+		for k in 6:
+			var z0 := lerpf(-1.0, 1.0, float(k) / 6.0) * (DECK_L * 0.5 - 0.2)
+			var z1 := lerpf(-1.0, 1.0, float(k + 1) / 6.0) * (DECK_L * 0.5 - 0.2)
+			for j in 7:
+				var f := (float(j) + 0.5) / 7.0
+				var y := ROOF_Y - 0.35 - sin(f * PI) * 0.75
+				MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(sx * (DECK_W * 0.5 - 0.05), y, lerpf(z0, z1, f))), Vector3.ONE * 0.085, 3, 6,
+						hues[(j + k) % hues.size()], 0.0, null, 0.95)
+		for sz: float in [-1.0, -0.33, 0.33, 1.0]:
+			var a := Vector3(sx * DECK_W * 0.45, ROOF_Y - 0.2, sz * DECK_L * 0.45)
+			var b := Vector3(sx * ENVELOPE.x * 0.6, ENVELOPE_Y - ENVELOPE.y * 0.75, sz * DECK_L * 0.6)
+			for j in 9:
+				var p := a.lerp(b, (float(j) + 1.0) / 10.0)
+				MeshKit.add_ellipsoid(st, Transform3D(Basis(), p), Vector3.ONE * 0.11, 3, 6, hues[j % hues.size()], 0.0, null, 0.95)
 	# Bulb lights along the canopy edge.
 	for i in 30:
 		var z := lerpf(-DECK_L * 0.5, DECK_L * 0.5, float(i) / 29.0)

@@ -52,6 +52,10 @@ var _flag_acc := 1.0
 var _chair: MeshInstance3D
 var _smoke_at := Vector3.ZERO
 var _smoke_t := 0.0
+## Porch lanterns either side of the door: lit warm after dark.
+var _porch_lamps: Array[Node3D] = []
+var _porch_light: OmniLight3D
+var _lamp_t := randf() * 10.0
 
 
 static func of(cid: int) -> Homestead:
@@ -95,6 +99,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_hit_cooldown = maxf(_hit_cooldown - delta, 0.0)
 	_animate_flag(delta)
+	_animate_lamps(delta)
 	if _chair != null:
 		# Rocks gently on its own, harder in the wind.
 		var w := 2.0 if GameState.weather == Weather.Kind.WINDY else 1.0
@@ -187,6 +192,8 @@ func _rebuild() -> void:
 		_chair.rotation.y = 0.5
 		add_child(_chair)
 	_smoke_at = HouseBuilder.chimney_top(floors)
+	if _porch_light == null:
+		_build_porch_lamps()
 	while _lights.size() < floors:
 		var l := OmniLight3D.new()
 		l.light_color = Color("#FFC27A")
@@ -195,6 +202,46 @@ func _rebuild() -> void:
 		l.position = Vector3(0, HouseBuilder.H * _lights.size() + 2.4, 0)
 		add_child(l)
 		_lights.append(l)
+
+
+## Two lanterns hung off the porch posts by the door, and one warm light
+## between them that comes up as the sun goes down.
+func _build_porch_lamps() -> void:
+	var z := -HouseBuilder.D * 0.5 - HouseBuilder.PORCH_DEPTH + 0.1 - 0.16
+	for x: float in [-1.0, 1.0]:
+		var hook := Node3D.new()
+		hook.position = Vector3(x * 1.0 + x * 0.05, 2.32, z)
+		add_child(hook)
+		var lamp := MeshInstance3D.new()
+		lamp.mesh = StructureBuilder.lantern()
+		lamp.material_override = Materials.toon(0.01)
+		lamp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		hook.add_child(lamp)
+		_porch_lamps.append(hook)
+	_porch_light = OmniLight3D.new()
+	_porch_light.light_color = Color("#FFB45A")
+	_porch_light.omni_range = 7.5
+	_porch_light.omni_attenuation = 1.3
+	_porch_light.light_specular = 0.0
+	_porch_light.shadow_enabled = false
+	_porch_light.light_energy = 0.0
+	_porch_light.position = Vector3(0, 2.0, z - 0.4)
+	add_child(_porch_light)
+
+
+func _animate_lamps(delta: float) -> void:
+	if _porch_light == null:
+		return
+	_lamp_t += delta
+	var dark := DayCycle.instance.night_amount() if DayCycle.instance != null else 0.0
+	var dusk := DayCycle.instance.golden_amount() if DayCycle.instance != null else 0.0
+	# Lit from the golden hour on, full and flickering at night.
+	var want := maxf(dark, dusk * 0.5) * (2.6 + sin(_lamp_t * 11.0) * 0.12 + sin(_lamp_t * 17.3) * 0.08)
+	_porch_light.light_energy = move_toward(_porch_light.light_energy, want, delta * 2.0)
+	_porch_light.visible = _porch_light.light_energy > 0.02
+	var wind := 2.5 if GameState.weather == Weather.Kind.WINDY or GameState.weather == Weather.Kind.DUST_STORM else 1.0
+	for i in _porch_lamps.size():
+		_porch_lamps[i].rotation = Vector3(sin(_lamp_t * 1.2 + i) * 0.06 * wind, 0, sin(_lamp_t * 1.6 + i * 2.0) * 0.08 * wind)
 
 
 ## The tower's ladder zone and the zip-line handle (only once the tower is up).
