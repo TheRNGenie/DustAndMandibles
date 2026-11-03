@@ -12,7 +12,7 @@ extends Node3D
 signal died(bug: Bug, source: String, source_cliff: int)
 signal fled(bug: Bug)
 
-enum State { CLIMBING, CRESTING, BREACHING, DEAD, BURROWED, FLYING, CROSSING }
+enum State { CLIMBING, CRESTING, BREACHING, DEAD, BURROWED, FLYING, CROSSING, SLEEPING, HUNTING }
 
 const CREST_TIME := 0.8
 const KillMethod := preload("res://scenes/bugs/kill_method.gd")
@@ -46,6 +46,12 @@ var crowd_r := 0.0
 var crowd_w := 1.0
 ## Network id (BugManager's batched state sync finds bugs by it).
 var net_id := 0
+## Canyon Expeditions: the raid site this bug sleeps at (-1: a wave bug).
+var site := -1
+## Host brain while it sleeps or hunts on the floor (site bugs only).
+var hunter: FloorHunter
+var _zzz: Label3D
+var _sleep_k := 0.0
 var _face: BugFace
 ## Bosses: the mechanic (scenes/bugs/bosses/<id>.gd), on every peer. Null for other bugs.
 var boss: BossBrain
@@ -129,6 +135,9 @@ func setup(d: BugDef, cid: int, lane_index: int, start_z: float, start_y: float,
 	add_to_group("bugs")
 	if d.behavior == BugDef.Behavior.BOSS:
 		boss = BossBrain.make(self)
+	if start_state == State.SLEEPING or start_state == State.HUNTING:
+		hunter = FloorHunter.new(self)
+		_sleep_k = 1.0 if start_state == State.SLEEPING else 0.0
 
 
 func _ready() -> void:
@@ -372,7 +381,7 @@ func _pp(delta: float) -> void:
 	if detail != 2:
 		_legs.set_lite(detail != 0)
 		# Feet only need the ground's shape off the cliff face (else: the plane under the body).
-		var walk := state == State.BREACHING or state == State.CROSSING
+		var walk := state == State.BREACHING or state == State.CROSSING or state == State.SLEEPING or state == State.HUNTING
 		_legs.update(_anim_acc, global_transform, spd, _project if walk else Callable())
 		_animate_body(_anim_acc, spd)
 		_anim_acc = 0.0
@@ -487,16 +496,20 @@ var _anim_t := randf() * 10.0
 func _animate_body(delta: float, spd: float) -> void:
 	_anim_t += delta
 	var s := _scale * grow
-	var breathe := sin(_anim_t * 2.2) * 0.03
+	# Canyon Expeditions: asleep at a site it lies low, breathing slow and deep.
+	_sleep_k = move_toward(_sleep_k, 1.0 if state == State.SLEEPING else 0.0, delta * 2.5)
+	var breathe := sin(_anim_t * lerpf(2.2, 0.9, _sleep_k)) * lerpf(0.03, 0.06, _sleep_k)
 	var stride := clampf(spd * 0.4, 0.0, 1.0)
 	# Ducking: squashed flat and a little wider, legs splayed (the leg rig follows the body).
-	var duck := 1.0 - 0.45 * crouch
+	var duck := 1.0 - 0.45 * maxf(crouch, _sleep_k)
 	var scl := Vector3(s * (1.0 - breathe * 0.5) * (1.0 + 0.12 * crouch), s * (1.0 + breathe) * duck, s * (1.0 - breathe * 0.3) * (1.0 + 0.08 * crouch))
 	var pos := Vector3(0, absf(sin(_anim_t * (6.0 + spd * 2.0))) * 0.05 * s * stride, 0)
 	var rot := Vector3(sin(_anim_t * (3.0 + spd)) * 0.04 * stride, 0, sin(_anim_t * (6.0 + spd * 2.0)) * 0.03 * stride)
+	rot.z += 0.22 * _sleep_k # rolled a little onto its side
 	_body_local = Transform3D(Basis.from_euler(rot).scaled_local(scl), pos)
 	if _face != null:
 		_place_face()
+	_show_zzz()
 
 
 var _was_hidden := -1
@@ -524,6 +537,9 @@ func _think(delta: float) -> void:
 	if boss != null and boss.think(delta):
 		return
 	match state:
+		State.SLEEPING, State.HUNTING:
+			if hunter != null:
+				hunter.update(delta)
 		State.CROSSING:
 			# Out of the tunnel in the far wall and across the canyon floor to the
 			# foot of the cliff it will climb.
@@ -589,7 +605,7 @@ func target_transform() -> Transform3D:
 			var t := crest_t
 			var pos := a.origin.lerp(b.origin, t) + Vector3.UP * sin(t * PI) * 0.8
 			return Transform3D(a.basis.slerp(b.basis, t), pos)
-		State.CROSSING:
+		State.CROSSING, State.SLEEPING, State.HUNTING:
 			_update_heading()
 			var h := _heading if _heading.length() > 0.01 else -_outward()
 			var zc := -Vector3(h.x, 0, h.z).normalized()
@@ -641,7 +657,7 @@ func _outward() -> Vector3:
 func _project(point: Vector3, up: Vector3) -> Vector3:
 	if state == State.BREACHING:
 		return Vector3(point.x, cliffs.ground_height_fast(cliff_id, point), point.z)
-	if state == State.CROSSING:
+	if state == State.CROSSING or state == State.SLEEPING or state == State.HUNTING:
 		return Vector3(point.x, cliffs.floor_height(point.x, point.z), point.z)
 	var base := global_position - up * _clear
 	return point - up * (point - base).dot(up)
@@ -731,6 +747,8 @@ func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, mul
 		if dir.normalized().dot(global_basis.y) < -0.3:
 			dmg *= 1.0 - def.front_armor
 	health.take_damage(dmg, source, source_cliff)
+	if hunter != null:
+		hunter.wake() # Canyon Expeditions: a shot wakes a sleeper
 	_check_brood()
 
 
@@ -763,3 +781,27 @@ func _on_died(source: String, source_cliff: int) -> void:
 	died_in = state
 	state = State.DEAD
 	died.emit(self, source, source_cliff)
+
+
+## Canyon Expeditions: a little drifting "z z" over a sleeping site bug.
+func _show_zzz() -> void:
+	var on := state == State.SLEEPING and _sleep_k > 0.5
+	if not on:
+		if _zzz != null:
+			_zzz.visible = false
+		return
+	if _zzz == null:
+		_zzz = Label3D.new()
+		_zzz.text = "z Z"
+		_zzz.font_size = 72
+		_zzz.pixel_size = 0.006
+		_zzz.outline_size = 14
+		_zzz.modulate = Color("#F2E3C2")
+		_zzz.outline_modulate = Color("#2B1B17")
+		_zzz.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_zzz.no_depth_test = false
+		add_child(_zzz)
+	_zzz.visible = true
+	var lift := float(spec["body_radius"]) * 1.6 + 0.4
+	_zzz.position = Vector3(sin(_anim_t * 0.7) * 0.15, lift + fmod(_anim_t * 0.25, 0.4), 0)
+	_zzz.modulate.a = 0.6 + 0.4 * sin(_anim_t * 1.3)

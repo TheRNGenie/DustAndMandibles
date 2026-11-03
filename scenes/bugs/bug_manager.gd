@@ -52,7 +52,12 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 	_tunnel_spin += 1
 	# Out of a tunnel down the canyon (a group's lane picks which).
 	# Maps: [mouth, way out] from the map's tunnels (the canyon's are in either wall).
-	var tunnel: Array = Bug.cliffs.tunnel((lane * 3 + cliff * 5 + _tunnel_spin) % Bug.cliffs.tunnel_count()) if Bug.cliffs != null else [Vector3.ZERO, Vector3.RIGHT]
+	var ti := (lane * 3 + cliff * 5 + _tunnel_spin) % Bug.cliffs.tunnel_count() if Bug.cliffs != null else 0
+	var tunnel: Array = Bug.cliffs.tunnel(ti) if Bug.cliffs != null else [Vector3.ZERO, Vector3.RIGHT]
+	# Canyon Expeditions: smashed eggs at a nest by this tunnel thin its next wave.
+	count = SitePlan.cut_count(ti, GameState.wave, count)
+	if count <= 0:
+		return
 	var def := Defs.bug(bug_id)
 	if start_y <= 0.0 and is_big(def) and Bug.cliffs != null:
 		# Brutes and the boss are heard before they're seen: dust and a rumble
@@ -142,9 +147,13 @@ func _spawn_bug(data: Variant) -> Node:
 	_by_id[bug.net_id] = bug
 	bug.tree_exited.connect(_forget.bind(bug.net_id, bug))
 	bug.smoker = bool(d.get("smoke", false))
+	bug.site = int(d.get("site", -1))
 	bug.setup(Defs.bug(StringName(d["bug"])), int(d["cliff"]), int(d["lane"]),
 			float(d["z"]), float(d["y"]), float(d["hp"]), int(d.get("state", Bug.State.CLIMBING)),
 			d.get("pos", Vector3.ZERO))
+	if d.has("yaw"):
+		var yaw := float(d["yaw"])
+		bug.set("_heading", Vector3(sin(yaw), 0, cos(yaw)))
 	# Dust rolls out of the tunnel mouth as bugs pour out (every peer; VfxPool throttles it).
 	var st0 := int(d.get("state", Bug.State.CLIMBING))
 	if vfx != null and (st0 == Bug.State.CROSSING or st0 == Bug.State.FLYING):
@@ -173,9 +182,31 @@ func _exit_tree() -> void:
 func alive_count() -> int:
 	var n := 0
 	for c in get_children():
-		if c is Bug and (c as Bug).is_alive():
+		# (Canyon Expeditions: bugs sleeping at floor sites aren't part of the wave.)
+		if c is Bug and (c as Bug).is_alive() and (c as Bug).site < 0:
 			n += 1
 	return n
+
+
+## Host: a bug asleep at a canyon-floor raid site (Canyon Expeditions). It
+## sleeps where it's put, facing `yaw`, until something wakes it (FloorHunter).
+func spawn_site_bug(bug_id: StringName, cliff: int, pos: Vector3, site_index: int, yaw: float) -> void:
+	if not multiplayer.is_server():
+		return
+	_next_id += 1
+	_spawner.spawn({"id": _next_id, "bug": bug_id, "cliff": cliff, "lane": 0, "z": pos.z, "y": 0.0,
+			"hp": Defs.WAVE_CONFIG.hp_scale(GameState.wave), "state": Bug.State.SLEEPING, "pos": pos,
+			"site": site_index, "yaw": yaw, "smoke": false})
+
+
+## Every living site bug (Canyon Expeditions).
+func site_bugs() -> Array[Bug]:
+	var out: Array[Bug] = []
+	for c in get_children():
+		var b := c as Bug
+		if b != null and b.site >= 0 and b.is_alive():
+			out.append(b)
+	return out
 
 
 ## Living bugs climbing a given cliff (for turret targeting). Sorted out once
@@ -243,7 +274,8 @@ func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 	loot[&"scrap"] = _scrap_carry.scale(bug.cliff_id, raw_scrap, Perks.kill_scrap_mult(source)) # Perk: Scrap Scavenger (fractions carried)
 	if GameState.has_flag("--scraplog"):
 		print("[scrap] %s kill by %s: %d x%.2f -> %d" % [bug.def.id, source, raw_scrap, Perks.kill_scrap_mult(source), loot[&"scrap"]])
-	Economy.earn(bug.cliff_id, loot)
+	# Canyon Expeditions: a site bug pays whoever killed it (it climbs nobody's cliff).
+	Economy.earn(source_cliff if bug.site >= 0 and source_cliff >= 0 else bug.cliff_id, loot)
 	_corpse.rpc(get_path_to(bug))
 	# Bugs that made it up off the cliff wall leave something to loot.
 	var was := bug.died_in
@@ -549,6 +581,8 @@ func separate() -> void:
 			key = b.cliff_id
 		elif st == Bug.State.CROSSING:
 			key = 20
+		elif st == Bug.State.SLEEPING or st == Bug.State.HUNTING:
+			key = 21
 		elif st == Bug.State.BREACHING or st == Bug.State.FLYING:
 			key = 10 + b.cliff_id
 		else:
