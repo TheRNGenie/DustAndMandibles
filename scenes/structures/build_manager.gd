@@ -3,8 +3,10 @@ extends Node3D
 ## Host-authoritative building: clients ask with request RPCs, the host checks
 ## cliff ownership, the grid and cost, then spawns the turret, trap, plot or rain
 ## catcher (MultiplayerSpawner replicates it). Turret-line cells can also hold a
-## scaffold of up to 3 levels: a turret can sit on the ground and on each level,
-## and every level up gives that turret 5 more degrees of look-down.
+## scaffold of up to 3 levels. A turret sits IN its scaffold: level 1 is the
+## ground inside the first storey of the frame, levels 2 and 3 stand on the
+## floors above (ScaffoldNode.turret_height), and every level gives that turret
+## 5 more degrees of look-down. Level 0 is a bare-ground turret with no frame.
 ## Demolish / repair / upgrade name the exact node you aimed at.
 
 signal structure_event(text: String)
@@ -47,12 +49,22 @@ func scaffold_levels(cid: int, cell: Vector2i) -> int:
 	return s.levels if s != null and is_instance_valid(s) else 0
 
 
-## Lowest free turret slot on a cell (0 = ground), or -1 if every slot is taken.
+## Is this turret slot taken? Level 1 stands on the ground inside the frame,
+## the same spot as a bare-ground (level 0) turret a scaffold went up around.
+func _slot_taken(cid: int, cell: Vector2i, level: int) -> bool:
+	if level <= 1:
+		return _occupied.has(_key(cid, cell, 0)) or _occupied.has(_key(cid, cell, 1))
+	return _occupied.has(_key(cid, cell, level))
+
+
+## Lowest free turret slot on a cell (0 = bare ground, no scaffold), or -1 if
+## every slot is taken.
 func free_turret_level(cid: int, cell: Vector2i) -> int:
-	# Under a scaffold, the ground spot is the scaffold's own legs: start a level up.
-	var first := 1 if scaffold_levels(cid, cell) > 0 else 0
-	for level in range(first, scaffold_levels(cid, cell) + 1):
-		if not _occupied.has(_key(cid, cell, level)):
+	var levels := scaffold_levels(cid, cell)
+	if levels == 0:
+		return -1 if _occupied.has(_key(cid, cell, 0)) else 0
+	for level in range(1, levels + 1):
+		if not _slot_taken(cid, cell, level):
 			return level
 	return -1
 
@@ -68,6 +80,16 @@ func stack_level(cid: int, cell: Vector2i) -> int:
 	if levels > 0 and levels < MAX_SCAFFOLD:
 		return levels + 1
 	return -1
+
+
+## The level a turret of this kind would actually be built at here (what the
+## build ghost and coverage preview show): normal turrets on a bare cell get a
+## free scaffold put up around them, so they go in at level 1. -1 = no room.
+func placement_level(id: StringName, cid: int, cell: Vector2i) -> int:
+	var level := stack_level(cid, cell)
+	if level == 0 and Defs.gets_scaffold(id):
+		return 1
+	return level
 
 
 func is_free_for(id: StringName, cid: int, cell: Vector2i) -> bool:
@@ -220,15 +242,14 @@ func _do_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> void:
 		_built_fx.rpc(Buildable.cell_center(cliffs, cid, cell))
 		return
 	var level := 0
-	# Turrets come up on a free scaffold (one level, so they see further down).
+	# Turrets go up inside a free scaffold: a timber frame round the gun at
+	# ground level, which later turrets on the cell stack up through.
 	if Defs.gets_scaffold(id) and scaffold_levels(cid, cell) == 0 and not _occupied.has(_key(cid, cell, 0)):
 		_next_id += 1
 		_spawner.spawn({"id": _next_id, "type": &"scaffold", "cliff": cid, "row": cell.x, "col": cell.y,
 				"level": 0, "owner": _name_of(peer_id)})
 	if Defs.is_turret(id) and Buildable.is_turret_cell(cell):
-		level = stack_level(cid, cell)
-		if Defs.gets_scaffold(id) and level == 0 and scaffold_levels(cid, cell) > 0:
-			level = 1
+		level = placement_level(id, cid, cell)
 		# Placing on top of a full stack: the next scaffold level goes up free.
 		if level > scaffold_levels(cid, cell) and scaffold_levels(cid, cell) > 0:
 			(_scaffolds[_cell_key(cid, cell)] as ScaffoldNode).set_levels(level)
@@ -247,7 +268,7 @@ func _spawn_built(data: Variant) -> Node:
 	var node: Node3D
 	if Defs.is_turret(id):
 		var t: Turret = CrewedTurret.new() if Defs.is_crewed(id) else Turret.new() # Crewed
-		t.setup(Defs.turret(id), cid, cell, pos + Vector3.UP * ScaffoldNode.LEVEL_HEIGHT * level, str(d["owner"]), level)
+		t.setup(Defs.turret(id), cid, cell, pos + Vector3.UP * ScaffoldNode.turret_height(level), str(d["owner"]), level)
 		Perks.apply_turret(t, int(d.get("peer", 0))) # Perk: Long Sights / Well Oiled / Reinforced Frames
 		node = t
 	elif id == &"scaffold":
@@ -335,7 +356,7 @@ func _do_demolish(peer_id: int, n: Node3D) -> void:
 		# Take down the top level, but only if no turret is standing on it.
 		var sc := n as ScaffoldNode
 		if turret_at(cid, sc.cell, sc.levels) != null:
-			Economy.notify(peer_id, "Remove the turret on the top level first.")
+			Economy.notify(peer_id, "Sell the turret in the top storey first.")
 			return
 		if sc.paid_levels > 0: # scaffolds are free now; old saves' paid levels still pay back
 			sc.paid_levels -= 1
@@ -419,6 +440,16 @@ func _wreck(pos: Vector3, text: String) -> void:
 func restore_built(id: StringName, cid: int, cell: Vector2i, level: int, owner_label: String) -> Node3D:
 	if not multiplayer.is_server() or not (Defs.is_turret(id) or Defs.STRUCTURES.has(id)):
 		return null
+	# Older saves could hold a bare-ground turret with a scaffold over it AND a
+	# turret on the first platform; level 1 is the ground inside the frame now,
+	# so a turret landing on a taken slot moves up to the next free one.
+	if Defs.is_turret(id) and cell.x >= 0 and scaffold_levels(cid, cell) > 0 and _slot_taken(cid, cell, level):
+		var up := stack_level(cid, cell)
+		if up < 0:
+			return null
+		if up > scaffold_levels(cid, cell):
+			(_scaffolds[_cell_key(cid, cell)] as ScaffoldNode).set_levels(up)
+		level = up
 	_next_id += 1
 	return _spawner.spawn({"id": _next_id, "type": id, "cliff": cid, "row": cell.x, "col": cell.y,
 			"level": level, "owner": owner_label}) as Node3D

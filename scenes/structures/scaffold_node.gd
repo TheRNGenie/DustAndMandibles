@@ -1,13 +1,32 @@
 class_name ScaffoldNode
 extends StaticBody3D
-## A wooden scaffold tower on a turret-line cell, 1-3 levels tall. Build another
-## scaffold on the same spot to add a level. Each level's platform holds a turret
-## (plus one on the ground inside the frame), and turrets higher up get 5 more
-## degrees of look-down per level. Hold E on the scaffold to repair its most
-## damaged turret from the ground; X takes down the top level.
+## A timber scaffold frame on a turret-line cell, 1-3 storeys tall. It goes up
+## round a turret, not under it: the first turret stands on the ground inside
+## the bottom storey; each storey above has a plank floor for one more turret
+## (turret_height). Build another scaffold on the same spot to add a storey.
+## Turrets higher up get 5 more degrees of look-down per level. Hold E on the
+## scaffold to repair its most damaged turret from the ground; X takes down the top storey.
 
 const LEVEL_HEIGHT := 3.0
-const SIZE := 1.9
+const SIZE := 2.0
+
+
+## The bottom storey's plank deck: the first turret stands on it, a step off the
+## ground inside the frame. Just high enough to see over the lip down the far
+## wall (from the ground, the lip hides a third of the climbers).
+const DECK := 1.0
+
+
+## How high above the cell a turret at this stack level stands: level 1 is the
+## deck inside the bottom storey, level 2 the floor one storey up, and so on
+## (level 0 is a bare-ground turret with no scaffold).
+static func turret_height(level: int) -> float:
+	return 0.0 if level <= 0 else DECK + LEVEL_HEIGHT * (level - 1)
+
+
+## Height of the whole frame with n storeys.
+static func frame_height(n: int) -> float:
+	return DECK + LEVEL_HEIGHT * n
 
 var cliff_id: int = 0
 var cell: Vector2i = Vector2i(-1, -1)
@@ -70,16 +89,15 @@ func _rebuild() -> void:
 	for c in get_children():
 		if c is CollisionShape3D:
 			c.queue_free()
-	# Four corner posts plus a thin platform per level (turrets stand on these;
-	# the ground slot stays open inside the frame).
-	var h := 0.5 * SIZE - 0.08
+	# Just the four corner posts: the turrets inside the frame have their own.
+	var h := POST_INSET
 	for x: float in [-h, h]:
 		for z: float in [-h, h]:
 			var col := CollisionShape3D.new()
 			var post := BoxShape3D.new()
-			post.size = Vector3(0.16, LEVEL_HEIGHT * levels, 0.16)
+			post.size = Vector3(0.17, frame_height(levels), 0.17)
 			col.shape = post
-			col.position = Vector3(x, LEVEL_HEIGHT * levels * 0.5, z)
+			col.position = Vector3(x, frame_height(levels) * 0.5, z)
 			add_child(col)
 
 
@@ -87,25 +105,78 @@ static func mesh_for(n: int) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 333
 	var st := MeshKit.begin()
-	var h := 0.5 * SIZE - 0.08
-	var top := LEVEL_HEIGHT * n
-	for x: float in [-h, h]:
-		for z: float in [-h, h]:
-			MeshKit.add_box(st, Transform3D(Basis(), Vector3(x, top * 0.5, z)), Vector3(0.14, top, 0.14), Palette.WOOD, 0.02, rng)
-	for level in n:
-		var y := LEVEL_HEIGHT * (level + 1)
-		# Platform planks.
-		for i in 5:
-			MeshKit.add_box(st, Transform3D(Basis(), Vector3(-0.72 + i * 0.36, y - 0.06, 0)), Vector3(0.32, 0.08, SIZE), Palette.WOOD_DARK, 0.015, rng)
-		# Cross braces on two sides.
-		for side: float in [-h, h]:
-			var a := Vector3(-h, y - LEVEL_HEIGHT + 0.2, side)
-			var b := Vector3(h, y - 0.2, side)
-			MeshKit.add_limb(st, a, b, 0.04, Palette.WOOD_DARK, 5)
-		# Ladder rungs on the back.
-		for r in 6:
-			MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, y - LEVEL_HEIGHT + 0.4 + r * 0.45, h + 0.1)), Vector3(0.5, 0.05, 0.05), Palette.WOOD)
+	var h := POST_INSET
+	var top := frame_height(n)
+	var wood := Palette.WOOD
+	var dark := Palette.WOOD_DARK
+	var lash := Color("#C9A66B")
+	var corners: Array[Vector2] = [Vector2(-h, -h), Vector2(h, -h), Vector2(h, h), Vector2(-h, h)]
+	# Corner posts (squared timbers, the full height), each on a flat footing stone.
+	for c in corners:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(c.x, top * 0.5, c.y)), Vector3(0.17, top + 0.1, 0.17), wood, 0.015, rng)
+		MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, rng.randf() * 0.6), Vector3(c.x, 0.04, c.y)), Vector3(0.36, 0.1, 0.36), Palette.ROCK_C.darkened(0.15), 0.02, rng)
+	# Mudsills round the foot, and short braces under the bottom deck (the crib).
+	_side_beams(st, rng, 0.14, 0.12, dark, true)
+	for sx: float in [-h, h]:
+		_beam(st, Vector3(sx, 0.2, -h), Vector3(sx, DECK - 0.2, -h * 0.2), 0.09, wood)
+		_beam(st, Vector3(sx, 0.2, h), Vector3(sx, DECK - 0.2, h * 0.2), 0.09, wood)
+	for k in n:
+		var y0 := DECK + LEVEL_HEIGHT * k
+		var y1 := y0 + LEVEL_HEIGHT
+		# Girts: a ring of beams at the head of every storey.
+		_side_beams(st, rng, y1 - 0.08, 0.15, dark, true)
+		# Bracing: one diagonal per storey on each side and the back, zig-zagging
+		# up the frame; short knee braces in the open front's top corners.
+		var flip := 1.0 if k % 2 == 0 else -1.0
+		for sx: float in [-h, h]:
+			_beam(st, Vector3(sx, y0 + 0.2, -h * flip), Vector3(sx, y1 - 0.2, h * flip), 0.1, wood)
+		_beam(st, Vector3(-h * flip, y0 + 0.2, h), Vector3(h * flip, y1 - 0.2, h), 0.1, wood)
+		for sx: float in [-h, h]:
+			_beam(st, Vector3(sx, y1 - 0.75, -h), Vector3(sx * 0.45, y1 - 0.12, -h), 0.09, wood)
+		# Rope lashings where the girts meet the posts.
+		for c in corners:
+			MeshKit.add_box(st, Transform3D(Basis(), Vector3(c.x, y1 - 0.08, c.y)), Vector3(0.21, 0.07, 0.21), lash, 0.01, rng)
+		# A plank floor for the turret on this storey, on two joists (upper
+		# storeys also get a hand rail round the sides and back).
+		for sz: float in [-0.55, 0.55]:
+			_beam(st, Vector3(-h, y0 - 0.16, sz), Vector3(h, y0 - 0.16, sz), 0.12, dark)
+		for i in 6:
+			var x := -h + 0.12 + i * (2.0 * h - 0.24) / 5.0
+			MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, rng.randf_range(-0.02, 0.02)), Vector3(x, y0 - 0.05, 0)),
+					Vector3(0.29, 0.06, 2.0 * h + 0.12), dark.lightened(rng.randf_range(0.0, 0.08)), 0.01, rng)
+		if k >= 1:
+			_side_beams(st, rng, y0 + 1.0, 0.08, wood, false)
+	# Ladder up the back: to the deck, or on up to the upper floors.
+	var z := h + 0.14
+	top = frame_height(n) if n >= 2 else DECK + 0.4
+	for sx: float in [-0.24, 0.24]:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(sx, top * 0.5, z)), Vector3(0.07, top, 0.07), wood, 0.01, rng)
+	var r := 0.35
+	while r < top - 0.2:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, r, z)), Vector3(0.5, 0.05, 0.05), wood)
+		r += 0.42
 	return MeshKit.finish(st)
+
+
+## Distance from the middle of the cell to the middle of each corner post.
+const POST_INSET := 0.5 * SIZE - 0.09
+
+
+## Horizontal beams between the corner posts at height y: sides and back, and
+## the front too when `front` is set.
+static func _side_beams(st: SurfaceTool, _rng: RandomNumberGenerator, y: float, w: float, color: Color, front: bool) -> void:
+	var h := POST_INSET
+	_beam(st, Vector3(-h, y, -h), Vector3(-h, y, h), w, color)
+	_beam(st, Vector3(h, y, -h), Vector3(h, y, h), w, color)
+	_beam(st, Vector3(-h, y, h), Vector3(h, y, h), w, color)
+	if front:
+		_beam(st, Vector3(-h, y, -h), Vector3(h, y, -h), w, color)
+
+
+## A squared timber from a to b, w thick.
+static func _beam(st: SurfaceTool, a: Vector3, b: Vector3, w: float, color: Color) -> void:
+	var d := b - a
+	MeshKit.add_box(st, Transform3D(MeshKit.basis_from_y(d.normalized()), (a + b) * 0.5), Vector3(w, d.length() + w * 0.5, w), color)
 
 
 func interact_prompt() -> String:
@@ -114,12 +185,12 @@ func interact_prompt() -> String:
 	for t in bm.turrets_on(cliff_id, cell):
 		if t.needs_repair():
 			damaged += 1
-	var text := "Scaffold: %d level%s, %d turret%s on it" % [levels, "" if levels == 1 else "s",
+	var text := "Scaffold: %d storey%s, %d turret%s in it" % [levels, "" if levels == 1 else "s",
 			bm.turrets_on(cliff_id, cell).size(), "" if bm.turrets_on(cliff_id, cell).size() == 1 else "s"]
 	if damaged > 0:
 		text += "\nHold E: repair its turrets (%d damaged)" % damaged
 	if levels < BuildManager.MAX_SCAFFOLD:
-		text += "\nBuild another scaffold here to add a level"
+		text += "\nBuild another scaffold here to add a storey"
 	return text
 
 

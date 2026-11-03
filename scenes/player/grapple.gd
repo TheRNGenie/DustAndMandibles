@@ -7,9 +7,14 @@ extends Node3D
 ##                let go of the button to drop off with your momentum. Hold
 ##                left as well to reel in: the rope shortens and pulls you up it.
 ## Jump also lets go. Runs on the owning peer; other peers see the rope through
-## a small RPC. Doesn't work while you're already plummeting into the canyon.
+## a small RPC. Catches on anything solid in the world: the canyon walls and
+## cliff faces, plateaus, arches, buildings and structures; never bugs or players.
+## Works mid-fall too: hook a wall on the way down and the fall's called off.
+## Only once you've hit the canyon floor is it out of reach.
 
-const RANGE := 60.0
+## Long enough to reach the opposite canyon wall from your own lip on every map
+## (the Mesa and Buttes gaps put it 60-80 m away).
+const RANGE := 90.0
 const PULL_SPEED := 26.0
 const PULL_ACCEL := 90.0
 const PULL_MAX_TIME := 2.5
@@ -91,14 +96,24 @@ func aim_in_range() -> bool:
 		_aim_frame = f
 		var cam := player.camera
 		var from := cam.global_position
-		var q := PhysicsRayQueryParameters3D.create(from, from - cam.global_transform.basis.z * RANGE, MASK, [player.get_rid()])
-		var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
+		var hit := cast(from, from - cam.global_transform.basis.z * RANGE)
 		_aim_ok = not hit.is_empty() and not (Airship.ring_up and _on_airship(hit["collider"] as Node))
 	return _aim_ok
 
 
 var _aim_frame := -1
 var _aim_ok := false
+
+
+## The hook's flight: the first solid thing on the line. Players stand on the
+## world layer too, so every player is left out (no hooking your partner).
+func cast(from: Vector3, to: Vector3) -> Dictionary:
+	var skip: Array[RID] = []
+	for p: Node in player.get_tree().get_nodes_in_group("players"):
+		if p is CollisionObject3D:
+			skip.append((p as CollisionObject3D).get_rid())
+	var q := PhysicsRayQueryParameters3D.create(from, to, MASK, skip)
+	return player.get_world_3d().direct_space_state.intersect_ray(q)
 
 
 func _holding() -> bool:
@@ -110,7 +125,7 @@ func _holding() -> bool:
 func physics(delta: float) -> bool:
 	_cd = maxf(_cd - delta, 0.0)
 	var can_use := _holding() and not GameState.menu_open and not player.is_downed() \
-			and not player.is_plummeting() and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or test_mode)
+			and not player.is_down_in_canyon() and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or test_mode)
 	if not can_use:
 		_release()
 		return false
@@ -134,15 +149,14 @@ func attach(new_mode: Mode, point: Vector3) -> void:
 	_pull_t = 0.0
 	_rope_len = maxf((player.global_position + Vector3.UP * 0.9).distance_to(anchor), MIN_ROPE)
 	_pull_limit = maxf(PULL_MAX_TIME, _rope_len / PULL_SPEED * 1.5 + 0.6)
+	player.cancel_fall()
 	_show_rope.rpc(anchor)
 
 
 func _launch(new_mode: Mode) -> void:
 	var cam := player.camera
 	var from := cam.global_position
-	var to := from - cam.global_transform.basis.z * RANGE
-	var q := PhysicsRayQueryParameters3D.create(from, to, MASK, [player.get_rid()])
-	var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
+	var hit := cast(from, from - cam.global_transform.basis.z * RANGE)
 	Audio.play_at(&"harpoon", from, -6.0)
 	_cd = COOLDOWN
 	if hit.is_empty():
@@ -159,6 +173,8 @@ func _launch(new_mode: Mode) -> void:
 	_rope_len = maxf((player.global_position + Vector3.UP * 0.9).distance_to(anchor), MIN_ROPE)
 	_pull_limit = maxf(PULL_MAX_TIME, _rope_len / PULL_SPEED * 1.5 + 0.6)
 	Audio.play_at(&"hook_bite", anchor, -2.0)
+	# Hooked on the way down into the canyon: the rope's got you, no more fall.
+	player.cancel_fall()
 	_show_rope.rpc(anchor)
 
 

@@ -651,6 +651,23 @@ func is_plummeting() -> bool:
 	return _falling or _fall_left >= 0.0
 
 
+## Hit the canyon floor and waiting to be hauled home (no grapple then).
+func is_down_in_canyon() -> bool:
+	return _fall_left >= 0.0
+
+
+## The grapple caught mid-fall: the plummet's off (it starts again if you let
+## go still below the lip).
+func cancel_fall() -> void:
+	if not _falling:
+		return
+	_falling = false
+	_fall_t = 0.0
+	fall_intensity = 0.0
+	# A late catch at full plummet speed would fling you round the rope.
+	velocity = velocity.limit_length(24.0)
+
+
 func respawn() -> void:
 	_falling = false
 	fall_intensity = 0.0
