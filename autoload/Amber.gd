@@ -9,6 +9,7 @@ extends Node
 ##
 ## API for story code (host):
 ##   Amber.grant(peer_id, units, why="")   amber into that rider's own pile
+##                                         (they're told "+N hive amber (why).")
 ##   Amber.grant_cliff(cliff_id, units)    amber into a cliff's pile
 ##   Amber.grant_all(units, why="")        every held cliff gets `units`
 ##   Story.unlock_amber_blueprint(id)      (-> Amber.unlock_blueprint) a turret
@@ -136,13 +137,13 @@ func _save_blueprint(id: String) -> void:
 # ------------------------------------------------------------------ granting amber
 
 ## Host: `units` of amber into `peer_id`'s own pile (your cliff's, solo: the
-## cliff you play). `why` is shown to them ("" = a plain line).
+## cliff you play). `why` says where it came from: "+N hive amber (why)."
 func grant(peer_id: int, units: int, why: String = "") -> void:
 	if not multiplayer.is_server() or units <= 0:
 		return
 	var cid := Economy.payer_cliff(peer_id, NetworkManager.cliff_of(peer_id) if NetworkManager.players.has(peer_id) else 0)
 	Economy.earn(cid, {AmberRules.ITEM: units})
-	Economy.notify(peer_id, why if why != "" else "+%d hive amber." % units)
+	Economy.notify(peer_id, _grant_line(units, why))
 
 
 ## Host: `units` of amber into a cliff's pile.
@@ -161,7 +162,12 @@ func grant_all(units: int, why: String = "") -> void:
 		if not done.has(cid):
 			done.append(cid)
 			Economy.earn(cid, {AmberRules.ITEM: units})
-		Economy.notify(pid, why if why != "" else "+%d hive amber." % units)
+		Economy.notify(pid, _grant_line(units, why))
+
+
+## "+6 hive amber (the Board's strongroom)." (it used to show only the bare `why`).
+static func _grant_line(units: int, why: String) -> String:
+	return "+%d hive amber%s." % [units, " (%s)" % why if why != "" else ""]
 
 
 # ------------------------------------------------------------------ one of each

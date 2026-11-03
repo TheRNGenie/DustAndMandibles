@@ -99,6 +99,8 @@ func _ready() -> void:
 		_act_shot(GameState.flag_value("--act"))
 	if GameState.flag_value("--amberview") != "": # Hive amber: the amber turrets, Lucky's stall (scenes/debug/amber_views.gd)
 		add_child(load("res://scenes/debug/amber_views.gd").new())
+	if GameState.flag_value("--ambermp") != "": # Hive amber: the two-window network test (scenes/debug/amber_mp.gd)
+		add_child(load("res://scenes/debug/amber_mp.gd").new())
 	if GameState.has_flag("--tiertest"): # Tiers: unlocks and the new turrets' specials, live (scenes/debug/tier_views.gd)
 		add_child(load("res://scenes/debug/tier_views.gd").new())
 	var shot := GameState.flag_value("--shot")
