@@ -34,8 +34,63 @@ func _ready() -> void:
 				var p := n as Player
 				if p == null or not p.is_node_ready() or p.vitals == null or p.net == null:
 					continue
-				parts.append("%s%s downed %s over %.2f at %s floor %s" % [p.name, "(me)" if p.is_multiplayer_authority() else "", p.is_downed(), float(p.get("_down_k")), str(p.global_position.snapped(Vector3.ONE * 0.1)), p.is_on_floor()])
+				parts.append("%s%s downed %s over %.2f at %s sync %s floor %s" % [p.name, "(me)" if p.is_multiplayer_authority() else "", p.is_downed(), float(p.get("_down_k")), str(p.global_position.snapped(Vector3.ONE * 0.1)), str(p.net.sync_pos.snapped(Vector3.ONE * 0.1)), p.is_on_floor()])
+				# --peershot=<png>: photograph a remote player once lying down ("_down") and once back up ("_up").
+				var ps := GameState.flag_value("--peershot")
+				if ps != "" and not p.is_multiplayer_authority():
+					var k := float(p.get("_down_k"))
+					if k >= 0.99 and not has_meta(&"peershot_down"):
+						set_meta(&"peershot_down", true)
+						_peer_shot(p, ps.replace(".png", "_down.png"))
+					elif k <= 0.01 and has_meta(&"peershot_down") and not has_meta(&"peershot_up"):
+						set_meta(&"peershot_up", true)
+						_peer_shot(p, ps.replace(".png", "_up.png"))
 			print("[down] t=%d %s" % [Time.get_ticks_msec() / 1000, "  ".join(parts)]))
+	if GameState.flag_value("--cpudryat") != "":
+		# --cpudryat=S: S seconds in (host), pour out the CPU cliff's water so its crops
+		# need a trip to the well; then log the pool and the well every 2 s.
+		var dt2 := Timer.new()
+		dt2.wait_time = 2.0
+		dt2.autostart = true
+		add_child(dt2)
+		dt2.timeout.connect(func() -> void:
+			if not multiplayer.is_server() or not NetworkManager.has_cpu():
+				return
+			var cid: int = NetworkManager.cpu_cliffs()[0]
+			if not has_meta(&"cpudry") and Time.get_ticks_msec() / 1000.0 >= GameState.flag_value("--cpudryat").to_float():
+				set_meta(&"cpudry", true)
+				# ...and sow a corn plot there, so a crop is waiting on water.
+				for n: Node in get_tree().get_nodes_in_group("crops"):
+					var plot := n as CropPlot
+					if plot != null and plot.cliff_id == cid and plot.growth.stage == CropGrowth.Stage.EMPTY:
+						Economy.earn(cid, {CropPlot.seed_res(&"corn"): 1})
+						plot.call("_use", -1, &"corn")
+						break
+				Economy.spend(cid, {&"water": Economy.amount(cid, &"water")})
+				print("[cpuwater] drained cliff %d's water" % cid)
+			var crops := 0
+			for n: Node in get_tree().get_nodes_in_group("crops"):
+				var plot := n as CropPlot
+				if plot != null and plot.cliff_id == cid and plot.growth.stage == CropGrowth.Stage.PLANTED:
+					crops += 1
+			var well_left := -1
+			for n: Node in get_tree().get_nodes_in_group("water_sources"):
+				if n is MechWell and (n as MechWell).cliff_id == cid:
+					well_left = (n as MechWell).stored
+			print("[cpuwater] t=%d water %d planted crops %d well %d" % [Time.get_ticks_msec() / 1000, Economy.amount(cid, &"water"), crops, well_left]))
+	if GameState.flag_value("--leverat") != "":
+		# --leverat=S: S seconds in, throw this peer's own generator lever; log the levers every second.
+		var lt := Timer.new()
+		lt.wait_time = 1.0
+		lt.autostart = true
+		add_child(lt)
+		lt.timeout.connect(func() -> void:
+			var me := world.call("local_player") as Player if world != null else null
+			if me != null and not has_meta(&"lever_once") and Time.get_ticks_msec() / 1000.0 >= GameState.flag_value("--leverat").to_float():
+				set_meta(&"lever_once", true)
+				GameState.toggle_ready()
+				print("[lever] t=%d threw my lever (cliff %d)" % [Time.get_ticks_msec() / 1000, me.cliff_id])
+			print("[lever] t=%d phase %d countdown %.1f levers %s cpu %s" % [Time.get_ticks_msec() / 1000, GameState.phase, GameState.ready_countdown, str(GameState.levers), str(GameState.cpu_levers)]))
 	if GameState.flag_value("--act") != "":
 		_act_shot(GameState.flag_value("--act"))
 	var shot := GameState.flag_value("--shot")
@@ -852,6 +907,23 @@ func _toggle_lanes() -> void:
 	_lanes = MeshInstance3D.new()
 	_lanes.mesh = im
 	world.add_child(_lanes)
+
+
+## --peershot: a camera 3.5 m off a remote player's side, looking at them, for one frame.
+func _peer_shot(p: Player, path: String) -> void:
+	var prev := get_viewport().get_camera_3d()
+	var cam := Camera3D.new()
+	get_tree().root.add_child(cam)
+	var side := p.global_basis.x.normalized()
+	cam.look_at_from_position(p.global_position + side * 3.5 + Vector3.UP * 1.4, p.global_position + Vector3.UP * 0.4)
+	cam.make_current()
+	for i in 3:
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(path)
+	print("[down] peershot saved %s" % path)
+	cam.queue_free()
+	if prev != null:
+		prev.make_current()
 
 
 func _take_screenshot(path: String) -> void:

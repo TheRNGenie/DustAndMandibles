@@ -13,8 +13,6 @@ var _scope: ScopeOverlay
 var _phase_label: Label
 var _hint_label: Label
 ## "[G] not yet" under the plaque while the ready countdown runs.
-var _cancel_row: HBoxContainer
-var _cancel_key := ""
 var status: HudStatus
 var feed: HudFeed
 var hotbar: HudHotbar
@@ -144,11 +142,6 @@ func _ready() -> void:
 	_hint_label.add_theme_font_size_override("font_size", 14)
 	_hint_label.add_theme_color_override("font_color", UiStyle.c("hud").darkened(0.2))
 	plaque.add_child(_hint_label)
-	_cancel_row = HBoxContainer.new()
-	_cancel_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_cancel_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_cancel_row.visible = false
-	plaque.add_child(_cancel_row)
 	GameState.ready_countdown_changed.connect(func(_s: float) -> void: _update_hint())
 	GameState.levers_changed.connect(_update_hint) # Waterworks
 	GameState.phase_changed.connect(func(_p: GameState.Phase) -> void: _flash_phase())
@@ -249,13 +242,6 @@ func _update_hint() -> void:
 		_:
 			_hint_label.text = ""
 	_hint_label.visible = _hint_label.text != ""
-	var counting := GameState.phase == GameState.Phase.BUILD and GameState.ready_countdown >= 0.0
-	if counting and _cancel_key != KeyHints.key_for("ready_up"):
-		_cancel_key = KeyHints.key_for("ready_up")
-		for c: Node in _cancel_row.get_children():
-			c.queue_free()
-		_cancel_row.add_child(KeyHints.hint(_cancel_key, "pull your lever back"))
-	_cancel_row.visible = counting
 
 
 func _on_ammo_changed(current: int, max_ammo: int) -> void:
