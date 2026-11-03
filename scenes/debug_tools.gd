@@ -34,7 +34,17 @@ func _ready() -> void:
 				var p := n as Player
 				if p == null or not p.is_node_ready() or p.vitals == null or p.net == null:
 					continue
-				parts.append("%s%s downed %s over %.2f at %s floor %s" % [p.name, "(me)" if p.is_multiplayer_authority() else "", p.is_downed(), float(p.get("_down_k")), str(p.global_position.snapped(Vector3.ONE * 0.1)), p.is_on_floor()])
+				parts.append("%s%s downed %s over %.2f at %s sync %s floor %s" % [p.name, "(me)" if p.is_multiplayer_authority() else "", p.is_downed(), float(p.get("_down_k")), str(p.global_position.snapped(Vector3.ONE * 0.1)), str(p.net.sync_pos.snapped(Vector3.ONE * 0.1)), p.is_on_floor()])
+				# --peershot=<png>: photograph a remote player once lying down ("_down") and once back up ("_up").
+				var ps := GameState.flag_value("--peershot")
+				if ps != "" and not p.is_multiplayer_authority():
+					var k := float(p.get("_down_k"))
+					if k >= 0.99 and not has_meta(&"peershot_down"):
+						set_meta(&"peershot_down", true)
+						_peer_shot(p, ps.replace(".png", "_down.png"))
+					elif k <= 0.01 and has_meta(&"peershot_down") and not has_meta(&"peershot_up"):
+						set_meta(&"peershot_up", true)
+						_peer_shot(p, ps.replace(".png", "_up.png"))
 			print("[down] t=%d %s" % [Time.get_ticks_msec() / 1000, "  ".join(parts)]))
 	if GameState.flag_value("--act") != "":
 		_act_shot(GameState.flag_value("--act"))
@@ -849,6 +859,23 @@ func _toggle_lanes() -> void:
 	_lanes = MeshInstance3D.new()
 	_lanes.mesh = im
 	world.add_child(_lanes)
+
+
+## --peershot: a camera 3.5 m off a remote player's side, looking at them, for one frame.
+func _peer_shot(p: Player, path: String) -> void:
+	var prev := get_viewport().get_camera_3d()
+	var cam := Camera3D.new()
+	get_tree().root.add_child(cam)
+	var side := p.global_basis.x.normalized()
+	cam.look_at_from_position(p.global_position + side * 3.5 + Vector3.UP * 1.4, p.global_position + Vector3.UP * 0.4)
+	cam.make_current()
+	for i in 3:
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(path)
+	print("[down] peershot saved %s" % path)
+	cam.queue_free()
+	if prev != null:
+		prev.make_current()
 
 
 func _take_screenshot(path: String) -> void:

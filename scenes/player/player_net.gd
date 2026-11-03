@@ -39,6 +39,8 @@ func _physics_process(delta: float) -> void:
 		player.rig.apply_look(DummyLook.clean(JSON.parse_string(sync_look)))
 		if player.is_multiplayer_authority():
 			player.gun.refresh_arms(Settings.look)
+	if not player.is_multiplayer_authority():
+		# Remote players follow their owner's replicated position every tick.
 		var k := 1.0 - exp(-SMOOTHING * delta)
 		if player.global_position.distance_to(sync_pos) > 6.0:
 			player.global_position = sync_pos # teleport (respawn, mantle)
