@@ -112,6 +112,16 @@ func draw(peer_id: int) -> int:
 	return n
 
 
+## Host: water arriving from the well's full trough (capped at the tank's top).
+func take_overflow(amount: float) -> void:
+	if not multiplayer.is_server():
+		return
+	var before := int(stored)
+	stored = minf(stored + amount, Waterworks.TANK_MAX)
+	if int(stored) != before:
+		_sync.rpc(stored)
+
+
 ## Host: set the level outright (resuming a saved run).
 func set_level(value: float) -> void:
 	if multiplayer.is_server():

@@ -13,6 +13,8 @@ var radius: float = 1.2
 ## Seconds per unit of water: [normal, storm].
 var rates: Vector2 = Vector2(8.0, 8.0)
 var capacity: int = 10
+## When full, extra water flows into this cliff's water tower (the pump jack well).
+var overflows_to_tower := false
 ## Set when built by a player (rain catcher): its grid cell and build id.
 var cell: Vector2i = Vector2i(-1, -1)
 var build_id: StringName = &""
@@ -25,14 +27,29 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if not multiplayer.is_server() or stored >= capacity:
+	if not multiplayer.is_server():
+		return
+	var tower := _overflow_tower()
+	if stored >= capacity and tower == null:
 		return
 	var rate := rates.y if GameState.storm else rates.x
 	_t += delta * GameState.growth_scale() * Weather.water_temp_rate(GameState.temperature())
 	if _t >= rate:
 		_t = 0.0
-		stored += 1
-		_sync.rpc(stored)
+		if stored < capacity:
+			stored += 1
+			_sync.rpc(stored)
+		else:
+			tower.take_overflow(1.0) # trough full: the overflow runs on into the tower
+
+
+## Waterworks: the pump jack's trough overflows into its yard's water tower
+## (null for other sources, or when the tower is full).
+func _overflow_tower() -> WaterTower:
+	if not overflows_to_tower:
+		return null
+	var t := WaterTower.of(cliff_id)
+	return t if t != null and t.stored < Waterworks.TANK_MAX else null
 
 
 func interact_prompt() -> String:

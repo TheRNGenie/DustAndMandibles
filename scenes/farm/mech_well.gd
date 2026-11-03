@@ -43,6 +43,7 @@ func _ready() -> void:
 	super()
 	display_name = "Well"
 	rates = Vector2(IDLE_RATE, IDLE_RATE)
+	overflows_to_tower = true # a full trough runs over into the water tower
 	collision_layer = WorldLayout.LAYER_WORLD
 	_build()
 	_pose()
@@ -180,6 +181,9 @@ static func _span(a: Vector3, b: Vector3, spin: float) -> Transform3D:
 
 func interact_prompt() -> String:
 	var line := super()
+	if stored >= capacity:
+		line += "
+Trough's full: the overflow runs into the water tower"
 	if GameState.pumps_on():
 		return line + "\nThe generator's pumping it"
 	return line + "\nFills fast while the generator runs"
