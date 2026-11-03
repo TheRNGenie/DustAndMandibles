@@ -26,6 +26,13 @@ const HOUSE_FRONT := 5.2 # porch front, metres in front of the house centre
 const HOUSE_BACK := 3.0
 const WINDMILL := Vector2(20.0, -13.0)
 const WATER_TOWER := Vector2(28.0, -17.0)
+## Waterworks: the well head beside the windmill, its electric pump, and the
+## generator, all on the same side of the yard as the water tower.
+const WELL := Vector2(20.0, -10.4)
+const PUMP := Vector2(21.8, -11.4)
+const GENERATOR := Vector2(24.2, -12.2)
+## Where the waterworks face (their lever, tap and well open toward the yard).
+const WATERWORKS_FACE := Vector2(21.0, -3.0)
 ## The big scrap heap beside the house (east of it, past the end of the field).
 const SALVAGE := Vector2(25.0, 11.0)
 ## The campfire in front of the house, beside the path to the bridge (3 x 3 cells kept clear).
@@ -96,6 +103,9 @@ static func _landmark(cell: Vector2i) -> bool:
 		return true
 	var wt := cell_of(WATER_TOWER.x, WATER_TOWER.y)
 	if Rect2i(wt - Vector2i(1, 1), Vector2i(3, 3)).has_point(cell):
+		return true
+	var gen := cell_of(GENERATOR.x, GENERATOR.y)
+	if Rect2i(gen - Vector2i(1, 1), Vector2i(3, 3)).has_point(cell):
 		return true
 	var cf := cell_of(CAMPFIRE.x, CAMPFIRE.y)
 	if Rect2i(cf - Vector2i(1, 1), Vector2i(3, 3)).has_point(cell):

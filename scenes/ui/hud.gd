@@ -150,6 +150,7 @@ func _ready() -> void:
 	_cancel_row.visible = false
 	plaque.add_child(_cancel_row)
 	GameState.ready_countdown_changed.connect(func(_s: float) -> void: _update_hint())
+	GameState.levers_changed.connect(_update_hint) # Waterworks
 	GameState.phase_changed.connect(func(_p: GameState.Phase) -> void: _flash_phase())
 	GameState.skip_votes_changed.connect(func(_v: int, _n: int) -> void: _update_hint())
 
@@ -222,7 +223,7 @@ func _update_phase_label() -> void:
 	elif GameState.phase == GameState.Phase.BUILD and GameState.ready_countdown >= 0.0:
 		_phase_label.text = "Wave %d  -  Riding in %d" % [GameState.wave, int(ceilf(GameState.ready_countdown))]
 	elif GameState.phase == GameState.Phase.BUILD and not GameState.has_flag("--fast"):
-		_phase_label.text = "Wave %d  -  %s  -  Ready %d/%d" % [GameState.wave, title, GameState.skip_votes, maxi(NetworkManager.players.size(), 1)]
+		_phase_label.text = "Wave %d  -  %s  -  Levers %d/%d" % [GameState.wave, title, GameState.skip_votes, maxi(NetworkManager.players.size(), 1)]
 	else:
 		_phase_label.text = "Wave %d  -  %s  -  %d:%02d" % [GameState.wave, title, secs / 60, secs % 60]
 
@@ -237,12 +238,13 @@ func _flash_phase() -> void:
 func _update_hint() -> void:
 	match GameState.phase:
 		GameState.Phase.BUILD:
+			# Waterworks: ready-up is your generator's breaker lever (G throws it from anywhere).
 			if GameState.ready_countdown >= 0.0:
-				_hint_label.text = "Everyone's ready. The bugs are coming"
+				_hint_label.text = "Every lever's thrown. The generators are cranking, the bugs are coming"
 			elif GameState.is_ready_local():
-				_hint_label.text = "You're ready  ·  press %s to take it back" % KeyHints.key_for("ready_up")
+				_hint_label.text = "Your lever's thrown  ·  %s to pull it back" % KeyHints.key_for("ready_up")
 			else:
-				_hint_label.text = "Build for your partner  ·  press %s when ready" % KeyHints.key_for("ready_up")
+				_hint_label.text = "Build for your partner  ·  Throw your lever (%s)" % KeyHints.key_for("ready_up")
 		GameState.Phase.WARNING:
 			_hint_label.text = "A wave is coming. Get back to your cliff"
 		GameState.Phase.WAVE:
@@ -255,7 +257,7 @@ func _update_hint() -> void:
 		_cancel_key = KeyHints.key_for("ready_up")
 		for c: Node in _cancel_row.get_children():
 			c.queue_free()
-		_cancel_row.add_child(KeyHints.hint(_cancel_key, "not yet"))
+		_cancel_row.add_child(KeyHints.hint(_cancel_key, "pull your lever back"))
 	_cancel_row.visible = counting
 
 

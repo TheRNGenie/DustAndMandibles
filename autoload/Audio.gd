@@ -16,7 +16,9 @@ const NAMES: Array[StringName] = [&"revolver", &"gatling_1", &"gatling_2", &"gat
 	&"step_dirt", &"step_wood", &"land_dirt", &"land_wood", &"jump", &"slide", &"equip", &"throw",
 	&"harvest_pull", &"plant_dig", &"pump", &"salvage", &"loot_crack", &"chest_open", &"scribble", &"hammer_hit",
 	&"slot_lever", &"card_flick", &"roulette_spin", &"wheel_tick", &"dice", &"register", &"zip_grab", &"zip_start",
-	&"herb_eat", &"cig_light", &"hook_bite", &"spur"]
+	&"herb_eat", &"cig_light", &"hook_bite", &"spur",
+	# Waterworks (recorded, CC0; see audio/CREDITS.txt).
+	&"generator_start", &"generator_stop", &"ground_rumble"]
 ## Most sounds have several takes (name.wav, name__2.wav, ...); one is picked at random.
 const MAX_TAKES := 6
 const POOL_3D := 32

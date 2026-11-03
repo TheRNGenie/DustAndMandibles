@@ -13,8 +13,8 @@ const STEPS := [
 		"keys": [["fire", "Place"], ["alt_fire", "Cancel"]]},
 	{"title": "Ping your partner", "body": "Tap to mark a spot, hold for the ping wheel.",
 		"keys": [["ping", "Ping"]]},
-	{"title": "Ready up", "body": "The wave starts when you're both ready.",
-		"keys": [["ready_up", "Ready"]]},
+	{"title": "Throw your lever", "body": "Your generator's breaker lever is your ready-up (E at it, or G anywhere). Every lever thrown: the pumps start and the wave comes.",
+		"keys": [["ready_up", "Throw lever"]]},
 ]
 
 var player: Player

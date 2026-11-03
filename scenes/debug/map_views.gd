@@ -3,6 +3,7 @@ extends Node
 ##   --mapcam=x,y,z,tx,ty,tz   camera at (x,y,z) looking at (tx,ty,tz)
 ##   --mapcam=overhead          high over the middle of the map, looking down
 ##   --mapcam=orbit:deg,dist,height   round the middle at a compass bearing
+##   --mapcam=waterworks:N      cliff N's waterworks (well, generator, water tower)
 ##   --mapshot=<png> [--seconds=N] [--keephud] [--turrets]  save and quit
 ##   --rangecheck               print, per cliff and grid column, whether each
 ##                              cross-cliff turret can reach the cliff it covers
@@ -31,6 +32,17 @@ func _shoot() -> void:
 		var a := deg_to_rad(p[0].to_float())
 		eye = c + Vector3(sin(a) * p[1].to_float(), p[2].to_float(), -cos(a) * p[1].to_float())
 		target = c + Vector3(0, 25, 0)
+	elif spec.begins_with("waterworks:"):
+		# --mapcam=waterworks:<cliff>: a cliff's well, generator and water tower from the yard.
+		var cid := int(spec.substr(11))
+		var g := Generator.of(cid)
+		var t := WaterTower.of(cid)
+		if g != null and t != null:
+			var mid := (g.global_position + t.global_position) * 0.5
+			var out := g.global_transform.basis.z.normalized()
+			var side := out.cross(Vector3.UP).normalized()
+			target = mid + Vector3(0, 2.6, 0)
+			eye = mid + out * 12.5 + side * 3.0 + Vector3(0, 4.5, 0)
 	elif spec != "overhead" and spec != "":
 		var p := spec.split(",")
 		eye = Vector3(p[0].to_float(), p[1].to_float(), p[2].to_float())

@@ -121,9 +121,8 @@ func _build_homestead_area(cid: int) -> void:
 	home.rotation.y = yaw
 	parent.add_child(home)
 
-	add_mesh(BuildingBuilder.water_tower(200 + cid), ground(cid, Buildable.WATER_TOWER.x, Buildable.WATER_TOWER.y), yaw, "WaterTower%d" % cid, true)
 	var tower_pos := ground(cid, Buildable.WINDMILL.x, Buildable.WINDMILL.y)
-	add_mesh(BuildingBuilder.windmill_tower(300 + cid), tower_pos, yaw, "Windmill%d" % cid, true)
+	add_mesh(BuildingBuilder.windmill_tower(300 + cid, false), tower_pos, yaw, "Windmill%d" % cid, true)
 	var fan := Spinner.new()
 	fan.mesh = BuildingBuilder.windmill_fan()
 	fan.material_override = Materials.toon()
@@ -133,26 +132,7 @@ func _build_homestead_area(cid: int) -> void:
 	fan.position = tower_pos + Vector3(0, 8.3, 0) - forward * 0.6
 	fan.rotation.y = yaw
 	parent.add_child(fan)
-
-	# The windmill's well: broken until someone pays to fix it.
-	var well := WaterSource.new()
-	well.name = "Well%d" % cid
-	well.cliff_id = cid
-	well.display_name = "Windmill well"
-	well.fix_cost = 80
-	well.working = false
-	well.rates = Vector2(8.0, 8.0)
-	well.capacity = 10
-	well.collision_layer = WorldLayout.LAYER_WORLD
-	var trough_col := CollisionShape3D.new()
-	var trough_shape := BoxShape3D.new()
-	trough_shape.size = Vector3(1.2, 0.9, 2.6)
-	trough_col.shape = trough_shape
-	trough_col.position.y = 0.45
-	well.add_child(trough_col)
-	well.position = tower_pos + Basis(Vector3.UP, yaw) * Vector3(2.0, 0.0, 0.0)
-	well.rotation.y = yaw
-	parent.add_child(well)
+	_build_waterworks(cid)
 
 	# Starter farm field beside the house: 3 x 4 plots on the grid (2 x 2 cells each),
 	# the 3-plot side along the house front, rows running toward the canyon.
@@ -175,6 +155,92 @@ func _build_homestead_area(cid: int) -> void:
 	parent.add_child(pile)
 
 	_build_paths(cid)
+
+
+## Waterworks: the windmill's well, its electric pump, the generator with its
+## breaker lever and the water tower, grouped on one side of the yard and facing
+## it. Each cliff's well and tower are their own design (Waterworks.style_of).
+func _build_waterworks(cid: int) -> void:
+	var style := Waterworks.style_of(cid)
+	var face := Buildable.WATERWORKS_FACE
+	# The well: broken until someone pays to fix it.
+	var well := WaterSource.new()
+	well.name = "Well%d" % cid
+	well.cliff_id = cid
+	well.display_name = "Windmill well"
+	well.fix_cost = 80
+	well.working = false
+	well.rates = Vector2(8.0, 8.0)
+	well.capacity = 10
+	well.collision_layer = WorldLayout.LAYER_WORLD
+	var trough_col := CollisionShape3D.new()
+	var trough_shape := BoxShape3D.new()
+	trough_shape.size = Vector3(1.7, 1.0, 1.7) if style != &"steel" else Vector3(1.1, 1.0, 2.5)
+	trough_col.shape = trough_shape
+	trough_col.position.y = 0.5
+	well.add_child(trough_col)
+	var well_mi := MeshInstance3D.new()
+	well_mi.name = "WellHead"
+	well_mi.mesh = WaterworksBuilder.well(style, 400 + cid)
+	well_mi.material_override = Materials.toon()
+	well.add_child(well_mi)
+	well.position = ground(cid, Buildable.WELL.x, Buildable.WELL.y)
+	well.rotation.y = _yaw_toward(cid, Buildable.WELL, face)
+	parent.add_child(well)
+	# The electric pump beside it (its motor shudders while the generator runs).
+	var pump := Node3D.new()
+	pump.name = "WellPump%d" % cid
+	pump.position = ground(cid, Buildable.PUMP.x, Buildable.PUMP.y)
+	pump.rotation.y = _yaw_toward(cid, Buildable.PUMP, Buildable.GENERATOR) + PI * 0.5
+	parent.add_child(pump)
+	var pump_base := MeshInstance3D.new()
+	pump_base.mesh = WaterworksBuilder.pump_base(style)
+	pump_base.material_override = Materials.toon()
+	pump.add_child(pump_base)
+	var motor := MeshInstance3D.new()
+	motor.name = "Motor"
+	motor.mesh = WaterworksBuilder.pump_motor(style)
+	motor.material_override = Materials.toon()
+	pump.add_child(motor)
+	# The generator and its lever.
+	var gen := Generator.new()
+	gen.name = "Generator%d" % cid
+	gen.cliff_id = cid
+	gen.style = style
+	gen.pump_motor = motor
+	gen.position = ground(cid, Buildable.GENERATOR.x, Buildable.GENERATOR.y)
+	gen.rotation.y = _yaw_toward(cid, Buildable.GENERATOR, face)
+	parent.add_child(gen)
+	# The water tower (its tap faces the yard).
+	var tower := WaterTower.new()
+	tower.name = "WaterTower%d" % cid
+	tower.cliff_id = cid
+	tower.style = style
+	tower.position = ground(cid, Buildable.WATER_TOWER.x, Buildable.WATER_TOWER.y)
+	tower.rotation.y = _yaw_toward(cid, Buildable.WATER_TOWER, face)
+	parent.add_child(tower)
+	# Cables from the generator to the pump and the tower, the pipe from the pump up to the tower.
+	var on_ground := func(p: Vector3) -> float: return cliffs.plateau_point(cid, cliffs.plateau_coords(cid, p).x, cliffs.plateau_coords(cid, p).y).y
+	var g_out := gen.position + Basis(Vector3.UP, gen.rotation.y) * Vector3(0.62, 0.1, -0.5)
+	var runs: Array = [
+		[g_out, pump.position + Vector3(0, 0.1, 0), 0.03, WaterworksBuilder.IRON, true],
+		[g_out, tower.position + Vector3(0, 0.1, 0), 0.03, WaterworksBuilder.IRON, true],
+		[pump.position + Basis(Vector3.UP, pump.rotation.y) * Vector3(0.18, 0.1, 0.5), tower.position + Vector3(0, 0.1, 0), 0.06, Palette.METAL, false],
+	]
+	for i in runs.size():
+		var r: Array = runs[i]
+		var mi := MeshInstance3D.new()
+		mi.name = "WaterworksLine%d_%d" % [cid, i]
+		mi.mesh = WaterworksBuilder.cable(r[0], r[1], on_ground, r[2], r[3], r[4])
+		mi.material_override = Materials.toon(0.0)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		parent.add_child(mi)
+
+
+## Yaw that turns a node's +Z from plateau spot `from` toward `to` (d, z).
+func _yaw_toward(cid: int, from: Vector2, to: Vector2) -> float:
+	var dir := ground(cid, to.x, to.y) - ground(cid, from.x, from.y)
+	return atan2(dir.x, dir.z)
 
 
 ## Packed-dirt paths on the grid's path cells: around the house and from the

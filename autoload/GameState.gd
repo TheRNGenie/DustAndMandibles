@@ -40,6 +40,13 @@ var flags: PackedStringArray = PackedStringArray()
 
 var _voters: Dictionary = {}
 
+# ---- Waterworks: every cliff's generator lever (see Waterworks) ----
+## Every peer: each cliff's lever, thrown or not (the host decides and syncs).
+signal levers_changed
+var levers: Array[bool] = []
+## Host: CPU teammates' levers (cliff -> true once thrown this build phase).
+var cpu_levers: Dictionary = {}
+
 
 func _ready() -> void:
 	flags = OS.get_cmdline_user_args()
@@ -89,6 +96,10 @@ func reset() -> void:
 	for cid in WorldLayout.cliff_count(): # Maps: one Homestead per cliff
 		homestead_hp.append(hp)
 		homestead_max.append(hp)
+	cpu_levers.clear()
+	levers.clear()
+	for cid in WorldLayout.cliff_count():
+		levers.append(false)
 
 
 func is_solo() -> bool:
@@ -169,7 +180,8 @@ func _enter(p: Phase) -> void:
 			if Airship.visits(wave):
 				duration += 60.0 * _time_scale() # the casino ship's reprieve
 		Phase.WARNING:
-			duration = config().warning_time * maxf(_time_scale(), 0.5)
+			# Waterworks: the pumps come on, the ground rumbles, then the bugs come.
+			duration = Waterworks.warning_time(_time_scale())
 	_voters.clear()
 	var w := weather
 	if p == Phase.WARNING:
@@ -187,6 +199,26 @@ func _enter(p: Phase) -> void:
 	elif p == Phase.BUILD or p == Phase.LOBBY:
 		w = Weather.Kind.CLEAR
 	_sync_phase.rpc(p, duration, wave, w)
+	# Waterworks: the levers drop when a build phase starts; the wave runs with
+	# every generator going (a timed --fast run throws them for you).
+	if p == Phase.BUILD:
+		cpu_levers.clear()
+	elif p == Phase.WARNING or p == Phase.WAVE:
+		for cid in WorldLayout.cliff_count():
+			cpu_levers[cid] = true
+	_push_levers()
+	if p == Phase.WARNING:
+		_ground_rumble.rpc(Waterworks.rumble_time(_time_scale()))
+
+
+## Every peer: the pumps are on and the ground rumbles (sound, a light shake,
+## dust out of every tunnel); the host's warning clock brings the bugs after it.
+@rpc("authority", "call_local", "reliable")
+func _ground_rumble(seconds: float) -> void:
+	var scene := get_tree().current_scene
+	if scene != null:
+		# Loaded here, not named: the autoload must not pull the world's scripts in.
+		load("res://scenes/farm/ground_rumble.gd").call("play", scene, seconds)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -317,6 +349,9 @@ func _toggle_vote(id: int) -> void:
 		_sync_votes.rpc(_voters.size())
 		if ready_countdown >= 0.0:
 			_sync_countdown.rpc(-1.0)
+			# Waterworks: called off: the CPUs' levers go back up with it.
+			cpu_levers.clear()
+		_push_levers()
 	else:
 		_add_vote(id)
 
@@ -363,8 +398,60 @@ func _add_vote(id: int) -> void:
 	_voters[id] = true
 	_sync_votes.rpc(_voters.size())
 	if _voters.size() >= _needed_votes() and ready_countdown < 0.0:
-		# Everyone's ready: a short countdown anyone can call off with the ready key.
+		# Everyone's ready: a short countdown anyone can call off with the ready key
+		# (Waterworks: by pulling their lever back). CPU teammates throw theirs now.
+		for cid: int in (NetworkManager.cpu_cliffs() if NetworkManager.has_cpu() else []):
+			cpu_levers[cid] = true
 		_sync_countdown.rpc(READY_COUNTDOWN * _time_scale())
+	_push_levers()
+
+
+# ------------------------------------------------------------------ Waterworks levers
+
+## Is cliff `cid`'s generator lever thrown? (every peer)
+func lever_thrown(cid: int) -> bool:
+	return cid >= 0 and cid < levers.size() and levers[cid]
+
+
+## Are the generators running (and the well pumps on)? (every peer)
+func pumps_on() -> bool:
+	return Waterworks.pumps_on(phase, ready_countdown)
+
+
+## Host: a CPU teammate throws (or pulls back) its lever.
+func throw_cpu_lever(cid: int, on: bool = true) -> void:
+	if not multiplayer.is_server() or phase != Phase.BUILD:
+		return
+	if on:
+		cpu_levers[cid] = true
+	else:
+		cpu_levers.erase(cid)
+	_push_levers()
+
+
+## Host: work out every cliff's lever from who has readied and tell everyone.
+func _push_levers() -> void:
+	if not multiplayer.is_server():
+		return
+	var cliff_of := {}
+	var held := {}
+	for id: int in NetworkManager.players:
+		cliff_of[id] = NetworkManager.cliff_of(id)
+		held[NetworkManager.cliff_of(id)] = true
+	if NetworkManager.has_cpu():
+		for cid: int in NetworkManager.cpu_cliffs():
+			held[cid] = true
+	if NetworkManager.players.is_empty():
+		cliff_of[1] = 0 # offline / solo test runs: the local player stands on cliff 0
+		held[0] = true
+	var all_ready := _voters.size() >= _needed_votes()
+	_sync_levers.rpc(Waterworks.levers(WorldLayout.cliff_count(), _voters.keys(), cliff_of, cpu_levers, all_ready, held))
+
+
+@rpc("authority", "call_local", "reliable")
+func _sync_levers(states: Array) -> void:
+	levers.assign(states)
+	levers_changed.emit()
 
 
 @rpc("authority", "call_local", "reliable")

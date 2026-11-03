@@ -27,6 +27,8 @@ func _ready() -> void:
 		_take_screenshot(shot)
 	elif GameState.flag_value("--soak") != "":
 		_soak(GameState.flag_value("--soak").to_float())
+	elif GameState.has_flag("--waterworkstest"):
+		_waterworks_test()
 	elif GameState.has_flag("--laddertest"):
 		_ladder_test()
 	elif GameState.has_flag("--scaffoldtest"):
@@ -575,6 +577,52 @@ func _walk(player: Player, home: Homestead, dir: Vector3, seconds: float) -> voi
 
 ## --soak=N: runs N seconds (works headless), auto-readies every build phase,
 ## logs each phase change, then quits. Combine with --autobuild and --fast.
+## --waterworkstest: throw the lever, call it off, throw it again, watch the
+## generators start with the wave, the tower fill and the tap fill a bucket, then
+## the levers drop when the wave ends. Prints [ww] lines and quits.
+func _waterworks_test() -> void:
+	for i in 40:
+		await get_tree().process_frame
+	var g := Generator.of(0)
+	var t := WaterTower.of(0)
+	var say := func(what: String) -> void:
+		print("[ww] %-22s phase %d countdown %5.2f levers %s pumps %s tank %.2f water %d" % [what, GameState.phase, GameState.ready_countdown,
+				str(GameState.levers), GameState.pumps_on(), t.stored if t != null else -1.0, Economy.amount(0, &"water")])
+	say.call("start")
+	if g == null or t == null:
+		print("[ww] FAIL: no generator/tower on cliff 0")
+		get_tree().quit()
+		return
+	print("[ww] generator prompt: ", g.interact_prompt().replace("
+", " | "))
+	g.local_interact(false)
+	await get_tree().create_timer(0.4).timeout
+	say.call("lever thrown")
+	g.local_interact(false)
+	await get_tree().create_timer(0.4).timeout
+	say.call("lever pulled back")
+	g.local_interact(false)
+	var waited := 0.0
+	while GameState.phase != GameState.Phase.WAVE and waited < 30.0:
+		await get_tree().create_timer(0.5).timeout
+		waited += 0.5
+	say.call("wave on")
+	await get_tree().create_timer(6.0).timeout
+	say.call("6 s of pumping")
+	t.set_level(12.0)
+	await get_tree().process_frame
+	var tap := t.get_node("Tap") as TowerTap
+	print("[ww] tap prompt: ", tap.interact_prompt().replace("
+", " | "))
+	var got := t.draw(multiplayer.get_unique_id())
+	await get_tree().process_frame
+	say.call("tap drew %d" % got)
+	GameState.end_wave()
+	await get_tree().create_timer(0.5).timeout
+	say.call("wave over")
+	get_tree().quit()
+
+
 func _soak(seconds: float) -> void:
 	for i in 20:
 		await get_tree().process_frame

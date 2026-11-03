@@ -92,7 +92,7 @@ static func water_tower(seed_value: int) -> ArrayMesh:
 
 
 ## Windmill tower (the fan is built separately so it can spin).
-static func windmill_tower(seed_value: int) -> ArrayMesh:
+static func windmill_tower(seed_value: int, trough: bool = true) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var st := MeshKit.begin()
@@ -110,8 +110,10 @@ static func windmill_tower(seed_value: int) -> ArrayMesh:
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, top + 0.3, 0.2)), Vector3(0.6, 0.6, 1.4), Palette.METAL, 0.02, rng)
 	# Tail vane.
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, top + 0.5, 1.6)), Vector3(0.05, 0.9, 1.4), Palette.TEAM_WEST.lerp(Palette.ROOF, 0.6))
-	# Trough at the base (the well, later filled with water).
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(2.0, 0.35, 0)), Vector3(1.0, 0.7, 2.4), Palette.WOOD_DARK, 0.03, rng)
+	# Trough at the base (the well, later filled with water). Homesteads build their
+	# own well head instead (WaterworksBuilder.well).
+	if trough:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(2.0, 0.35, 0)), Vector3(1.0, 0.7, 2.4), Palette.WOOD_DARK, 0.03, rng)
 	return MeshKit.finish(st)
 
 

@@ -103,6 +103,8 @@ func _decide() -> void:
 				return
 			if _build_task():
 				return
+			if _lever_task():
+				return
 			_go(Vector2(_rng.randf_range(2.0, 6.0), clampf(_z + _rng.randf_range(-6.0, 6.0), -16.0, 16.0)), Task.IDLE)
 		GameState.Phase.WARNING, GameState.Phase.WAVE:
 			# Hold the lip, roughly across from where bugs top your partner's cliff.
@@ -110,6 +112,22 @@ func _decide() -> void:
 			_go(Vector2(2.2, clampf(z, -17.0, 17.0)), Task.GUARD)
 		_:
 			pass
+
+
+## Waterworks: nothing left to do this build phase: walk to our generator and
+## throw its lever (CPU teammates never hold the wave up; this is for show).
+func _lever_task() -> bool:
+	if GameState.lever_thrown(cliff_id) or Generator.of(cliff_id) == null:
+		return false
+	var g := Buildable.GENERATOR
+	var spot := g + (Buildable.WATERWORKS_FACE - g).normalized() * 1.7
+	_go(spot, Task.IDLE, func() -> void:
+		_face(Generator.of(cliff_id).global_position if Generator.of(cliff_id) != null else global_position)
+		GameState.throw_cpu_lever(cliff_id)
+		Audio.play_at(&"slot_lever", global_position + Vector3(0, 1.3, 0), -2.0, 0.7)
+		if GameState.has_flag("--cpulog"):
+			print("[cpu] %s threw the generator lever" % display_name))
+	return true
 
 
 ## Walk to plateau coords `to`, then run `then` (if any).
