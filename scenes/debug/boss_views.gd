@@ -10,6 +10,7 @@ extends Node
 ## --bosshud      keep the HUD (boss bar) in the shot
 ## --bosshits     logs turret shots, boss HP and aim errors every second
 ## --bossfast     shortens its ability timers so the telegraph shows in the first seconds
+## --bosshp=F     starts it at F of its health (a boss's later phase)
 ## --bossground   stands it on the east plateau instead of the wall (model close-ups)
 ## --bosscam=front  a three-quarter view of its face (with --bossground: a portrait)
 
@@ -79,9 +80,11 @@ func _ready() -> void:
 			_bug.boss.set("_t", 999.0)
 			_bug.state = Bug.State.BREACHING
 	if GameState.has_flag("--bossfast") and _bug.boss != null:
-		for v: String in ["_cd"]:
+		for v: String in ["_cd", "_brood_cd", "_spit_cd", "_shriek_cd"]:
 			if _bug.boss.get(v) != null:
 				_bug.boss.set(v, 0.5)
+	if GameState.flag_value("--bosshp") != "": # start hurt (a later phase): --bosshp=0.5
+		_bug.health.hp = _bug.health.max_hp * clampf(GameState.flag_value("--bosshp").to_float(), 0.01, 1.0)
 	print("[bossview] %s spawned, %d HP, %d turrets" % [_id, int(_bug.health.max_hp), get_tree().get_nodes_in_group("turrets").size()])
 
 

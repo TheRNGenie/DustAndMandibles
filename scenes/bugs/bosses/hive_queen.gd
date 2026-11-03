@@ -1,7 +1,7 @@
 extends BossBrain
 ## The Hive Queen (Story, chapter 8: The Queen). The mother of the Hive climbs
 ## with everything she has, in three phases by her health:
-## 1. Every ~16 s her brood membrane glows and pulses (2 s telegraph) and she
+## 1. Every ~16 s her brood sac glows amber through her plates (2 s telegraph) and she
 ##    calls a brood up the wall beside her (wolf spiders). Every ~10 s her mouth
 ##    glows (1.2 s) and she spits amber resin at one of the turrets shooting
 ##    her: it gums the turret shut like the Queen Spider's silk (shoot it free).
@@ -51,7 +51,7 @@ var _mouth: MeshInstance3D
 func _attach() -> void:
 	_crown = BossFx.glow_blob(0.3, AMBER)
 	bug.add_child(_crown)
-	_belly = BossFx.glow_blob(1.1, AMBER)
+	_belly = BossFx.glow_blob(1.4, AMBER)
 	bug.add_child(_belly)
 	_mouth = BossFx.glow_blob(0.4, RESIN)
 	bug.add_child(_mouth)

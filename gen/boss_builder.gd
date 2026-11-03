@@ -757,7 +757,7 @@ static func _hive_queen(shell: Color) -> Dictionary:
 	var spec := _spec(st, legs, 0.82, 0.92, 0.13, plate.darkened(0.15), jewel, 0.3, 1.25, 0.62,
 			{"mouth": hd + Vector3(0, -0.16, -0.3), "mandible": 0.18, "antenna": 0.0, "color": plate})
 	spec["crown"] = jewel
-	spec["belly"] = ab_c + Vector3(0, -0.2, 0.0)
+	spec["belly"] = ab_c + Vector3(0, 0.5, 0.15) # on her back, where it shows from across the canyon
 	spec["mouth_at"] = hd + Vector3(0, -0.16, -0.32)
 	return spec
 
