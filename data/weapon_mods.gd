@@ -57,6 +57,47 @@ const MODS: Dictionary = {
 		{"name": "Flared bell", "desc": "+20% damage, wider blast.", "cost": 20, "fx": {"damage": 1.2, "spread": 1.25}},
 		{"name": "Paper cartridges", "desc": "Pre-measured charges: reloads 40% faster.", "cost": 25, "fx": {"reload": 0.6}},
 	],
+	# Frontier guns.
+	&"derringer_pair": [
+		{"name": "Hideout holsters", "desc": "Sleeve rigs: draws even faster and reloads 30% quicker.", "cost": 10, "fx": {"reload": 0.7}},
+		{"name": "Rimfire magnums", "desc": "+25% damage.", "cost": 15, "fx": {"damage": 1.25}},
+		{"name": "Longer barrels", "desc": "Shoot 10% harder and carry half again as far.", "cost": 15, "fx": {"damage": 1.1, "range": 1.5}},
+	],
+	&"pepperbox": [
+		{"name": "Ground cones", "desc": "The cluster turns faster: fires 25% quicker.", "cost": 15, "fx": {"fire_interval": 0.75}},
+		{"name": "Loading block", "desc": "All six charges at once: reloads 35% faster.", "cost": 15, "fx": {"reload": 0.65}},
+		{"name": "Bored-true barrels", "desc": "Spread a third tighter.", "cost": 20, "fx": {"spread": 0.65}},
+	],
+	&"salt_shotgun": [
+		{"name": "Coarse salt", "desc": "Three more grains in every shell.", "cost": 15, "fx": {"pellets": 3}},
+		{"name": "Extended tube", "desc": "Holds two more shells.", "cost": 15, "fx": {"mag": 2}},
+		{"name": "Slick pump", "desc": "Racks 30% faster.", "cost": 20, "fx": {"fire_interval": 0.7}},
+	],
+	&"harpoon_pistol": [
+		{"name": "Whaler's line", "desc": "Half again as much line: reaches 50% further.", "cost": 20, "fx": {"range": 1.5}},
+		{"name": "Stiffer spring", "desc": "+40% damage.", "cost": 15, "fx": {"damage": 1.4}},
+		{"name": "Quick-load darts", "desc": "Reloads 40% faster.", "cost": 20, "fx": {"reload": 0.6}},
+	],
+	&"bee_smoker": [
+		{"name": "Wider spout", "desc": "The cloud reaches 30% further.", "cost": 15, "fx": {"range": 1.3}},
+		{"name": "Big can", "desc": "Fifty more puffs of fuel.", "cost": 15, "fx": {"mag": 50}},
+		{"name": "Strong bellows", "desc": "Puffs 25% faster.", "cost": 20, "fx": {"fire_interval": 0.75}},
+	],
+	&"flare_gun": [
+		{"name": "Magnesium flares", "desc": "+60% damage on the flare's strike.", "cost": 15, "fx": {"damage": 1.6}},
+		{"name": "Quick breech", "desc": "Reloads 40% faster.", "cost": 20, "fx": {"reload": 0.6}},
+		{"name": "Rifled bore", "desc": "Carries half again as far.", "cost": 15, "fx": {"range": 1.5}},
+	],
+	&"punt_gun": [
+		{"name": "Swan shot", "desc": "Ten more pellets in the shell.", "cost": 25, "fx": {"pellets": 10}},
+		{"name": "Brass shell", "desc": "Pre-loaded brass: reloads 35% faster.", "cost": 30, "fx": {"reload": 0.65}},
+		{"name": "Choke ring", "desc": "A tighter cone that carries a third further.", "cost": 25, "fx": {"spread": 0.7, "range": 1.35}},
+	],
+	&"telescope_rifle": [
+		{"name": "Ground lenses", "desc": "The spyglass zooms in a third further.", "cost": 20, "fx": {"zoom": 1.35}},
+		{"name": "Match rounds", "desc": "+20% damage.", "cost": 30, "fx": {"damage": 1.2}},
+		{"name": "Slick bolt", "desc": "Works the bolt 30% faster.", "cost": 30, "fx": {"fire_interval": 0.7}},
+	],
 	&"whip": [
 		{"name": "Long lash", "desc": "Four more feet of plaited hide: reaches 40% further.", "cost": 15, "fx": {"reach": 1.4}},
 		{"name": "Barbed popper", "desc": "A wire-wrapped tip: +50% damage.", "cost": 20, "fx": {"damage": 1.5}},

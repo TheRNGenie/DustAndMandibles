@@ -691,6 +691,19 @@ func show_net(seconds: float) -> void:
 	get_tree().create_timer(seconds).timeout.connect(net.queue_free)
 
 
+## Every peer: a Signal Flare stuck in the bug, burning for `seconds` (the
+## host marks it for every turret: BugStatus.mark).
+@rpc("authority", "call_local", "reliable")
+func show_flare(seconds: float) -> void:
+	for c in get_children():
+		if c is SignalFlare:
+			(c as SignalFlare).life = (c as SignalFlare).get("_t") + seconds # re-marked: burn on
+			return
+	var f := SignalFlare.make(seconds)
+	f.position = Vector3(0, float(spec["clearance"]) * 0.3 + float(spec["body_radius"]) * 0.9, 0)
+	add_child(f)
+
+
 ## Every peer: bola ropes wound round the bug, weights hanging, for `seconds` (Bola Launcher).
 @rpc("authority", "call_local", "reliable")
 func show_bola(seconds: float) -> void:

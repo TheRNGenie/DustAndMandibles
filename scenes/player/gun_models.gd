@@ -22,6 +22,8 @@ static var _cache: Dictionary = {}
 
 
 static func has(id: StringName, part: String = "body") -> bool:
+	if FrontierGuns.has(id): # code-built frontier guns (gen/frontier_guns.gd)
+		return part == "body" or FrontierGuns.parts(id).has(part)
 	return ResourceLoader.exists("%s%s_%s.glb" % [DIR, id, part])
 
 
@@ -62,6 +64,8 @@ static func pivot(id: StringName, part: String) -> Vector3:
 
 ## The whole gun in one piece (body and every part at rest), for hands and the ground.
 static func whole(id: StringName, outline: float = 0.006, shadows: bool = true, variant: int = 0) -> Node3D:
+	if FrontierGuns.has(id):
+		return FrontierGuns.whole(id, shadows)
 	var body := make(id, "body", outline, shadows)
 	if body == null:
 		return null

@@ -18,6 +18,9 @@ func _init(b: Bug) -> void:
 
 
 func update(delta: float) -> void:
+	# Bee Smoker: drowsy fliers sink toward the ground (and fly on slowly).
+	if bug.status.is_drowsy() and bug.boss == null:
+		bug.ground_pos.y = maxf(bug.ground_pos.y - GunRules.DROWSY_SINK * delta, WorldLayout.CLIFF_HEIGHT + 1.2)
 	if _escaping:
 		_fly_to(_escape_point, delta)
 		if bug.ground_pos.distance_to(_escape_point) < 2.0:

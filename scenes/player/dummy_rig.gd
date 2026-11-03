@@ -59,6 +59,9 @@ var _wobble := Vector3.ZERO
 var _life := randf() * 10.0
 var _air := 0.0
 var _two := 0.0
+## Derringers: the left hand aims its own pistol (0..1), and that pistol.
+var _akimbo := 0.0
+var _left_gun: Node3D
 var _look_t := 3.0
 var _look_yaw := 0.0
 var _head_yaw := 0.0
@@ -191,6 +194,16 @@ func set_weapon(id: StringName) -> void:
 	for c in _gun_mi.get_children():
 		c.queue_free()
 	var model := GunModels.whole(id, 0.006, not first_person) if id != &"" else null
+	if _left_gun != null and is_instance_valid(_left_gun):
+		_left_gun.queue_free()
+		_left_gun = null
+	if id == &"derringer_pair":
+		model = FrontierGuns.whole(id, not first_person, false) # one pistol per hand, not both in one
+		if _elbows.size() > 0 and not first_person:
+			_left_gun = _pivot(_elbows[0], Vector3(0, -FOREARM - 0.05, 0))
+			var twin := FrontierGuns.whole(id, true, false)
+			twin.transform = Transform3D(Basis(Vector3.RIGHT, GUN_TILT), GUN_AT * Vector3(-1, 1, 1))
+			_left_gun.add_child(twin)
 	if model != null:
 		_gun_mi.mesh = null
 		_gun_mi.add_child(model)
@@ -308,7 +321,7 @@ func animate(delta: float, speed: float, sliding: bool, pitch: float, vy: float 
 		var hang := -sin(_phase) * 0.55 * k + breathe * 2.0 + 0.08
 		r_sh = Vector3(lerpf(hang, 2.75, wave), 0.0, lerpf(0.08, 0.35, wave))
 		r_el = lerpf(0.3 + k * 0.4, 0.4 + sin(_life * 11.0) * 0.45, wave)
-	var two_hands := 1.0 if _weapon in [&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun", &"dino_rifle"] else 0.0
+	var two_hands := 1.0 if WeaponBuilder.TWO_HANDED.has(_weapon) else 0.0
 	_two = move_toward(_two, two_hands * (1.0 - _slide * 0.5), dt * 4.0)
 	# Free arm (left, index 0): swings against the left leg, elbow bent to run.
 	var swing := -sin(_phase) * 0.6 * k * dir
@@ -318,6 +331,10 @@ func animate(delta: float, speed: float, sliding: bool, pitch: float, vy: float 
 	# Two-handed guns: the left hand comes across onto the forend.
 	l_sh = l_sh.lerp(Vector3(aim - 0.05 - _torso.rotation.x, -0.55, -0.05), _two)
 	l_el = lerpf(l_el, 0.55, _two)
+	# Derringers: the left arm comes up with its own pistol, like the right.
+	_akimbo = move_toward(_akimbo, 1.0 if _weapon == &"derringer_pair" else 0.0, dt * 4.0)
+	l_sh = l_sh.lerp(Vector3(aim + run_bob - _torso.rotation.x, 0.0, -0.05), _akimbo)
+	l_el = lerpf(l_el, 0.12, _akimbo)
 	# Slide: free hand trails down to the ground.
 	l_sh = l_sh.lerp(Vector3(-0.5, 0.0, -0.55), _slide * (1.0 - _two))
 	# Idle fidget: touch the hat brim.

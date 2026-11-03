@@ -99,6 +99,15 @@ const WEAPONS: Dictionary = {
 	&"dino_rifle": preload("res://data/weapons/dino_rifle.tres"), # secret: unlocked with a code
 	&"blunderbuss": preload("res://data/weapons/blunderbuss.tres"),
 	&"crank_gatling": preload("res://data/weapons/crank_gatling.tres"),
+	# Frontier guns (gen/frontier_guns.gd models, GunRules specials).
+	&"derringer_pair": preload("res://data/weapons/derringer_pair.tres"),
+	&"pepperbox": preload("res://data/weapons/pepperbox.tres"),
+	&"salt_shotgun": preload("res://data/weapons/salt_shotgun.tres"),
+	&"harpoon_pistol": preload("res://data/weapons/harpoon_pistol.tres"),
+	&"bee_smoker": preload("res://data/weapons/bee_smoker.tres"),
+	&"flare_gun": preload("res://data/weapons/flare_gun.tres"),
+	&"punt_gun": preload("res://data/weapons/punt_gun.tres"),
+	&"telescope_rifle": preload("res://data/weapons/telescope_rifle.tres"),
 }
 
 ## Every registry, by kind (the content test walks these: ids unique, files load).

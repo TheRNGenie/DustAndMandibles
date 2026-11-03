@@ -891,3 +891,33 @@ func _make_splinter_emitter(amount: int = 16, k: float = 1.0) -> GPUParticles3D:
 	e.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(e)
 	return e
+
+
+# ------------------------------------------------------------------ bee smoker
+
+var _smoke_puffs: Array[GPUParticles3D] = []
+
+
+## One puff of the Bee Smoker: a soft grey-white cloud rolling out of the
+## spout along `dir`, swelling as it drifts (every peer).
+func bee_smoke(pos: Vector3, dir: Vector3) -> void:
+	if _smoke_puffs.is_empty():
+		var mat := puff_material(Color("#E8E4DC"), Color("#9C968E"))
+		for i in 8:
+			var e := GPUParticles3D.new()
+			e.one_shot = true
+			e.emitting = false
+			e.amount = 6
+			e.lifetime = 1.8
+			e.explosiveness = 0.7
+			e.local_coords = false
+			e.visibility_aabb = AABB(Vector3(-12, -4, -12), Vector3(24, 10, 24))
+			e.process_material = puff_process(Vector2(4.0, 7.5), 14.0, 0.25, 3.4)
+			var quad := QuadMesh.new()
+			quad.size = Vector2(0.7, 0.7)
+			quad.material = mat
+			e.draw_pass_1 = quad
+			e.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			add_child(e)
+			_smoke_puffs.append(e)
+	_fire(_next(_smoke_puffs, "bee_smoke"), pos, dir)

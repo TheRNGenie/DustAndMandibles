@@ -277,7 +277,7 @@ func _ready() -> void:
 	elif GameState.flag_value("--iconview") != "":
 		for i in 20:
 			await get_tree().process_frame
-		var ids := [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"corn", &"prickly_pear", &"chili", &"herbs", &"water", &"grapple", &"lighter"]
+		var ids := [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling"] + FrontierGuns.IDS + [&"corn", &"prickly_pear", &"chili", &"herbs", &"water", &"grapple", &"lighter"]
 		var texs := {}
 		for id: StringName in ids:
 			texs[id] = IconStudio.item(self, id)
@@ -1101,6 +1101,8 @@ func _take_screenshot(path: String) -> void:
 		add_child(load("res://scenes/debug/craft_views.gd").new())
 	if GameState.flag_value("--crewview") != "": # Crewed: crewed gun views (scenes/debug/crewed_views.gd)
 		add_child(load("res://scenes/debug/crewed_views.gd").new())
+	if GameState.flag_value("--gunview") != "": # the frontier guns: lineup and each in action (scenes/debug/gun_views.gd)
+		add_child(load("res://scenes/debug/gun_views.gd").new())
 	if GameState.flag_value("--specialview") != "": # Steam Cannon / Flood Gate / Twin Mortar / Bola Launcher views
 		add_child(load("res://scenes/debug/special_views.gd").new())
 	if (GameState.has_flag("--showcase") or GameState.flag_value("--showcase") != "") and multiplayer.is_server():
