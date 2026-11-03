@@ -659,9 +659,11 @@ var _net_packets := 0
 var _net_bugs := 0
 var _net_log_t := 0
 ## How often the host sends every bug's state, and how many bugs per packet
-## (kept under one MTU, so a lost packet only costs those bugs a tick).
+## (kept under one MTU, so a lost packet only costs those bugs a tick). At most
+## 25 bytes a bug: 40 bugs stay under Epic P2P's 1170-byte packet limit, which
+## refuses bigger packets outright (48 could reach 1200 and be dropped).
 const SYNC_INTERVAL := 0.1
-const SYNC_PER_PACKET := 48
+const SYNC_PER_PACKET := 40
 
 
 ## Host: packs every bug's replicated state (see Bug) into a few unreliable

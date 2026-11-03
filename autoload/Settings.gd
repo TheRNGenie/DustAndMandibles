@@ -68,6 +68,9 @@ var colorblind: bool = false
 var tutorial_done: bool = false
 ## Debug cheats (F6-F10, god mode) without the --debug launch flag.
 var debug_mode: bool = false
+## Host Game makes an online (Epic) lobby when that's available; false = a
+## direct IP/LAN game (the way out if online play misbehaves).
+var host_online: bool = true
 ## Your dummy's outfit (see DummyLook), as {slot: option}.
 var look: Dictionary = DummyLook.default_look()
 signal look_changed
@@ -282,7 +285,7 @@ func _deserialize(data: String) -> InputEvent:
 const SAVED_KEYS: Array[String] = ["mouse_sensitivity", "invert_y", "fov", "brightness", "fps_cap",
 	"vsync", "fullscreen", "shadows", "msaa", "render_scale", "quality", "shadow_detail", "effects",
 	"view_distance", "particles", "bug_detail", "master_volume", "sfx_volume", "music_volume", "debug_mode",
-	"colorblind", "tutorial_done"]
+	"colorblind", "tutorial_done", "host_online"]
 
 
 func save_settings() -> void:

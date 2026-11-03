@@ -30,7 +30,13 @@ const SOCKET := "DustAndMandibles"
 const BUCKET := "dust"
 const ATTR_CODE := "CODE"
 const ATTR_VERSION := "VERSION"
+## "1" once the host has started the run: the lobby stays findable so a late
+## joiner is told the game started (a hidden lobby would just say "no game").
+const ATTR_STARTED := "STARTED"
 const TIMEOUT_SEC := 20.0
+## EOS P2P refuses packets over ~1170 bytes (no splitting); the game's peer is
+## wrapped in this, which splits big packets and joins them again.
+const FragmentingPeer := preload("res://components/net/fragmenting_peer.gd")
 
 # EOS values used here (EOS_EResult and enums; names as in the plugin's eos.gd).
 const R_SUCCESS := 0
@@ -41,13 +47,17 @@ const R_LOBBY_TOO_MANY_PLAYERS := 9004
 const R_NOT_FOUND := 18
 const CREDENTIAL_DEVICEID := 10
 const PERMISSION_PUBLIC := 0
-const PERMISSION_INVITE_ONLY := 2
 const ATTR_PUBLIC := 0
 const COMPARE_EQUAL := 0
 const RELAY_ALLOW := 1
 const RELAY_FORCE := 2
 const RTC_MANUAL_JOIN := 1
 const FLAG_NO_OVERLAYS := 0x2 | 0x4 # DisableOverlay | DisableSocialOverlay
+const LOG_ALL := 0x7fffffff
+const LOG_P2P := 7
+const LOG_LOBBY := 18
+const LOG_WARNING := 300
+const LOG_INFO := 400
 
 var _ieos: Object
 var _creds: Dictionary = {}
@@ -60,6 +70,8 @@ var _owner := false
 var _lobby_error := ""
 ## Bumped on every host/join/leave so late callbacks from an old lobby are ignored.
 var _session := 0
+## WeakRefs to the P2P peers made here, closed before the SDK shuts down.
+var _peers: Array[WeakRef] = []
 
 
 ## Options for an IEOS call: EOSG reads each field with Object.get(), so any
@@ -115,6 +127,13 @@ func _process(_delta: float) -> void:
 
 func _exit_tree() -> void:
 	leave()
+	# Quitting: the game's P2P peer must stop before the SDK goes away (an EOS call
+	# on a released platform is a crash on exit).
+	for w: WeakRef in _peers:
+		var p := w.get_ref() as MultiplayerPeer
+		if p != null:
+			p.close()
+	_peers.clear()
 	if _platform:
 		_platform = false
 		_ieos.call("platform_interface_release")
@@ -156,6 +175,15 @@ func _login() -> String:
 			return "the EOS platform couldn't be created (check the credentials)"
 		_platform = true
 		_ieos.connect("connect_interface_auth_expiration", _on_auth_expiring)
+		if _netlog():
+			# --netlog: the SDK's own warnings (and P2P/lobby notes) in the game's log.
+			_ieos.call("logging_interface_set_log_level", LOG_ALL, LOG_WARNING)
+			_ieos.call("logging_interface_set_log_level", LOG_P2P, LOG_INFO)
+			_ieos.call("logging_interface_set_log_level", LOG_LOBBY, LOG_INFO)
+			_ieos.connect("logging_interface_callback", func(m: Dictionary) -> void:
+				print("[eos] %s %s: %s" % [str(m.get("level", "")), str(m.get("category", "")), str(m.get("message", ""))]))
+			_ieos.connect("p2p_interface_incoming_packet_queue_full", func(d: Dictionary) -> void:
+				print("[net] Epic P2P incoming queue full: %s" % d))
 	# --eosnewdevice (tests: a second copy on the same PC): drop this PC's Device ID
 	# and make a fresh one, so the two copies are two different anonymous players.
 	if flags.has("--eosnewdevice"):
@@ -260,7 +288,7 @@ func host(max_players: int, attrs: Dictionary) -> MultiplayerPeer:
 	_lobby_error = ""
 	_log_connections(peer)
 	_create_lobby(max_players, attrs, _session)
-	return peer
+	return FragmentingPeer.new(peer)
 
 
 func _create_lobby(max_players: int, attrs: Dictionary, session: int) -> void:
@@ -332,8 +360,7 @@ func set_max_players(n: int) -> void:
 
 func set_joinable(open: bool) -> void:
 	if _owner and _lobby_id != "":
-		var level := PERMISSION_PUBLIC if open else PERMISSION_INVITE_ONLY
-		_modify_lobby(func(m: Object) -> void: m.call("set_permission_level", level), _session)
+		_modify_lobby(func(m: Object) -> void: m.call("add_attribute", ATTR_STARTED, "0" if open else "1", ATTR_PUBLIC), _session)
 
 
 # ------------------------------------------------------------------ join
@@ -384,6 +411,9 @@ func join(code: String) -> MultiplayerPeer:
 	if ver != game_version:
 		last_error = "Version mismatch: that game runs %s and you have %s. Both of you need the same version." % [ver, game_version]
 		return null
+	if _attr(details, ATTR_STARTED) == "1":
+		last_error = "That game has already started, so it can't take new players. Ask your friend to host a new game."
+		return null
 	var info: Variant = (details.call("copy_info") as Dictionary).get("lobby_details")
 	if info is Dictionary and int((info as Dictionary).get("available_slots", 1)) <= 0:
 		last_error = "That game is full."
@@ -415,15 +445,34 @@ func join(code: String) -> MultiplayerPeer:
 		last_error = "Couldn't open the Epic P2P connection (error %d)." % err
 		return null
 	_log_connections(peer)
-	return peer
+	return FragmentingPeer.new(peer)
 
 
-## Logs how each P2P link was made: punched through directly or via Epic's relay.
-static func _log_connections(peer: MultiplayerPeer) -> void:
+## Logs how each P2P link was made: punched through directly or via Epic's relay;
+## with --netlog also every request, interruption and close (with EOS's reason).
+func _log_connections(peer: MultiplayerPeer) -> void:
+	_peers = _peers.filter(func(w: WeakRef) -> bool: return w.get_ref() != null)
+	_peers.append(weakref(peer))
 	peer.connect("peer_connection_established", func(d: Dictionary) -> void:
 		var how := ["no connection", "direct", "relayed"]
 		var t := int(d.get("network_type", 0))
 		print("[net] Epic P2P link to %s: %s" % [str(d.get("remote_user_id", "?")).left(8), how[t] if t >= 0 and t < 3 else str(t)]))
+	if not _netlog():
+		return
+	peer.connect("peer_connection_interrupted", func(d: Dictionary) -> void:
+		print("[net] Epic P2P link interrupted: %s" % d))
+	peer.connect("peer_connection_closed", func(d: Dictionary) -> void:
+		print("[net] Epic P2P link closed: %s" % d))
+	peer.connect("incoming_connection_request", func(d: Dictionary) -> void:
+		print("[net] Epic P2P connection request: %s" % d))
+	peer.connect("peer_connected", func(id: int) -> void:
+		print("[net] Epic P2P peer %d connected" % id))
+	peer.connect("peer_disconnected", func(id: int) -> void:
+		print("[net] Epic P2P peer %d disconnected" % id))
+
+
+func _netlog() -> bool:
+	return flags.has("--netlog")
 
 
 static func _attr(details: Object, key: String) -> String:

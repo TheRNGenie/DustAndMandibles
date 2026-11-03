@@ -23,6 +23,23 @@ remove Epic or add Steam), plugin in `addons/epic-online-services-godot/`
 `--epic` turns online lobbies on in `--debug` launches (they're off there by default),
 `--direct` turns them off, `--eosrelay` forces Epic's relay, `--eosnewdevice` gives a
 second copy on the same PC its own anonymous id, `--eoscreds=<file>` reads other credentials.
+`--netlog` logs every P2P request, link, interruption and close (with EOS's reason) and
+the EOS SDK's own warnings (`[eos] ...`, P2P and lobby notes too).
+
+Notes from the release-build join fixes:
+- EOS P2P refuses packets over ~1170 bytes (EOSG doesn't split them; it logs
+  "Failed to send packet. Packet size exceeds limits." and drops them). The game's
+  Epic peer is wrapped in `components/net/fragmenting_peer.gd`, which splits big
+  packets and joins them again, so big syncs and spawns always arrive.
+- `--eosnewdevice` deletes this PC's Device ID, which the other copy (the host) is
+  signed in with: after a while (seconds to minutes) EOS shuts that copy's P2P down
+  ("Leave all connections due to P2P network shutdown") and the joiner is dropped.
+  Two copies on one PC can't both keep a Device ID; real players on two PCs aren't
+  affected, so test long sessions across two PCs.
+- The menu's "Host via" pick (Online / Direct (IP/LAN), saved as Settings.host_online)
+  lets a host skip Epic if it misbehaves; `--epic` launches always host online.
+- Once a run starts the lobby stays findable but says STARTED, so a late joiner is
+  told the game already started instead of "no game with that code".
 
 ## Checklist
 1. Unit tests pass; the log says `[net] backends: Direct only (...)` for script runs.

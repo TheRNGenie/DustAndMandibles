@@ -23,6 +23,9 @@ var _invite_note: Label
 var _copy_btn: Button
 var _solo_btn: Button
 var _auto_ready := false
+## The --host / --join test flags act on the first menu; back on the menu
+## because the host left, it shows why instead of joining the gone game again.
+static var _launched := false
 var _settings: PauseMenu
 var _ledger: LedgerScreen # Perk: Rancher's Ledger screen
 var _brands: BrandScreen # Brand: the branding-iron pick screen
@@ -53,12 +56,17 @@ func _ready() -> void:
 		_name_edit.text = flag_name
 	if GameState.flag_value("--port") != "": # Perk (test aid): pick the port for --host / --join
 		_port_edit.text = GameState.flag_value("--port")
+	var first := not _launched
+	_launched = true
 	if not NetworkManager.pending_join.is_empty():
 		var pj := NetworkManager.pending_join
 		NetworkManager.pending_join = {}
 		_ip_edit.text = str(pj["address"])
 		_port_edit.text = str(pj["port"])
 		_on_join()
+	elif not first and NetworkManager.menu_message != "":
+		_show_connect(NetworkManager.menu_message)
+		NetworkManager.menu_message = ""
 	elif GameState.has_flag("--host") or _test_launch():
 		_auto_ready = true
 		_on_host()
@@ -148,6 +156,17 @@ func _build_ui() -> void:
 		RunSave.pending = {}
 		_on_host())
 	_connect_box.add_child(host_btn)
+	# Online (Epic lobby, works anywhere) or Direct (IP/LAN): the way out when online misbehaves.
+	if NetworkManager.online != null:
+		var via := OptionButton.new()
+		via.focus_mode = Control.FOCUS_NONE
+		via.add_item("Online (%s)" % NetworkManager.online.backend_name())
+		via.add_item("Direct (IP/LAN)")
+		via.selected = 0 if Settings.host_online else 1
+		via.item_selected.connect(func(i: int) -> void:
+			Settings.host_online = i == 0
+			Settings.save_settings())
+		_connect_box.add_child(UiStyle.row("Host via", via))
 	var row := HBoxContainer.new()
 	_ip_edit = _line_edit("Invite code (DUST-...) or host IP", "")
 	_ip_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -298,7 +317,7 @@ func _test_launch() -> bool:
 
 func _on_host() -> void:
 	NetworkManager.local_name = _player_name()
-	if NetworkManager.online_signing_in(): # a moment after launch: let online play finish signing in
+	if NetworkManager.wants_online() and NetworkManager.online_signing_in(): # a moment after launch: let online play finish signing in
 		_status.text = "Signing in to online play..."
 		await NetworkManager.wait_for_online()
 	var err := NetworkManager.host(int(_port_edit.text))
