@@ -112,7 +112,7 @@ static func _landmark(cell: Vector2i) -> bool:
 
 ## Cells an item covers when built at `cell` (farm plots take 2 x 2).
 static func footprint(id: StringName, cell: Vector2i) -> Array[Vector2i]:
-	if id == &"farm_plot":
+	if id == &"farm_plot" or Defs.is_crewed(id): # Crewed: crewed guns are 2 x 2 too
 		return [cell, cell + Vector2i(1, 0), cell + Vector2i(0, 1), cell + Vector2i(1, 1)]
 	return [cell]
 

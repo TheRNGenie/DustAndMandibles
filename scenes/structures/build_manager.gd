@@ -63,6 +63,15 @@ func is_free_for(id: StringName, cid: int, cell: Vector2i) -> bool:
 	if Defs.is_house_turret(id):
 		var home := Homestead.of(cid)
 		return home != null and cell.y < home.mount_count() and not _occupied.has(_key(cid, cell, 0))
+	# Crewed: crewed guns sit on bare ground only (no scaffold, nothing stacked on
+	# or under them), and nothing else goes on a cell one covers.
+	if Defs.is_crewed(id):
+		for c in Buildable.footprint(id, cell):
+			if cell_taken(cid, c) or not turrets_on(cid, c).is_empty():
+				return false
+		return true
+	if crewed_at(cid, cell):
+		return false
 	if id == &"scaffold":
 		return scaffold_levels(cid, cell) < MAX_SCAFFOLD
 	if Defs.is_turret(id) and Buildable.is_turret_cell(cell):
@@ -71,6 +80,12 @@ func is_free_for(id: StringName, cid: int, cell: Vector2i) -> bool:
 		if _occupied.has(_key(cid, c, 0)) or scaffold_levels(cid, c) > 0:
 			return false
 	return true
+
+
+# Crewed: is this cell under a crewed gun's 2 x 2 footprint?
+func crewed_at(cid: int, cell: Vector2i) -> bool:
+	var t := turret_at(cid, cell, 0)
+	return t != null and t.def.crewed
 
 
 ## Is something already standing on this cell (any level, or a scaffold)?
@@ -214,7 +229,7 @@ func _spawn_built(data: Variant) -> Node:
 	var pos := Buildable.footprint_center(cliffs, cid, id, cell) if cell.x >= 0 else Homestead.of(cid).mount_global(cell.y)
 	var node: Node3D
 	if Defs.is_turret(id):
-		var t := Turret.new()
+		var t: Turret = CrewedTurret.new() if Defs.is_crewed(id) else Turret.new() # Crewed
 		t.setup(Defs.turret(id), cid, cell, pos + Vector3.UP * ScaffoldNode.LEVEL_HEIGHT * level, str(d["owner"]), level)
 		Perks.apply_turret(t, int(d.get("peer", 0))) # Perk: Long Sights / Well Oiled / Reinforced Frames
 		node = t

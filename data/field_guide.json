@@ -204,6 +204,38 @@
         "Each rocket costs 1 scrap.",
         "Expensive: save it for blood moons."
       ]
+    },
+    "big_bertha": {
+      "lore": "A ten-barrel crank Gatling bolted to a buckboard wagon. She wants a gunner: hold the trigger and she spins up and hoses the far wall until the barrels glow.",
+      "tips": [
+        "Takes 2 x 2 of bare ground. Tap E to sit in her; the mouse aims, hold LMB to fire.",
+        "Let go before the barrels glow red: overheated, she's quiet until they cool.",
+        "Left alone she still fires, at half rate and half damage."
+      ]
+    },
+    "whaler": {
+      "lore": "A whaling ballista on a timber sledge. The barbed harpoon goes in on a chain and holds a big bug fast to the wall.",
+      "tips": [
+        "LMB throws the harpoon; a chained bug stops climbing for a few seconds.",
+        "Hold RMB to reel it down the wall: the further you drag it, the harder it falls when the chain lets go.",
+        "Your answer to bosses and armoured beetles. Unmanned, it only harpoons big bugs."
+      ]
+    },
+    "thunder_mule": {
+      "lore": "Three stubby mortars on a mule cart. The mule doesn't care for the noise.",
+      "tips": [
+        "Sitting in it shows the shells' arc and a landing ring on the far wall.",
+        "One pull lobs a three-shell salvo: aim at the crowd near the top.",
+        "Long reload, and the shells take a moment to land: lead the climb."
+      ]
+    },
+    "sky_hound": {
+      "lore": "Twin flak barrels on a sandbagged turntable. Every shell bursts in a black cloud.",
+      "tips": [
+        "Shells burst beside the first flier near your aim, or where you aim.",
+        "The cloud keeps stinging anything that flies through it.",
+        "Turns almost all the way round: it covers your own sky too."
+      ]
     }
   },
   "crops": {

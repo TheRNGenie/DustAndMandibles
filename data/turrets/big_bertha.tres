@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"big_bertha"
+display_name = "Big Bertha"
+description = "A ten-barrel crank Gatling bolted to a buckboard wagon. Take the seat and hold the trigger: she spins up, then hoses the far wall until the barrels glow and she has to cool."
+role = "manned swarm shredder"
+weakness = "armour and big bugs (half damage); overheats"
+cost_scrap = 200
+max_hp = 300.0
+range = 100.0
+fire_interval = 0.06
+damage = 6.0
+armor_pierce = false
+heavy_mult = 0.5
+pitch_limit_deg = 38.0
+turn_speed = 220.0
+spread_deg = 2.2
+hit_chance = 0.75
+effect = 0
+sound = &"gatling"
+crewed = true
+crew_yaw_arc_deg = 75.0
+crew_pitch_up_deg = 30.0

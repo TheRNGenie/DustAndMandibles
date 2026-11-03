@@ -40,6 +40,11 @@ const TURRETS: Dictionary = {
 	&"sharpshooter_tower": preload("res://data/turrets/sharpshooter_tower.tres"),
 	&"porch_repeater": preload("res://data/turrets/porch_repeater.tres"),
 	&"rooftop_cannon": preload("res://data/turrets/rooftop_cannon.tres"),
+	# Crewed: 2 x 2 guns you sit in and fire yourself (CrewedTurret).
+	&"big_bertha": preload("res://data/turrets/big_bertha.tres"),
+	&"whaler": preload("res://data/turrets/whaler.tres"),
+	&"thunder_mule": preload("res://data/turrets/thunder_mule.tres"),
+	&"sky_hound": preload("res://data/turrets/sky_hound.tres"),
 }
 
 const STRUCTURES: Dictionary = {
@@ -76,13 +81,15 @@ const REGISTRIES: Dictionary = {"bugs": BUGS, "turrets": TURRETS, "structures": 
 const BUILD_ORDER: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"water_cannon",
 	&"chili_mortar", &"dynamite_lobber", &"lasso_harpoon", &"scaffold", &"scattergun_post", &"sharpshooter_tower", &"barbed_wire", &"bear_trap",
 	&"dynamite_crate", &"palisade", &"lantern_post", &"rain_catcher", &"farm_plot", &"porch_repeater", &"rooftop_cannon",
-	&"duck_gun", &"sky_sweeper", &"net_thrower", &"powder_flak", &"firework_battery"]
+	&"duck_gun", &"sky_sweeper", &"net_thrower", &"powder_flak", &"firework_battery",
+	&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound"] # Crewed
 
 ## Build menu (B) categories, in tab order.
 const BUILD_CATEGORIES: Array[Dictionary] = [
 	{"name": "Farming", "items": [&"farm_plot", &"rain_catcher"]},
 	{"name": "Cliff Turrets", "items": [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar",
 		&"dynamite_lobber", &"lasso_harpoon", &"scaffold"]},
+	{"name": "Crewed Guns", "items": [&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound"]}, # Crewed
 	{"name": "Tactical", "items": [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post"]},
 	{"name": "Air Defense", "items": [&"duck_gun", &"sky_sweeper", &"net_thrower", &"powder_flak", &"firework_battery"]},
 	{"name": "Last Resorts", "items": [&"scattergun_post", &"sharpshooter_tower", &"porch_repeater", &"rooftop_cannon"]},
@@ -91,7 +98,7 @@ const BUILD_CATEGORIES: Array[Dictionary] = [
 ## Turrets that come standing on a free scaffold (every turret except the last
 ## resorts and the house turrets).
 static func gets_scaffold(id: StringName) -> bool:
-	if not is_turret(id) or is_house_turret(id):
+	if not is_turret(id) or is_house_turret(id) or is_crewed(id): # Crewed: never on scaffolding
 		return false
 	for cat: Dictionary in BUILD_CATEGORIES:
 		if cat["name"] == "Last Resorts" and (cat["items"] as Array).has(id):
@@ -137,6 +144,19 @@ static func seed_of(crop_id: StringName) -> StringName:
 
 static func is_turret(id: StringName) -> bool:
 	return TURRETS.has(id)
+
+
+# Crewed: a 2 x 2 gun with a seat (ground level only, nothing stacks on it).
+static func is_crewed(id: StringName) -> bool:
+	return TURRETS.has(id) and turret(id).crewed
+
+
+## The items of a build category by its name ([] if there's no such category).
+static func category_items(cat_name: String) -> Array:
+	for cat: Dictionary in BUILD_CATEGORIES:
+		if cat["name"] == cat_name:
+			return cat["items"]
+	return []
 
 
 ## Mounted on the house rather than placed on the grid.

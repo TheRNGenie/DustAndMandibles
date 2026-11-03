@@ -44,6 +44,8 @@ func is_online() -> bool:
 
 func host(port: int = DEFAULT_PORT) -> Error:
 	leave()
+	if GameState.has_flag("--debug") and GameState.flag_value("--port") != "":
+		port = int(GameState.flag_value("--port")) # Crewed: debug two-window tests on a port of their own
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_server(port, MAX_PLAYERS - 1)
 	# Debug/test launches: if the port is taken (another test or game is running),
