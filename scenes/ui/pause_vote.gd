@@ -41,7 +41,7 @@ func _peers() -> Array[int]:
 
 
 func vote_count_text() -> String:
-	return "%d / %d voted" % [votes.size(), _peers().size()]
+	return "%d / %d Voted" % [votes.size(), _peers().size()]
 
 
 func has_voted() -> bool:

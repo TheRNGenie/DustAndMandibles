@@ -18,6 +18,7 @@ func _build() -> void:
 	for c in get_children():
 		remove_child(c)
 		c.queue_free()
+	add_child(UiStyle.section("Display"))
 	add_child(UiStyle.row("Brightness", UiStyle.slider(0.5, 1.6, 0.05, Settings.brightness, "%.2f",
 			func(v: float) -> void: Settings.set_value("brightness", v))))
 
@@ -37,7 +38,7 @@ func _build() -> void:
 	add_child(UiStyle.row("Colour-Blind Shapes", UiStyle.check(Settings.colorblind,
 			func(on: bool) -> void: Settings.set_value("colorblind", on))))
 
-	add_child(UiStyle.divider())
+	add_child(UiStyle.section("Quality"))
 
 	# Quality preset: picking one sets everything below.
 	_quality = OptionButton.new()

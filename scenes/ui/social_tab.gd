@@ -13,14 +13,12 @@ var _note: Label
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 8)
-	add_child(UiStyle.label("In this game", 18))
-	_players = UiStyle.label("", 16, Palette.WOOD_DARK)
-	_players.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	add_child(UiStyle.section("In This Game"))
+	_players = UiStyle.note("", 16)
 	add_child(_players)
-	add_child(HSeparator.new())
 
-	add_child(UiStyle.label("Invite a partner", 18))
-	add_child(UiStyle.label("Send this code to your friend. They type it into Join below (or on the main menu).", 14, Palette.WOOD_DARK))
+	add_child(UiStyle.section("Invite a Partner"))
+	add_child(UiStyle.note("Send this code to your friend. They type it into Join below (or on the main menu)."))
 	var invite_row := HBoxContainer.new()
 	_invite = LineEdit.new()
 	_invite.editable = false
@@ -32,12 +30,10 @@ func _ready() -> void:
 		_status.text = "Invite copied to the clipboard.")
 	invite_row.add_child(copy)
 	add_child(invite_row)
-	_note = UiStyle.label("", 13, Palette.WOOD_DARK)
-	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_note = UiStyle.note("", 14)
 	add_child(_note)
-	add_child(HSeparator.new())
 
-	add_child(UiStyle.label("Join a game", 18))
+	add_child(UiStyle.section("Join a Game"))
 	var join_row := HBoxContainer.new()
 	_join_edit = LineEdit.new()
 	_join_edit.placeholder_text = "Invite code, e.g. DUST-7K2MQ-X4P90 (or IP:port)"
@@ -47,7 +43,8 @@ func _ready() -> void:
 	join.pressed.connect(_on_join)
 	join_row.add_child(join)
 	add_child(join_row)
-	_status = UiStyle.label("", 14, Palette.ROCK_B)
+	_status = UiStyle.note("", 14)
+	_status.theme_type_variation = "WarnLabel"
 	add_child(_status)
 
 	NetworkManager.players_changed.connect(_refresh)
@@ -61,7 +58,7 @@ func _refresh() -> void:
 	for id: int in NetworkManager.players:
 		var p: Dictionary = NetworkManager.players[id]
 		var cliff := WorldLayout.map().name_of(int(p["cliff"])) # Maps:
-		var me := " (you)" if id == multiplayer.get_unique_id() else ""
+		var me := " (You)" if id == multiplayer.get_unique_id() else ""
 		lines.append("%s: %s%s" % [cliff, str(p["name"]), me])
 	if lines.is_empty():
 		lines.append("Playing offline.")

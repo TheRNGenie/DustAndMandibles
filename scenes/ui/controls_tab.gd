@@ -8,19 +8,21 @@ var _buttons: Dictionary = {}
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 8)
+	add_child(UiStyle.section("Mouse"))
 	add_child(UiStyle.row("Mouse sensitivity", UiStyle.slider(0.2, 3.0, 0.05,
 			Settings.mouse_sensitivity / 0.0022, "%.2fx",
 			func(v: float) -> void: Settings.set_value("mouse_sensitivity", v * 0.0022))))
 	add_child(UiStyle.row("Invert mouse Y", UiStyle.check(Settings.invert_y,
 			func(on: bool) -> void: Settings.set_value("invert_y", on))))
-	add_child(HSeparator.new())
-	add_child(UiStyle.label("Click a binding, then press the new key or mouse button. Esc cancels.", 14, Palette.WOOD_DARK))
+	add_child(UiStyle.section("Key Bindings"))
+	add_child(UiStyle.note("Click a binding, then press the new key or mouse button. Esc cancels."))
 	for action: String in Settings.REMAPPABLE:
 		var b := UiStyle.button("")
 		b.pressed.connect(_start_rebind.bind(action))
 		_buttons[action] = b
 		add_child(UiStyle.row(str(Settings.REMAPPABLE[action]), b))
-	var reset := UiStyle.button("Reset all to defaults")
+	var reset := UiStyle.button("Reset All to Defaults")
+	reset.size_flags_horizontal = Control.SIZE_SHRINK_END
 	reset.pressed.connect(func() -> void:
 		Settings.reset_bindings()
 		_refresh())

@@ -25,6 +25,8 @@ var tallies: TurretTallies
 var tutorial: HudTutorial
 var photo: PhotoMode
 
+## The separator between parts of one line of HUD text ("Wave 3  ·  High Noon").
+const SEP := "  ·  "
 const PHASE_NAMES := {
 	GameState.Phase.LOBBY: "Waiting for riders",
 	GameState.Phase.BUILD: "DAYBREAK",
@@ -96,7 +98,6 @@ func _ready() -> void:
 	_ammo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_ammo_label.add_theme_font_size_override("font_size", 30)
 	_ammo_label.theme_type_variation = "HudLabel" # Theme
-	_ammo_label.add_theme_font_override("font", UiStyle.display_font())
 	ammo_sign.add_child(_ammo_label)
 
 	_blackout = ColorRect.new()
@@ -135,8 +136,9 @@ func _ready() -> void:
 	_phase_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_phase_label.add_theme_font_size_override("font_size", 22)
 	_phase_label.theme_type_variation = "HudLabel" # Theme
-	_phase_label.add_theme_font_override("font", UiStyle.display_font())
 	plaque.add_child(_phase_label)
+	_plaque_font()
+	UiStyle.notifier.changed.connect(_plaque_font)
 	_hint_label = Label.new()
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint_label.add_theme_font_size_override("font_size", 14)
@@ -201,24 +203,35 @@ func _process(_delta: float) -> void:
 			get_tree().get_nodes_in_group("players").size()]
 
 
+## The plaque in the set's display face, unless that face is too ornate to read at a glance.
+func _plaque_font() -> void:
+	for l: Label in [_phase_label, _ammo_label]:
+		if l == null:
+			continue
+		if UiStyle.display_is_decorative():
+			l.remove_theme_font_override("font")
+		else:
+			l.add_theme_font_override("font", UiStyle.display_font())
+
+
 func _update_phase_label() -> void:
-	var title: String = PHASE_NAMES.get(GameState.phase, "")
+	var title: String = UiStyle.tc(str(PHASE_NAMES.get(GameState.phase, "")).to_lower())
 	if DayCycle.instance != null and (GameState.phase == GameState.Phase.BUILD or GameState.phase == GameState.Phase.WAVE):
-		title = DayCycle.instance.stage_name()
+		title = UiStyle.tc(DayCycle.instance.stage_name().to_lower())
 		if GameState.weather != Weather.Kind.CLEAR:
-			title += "  -  " + Weather.NAMES[GameState.weather].to_upper()
-		title += "  -  %d\u00B0F" % int(round(GameState.temperature()))
-	var secs := int(ceilf(GameState.time_left))
+			title += SEP + UiStyle.tc(str(Weather.NAMES[GameState.weather]).to_lower())
+		title += SEP + "%d°F" % int(round(GameState.temperature()))
 	if GameState.phase == GameState.Phase.LOBBY:
 		_phase_label.text = title
 	elif GameState.phase == GameState.Phase.WAVE:
-		_phase_label.text = "Wave %d  -  %s  -  %d bugs left" % [GameState.wave, title, get_tree().get_nodes_in_group("bugs").size()]
+		var left := get_tree().get_nodes_in_group("bugs").size()
+		_phase_label.text = "Wave %d%s%s%s%d Bug%s Left" % [GameState.wave, SEP, title, SEP, left, "" if left == 1 else "s"]
 	elif GameState.phase == GameState.Phase.BUILD and GameState.ready_countdown >= 0.0:
-		_phase_label.text = "Wave %d  -  Riding in %d" % [GameState.wave, int(ceilf(GameState.ready_countdown))]
+		_phase_label.text = "Wave %d%sRiding in %s" % [GameState.wave, SEP, UiStyle.clock(GameState.ready_countdown)]
 	elif GameState.phase == GameState.Phase.BUILD and not GameState.has_flag("--fast"):
-		_phase_label.text = "Wave %d  -  %s  -  Levers %d/%d" % [GameState.wave, title, GameState.skip_votes, maxi(NetworkManager.players.size(), 1)]
+		_phase_label.text = "Wave %d%s%s%sLevers %d / %d" % [GameState.wave, SEP, title, SEP, GameState.skip_votes, maxi(NetworkManager.players.size(), 1)]
 	else:
-		_phase_label.text = "Wave %d  -  %s  -  %d:%02d" % [GameState.wave, title, secs / 60, secs % 60]
+		_phase_label.text = "Wave %d%s%s%s%s" % [GameState.wave, SEP, title, SEP, UiStyle.clock(GameState.time_left)]
 
 
 func _flash_phase() -> void:

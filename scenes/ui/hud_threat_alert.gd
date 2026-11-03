@@ -95,7 +95,7 @@ func _scan() -> void:
 		if not _threats.has(cid):
 			continue
 		var n := int(_threats[cid]["count"])
-		var text := "%d at %s%s" % [n, m.name_of(cid), " (yours)" if cid == mine else ""]
+		var text := "%d at %s%s" % [n, m.name_of(cid), " (Yours)" if cid == mine else ""]
 		_label_box.add_child(_line(text, color_for(cid), cid == mine))
 	_card.visible = _label_box.get_child_count() > 0
 	if _card.visible:
@@ -120,7 +120,7 @@ func color_for(cid: int) -> Color:
 
 
 func _line(s: String, color: Color, mine: bool) -> Control:
-	var l := KeyHints.text(s, 13, color)
+	var l := KeyHints.text(s, 14, color)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	if not Settings.colorblind:
 		return l

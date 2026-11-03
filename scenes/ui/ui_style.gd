@@ -63,7 +63,7 @@ const SETS: Dictionary = {
 		"tab": "#17120F", "tab_sel": "#FFF5E6", "accent": "#B3261E", "gold": "#E9C46A", "good": "#2E7D32",
 		"bad": "#B3261E", "dim": "#06140A99", "hud": "#F4ECDA", "bg": "#123B1E",
 		"hud_bg": "#123A20E6", "hud_rim": "#E9C46A", "radius": 10,
-		"file": "res://assets/fonts/Ewert-Regular.ttf", "fonts": ["Palatino Linotype", "Book Antiqua", "Georgia"], "weight": 700, "italic": true, "spacing": 1, "wdth": 0,
+		"decorative": true, "file": "res://assets/fonts/Ewert-Regular.ttf", "fonts": ["Palatino Linotype", "Book Antiqua", "Georgia"], "weight": 700, "italic": true, "spacing": 1, "wdth": 0,
 	},
 }
 
@@ -182,6 +182,12 @@ static func display_font() -> FontVariation:
 		_display = FontVariation.new()
 		_fill_font(current if current != &"" else &"base")
 	return _display
+
+
+## True when the set's display face is too ornate for a line read mid-fight
+## (Snake Eyes' Ewert): live HUD text then uses the plain UI font instead.
+static func display_is_decorative() -> bool:
+	return bool((SETS.get(current if current != &"" else &"base", SETS[&"base"]) as Dictionary).get("decorative", false))
 
 
 static func _fill_font(set_id: StringName) -> void:
@@ -527,7 +533,7 @@ static func button(text: String) -> Button:
 static func row(caption: String, control: Control) -> HBoxContainer:
 	var r := HBoxContainer.new()
 	r.add_theme_constant_override("separation", 12)
-	var l := label(caption, 16)
+	var l := label(tc(caption), 16)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	l.custom_minimum_size.x = 260
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -537,7 +543,33 @@ static func row(caption: String, control: Control) -> HBoxContainer:
 	return r
 
 
-## A slider with a live value readout. `fmt` formats the value for display.
+## A section heading inside a settings tab or list: a Title Case caption over a rule.
+static func section(text: String) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	var l := label(tc(text), 18)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	if not display_is_decorative(): # an ornate face (Snake Eyes) stays on big titles only
+		l.add_theme_font_override("font", display_font())
+	v.add_child(l)
+	v.add_child(HSeparator.new())
+	return v
+
+
+## A text block on paper: left-aligned, wrapped, in the soft ink.
+static func note(text: String, size: int = 14) -> Label:
+	var l := label(text, size)
+	l.theme_type_variation = "SoftInkLabel"
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	return l
+
+
+static func _readout(fmt: String, v: float) -> String:
+	return "%d%%" % roundi(v * 100.0) if fmt == "pct" else fmt % v
+
+
+## A slider with a live value readout. `fmt` formats the value for display
+## ("pct" shows a 0-1 value as a percentage).
 static func slider(min_v: float, max_v: float, step: float, value: float, fmt: String,
 		on_change: Callable) -> HBoxContainer:
 	var box_ := HBoxContainer.new()
@@ -550,10 +582,11 @@ static func slider(min_v: float, max_v: float, step: float, value: float, fmt: S
 	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	s.custom_minimum_size = Vector2(200, 24)
-	var readout := label(fmt % value, 15)
+	var readout := label(_readout(fmt, value), 16)
 	readout.custom_minimum_size.x = 60
+	readout.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	s.value_changed.connect(func(v: float) -> void:
-		readout.text = fmt % v
+		readout.text = _readout(fmt, v)
 		on_change.call(v))
 	box_.add_child(s)
 	box_.add_child(readout)

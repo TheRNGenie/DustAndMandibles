@@ -119,7 +119,8 @@ func menu_items(tab: int) -> Array:
 				why = "Already in your holster."
 			elif gun.owned.size() >= Gun.MAX_WEAPONS:
 				why = "Your three weapon slots are full. Drop one first (Q)."
-			out.append({"id": "buy:%s" % id, "name": w.display_name, "icon": id, "desc": w.description,
+			out.append({"id": "buy:%s" % id, "name": w.display_name, "icon": id, "desc": "%s
+%s" % [w.description, w.stat_line()],
 					"price": UiStyle.cost(w.price_chitin, "chitin"), "price_ok": chitin >= w.price_chitin, "disabled": why,
 					"buttons": [[&"buy", "Buy"]]})
 		elif tab == 1 and item["kind"] == "upgrade":
@@ -131,7 +132,7 @@ func menu_items(tab: int) -> Array:
 			elif maxed:
 				why = "Fully upgraded."
 			var cost: int = 0 if maxed else int(w.upgrade_costs[level])
-			out.append({"id": "upgrade:%s" % id, "name": "%s  (level %d)" % [w.display_name, level], "icon": id,
+			out.append({"id": "upgrade:%s" % id, "name": "%s  ·  Level %d" % [w.display_name, level], "icon": id,
 					"desc": "+25% damage and a faster reload per level.", "price": "" if maxed else UiStyle.cost(cost, "chitin"),
 					"price_ok": chitin >= cost, "disabled": why, "buttons": [[&"buy", "Upgrade"]]})
 		elif tab == 2 and item["kind"] == "mods":
@@ -154,7 +155,7 @@ func menu_items(tab: int) -> Array:
 			var lvl := WeaponMods.level(wc)
 			var maxed := lvl >= WeaponMods.WHIP_LEVEL_COSTS.size()
 			var cost: int = 0 if maxed else WeaponMods.WHIP_LEVEL_COSTS[lvl]
-			out.append({"id": "upgrade:whip", "name": "Bullwhip  (level %d)" % lvl, "icon": &"planks",
+			out.append({"id": "upgrade:whip", "name": "Bullwhip  ·  Level %d" % lvl, "icon": &"planks",
 					"desc": "+25% lash damage per level.", "price": "" if maxed else UiStyle.cost(cost, "chitin"),
 					"price_ok": chitin >= cost, "disabled": "Fully upgraded." if maxed else "", "buttons": [[&"buy", "Upgrade"]]})
 			var gold_why := ""
@@ -162,7 +163,7 @@ func menu_items(tab: int) -> Array:
 				gold_why = "It already shines."
 			elif not WeaponMods.can_gild(wc):
 				gold_why = "Max the whip's level and fit all three workshop mods first."
-			out.append({"id": "gild:whip", "name": "THE GOLDEN WHIP", "icon": &"planks",
+			out.append({"id": "gild:whip", "name": "The Golden Whip", "icon": &"planks",
 					"desc": "Gild the whole lash in gold: +60% damage, 15% more reach, lashes 20% quicker. The gunsmith's masterpiece.",
 					"price": "" if WeaponMods.is_golden(wc) else UiStyle.cost(WeaponMods.GOLDEN_COST, "chitin"),
 					"price_ok": chitin >= WeaponMods.GOLDEN_COST, "disabled": gold_why, "buttons": [[&"buy", "Gild it"]]})

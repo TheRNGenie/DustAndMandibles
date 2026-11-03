@@ -28,6 +28,7 @@ func is_open() -> bool:
 
 func open() -> void:
 	_root.visible = true
+	UiStyle.fade_in(_root)
 	_refresh()
 
 
@@ -112,7 +113,7 @@ func _build() -> void:
 	bcol.add_theme_constant_override("separation", 0)
 	banner.add_child(bcol)
 	bcol.add_child(_base_title("Burn Your Brand", 50))
-	bcol.add_child(_plain("Every rider takes a brand for the run: it shapes how you play and how your gear looks.", 17, Color("#F2E3C2")))
+	bcol.add_child(_plain("Every rider takes a brand for the run: it shapes how you play and how your gear looks.", 17, _base("hud")))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 18)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -124,7 +125,7 @@ func _build() -> void:
 	note_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	note_box.custom_minimum_size.x = 760
 	col.add_child(note_box)
-	_note = _plain("", 16, Color("#F2E3C2"))
+	_note = _plain("", 16, _base("hud"))
 	note_box.add_child(_note)
 
 
@@ -233,10 +234,16 @@ static func _set_title(set_id: StringName, text: String, size: int, ink: Color) 
 	return l
 
 
+## A colour of the base (Frontier) set: this screen shows every set side by side,
+## so it reads the sets directly instead of the one on screen.
+static func _base(key: String) -> Color:
+	return Color(str((UiStyle.SETS[&"base"] as Dictionary)[key]))
+
+
 static func _base_title(text: String, size: int) -> Label:
-	var l := _plain(text.to_upper(), size, Color("#F2C14E"))
+	var l := _plain(text.to_upper(), size, _base("title"))
 	l.add_theme_font_override("font", _set_font(&"base"))
-	l.add_theme_color_override("font_outline_color", Color("#1A0F07"))
+	l.add_theme_color_override("font_outline_color", _base("outline"))
 	l.add_theme_constant_override("outline_size", 8)
 	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.5))
 	l.add_theme_constant_override("shadow_offset_y", 3)

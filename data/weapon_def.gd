@@ -48,3 +48,14 @@ func falloff(dist: float) -> float:
 	if dist <= falloff_start or falloff_end <= falloff_start:
 		return 1.0
 	return lerpf(1.0, falloff_min, clampf((dist - falloff_start) / (falloff_end - falloff_start), 0.0, 1.0))
+
+
+## A gun's key numbers in one line, the same in the shop and the field guide:
+## "Damage 30  ·  6 Rounds  ·  1.8 s Reload  ·  Pierces Armour".
+func stat_line() -> String:
+	var parts: PackedStringArray = ["Damage %d%s" % [int(damage), (" x%d" % pellets) if pellets > 1 else ""],
+			"%d Round%s" % [mag_size, "" if mag_size == 1 else "s"], "%.1f s Reload" % reload_time,
+			"Pierces Armour" if pierce_armor else "Stopped by Armour"]
+	if falloff_start < range:
+		parts.append("Weaker Past %d m" % int(falloff_start))
+	return "  ·  ".join(parts)

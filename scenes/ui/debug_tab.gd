@@ -10,9 +10,7 @@ func _ready() -> void:
 			func(on: bool) -> void:
 				Settings.set_value("debug_mode", on)
 				_refresh())))
-	var note := UiStyle.label("Cheats for testing. Online, they only work when the host has debug mode on.", 14)
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	add_child(note)
+	add_child(UiStyle.note("Cheats for testing. Online, they only work when the host has debug mode on."))
 	for entry: Array in [["skip", "Skip to the next phase", "debug_skip_phase"],
 			["scrap", "+500 scrap, +50 chitin", "debug_add_scrap"],
 			["spawn", "Spawn a bug on your partner's cliff", "debug_spawn_bug"],
@@ -25,7 +23,7 @@ func _ready() -> void:
 				DebugTools.instance.run(str(entry[0])))
 		add_child(b)
 	visibility_changed.connect(_refresh)
-	add_child(UiStyle.label("Performance overlay: %s (works any time)." % Settings.binding_label("debug_overlay"), 14))
+	add_child(UiStyle.note("Performance overlay: %s (works any time)." % Settings.binding_label("debug_overlay")))
 	_refresh()
 
 

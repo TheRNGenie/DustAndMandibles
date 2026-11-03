@@ -27,9 +27,12 @@ func open() -> void:
 	_refresh_vote()
 	if PauseVote.instance != null and not PauseVote.instance.votes_changed.is_connected(_refresh_vote):
 		PauseVote.instance.votes_changed.connect(_refresh_vote)
+	var was_open := _root.visible
 	_root.visible = true
 	GameState.menu_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if not was_open:
+		UiStyle.fade_in(_root)
 
 
 ## The vote button shows how many have voted and whether you have.
@@ -37,7 +40,7 @@ func _refresh_vote() -> void:
 	if _vote_btn == null or PauseVote.instance == null:
 		return
 	var v := PauseVote.instance
-	_vote_btn.text = ("Cancel Pause Vote" if v.has_voted() else "Vote to Pause") + "  (%s)" % v.vote_count_text()
+	_vote_btn.text = ("Cancel Pause Vote" if v.has_voted() else "Vote to Pause") + "  ·  %s" % v.vote_count_text()
 
 
 func select_tab(index: int) -> void:
@@ -68,10 +71,7 @@ func _build() -> void:
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	UiStyle.fit(_root) # Theme: bigger on 1440p and up
 	add_child(_root)
-	var dim := ColorRect.new()
-	dim.color = Color(0.1, 0.05, 0.05, 0.55)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_root.add_child(dim)
+	_root.add_child(UiStyle.scrim())
 
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -84,15 +84,9 @@ func _build() -> void:
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 0)
 	frame.add_child(outer)
-	var head := PanelContainer.new()
-	head.theme_type_variation = "HeaderPanel"
+	var head := UiStyle.strap("Settings" if in_main_menu else "Paused", "", 30)
 	outer.add_child(head)
-	var header := HBoxContainer.new()
-	head.add_child(header)
-	var title := UiStyle.title("Settings" if in_main_menu else "Paused", 34, true)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	header.add_child(title)
+	var header := UiStyle.strap_row(head)
 	var resume := UiStyle.button("Back" if in_main_menu else "Resume")
 	resume.custom_minimum_size.x = 150
 	resume.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -103,7 +97,7 @@ func _build() -> void:
 	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(card)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 10)
+	col.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
 	card.add_child(col)
 
 	_tabs = TabContainer.new()
@@ -120,8 +114,11 @@ func _build() -> void:
 	if not in_main_menu:
 		var footer := HBoxContainer.new()
 		footer.alignment = BoxContainer.ALIGNMENT_END
-		footer.add_theme_constant_override("separation", 8)
+		footer.add_theme_constant_override("separation", UiStyle.GAP_ROW)
 		col.add_child(footer)
+		var keys := UiStyle.paper_hints([["Esc", "Resume"]])
+		keys.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		footer.add_child(keys)
 		var vote_btn := UiStyle.button("Vote to Pause")
 		vote_btn.pressed.connect(func() -> void:
 			if PauseVote.instance != null:
@@ -133,12 +130,14 @@ func _build() -> void:
 			close()
 			Wardrobe.open())
 		footer.add_child(wardrobe)
-		var guide := UiStyle.button("Field Guide (J)")
+		var guide := UiStyle.button("Field Guide")
+		guide.tooltip_text = "Also on %s in the field." % KeyHints.key_for("field_guide")
 		guide.pressed.connect(func() -> void:
 			close()
 			FieldGuide.open())
 		footer.add_child(guide)
-		var to_menu := UiStyle.button("Leave to Main Menu")
+		var to_menu := UiStyle.button("Main Menu")
+		to_menu.tooltip_text = "Leave this run and go back to the title screen."
 		to_menu.pressed.connect(_leave_to_menu)
 		footer.add_child(to_menu)
 		var quit := UiStyle.button("Quit Game")
@@ -146,6 +145,7 @@ func _build() -> void:
 		footer.add_child(quit)
 	for b: Node in col.find_children("*", "Button", true, false):
 		(b as Button).add_theme_font_size_override("font_size", 16)
+		(b as Button).focus_mode = Control.FOCUS_ALL # keyboard focus shows the set's ring
 
 
 func _add_tab(tab_name: String, content: Control) -> void:

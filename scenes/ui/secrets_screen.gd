@@ -25,6 +25,7 @@ func is_open() -> bool:
 
 func open() -> void:
 	_root.visible = true
+	UiStyle.fade_in(_root)
 	_code.text = ""
 	_result.text = "Every code opens something. Most open nothing."
 	_result.theme_type_variation = "SoftInkLabel"
@@ -46,10 +47,7 @@ func _build() -> void:
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	UiStyle.fit(_root) # Theme: bigger on 1440p and up
 	add_child(_root)
-	var dim := ColorRect.new()
-	dim.color = Color(0.05, 0.03, 0.02, 0.6)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_root.add_child(dim)
+	_root.add_child(UiStyle.scrim())
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(center)
@@ -60,10 +58,7 @@ func _build() -> void:
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 0)
 	_box.add_child(outer)
-	var head := PanelContainer.new()
-	head.theme_type_variation = "HeaderPanel"
-	outer.add_child(head)
-	head.add_child(UiStyle.title("The Strongbox", 34, true))
+	outer.add_child(UiStyle.strap("The Strongbox", "", 30))
 	var card := PanelContainer.new()
 	card.theme_type_variation = "PaperPanel"
 	outer.add_child(card)

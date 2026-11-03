@@ -48,12 +48,12 @@ func _rebuild() -> void:
 	col.add_theme_constant_override("separation", 4)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(col)
-	var head_text := "WAVE %d BRINGS" % GameState.wave
+	var head_text := "Wave %d Brings" % GameState.wave
 	# (Bugs helper) How the wave arrives: steady stream, one big rush, two pushes...
 	var shape := str(WavePlanner.SHAPE_NAMES.get(WaveDirector.preview_shape, ""))
 	if shape != "":
-		head_text = "WAVE %d  -  %s" % [GameState.wave, shape.to_upper()]
-	var head := KeyHints.text(head_text, 12, Palette.BONE.darkened(0.3))
+		head_text = "Wave %d  ·  %s" % [GameState.wave, UiStyle.tc(shape)]
+	var head := KeyHints.text(head_text, 14, UiStyle.c("title"))
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(head)
 	# A narrow column in the corner: one bug type per line.
@@ -81,12 +81,12 @@ func _rebuild() -> void:
 		words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var bd := Defs.bug(id)
 		# Kill-method variants stand out in their own shell colour.
-		words.add_child(KeyHints.text(bd.display_name, 14, bd.shell_color.lightened(0.5) if bd.is_variant() else Palette.BONE))
-		words.add_child(KeyHints.text(amount_word(n), 12, Palette.GLOW_YELLOW))
+		words.add_child(KeyHints.text(UiStyle.tc(bd.display_name), 14, bd.shell_color.lightened(0.5) if bd.is_variant() else UiStyle.c("hud")))
+		words.add_child(KeyHints.text(UiStyle.tc(amount_word(n)), 12, UiStyle.c("hud").darkened(0.2)))
 		cell.add_child(words)
 		row.add_child(cell)
 	if mix.size() > MAX_KINDS:
-		row.add_child(KeyHints.text("+%d more" % (mix.size() - MAX_KINDS), 13, Palette.BONE.darkened(0.25)))
+		row.add_child(KeyHints.text("+%d More" % (mix.size() - MAX_KINDS), 12, UiStyle.c("hud").darkened(0.2)))
 	_center.call_deferred()
 
 
