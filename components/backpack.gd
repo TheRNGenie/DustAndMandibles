@@ -9,7 +9,7 @@ extends RefCounted
 ## anything unlisted weighs DEFAULT_WEIGHT), so a pack holds lots of light
 ## scrap or a few heavy relics. The fuller it is the slower you walk.
 
-const CAPACITY := 40
+const CAPACITY := 80 # about 2-3 raid sites a trip (a scrap pile is ~20 units)
 const DEFAULT_WEIGHT := 1
 ## Weight of one unit of each item (unlisted items weigh DEFAULT_WEIGHT).
 const WEIGHTS: Dictionary = {

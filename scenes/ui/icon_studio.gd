@@ -58,6 +58,14 @@ static func bug(host: Node, id: StringName) -> Texture2D:
 	return _cache[key]["tex"]
 
 
+## Canyon Expeditions: a site pickup (nest eggs, a specimen jar...) by its look.
+static func site_loot(host: Node, look: StringName) -> Texture2D:
+	var key := "siteloot:%s" % look
+	if not _cache.has(key) or not is_instance_valid(_cache[key]["vp"]):
+		_render(host, key, [[SiteBuilder.loot(look, 11), Transform3D()]], -30.0)
+	return _cache[key]["tex"]
+
+
 static func _render(host: Node, key: String, parts: Array, yaw_deg: float) -> void:
 	var vp := SubViewport.new()
 	vp.size = Vector2i(128, 128)
