@@ -1,4 +1,4 @@
-"""Renders the two music loops for Dust & Mandibles (44.1 kHz mono WAV, NumPy + SciPy only).
+"""(Retired: the game now plays recorded CC0 tracks, see import_music.py.) Renders the two old music loops for Dust & Mandibles (44.1 kHz mono WAV, NumPy + SciPy only).
 
 build_loop.wav: slow, sparse Karplus-Strong "guitar" picking a minor-pentatonic
 pattern over a soft pad (the calm build phase).

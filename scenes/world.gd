@@ -60,6 +60,12 @@ func _ready() -> void:
 	var airship := Airship.new()
 	airship.name = "Airship"
 	add_child(airship)
+	# Wind, the climbing swarm's chitter and the airship's creaks (local only, no sync).
+	var ambience := Ambience.new()
+	ambience.name = "Ambience"
+	ambience.bugs = bugs
+	ambience.airship = airship
+	add_child(ambience)
 	var pickups := PickupManager.new()
 	pickups.name = "Pickups"
 	add_child(pickups)
