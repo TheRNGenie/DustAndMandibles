@@ -6,6 +6,9 @@
 // release first, so it doubles as the updater. The game is one self-contained
 // .exe, so nothing else needs installing.
 //
+// "--safe" (the Start Menu's Safe Mode shortcut) starts the game on the OpenGL
+// renderer with Low graphics, for old or integrated GPUs that can't run Vulkan.
+//
 // Builds with the C# compiler that ships with Windows (.NET Framework 4):
 //   C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:exe
 //       /out:DustAndMandiblesSetup.exe /win32icon:icon.ico Setup.cs
@@ -31,6 +34,7 @@ static class Setup
 
     static int Main(string[] args)
     {
+        bool safe = Array.IndexOf(args, "--safe") >= 0;
         Console.Title = Title + " setup";
         ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // TLS 1.2
         Console.ForegroundColor = ConsoleColor.Yellow;
@@ -73,9 +77,12 @@ static class Setup
             InstallLauncher();
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("Saddle up. Starting the game...");
+            Console.WriteLine(safe ? "Saddle up. Starting the game in Safe Mode..." : "Saddle up. Starting the game...");
             Console.ResetColor();
-            Process.Start(new ProcessStartInfo(game) { WorkingDirectory = InstallDir, UseShellExecute = true });
+            var start = new ProcessStartInfo(game) { WorkingDirectory = InstallDir, UseShellExecute = true };
+            if (safe)
+                start.Arguments = "--rendering-method gl_compatibility -- --safe";
+            Process.Start(start);
             Thread.Sleep(1500);
             return 0;
         }
@@ -162,13 +169,14 @@ static class Setup
             try { File.Copy(self, launcher, true); } catch (IOException) { }
         }
         string game = Path.Combine(InstallDir, GameFile);
-        Shortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), Title + ".lnk"), launcher, game);
+        Shortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), Title + ".lnk"), launcher, game, "");
         string menu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), Title);
         Directory.CreateDirectory(menu);
-        Shortcut(Path.Combine(menu, Title + ".lnk"), launcher, game);
+        Shortcut(Path.Combine(menu, Title + ".lnk"), launcher, game, "");
+        Shortcut(Path.Combine(menu, Title + " (Safe Mode).lnk"), launcher, game, "--safe");
     }
 
-    static void Shortcut(string path, string target, string icon)
+    static void Shortcut(string path, string target, string icon, string arguments)
     {
         try
         {
@@ -177,9 +185,11 @@ static class Setup
             object lnk = shellType.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { path });
             Type t = lnk.GetType();
             t.InvokeMember("TargetPath", BindingFlags.SetProperty, null, lnk, new object[] { target });
+            t.InvokeMember("Arguments", BindingFlags.SetProperty, null, lnk, new object[] { arguments });
             t.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, lnk, new object[] { InstallDir });
             t.InvokeMember("IconLocation", BindingFlags.SetProperty, null, lnk, new object[] { icon + ",0" });
-            t.InvokeMember("Description", BindingFlags.SetProperty, null, lnk, new object[] { "Play " + Title });
+            t.InvokeMember("Description", BindingFlags.SetProperty, null, lnk, new object[] { arguments == "" ? "Play " + Title
+                : "Play " + Title + " with the OpenGL renderer and Low graphics (for old or integrated GPUs)" });
             t.InvokeMember("Save", BindingFlags.InvokeMethod, null, lnk, null);
         }
         catch (Exception)

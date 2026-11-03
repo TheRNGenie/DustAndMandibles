@@ -249,6 +249,7 @@ func _fire(e: GPUParticles3D, pos: Vector3, normal: Vector3) -> void:
 	var up := Vector3.UP if absf(n.dot(Vector3.UP)) < 0.95 else Vector3.RIGHT
 	# Emitters spray along local -Z, so point -Z along the surface normal.
 	e.global_transform = Transform3D(Basis.looking_at(n, up), pos)
+	e.amount_ratio = GraphicsQuality.PARTICLE_RATIO[GraphicsQuality.level(Settings.particles)]
 	e.restart()
 	e.emitting = true
 

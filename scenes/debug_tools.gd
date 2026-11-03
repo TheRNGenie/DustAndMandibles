@@ -707,9 +707,12 @@ func _soak(seconds: float) -> void:
 			var key := source.get_slice("'s ", 1) if source.contains("'s ") else source
 			kills_by[key] = int(kills_by.get(key, 0)) + 1)
 	GameState.phase_changed.connect(func(p: GameState.Phase) -> void:
-		print("[soak %5.1fs] wave %d phase %d  homesteads %s  bugs %d  scrap W%d E%d" % [
+		print("[soak %5.1fs] wave %d phase %d  homesteads %s  bugs %d  scrap W%d E%d  |  mem %.1f MB  nodes %d  objects %d  orphans %d  video %.0f MB" % [
 			Time.get_ticks_msec() / 1000.0, GameState.wave, p, str(GameState.homestead_hp),
-			bugs.alive_count(), Economy.amount(0, &"scrap"), Economy.amount(1, &"scrap")]))
+			bugs.alive_count(), Economy.amount(0, &"scrap"), Economy.amount(1, &"scrap"),
+			Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
+			Performance.get_monitor(Performance.OBJECT_COUNT), Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT),
+			Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0]))
 	var start := Time.get_ticks_msec()
 	var last_seen := {} # --stuckcheck: bug -> [position, seconds unmoved]
 	while Time.get_ticks_msec() - start < int(seconds * 1000.0) and GameState.phase != GameState.Phase.GAME_OVER:
@@ -1272,7 +1275,8 @@ func _stress(count: int) -> void:
 			Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
 		var vp := get_viewport().get_viewport_rid()
 		RenderingServer.viewport_set_measure_render_time(vp, true)
-		print("[stress]   render cpu %.2f ms  gpu %.2f ms  frame cpu %.2f ms" % [RenderingServer.viewport_get_measured_render_time_cpu(vp), RenderingServer.viewport_get_measured_render_time_gpu(vp), RenderingServer.get_frame_setup_time_cpu()])
+		print("[stress]   render cpu %.2f ms  gpu %.2f ms  frame cpu %.2f ms  video mem %.0f MB  textures %.0f MB  static mem %.0f MB" % [RenderingServer.viewport_get_measured_render_time_cpu(vp), RenderingServer.viewport_get_measured_render_time_gpu(vp), RenderingServer.get_frame_setup_time_cpu(),
+				Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0, Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0, Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0])
 		print("[stress]   physics active %d  pairs %d  islands %d" % [Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS), Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS), Performance.get_monitor(Performance.PHYSICS_3D_ISLAND_COUNT)])
 		var kinds := {}
 		var states := {}

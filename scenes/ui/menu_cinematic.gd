@@ -106,7 +106,7 @@ func _build_environment() -> void:
 	env.fog_light_color = Palette.SKY_HORIZON
 	env.fog_density = 0.0032
 	env.fog_sky_affect = 0.0
-	env.glow_enabled = true
+	env.glow_enabled = Settings.effects >= GraphicsQuality.MEDIUM
 	env.glow_intensity = 0.65
 	env.glow_hdr_threshold = 1.2
 	env.adjustment_enabled = true
@@ -117,7 +117,7 @@ func _build_environment() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color("#FFE8C2")
 	sun.light_energy = 1.25
-	sun.shadow_enabled = Settings.shadows
+	sun.shadow_enabled = Settings.shadows and not Settings.is_compatibility()
 	sun.directional_shadow_max_distance = 220.0
 	sun.directional_shadow_blend_splits = true
 	sun.shadow_normal_bias = 2.5

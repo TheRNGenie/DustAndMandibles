@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cr4b4vnbwdvrn"
-path="res://.godot/imported/coach_shotgun_body_Image_0.jpg-613969acd0004b7da32830626e3906a5.ctex"
+path.bptc="res://.godot/imported/coach_shotgun_body_Image_0.jpg-613969acd0004b7da32830626e3906a5.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "745bf362785d39f78575c400f3946a1b"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/guns/coach_shotgun_body_Image_0.jpg"
-dest_files=["res://.godot/imported/coach_shotgun_body_Image_0.jpg-613969acd0004b7da32830626e3906a5.ctex"]
+dest_files=["res://.godot/imported/coach_shotgun_body_Image_0.jpg-613969acd0004b7da32830626e3906a5.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
