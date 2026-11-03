@@ -133,7 +133,9 @@ func host(port: int = DEFAULT_PORT) -> Error:
 	_host_port = port
 	var peer: MultiplayerPeer = null
 	direct.fallback_note = _offline_note
-	if online != null:
+	if online != null and not wants_online():
+		direct.fallback_note = "Direct game (Host via: Direct). Pick Online in the menu for an Epic lobby."
+	elif online != null:
 		online.player_name = local_name
 		if online.is_ready():
 			peer = online.host(max_players(), {"port": port})
@@ -177,6 +179,12 @@ func _on_lobby_failed(reason: String) -> void:
 	multiplayer.multiplayer_peer = peer
 	players_changed.emit()
 	invite_changed.emit()
+
+
+## Does Host Game make an online lobby? The menu's Online / Direct pick
+## (Settings.host_online); --epic launches always go online.
+func wants_online() -> bool:
+	return online != null and (Settings.host_online or GameState.has_flag("--epic"))
 
 
 ## How many players the chosen map holds (one per cliff).

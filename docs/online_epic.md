@@ -36,6 +36,8 @@ Notes from the release-build join fixes:
   ("Leave all connections due to P2P network shutdown") and the joiner is dropped.
   Two copies on one PC can't both keep a Device ID; real players on two PCs aren't
   affected, so test long sessions across two PCs.
+- The menu's "Host via" pick (Online / Direct (IP/LAN), saved as Settings.host_online)
+  lets a host skip Epic if it misbehaves; `--epic` launches always host online.
 - Once a run starts the lobby stays findable but says STARTED, so a late joiner is
   told the game already started instead of "no game with that code".
 

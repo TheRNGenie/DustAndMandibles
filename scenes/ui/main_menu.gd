@@ -156,6 +156,17 @@ func _build_ui() -> void:
 		RunSave.pending = {}
 		_on_host())
 	_connect_box.add_child(host_btn)
+	# Online (Epic lobby, works anywhere) or Direct (IP/LAN): the way out when online misbehaves.
+	if NetworkManager.online != null:
+		var via := OptionButton.new()
+		via.focus_mode = Control.FOCUS_NONE
+		via.add_item("Online (%s)" % NetworkManager.online.backend_name())
+		via.add_item("Direct (IP/LAN)")
+		via.selected = 0 if Settings.host_online else 1
+		via.item_selected.connect(func(i: int) -> void:
+			Settings.host_online = i == 0
+			Settings.save_settings())
+		_connect_box.add_child(UiStyle.row("Host via", via))
 	var row := HBoxContainer.new()
 	_ip_edit = _line_edit("Invite code (DUST-...) or host IP", "")
 	_ip_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -306,7 +317,7 @@ func _test_launch() -> bool:
 
 func _on_host() -> void:
 	NetworkManager.local_name = _player_name()
-	if NetworkManager.online_signing_in(): # a moment after launch: let online play finish signing in
+	if NetworkManager.wants_online() and NetworkManager.online_signing_in(): # a moment after launch: let online play finish signing in
 		_status.text = "Signing in to online play..."
 		await NetworkManager.wait_for_online()
 	var err := NetworkManager.host(int(_port_edit.text))
