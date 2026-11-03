@@ -43,12 +43,15 @@ static func play(parent: Node, mouth: Vector3, way_out: Vector3, size: float, se
 	if sound: # (the pumps' ground rumble plays its own, once)
 		Audio.play_at(&"thunder", mouth, -6.0)
 	var tree := parent.get_tree()
+	var ref: WeakRef = weakref(e) # weak: the world can be freed before the timers run
 	tree.create_timer(seconds).timeout.connect(func() -> void:
-		if is_instance_valid(e):
-			e.emitting = false)
+		var em := ref.get_ref() as GPUParticles3D
+		if em != null:
+			em.emitting = false)
 	tree.create_timer(seconds + e.lifetime + 0.2).timeout.connect(func() -> void:
-		if is_instance_valid(e):
-			e.queue_free())
+		var em := ref.get_ref() as GPUParticles3D
+		if em != null:
+			em.queue_free())
 
 
 static func _ensure() -> void:

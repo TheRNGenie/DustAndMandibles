@@ -395,23 +395,35 @@ static func ui_scale(vp_height: float = -1.0) -> float:
 
 ## Scales a full-screen menu root to ui_scale() and keeps it fitted to the window.
 static func fit(root: Control) -> void:
+	# The root viewport outlives every menu, so the size hook is unplugged when the
+	# menu leaves the tree (a static lambda is never auto-disconnected: after the
+	# menu was freed, the next window resize called it with root = null and release
+	# builds crashed - "Lambda capture at index 0 was freed").
+	var ref: WeakRef = weakref(root)
 	var refit := func() -> void:
-		if not root.is_inside_tree():
+		var r := ref.get_ref() as Control
+		if r == null or not r.is_inside_tree():
 			return
-		var vs := root.get_viewport_rect().size
+		var vs := r.get_viewport_rect().size
 		var k := ui_scale(vs.y)
-		root.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		root.position = Vector2.ZERO
-		root.scale = Vector2(k, k)
-		root.size = vs / k
-	if root.is_inside_tree():
+		r.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		r.position = Vector2.ZERO
+		r.scale = Vector2(k, k)
+		r.size = vs / k
+	var hook := func() -> void:
+		var vp := root.get_viewport()
+		if vp != null and not vp.size_changed.is_connected(refit):
+			vp.size_changed.connect(refit)
 		refit.call()
-		root.get_viewport().size_changed.connect(refit)
-	else:
-		root.tree_entered.connect(func() -> void:
-			refit.call()
-			if not root.get_viewport().size_changed.is_connected(refit):
-				root.get_viewport().size_changed.connect(refit), CONNECT_ONE_SHOT)
+	var unhook := func() -> void:
+		var vp := root.get_viewport()
+		if vp != null and vp.size_changed.is_connected(refit):
+			vp.size_changed.disconnect(refit)
+	# Both fire only while root is alive (they hang off root's own signals).
+	root.tree_entered.connect(hook)
+	root.tree_exiting.connect(unhook)
+	if root.is_inside_tree():
+		hook.call()
 
 
 ## A panel of one of the named surfaces ("PaperPanel", "FramePanel", ...).

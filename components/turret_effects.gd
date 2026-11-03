@@ -46,13 +46,14 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 				target.show_net.rpc(t.def.effect_size)
 		TurretDef.Effect.SPLASH when t.def.anti_air:
 			# Air bursts: after the shell's flight, everything flying in the cloud is hit.
-			var bugs := Turret.bug_manager
+			var bugs_ref: WeakRef = weakref(Turret.bug_manager) # weak: the world can be freed mid-flight
 			var radius := t.def.effect_size * t.range_multiplier()
 			var owner_cliff := t.cliff_id
 			var tree := t.get_tree()
 			var lead := aim + target.velocity_hint() * t.def.flight_time
 			tree.create_timer(t.def.flight_time).timeout.connect(func() -> void:
-				if not is_instance_valid(bugs):
+				var bugs := bugs_ref.get_ref() as BugManager
+				if bugs == null:
 					return
 				for n: Node in tree.get_nodes_in_group("bugs"):
 					var b := n as Bug
@@ -75,7 +76,7 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 			Turret.bug_manager._explode.rpc(aim, radius)
 		TurretDef.Effect.BURN, TurretDef.Effect.SPLASH:
 			# Capture plain values: the turret may be destroyed while the shot is in the air.
-			var bugs := Turret.bug_manager
+			var bugs_ref: WeakRef = weakref(Turret.bug_manager) # weak: the world can be freed mid-flight
 			var cliff := target.cliff_id
 			var radius := t.def.effect_size * t.range_multiplier()
 			var splash := t.def.effect == TurretDef.Effect.SPLASH
@@ -84,7 +85,8 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 				# Lobbed shots drift with the wind.
 				aim += Vector3(0, 0, WeatherFx.wind_sign() * randf_range(1.0, 3.0))
 			t.get_tree().create_timer(t.def.flight_time).timeout.connect(func() -> void:
-				if not is_instance_valid(bugs):
+				var bugs := bugs_ref.get_ref() as BugManager
+				if bugs == null:
 					return
 				if splash:
 					bugs.splash(cliff, aim, radius, damage, source, owner_cliff)
