@@ -119,6 +119,27 @@ func _debug_flags() -> void:
 				_win()
 			else:
 				_lose("The %s Homestead fell on wave %d." % [WorldLayout.map().name_of(0), GameState.wave]))
+	if GameState.has_flag("--lookboard"): # stand in front of your house's noticeboard
+		get_tree().create_timer(2.0).timeout.connect(func() -> void:
+			var p := world.call("local_player") as Player
+			var home := Homestead.of(p.cliff_id) if p != null else null
+			var board := home.get_node_or_null("NoticeBoard") as Node3D if home != null else null
+			if board == null:
+				return
+			p.global_position = board.to_global(Vector3(-0.9, 0.0, 2.7))
+			var d := board.to_global(Vector3(0, 1.5, 0)) - p.global_position
+			p.rotation.y = atan2(-d.x, -d.z)
+			p.head.rotation.x = deg_to_rad(-6.0))
+	if GameState.has_flag("--lookbox"): # stand by your house's payroll strongbox (Bandits in the Bargain)
+		get_tree().create_timer(2.5).timeout.connect(func() -> void:
+			var p := world.call("local_player") as Player
+			if p == null or boxes.is_empty():
+				return
+			var box: StoryStrongbox = boxes[clampi(p.cliff_id, 0, boxes.size() - 1)]
+			p.global_position = box.to_global(Vector3(1.6, 0.0, -3.2))
+			var d := box.to_global(Vector3(0, 0.6, 0)) - p.global_position
+			p.rotation.y = atan2(-d.x, -d.z)
+			p.head.rotation.x = deg_to_rad(-14.0))
 	if GameState.has_flag("--telegram"):
 		get_tree().create_timer(2.5).timeout.connect(func() -> void: telegram.open())
 
@@ -195,6 +216,7 @@ func _say_lines(lines: Array, key: String) -> void:
 ## Host -> everyone: one of the chapter's event lines ("drop", "win"...).
 @rpc("authority", "call_local", "reliable")
 func _event(key: String) -> void:
+	print("[story] event %s (wave %d)" % [key, GameState.wave])
 	if radio == null:
 		return
 	for l: Array in chapter.event_lines(key):
@@ -207,6 +229,7 @@ func _event(key: String) -> void:
 
 ## Host: GameState calls this when the chapter's last wave is cleared.
 func _on_last_wave_cleared() -> void:
+	print("[story] last wave %d cleared, objective done: %s" % [GameState.wave, objective_done()])
 	if objective_done():
 		_win()
 	else:
@@ -250,9 +273,19 @@ func _lose(reason: String) -> void:
 func _on_game_over(won: bool, _reason: String) -> void:
 	finished = true
 	var res := Story.record(chapter, won)
+	print("[story] chapter %s %s on wave %d: %s" % [chapter.id, "WON" if won else "LOST", GameState.wave, str(res)])
 	if radio != null:
 		for l: Array in chapter.event_lines("win" if won else "lost"):
 			radio.say(str(l[0]), str(l[1]))
+	if tracker != null:
+		tracker.visible = false
+	if radio != null:
+		radio.visible = false # the closing line goes on the front page instead
+	# Debug: --storyrestart rides on (or retries) by itself a few seconds later.
+	if GameState.has_flag("--storyrestart") and GameState.debug_enabled() and multiplayer.is_server():
+		var next := StoryChapter.next_id(chapter.id) if won else chapter.id
+		if next != "":
+			get_tree().create_timer(3.0).timeout.connect(func() -> void: Story.restart(next))
 	var lines: Array = []
 	if won:
 		lines.append(["Chapter %d complete" % chapter.number, "first time" if bool(res.get("first", false)) else "replay", int(res["notches"])])
@@ -263,6 +296,15 @@ func _on_game_over(won: bool, _reason: String) -> void:
 # ------------------------------------------------------------------ host tick
 
 func _host_tick() -> void:
+	# Debug: --storykillboss fells any boss 15 s after it shows (gland drop tests).
+	if GameState.has_flag("--storykillboss") and GameState.debug_enabled() and GameState.phase == GameState.Phase.WAVE and BugManager.instance != null:
+		for c: Node in BugManager.instance.get_children():
+			var b := c as Bug
+			if b != null and b.is_alive() and b.def.behavior == BugDef.Behavior.BOSS:
+				var seen := float(b.get_meta("story_seen", Time.get_ticks_msec() / 1000.0))
+				b.set_meta("story_seen", seen)
+				if Time.get_ticks_msec() / 1000.0 - seen > 15.0:
+					b.receive_hit(99999.0, b.global_position, Vector3.FORWARD, true, 1.0, "revolver", 0)
 	if chapter.kind() == "fetch":
 		_host_fetch()
 	elif chapter.kind() == "protect" and _started and not boxes.is_empty():
@@ -285,9 +327,6 @@ func _airship_drop() -> void:
 		var p := GameState.flag_value("--storydropat").split(",")
 		at = cliffs.plateau_point(_local_cliff(), p[0].to_float(), p[1].to_float())
 	_spawn_cargo.rpc(at, true)
-	get_tree().create_timer(StoryCargo.FALL_TIME + 0.5).timeout.connect(func() -> void:
-		if is_inside_tree():
-			_event.rpc("drop"))
 
 
 ## Host: where a dead boss leaves its prize: where it fell if that's up top,
@@ -319,6 +358,8 @@ func _spawn_cargo(at: Vector3, falling: bool) -> void:
 		cargo.fall_from(at + Vector3.UP * 38.0, func() -> void:
 			if cargo_state == Cargo.FALLING:
 				cargo_state = Cargo.GROUND
+				if multiplayer.is_server() and not finished:
+					_event.rpc("drop")
 				if tracker != null:
 					tracker.refresh())
 	if tracker != null:
@@ -350,6 +391,7 @@ func _pickup(peer: int) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _set_cargo(state: int, who: int, at: Vector3) -> void:
+	print("[story] cargo %s, carrier %d" % [Cargo.keys()[state], who])
 	cargo_state = state as Cargo
 	carrier = who
 	if cargo != null and is_instance_valid(cargo):

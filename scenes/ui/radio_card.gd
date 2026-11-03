@@ -185,6 +185,10 @@ func _slide(show: bool) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	# Sits just under the chapter tracker, however tall that is.
+	var tracker := get_parent().get_node_or_null("StoryTracker") as Control if get_parent() != null else null
+	if tracker != null and tracker.visible:
+		_card.position.y = tracker.position.y + tracker.size.y + 10.0
 	if _dot != null:
 		_dot.modulate.a = 0.35 + 0.65 * float(int(_t * 2.5) % 2)
 	if not _showing:

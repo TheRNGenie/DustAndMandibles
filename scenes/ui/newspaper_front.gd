@@ -90,6 +90,9 @@ func show_chapter(ch: StoryChapter, won: bool, reason: String, result: Dictionar
 			_story("Rewards", "Paid out: %s." % ", ".join(pay))
 	else:
 		_story("The Job", "%s: not done. The Captain says fly it again from the top." % ch.objective_text())
+	var said := ch.event_lines("win" if won else "lost")
+	if not said.is_empty():
+		_story("On the Wire", "\"%s\"  - %s" % [str(said[0][1]), StoryChapter.speaker_name(str(said[0][0]))])
 
 
 func _story(head: String, body: String) -> void:

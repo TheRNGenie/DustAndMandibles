@@ -345,6 +345,12 @@ func _build_ui() -> void:
 	Story.changed.connect(_refresh)
 	if GameState.has_flag("--openstory"): # screenshots of the chapter screen
 		_story.open.call_deferred()
+	if GameState.flag_value("--storyshot") != "": # (with --openstory) save and quit
+		get_tree().create_timer(2.5).timeout.connect(func() -> void:
+			get_viewport().get_texture().get_image().save_png(GameState.flag_value("--storyshot"))
+			get_tree().quit())
+	if GameState.flag_value("--storyportraits") != "": # the radio portraits, big (scenes/debug/story_views.gd)
+		add_child(load("res://scenes/debug/story_views.gd").new())
 	_brands.picked.connect(func(_id: StringName) -> void: _refresh())
 	Brand.changed.connect(_refresh)
 	if GameState.has_flag("--openledger"): # screenshots of the perk screen

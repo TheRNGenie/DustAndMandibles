@@ -109,7 +109,8 @@ func menu_items(tab: int) -> Array:
 			var n := 0
 			for v: Array in StoryScreen.journal_pages():
 				n += 1
-				out.append({"id": "journal_%d" % n, "name": str(v[0]), "icon": null, "desc": str(v[1]),
+				var doc: Variant = StoryPortrait.texture(MenuScreen.instance, "doc") if MenuScreen.instance != null and bool(v[2]) else null
+				out.append({"id": "journal_%d" % n, "name": str(v[0]), "icon": doc, "desc": str(v[1]),
 						"price": "Chapter %d" % n if bool(v[2]) else "Not Yet", "price_ok": bool(v[2])})
 	return out
 

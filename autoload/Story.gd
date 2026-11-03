@@ -15,10 +15,18 @@ var chapter_id := ""
 var progress := StoryProgress.new()
 ## The last chapter result for the end screen ({} before one ends).
 var last_result: Dictionary = {}
+var _no_save := false
 
 
 func _ready() -> void:
 	progress = StoryProgress.read(path())
+	# --storydemo (debug screenshots): chapters 1 and 2 won, 3 tried. Never saved.
+	if GameState.has_flag("--storydemo") and GameState.has_flag("--debug"):
+		_no_save = true
+		progress = StoryProgress.new()
+		progress.win(StoryChapter.load_id("ch1"))
+		progress.win(StoryChapter.load_id("ch2"))
+		progress.note_tried("ch3")
 	NetworkManager.players_changed.connect(_on_players_changed)
 
 
@@ -27,7 +35,8 @@ func path() -> String:
 
 
 func save() -> void:
-	progress.write(path())
+	if not _no_save:
+		progress.write(path())
 
 
 func active() -> bool:

@@ -12,10 +12,10 @@ const CAST: Dictionary = {
 		"neck": "bandana", "extra": "bandolier", "paint": "white"}, Color("#7A2E2A"), 18.0],
 	"kettle": [{"hat": "gambler", "facial": "walrus", "hair": "none", "hair_color": "grey", "outfit": "vest",
 		"neck": "bolo", "extra": "bandolier", "paint": "white"}, Color("#4A4E58"), -16.0],
-	"pearl": [{"hat": "bowler", "hair": "long", "hair_color": "black", "facial": "none", "outfit": "vest",
+	"pearl": [{"hat": "bowler", "hair": "long", "hair_color": "black", "facial": "none", "outfit": "poncho",
 		"neck": "bolo", "extra": "none", "paint": "orange"}, Color("#6B2C5E"), 14.0],
 	"doc": [{"hat": "none", "hair": "none", "hair_color": "grey", "facial": "chops", "outfit": "duster",
-		"neck": "bolo", "extra": "none", "paint": "yellow"}, Color("#3E5A44"), -20.0],
+		"neck": "bolo", "extra": "none", "paint": "yellow"}, Color("#3E5A44"), -6.0],
 }
 const SIZE := Vector2i(256, 256)
 
@@ -98,18 +98,19 @@ static func _props(who: String, head: Node3D) -> void:
 				MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5 - 0.35), Vector3(sx * 0.075, 0.2, -0.18)), 0.044, 0.044, 0.02, 12, Color("#7FB8C8"), true, 0.15)
 			MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.2, -0.15)), Vector3(0.05, 0.025, 0.03), brass)
 		"doc":
-			# Round wire spectacles.
+			# Round wire spectacles over the eye marks.
 			for sx: float in [-1.0, 1.0]:
-				var c := Vector3(sx * 0.065, 0.07, -0.19)
-				for k in 12:
-					var a := TAU * k / 12.0
-					var b := TAU * (k + 1) / 12.0
-					MeshKit.add_limb(st, c + Vector3(cos(a), sin(a), 0) * 0.045, c + Vector3(cos(b), sin(b), 0) * 0.045, 0.006, brass, 4)
-			MeshKit.add_limb(st, Vector3(-0.02, 0.075, -0.19), Vector3(0.02, 0.075, -0.19), 0.006, brass, 4)
+				var c := Vector3(sx * 0.058, 0.015, -0.175)
+				for k in 14:
+					var a := TAU * k / 14.0
+					var b := TAU * (k + 1) / 14.0
+					MeshKit.add_limb(st, c + Vector3(cos(a), sin(a), 0) * 0.04, c + Vector3(cos(b), sin(b), 0) * 0.04, 0.0055, brass, 4)
+			MeshKit.add_limb(st, Vector3(-0.018, 0.02, -0.178), Vector3(0.018, 0.02, -0.178), 0.0055, brass, 4)
 		"pearl":
-			# A red feather in the hat band.
-			MeshKit.add_limb(st, Vector3(0.12, 0.24, 0.0), Vector3(0.2, 0.42, 0.06), 0.03, Color("#C0392B"), 6)
-			MeshKit.add_limb(st, Vector3(0.2, 0.42, 0.06), Vector3(0.23, 0.5, 0.1), 0.018, Color("#E05A4A"), 6)
+			# A playing card tucked in the hat band (the ace of hearts, naturally).
+			var card := Transform3D(Basis(Vector3.BACK, -0.25) * Basis(Vector3.UP, 0.5), Vector3(0.1, 0.22, -0.06))
+			MeshKit.add_box(st, card, Vector3(0.07, 0.1, 0.006), Palette.BONE)
+			MeshKit.add_box(st, card.translated_local(Vector3(0, 0, -0.004)), Vector3(0.025, 0.025, 0.004), Color("#C0392B"))
 	var mesh := MeshKit.finish(st)
 	if mesh.get_surface_count() == 0:
 		return

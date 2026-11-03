@@ -7,20 +7,20 @@
 	"last_wave": 13,
 	"blurb": "The railroad's payroll sits in strongboxes by your houses, and dragonfly bandits can smell silver. Shoot them down before they clear the rim.",
 	"start_bonus": {"scrap": 900, "chitin": 60},
-	"objective": {"kind": "protect", "text": "Keep the Railroad Payroll Out of Bandit Claws", "thing": "strongbox", "thing_name": "Payroll Strongbox", "loot_each": 6},
+	"objective": {"kind": "protect", "text": "Keep the Railroad Payroll From the Bandits", "thing": "strongbox", "thing_name": "Payroll Strongbox", "loot_each": 10},
 	"bosses": {},
-	"extra_bugs": {"12": [["dragonfly_bandit", 10]], "13": [["dragonfly_bandit", 16]]},
+	"extra_bugs": {"12": [["dragonfly_bandit", 6]], "13": [["dragonfly_bandit", 10]]},
 	"weather": {},
 	"telegram": {
 		"title": "Payroll on the Cliffs",
-		"body": "RAILROAD PAYROLL LANDED ON YOUR CLIFFS STOP DRAGONFLY BANDITS WORKING THE GULCH STOP GUARD THE STRONGBOXES TWO NIGHTS STOP SHOOT ANY BUG CARRYING SILVER STOP TURRETS WILL NOT HELP YOU STOP"
+		"body": "RAILROAD PAYROLL LANDED ON YOUR CLIFFS STOP DRAGONFLY BANDITS WORKING THE GULCH STOP GUARD THE STRONGBOXES TWO NIGHTS STOP SHOOT ANY BUG CARRYING SILVER STOP CLIFF TURRETS CANNOT AIM UP STOP RIFLES AND ANTI AIR GUNS ONLY STOP"
 	},
 	"radio": {
 		"12": {
 			"build": [
 				["stroud", "The railroad's payroll is in those strongboxes by your houses. Bandits can smell silver."],
 				["pearl", "Dragonflies. They steal, they flutter, they never tip. Shoot them before they reach the boxes."],
-				["kettle", "Turrets can't aim up, remember. It's your rifles against the sky tonight."]
+				["kettle", "Cliff turrets can't aim up, remember. Rifles and anti-air guns against the sky tonight."]
 			],
 			"wave": [["stroud", "Wings over the canyon! Guard those boxes!"]]
 		},

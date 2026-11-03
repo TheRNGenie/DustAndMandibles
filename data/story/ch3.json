@@ -7,7 +7,7 @@
 	"last_wave": 11,
 	"blurb": "Doc Whitlow needs a Queen Spider gland, and he pays in maps. Hold the webbing waves, bring her down, and mail the gland from your noticeboard.",
 	"start_bonus": {"scrap": 650, "chitin": 40},
-	"objective": {"kind": "fetch", "text": "Bring Down the Queen Spider and Mail Her Gland", "item": "gland", "item_name": "Queen Spider Gland", "spawn": "boss_drop", "boss": "queen_spider", "deliver_to": "board"},
+	"objective": {"kind": "fetch", "text": "Fell the Queen Spider and Mail Her Gland", "item": "gland", "item_name": "Queen Spider Gland", "spawn": "boss_drop", "boss": "queen_spider", "deliver_to": "board"},
 	"bosses": {"11": "queen_spider"},
 	"extra_bugs": {"9": [["wolf_spider", 6]], "10": [["wolf_spider", 8]], "11": [["wolf_spider", 6]]},
 	"weather": {},

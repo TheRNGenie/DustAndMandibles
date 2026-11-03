@@ -62,6 +62,7 @@ func fall_from(from: Vector3, landed: Callable) -> void:
 	var to := global_position
 	global_position = from
 	_falling = true
+	_beacon.visible = false
 	_chute = MeshInstance3D.new()
 	(_chute as MeshInstance3D).mesh = parachute_mesh()
 	(_chute as MeshInstance3D).material_override = Materials.toon(0.02)
@@ -70,6 +71,7 @@ func fall_from(from: Vector3, landed: Callable) -> void:
 	tw.tween_property(self, "global_position", to, FALL_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func() -> void:
 		_falling = false
+		_beacon.visible = not _carried
 		if _chute != null:
 			var c := _chute
 			_chute = null

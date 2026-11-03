@@ -7,7 +7,7 @@ extends StaticBody3D
 
 const SACK_SPOTS: Array[Vector3] = [Vector3(-0.32, 0.86, -0.12), Vector3(0.0, 0.88, 0.1), Vector3(0.3, 0.86, -0.1),
 	Vector3(-0.16, 0.86, 0.2), Vector3(0.18, 0.86, 0.22), Vector3(0.0, 1.08, -0.02),
-	Vector3(-0.3, 1.04, 0.08), Vector3(0.3, 1.04, 0.1)]
+	Vector3(-0.3, 1.04, 0.08), Vector3(0.3, 1.04, 0.1), Vector3(-0.12, 1.24, 0.04), Vector3(0.14, 1.24, 0.06)]
 
 var cliff_id := 0
 var loot := 6
@@ -82,8 +82,14 @@ static func box_mesh() -> ArrayMesh:
 
 static func sack_mesh() -> ArrayMesh:
 	var st := MeshKit.begin()
-	var cloth := Color("#C9B48A")
-	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.12, 0)), Vector3(0.17, 0.15, 0.15), 6, 8, cloth)
-	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.29, 0)), 0.06, 0.09, 0.08, 8, cloth.darkened(0.15))
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.13, -0.15)), Vector3(0.12, 0.06, 0.01), Palette.OUTLINE) # the $ stencil, near enough
+	var burlap := Color("#A9814F")
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 0.13, 0)), Vector3(0.18, 0.16, 0.16), 6, 9, burlap)
+	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.29, 0)), 0.05, 0.08, 0.07, 8, burlap.darkened(0.12))
+	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.27, 0)), 0.065, 0.065, 0.025, 8, Palette.OUTLINE.lightened(0.2)) # the tie
+	# A dollar sign, stencilled: an S of three bars and a stroke through it.
+	for y: float in [0.08, 0.13, 0.18]:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, y, -0.158)), Vector3(0.07, 0.014, 0.008), Palette.OUTLINE)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(-0.03, 0.155, -0.158)), Vector3(0.014, 0.05, 0.008), Palette.OUTLINE)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.03, 0.105, -0.158)), Vector3(0.014, 0.05, 0.008), Palette.OUTLINE)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.13, -0.16)), Vector3(0.012, 0.15, 0.008), Palette.OUTLINE)
 	return MeshKit.finish(st)

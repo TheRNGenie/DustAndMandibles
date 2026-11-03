@@ -70,7 +70,7 @@ static func board_mesh() -> ArrayMesh:
 	# A painted header strip: "NOTICES".
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, y + BOARD.y * 0.5 - 0.08, 0.06)), Vector3(BOARD.x - 0.2, 0.1, 0.01), Palette.BONE)
 	# Pin.
-	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.0, y + 0.29, 0.1)), Vector3.ONE * 0.03, 4, 6, Color("#C0392B"))
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.0, y + 0.345, 0.1)), Vector3.ONE * 0.03, 4, 6, Color("#C0392B"))
 	# Old scraps of paper pinned round the edges.
 	for k in 3:
 		var at := Vector3(rng.randf_range(-0.45, 0.45), y + rng.randf_range(-0.38, -0.3), 0.04)

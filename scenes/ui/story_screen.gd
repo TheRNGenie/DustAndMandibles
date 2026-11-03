@@ -54,7 +54,7 @@ func _build() -> void:
 	_root.add_child(center)
 	var box := PanelContainer.new()
 	box.theme_type_variation = "FramePanel"
-	box.custom_minimum_size = Vector2(1080, 640)
+	box.custom_minimum_size = Vector2(1180, 700)
 	center.add_child(box)
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 0)
@@ -73,7 +73,7 @@ func _build() -> void:
 	col.add_child(body)
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 6)
-	_list.custom_minimum_size.x = 360
+	_list.custom_minimum_size.x = 470
 	body.add_child(_list)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -143,15 +143,15 @@ func _chapter_row(cid: String, n: int, title: String, state: String) -> Control:
 	var chip_text: String = {"done": "Complete", "open": "New" if not Story.progress.tried.has(cid) else "Unfinished",
 			"locked": "Locked", "later": "Coming Later"}.get(state, "")
 	var kind: String = {"done": "good", "open": "warn", "locked": "lock", "later": "lock"}.get(state, "info")
-	var chip := UiStyle.status(chip_text, kind, 13)
-	chip.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
-	chip.offset_left = -130
-	chip.offset_right = -10
-	chip.offset_top = -10
-	chip.offset_bottom = 10
-	chip.alignment = BoxContainer.ALIGNMENT_END
-	b.add_child(chip)
-	return b
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(b)
+	var chip := UiStyle.status(chip_text, kind, 14)
+	chip.custom_minimum_size.x = 128
+	chip.size_flags_horizontal = Control.SIZE_SHRINK_END
+	row.add_child(chip)
+	return row
 
 
 func _fill_page(ch: StoryChapter) -> void:

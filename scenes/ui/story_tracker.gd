@@ -74,7 +74,7 @@ func refresh() -> void:
 					text = "The %s is coming down!" % item
 					kind = "warn"
 				StoryDirector.Cargo.GROUND:
-					text = "The %s is on the plateau: follow the light" % item
+					text = "On the plateau: follow the light"
 					kind = "warn"
 				StoryDirector.Cargo.CARRIED:
 					text = "%s carrying it: take it to %s" % [director.carrier_name(),
@@ -86,9 +86,9 @@ func refresh() -> void:
 		"protect":
 			var total := director.loot_total()
 			if total > 0:
-				text = "Silver: %d of %d sacks in the boxes  ·  %s" % [director.loot_left(), total, nights]
+				text = "Silver: %d / %d sacks  ·  %s" % [director.loot_left(), total, nights]
 				if director.in_flight > 0:
-					text += "  ·  %d in bandit claws!" % director.in_flight
+					text += "  ·  %d in the air!" % director.in_flight
 					kind = "bad"
 				elif director.loot_left() < total:
 					kind = "warn"

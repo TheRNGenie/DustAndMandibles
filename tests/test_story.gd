@@ -95,7 +95,7 @@ func test_plan_extra_bugs_added_and_spread() -> void:
 	var base := _plan(12)
 	var before := _count(base, &"dragonfly_bandit")
 	var plan := ch4.apply_to_plan(base, 12)
-	assert_eq(_count(plan, &"dragonfly_bandit") - before, 10, "ten extra bandits")
+	assert_eq(_count(plan, &"dragonfly_bandit") - before, 6, "six extra bandits")
 	var cliffs := {}
 	for g: Dictionary in plan["groups"]:
 		if StringName(str(g["bug"])) == &"dragonfly_bandit":
