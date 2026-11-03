@@ -6,6 +6,8 @@ extends CasinoGame
 ## slowing it so the last few pegs crawl past.
 
 const COST := 5
+## A spin can be paid in scrap instead (worse odds on the rare wedges).
+const COST_SCRAP := 25
 ## Label, prize. One wedge each (in CasinoRules, unit tested).
 const WEDGES: Array[Array] = CasinoRules.WHEEL_WEDGES
 const SPIN_TIME := 6.0
@@ -79,11 +81,12 @@ func ui_title() -> String:
 
 
 func ui_tagline() -> String:
-	return "%d chitin a spin. Round and round she goes..." % COST
+	return "%d chitin or %d scrap a spin. Round and round she goes..." % [COST, COST_SCRAP]
 
 
 func ui_rules() -> String:
-	return "%d chitin a spin. Scrap, chili seeds, herbs, a turret upgrade token, a turret part, or the 25-chitin jackpot. Three wedges bust." % COST
+	return "%d chitin or %d scrap a spin. Scrap, chili seeds, herbs, a turret upgrade token, a turret part, or the 25-chitin jackpot. Three wedges bust. Chitin spins hit the rare wedges far more often (%d%% vs %d%%)." % [COST, COST_SCRAP,
+			roundi(CasinoRules.wheel_rare_chance(&"chitin") * 100.0), roundi(CasinoRules.wheel_rare_chance(&"scrap") * 100.0)]
 
 
 func ui_currency() -> StringName:
@@ -91,7 +94,7 @@ func ui_currency() -> StringName:
 
 
 func ui_actions() -> Array:
-	return [] if _t < SPIN_TIME else [[&"spin", "Spin (%d Chitin)" % COST]]
+	return [] if _t < SPIN_TIME else [[&"spin", "Spin (%d Chitin)" % COST], [&"spin_scrap", "Spin (%d Scrap)" % COST_SCRAP]]
 
 
 func make_board() -> CasinoBoard:
@@ -113,11 +116,12 @@ func result_text() -> String:
 
 
 func _act(peer_id: int, action: StringName, _choice: int, _bet: int) -> void:
-	if action != &"spin" or _t < SPIN_TIME:
+	if (action != &"spin" and action != &"spin_scrap") or _t < SPIN_TIME:
 		return
-	if not _take(peer_id, COST):
+	var currency: StringName = &"scrap" if action == &"spin_scrap" else &"chitin"
+	if not _take_in(peer_id, currency, COST_SCRAP if currency == &"scrap" else COST):
 		return
-	var i := _rng.randi() % WEDGES.size()
+	var i := CasinoRules.wheel_pick(_rng, currency)
 	var prize: Dictionary = WEDGES[i][1]
 	var label := String(WEDGES[i][0])
 	var won_text := label.to_lower()
@@ -297,7 +301,7 @@ class WheelBoard extends CasinoBoard:
 	func _prize_card(r: Rect2) -> void:
 		rrect(r, CREAM, 8, 3, WOOD)
 		text(Vector2(r.get_center().x, r.position.y + 26), "PRIZES", 24, Color("#7A1E18"), 0, 0, true)
-		text(Vector2(r.get_center().x, r.position.y + 50), "%d Chitin a Spin" % PrizeWheel.COST, 14, INK, 0)
+		text(Vector2(r.get_center().x, r.position.y + 50), "%d Chitin or %d Scrap a Spin" % [PrizeWheel.COST, PrizeWheel.COST_SCRAP], 14, INK, 0)
 		draw_line(Vector2(r.position.x + 14, r.position.y + 64), Vector2(r.end.x - 14, r.position.y + 64), WOOD, 2.0)
 		var seen := {}
 		var y := r.position.y + 86
@@ -319,7 +323,12 @@ class WheelBoard extends CasinoBoard:
 			text(Vector2(r.position.x + 44, y), label.capitalize() if label != "BUST" else "Bust", 15, Color("#7A1E18") if lit else INK, -1, 0, lit)
 			if count > 1:
 				text(Vector2(r.end.x - 14, y), "x%d" % count, 13, Color("#6B5034"), 1)
+			elif CasinoRules.wheel_is_rare(i):
+				text(Vector2(r.end.x - 14, y), "Rare", 13, Color("#B8862B"), 1, 0, true)
 			y += 34
+		# Paying in chitin tips the wheel toward the rare wedges.
+		text(Vector2(r.get_center().x, r.end.y - 18), "Rare: %d%% on Chitin, %d%% on Scrap" % [
+				roundi(CasinoRules.wheel_rare_chance(&"chitin") * 100.0), roundi(CasinoRules.wheel_rare_chance(&"scrap") * 100.0)], 12, Color("#6B5034"), 0)
 
 	func _click(p: Vector2, right: bool) -> bool:
 		if right or game.ui_busy() or p.distance_to(_c()) > R + 20 or Brand.local_banned():
@@ -330,3 +339,14 @@ class WheelBoard extends CasinoBoard:
 
 	func _hover(p: Vector2) -> void:
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if p.distance_to(_c()) < R + 20 and not game.ui_busy() else Control.CURSOR_ARROW
+
+
+## Host: take a spin's price in chitin or scrap (the shared pot), like _take.
+func _take_in(peer_id: int, currency: StringName, amount: int) -> bool:
+	if Brand.is_banned(peer_id): # Brand: caught cheats are barred for a wave
+		Economy.notify(peer_id, "The pit boss won't take your bets until wave %d." % Brand.ban_wave(peer_id))
+		return false
+	if Economy.spend(_cliff(peer_id), {currency: amount}):
+		return true
+	Economy.notify(peer_id, "You need %d %s for a spin." % [amount, String(currency)])
+	return false

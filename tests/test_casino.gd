@@ -186,3 +186,18 @@ func test_shell_moves_are_shared() -> void:
 		assert_true(int(sw[0]) < int(sw[1]) and int(sw[1]) <= 2)
 	var t := CasinoRules.shell_tracked({"start": 0, "swaps": [[0, 1, 1.0], [1, 2, 1.0], [0, 1, 1.0]]})
 	assert_eq(t, 2)
+
+
+func test_prize_wheel_chitin_spins_favour_rare_wedges() -> void:
+	var c := CasinoRules.wheel_rare_chance(&"chitin")
+	var s := CasinoRules.wheel_rare_chance(&"scrap")
+	assert_true(c > s * 2.0, "chitin rare %.2f vs scrap %.2f" % [c, s])
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var rare := {&"chitin": 0, &"scrap": 0}
+	for cur: StringName in [&"chitin", &"scrap"]:
+		for n in 4000:
+			if CasinoRules.wheel_is_rare(CasinoRules.wheel_pick(rng, cur)):
+				rare[cur] += 1
+	assert_true(absf(rare[&"chitin"] / 4000.0 - c) < 0.03, "chitin picks match the odds")
+	assert_true(absf(rare[&"scrap"] / 4000.0 - s) < 0.03, "scrap picks match the odds")

@@ -21,6 +21,58 @@ const WHEEL_WEDGES: Array[Array] = [
 ]
 ## A wheel prize that stands for one random crafting part (CraftTable.random_part).
 const WHEEL_PART := &"turret_part"
+## The rare wedges (upgrade token, chitin jackpot, turret part). A chitin spin
+## lands on them more often; a scrap spin less often and busts a little more.
+const WHEEL_RARE: Array[StringName] = [&"upgrade_token", &"chitin", &"turret_part"]
+## Wedge weight multipliers per spin currency: [rare, bust].
+const WHEEL_ODDS: Dictionary = {&"chitin": [1.6, 1.0], &"scrap": [0.5, 1.2]}
+
+
+static func wheel_is_rare(i: int) -> bool:
+	for k: StringName in (WHEEL_WEDGES[i][1] as Dictionary):
+		if WHEEL_RARE.has(k):
+			return true
+	return false
+
+
+## How likely each wedge is for a spin paid in `currency`.
+static func wheel_weights(currency: StringName) -> Array[float]:
+	var m: Array = WHEEL_ODDS.get(currency, [1.0, 1.0])
+	var out: Array[float] = []
+	for i in WHEEL_WEDGES.size():
+		if wheel_is_rare(i):
+			out.append(float(m[0]))
+		elif String(WHEEL_WEDGES[i][0]) == "BUST":
+			out.append(float(m[1]))
+		else:
+			out.append(1.0)
+	return out
+
+
+## Chance (0-1) a spin in `currency` lands on a rare wedge.
+static func wheel_rare_chance(currency: StringName) -> float:
+	var w := wheel_weights(currency)
+	var total := 0.0
+	var rare := 0.0
+	for i in w.size():
+		total += w[i]
+		if wheel_is_rare(i):
+			rare += w[i]
+	return rare / total
+
+
+## Host: the wedge a spin paid in `currency` lands on.
+static func wheel_pick(rng: RandomNumberGenerator, currency: StringName) -> int:
+	var w := wheel_weights(currency)
+	var total := 0.0
+	for x in w:
+		total += x
+	var r := rng.randf() * total
+	for i in w.size():
+		r -= w[i]
+		if r < 0.0:
+			return i
+	return w.size() - 1
 ## Chance that a winning hand, spin or pull also pays out a random turret part.
 const PART_CHANCE := 0.05
 
