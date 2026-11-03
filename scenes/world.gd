@@ -220,7 +220,7 @@ func _on_peer_loaded(id: int) -> void:
 	if NetworkManager.has_cpu():
 		_spawn_cpus()
 	else:
-		Economy.shared = false # no CPU this run: separate stockpiles again
+		Economy.cpu_mode = false # no CPU this run: no CPU budgets
 	# [Foundation hook] Continue last run: rebuild the saved run instead of a new one.
 	var resume := RunSave.pending
 	RunSave.pending = {}
@@ -228,8 +228,8 @@ func _on_peer_loaded(id: int) -> void:
 		GameState.start_run()
 
 
-## CPU teammates take every empty cliff and the team shares one pool
-## (each CPU may spend 1 / team size of it, see CpuBudget). Host: the real ones;
+## CPU teammates take every empty cliff; each may spend 1 / team size of the
+## team's scrap (see CpuBudget), and keeps its own chitin. Host: the real ones;
 ## clients: puppets that follow the host's.
 func _spawn_cpus() -> void:
 	var free := NetworkManager.cpu_cliffs()
@@ -241,7 +241,7 @@ func _spawn_cpus() -> void:
 		print("[cpu] %s teammate %s on cliff %d (%s)" % [NetworkManager.CPU_QUALITY_NAMES[NetworkManager.cpu_quality], cpu.display_name, cpu.cliff_id, WorldLayout.map().name_of(cpu.cliff_id)])
 	if not multiplayer.is_server():
 		return
-	Economy.enable_shared_pool(NetworkManager.players.size() + free.size(), free.size())
+	Economy.enable_cpu_budget(NetworkManager.players.size() + free.size(), free.size())
 
 
 ## Lobby roster, or a single offline player when the scene runs on its own.

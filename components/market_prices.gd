@@ -10,7 +10,8 @@ const BASE: Dictionary = {&"corn": 10.0, &"prickly_pear": 16.0, &"chili": 5.0, &
 const CURRENCY: Dictionary = {&"corn": &"scrap", &"prickly_pear": &"scrap", &"chili": &"chitin", &"herbs": &"scrap"}
 ## Fixed seed prices (scrap) that override the one-third rule.
 ## Corn is the cheap, quick crop: its seeds are a bargain.
-const SEED_OVERRIDE: Dictionary = {&"firecracker_chili": 20, &"corn": 8}
+## Sarsaparilla isn't sold at the market (it's grown for your partner), so it has a set price.
+const SEED_OVERRIDE: Dictionary = {&"firecracker_chili": 20, &"corn": 8, &"sarsaparilla": 18}
 const MIN_MULT := 0.5
 const MAX_MULT := 1.5
 ## Each unit sold lowers that vegetable's price by this much (fraction of base).

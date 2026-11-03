@@ -953,7 +953,8 @@ static func stock_chip(resource: StringName, amount: int) -> PanelContainer:
 	h.add_theme_constant_override("separation", 7)
 	p.add_child(h)
 	h.add_child(swatch(resource_color(resource), 14))
-	var l := strap_text(cost(amount, String(resource)), 16)
+	# Scrap is the team's shared pot: say so ("150 Team Scrap").
+	var l := strap_text(cost(amount, ("team " if EconomyLedger.is_shared(resource) else "") + String(resource)), 16)
 	l.name = "Text"
 	h.add_child(l)
 	return p

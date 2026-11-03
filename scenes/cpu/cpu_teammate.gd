@@ -6,8 +6,9 @@ extends Node3D
 ##    cover YOUR cliff, the cross-defense rule), then waits at the lip;
 ##  - wave: stands at its lip and shoots bugs, yours first, with aim, reaction
 ##    time and fire rate set by quality.
-## It spends from the shared team pool but never more than its share
-## (Economy.cpu_spend / CpuBudget). It never gambles or visits the airship.
+## Scrap comes from the team pot, but never more than its fair share of all the
+## scrap the team has had (Economy.cpu_spend / CpuBudget); its chitin, water,
+## seeds and crops are its own cliff's. It never gambles or visits the airship.
 
 enum Task { IDLE, WALK, FARM, BUILD, GUARD }
 
@@ -130,7 +131,7 @@ func _water_task() -> bool:
 		var plot := n as CropPlot
 		if plot != null and plot.cliff_id == cliff_id and plot.growth.stage == CropGrowth.Stage.PLANTED and plot.crop_def != null:
 			need = maxi(need, plot.crop_def.water_cost)
-	if need == 0 or Economy.cpu_can_spend(display_name, {&"water": need}):
+	if need == 0 or Economy.cpu_can_spend(display_name, {&"water": need}, cliff_id):
 		return false
 	# Stand at the trough's far side, facing the spout.
 	var at := well.global_transform * Vector3(0, 0, WellJackBuilder.TROUGH_Z - 1.0)
@@ -226,7 +227,7 @@ func _farm_task() -> bool:
 				best = plot
 				act = "harvest"
 			CropGrowth.Stage.PLANTED:
-				if plot.crop_def != null and Economy.cpu_can_spend(display_name, {&"water": plot.crop_def.water_cost}):
+				if plot.crop_def != null and Economy.cpu_can_spend(display_name, {&"water": plot.crop_def.water_cost}, cliff_id):
 					best = plot
 					act = "water"
 			CropGrowth.Stage.EMPTY:
@@ -247,8 +248,16 @@ func _farm_task() -> bool:
 func _seed_for() -> StringName:
 	for seed_id: StringName in CropPlot.SEEDS:
 		var res: StringName = CropPlot.seed_res(seed_id)
-		if Economy.amount(cliff_id, res) > 0 and Economy.cpu_can_spend(display_name, {res: 1}):
+		if Economy.amount(cliff_id, res) > 0 and Economy.cpu_can_spend(display_name, {res: 1}, cliff_id):
 			return seed_id
+	# Its seed bag is its own now: out of seeds, it buys a corn seed with team
+	# scrap (within its fair share), as a player would at the market.
+	var corn := Defs.crop(&"corn")
+	if corn != null and multiplayer.is_server():
+		var price := MarketPrices.seed_price(corn)
+		if Economy.cpu_spend(display_name, {&"scrap": price}, cliff_id):
+			Economy.earn(cliff_id, {CropPlot.seed_res(&"corn"): 1})
+			return &"corn"
 	return &""
 
 
@@ -265,14 +274,19 @@ func _farm(plot: CropPlot, act: String) -> void:
 			plot.call("_broadcast")
 			var keep := _upkeep_crops()
 			for res: StringName in got:
-				if keep.has(res):
+				if res == PartnerTonic.ITEM:
+					# Sarsaparilla is grown for the partner: brew it straight into tonics.
+					Economy.earn(cliff_id, {res: int(got[res])})
+					for k in int(got[res]):
+						Economy.send_tonic(-1, cliff_id)
+				elif keep.has(res):
 					Economy.earn(cliff_id, {res: int(got[res])})
 				else:
 					_carry[res] = int(_carry.get(res, 0)) + int(got[res])
 		"water":
 			# The plot charges the pool itself; we just count it against our share.
 			var cost := {&"water": plot.crop_def.water_cost}
-			if Economy.cpu_can_spend(display_name, cost):
+			if Economy.cpu_can_spend(display_name, cost, cliff_id):
 				plot.call("_use", -1, &"corn")
 				Economy.cpu_record(display_name, cost)
 		"plant":
@@ -385,7 +399,7 @@ func _turret_choice() -> StringName:
 				options.append(&"flood_gate")
 			options.append_array(cliff_turrets)
 	for id: StringName in options:
-		if Defs.is_turret(id) and Defs.is_unlocked(id, GameState.tier_wave()) and Economy.cpu_can_spend(display_name, {&"scrap": Defs.cost_of(id)}):
+		if Defs.is_turret(id) and Defs.is_unlocked(id, GameState.tier_wave()) and Economy.cpu_can_spend(display_name, {&"scrap": Defs.cost_of(id)}, cliff_id):
 			return id
 	return &""
 
@@ -402,7 +416,7 @@ func _my_turrets() -> Array:
 
 func _build_task() -> bool:
 	# Medium and High keep a farm plot or two going (Low doesn't bother).
-	if quality >= 1 and _my_plots() < quality and Economy.cpu_can_spend(display_name, {&"scrap": Defs.cost_of(&"farm_plot")}) 			and _my_turrets().size() >= 2:
+	if quality >= 1 and _my_plots() < quality and Economy.cpu_can_spend(display_name, {&"scrap": Defs.cost_of(&"farm_plot")}, cliff_id) 			and _my_turrets().size() >= 2:
 		return _build_at(&"farm_plot", _pick_cell(&"farm_plot"))
 	var id := _turret_choice()
 	if id == &"":

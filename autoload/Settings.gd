@@ -34,13 +34,16 @@ const REMAPPABLE: Dictionary = {
 	"overview_map": "Canyon map",
 	"emote": "Emote (tap: tip hat, hold: wheel)",
 	"photo_mode": "Photo mode (hide HUD, free camera)",
-	"build_camera": "Build mode: raised view",
+	"build_camera": "Build mode: first / third person camera",
 	"debug_overlay": "Debug overlay",
 }
 
 # Controls
 var mouse_sensitivity: float = 0.0022
 var invert_y: bool = false
+## Build mode's camera: false = first person, true = third person behind your
+## rider. Remembered: toggling it in build mode (Tab) changes this too.
+var build_cam_third: bool = false
 # Graphics
 var fov: float = 85.0
 var brightness: float = 1.0
@@ -288,7 +291,7 @@ func _deserialize(data: String) -> InputEvent:
 const SAVED_KEYS: Array[String] = ["mouse_sensitivity", "invert_y", "fov", "brightness", "fps_cap",
 	"vsync", "fullscreen", "shadows", "msaa", "render_scale", "quality", "shadow_detail", "effects",
 	"view_distance", "particles", "bug_detail", "master_volume", "sfx_volume", "music_volume", "debug_mode",
-	"colorblind", "ui_text_scale", "tutorial_done", "host_online"]
+	"colorblind", "ui_text_scale", "tutorial_done", "host_online", "build_cam_third"]
 
 
 func save_settings() -> void:

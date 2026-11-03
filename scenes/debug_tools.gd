@@ -1,6 +1,6 @@
 class_name DebugTools
 extends Node
-## Debug cheats (with --debug or Settings > Debug mode): F6 skip phase, F7 +500 scrap and +50 chitin for both sides, F8 spawn the next
+## Debug cheats (with --debug or Settings > Debug mode): F6 skip phase, F7 +500 team scrap and +50 chitin for every cliff, F8 spawn the next
 ## bug type on a random lane of your partner's cliff, F9 god mode, F10 show lanes.
 ## Also the automation flags used for testing:
 ##   --shot=<png> [--frames=N] [--pos=d,z] [--look=yaw,pitch] [--autofire] [--autoskip]
@@ -969,9 +969,11 @@ func _cheat(kind: String) -> void:
 	var cid := NetworkManager.cliff_of(sender) if NetworkManager.is_online() else _local_cliff()
 	match kind:
 		"scrap":
-			# Both sides get it, so a playtest isn't stuck waiting on the partner.
-			for side in [WorldLayout.WEST, WorldLayout.EAST]:
-				Economy.earn(side, {&"scrap": 500, &"chitin": 50})
+			# +500 scrap to the team pot and +50 chitin for every cliff, so a
+			# playtest isn't stuck waiting on the partner.
+			Economy.earn(cid, {&"scrap": 500})
+			for side in WorldLayout.cliff_count():
+				Economy.earn(side, {&"chitin": 50})
 		"spawn":
 			var ids: Array = Defs.active_bug_ids()
 			var id: StringName = ids[_bug_index % ids.size()]
@@ -1042,6 +1044,30 @@ func _peer_shot(p: Player, path: String) -> void:
 		prev.make_current()
 
 
+## --tonicdemo: sarsaparilla on every plot of your cliff (ripe, one still
+## growing), three roots in hand, and a tonic already on your partner's turrets.
+func _tonic_demo(player: Player) -> void:
+	var i := 0
+	for n: Node in get_tree().get_nodes_in_group("crops"):
+		var plot := n as CropPlot
+		if plot == null or plot.cliff_id != player.cliff_id:
+			continue
+		plot.crop_def = Defs.crop(&"sarsaparilla")
+		plot.growth.plant(plot.crop_def)
+		plot.growth.water()
+		plot.growth.tick(plot.crop_def.grow_time * (0.6 if i % 3 == 2 else 2.0), 0.0, 0.0)
+		plot.call("_broadcast")
+		if i == 0:
+			print("[tonic] first plot at plateau %s" % str((world.get("cliffs") as CliffBuilder).plateau_coords(plot.cliff_id, plot.global_position)))
+		i += 1
+	Economy.earn(player.cliff_id, {PartnerTonic.ITEM: 4, &"chitin": 35})
+	Economy.send_tonic(multiplayer.get_unique_id(), player.cliff_id)
+	var hb := player.get_node_or_null("Hotbar") as Hotbar
+	if hb != null:
+		hb.use_slot(3) # the roots, in your hand
+	print("[tonic] demo: %d plots of sarsaparilla, tonic on %s: %.0f s" % [i, WorldLayout.map().name_of(PartnerTonic.partner_of(player.cliff_id)), Economy.tonic(PartnerTonic.partner_of(player.cliff_id))])
+
+
 func _take_screenshot(path: String) -> void:
 	var frames := int(GameState.flag_value("--frames")) if GameState.flag_value("--frames") != "" else 90
 	# --seconds=N waits real time instead of a frame count (frame rate varies a lot).
@@ -1069,6 +1095,8 @@ func _take_screenshot(path: String) -> void:
 		while not bool(world.get("_started")): # every peer loaded (else the builds never reach them)
 			await get_tree().process_frame
 		_autobuild()
+	if GameState.has_flag("--tonicdemo") and player != null and multiplayer.is_server():
+		_tonic_demo(player)
 	if GameState.has_flag("--craftlineup") or GameState.flag_value("--craftlineup") != "": # Crafted turret lineup (scenes/debug/craft_views.gd)
 		add_child(load("res://scenes/debug/craft_views.gd").new())
 	if GameState.flag_value("--crewview") != "": # Crewed: crewed gun views (scenes/debug/crewed_views.gd)

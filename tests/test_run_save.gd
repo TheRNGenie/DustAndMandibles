@@ -20,8 +20,8 @@ func _sample() -> Dictionary:
 			{"type": &"rain_catcher", "cliff": 0, "row": 5, "col": 5, "level": 0, "owner": "", "stored": 6},
 		],
 		"wells": [{"path": "Dressing/Well0", "stored": 4, "working": true}],
-		"economy": {"stock": {0: {&"scrap": 240, &"chitin": 12, &"seed_corn": 2}, 1: {&"scrap": 15, &"water": 3}},
-				"shared": true, "gained": {&"scrap": 900}, "cpu_spent": {"Dusty": {&"scrap": 120}}, "cpu_share": 0.5},
+		"economy": {"stock": {0: {&"chitin": 12, &"seed_corn": 2}, 1: {&"water": 3}, EconomyLedger.TEAM: {&"scrap": 255}},
+				"cpu_mode": true, "gained": {&"scrap": 900}, "cpu_spent": {"Dusty": {&"scrap": 120}}, "cpu_share": 0.5},
 		"players": {0: {"food": 0.4, "water": 0.25}, 1: {"food": 1.0, "water": 0.9}},
 		"perks": {0: {"loadout": {"scrap_stash": 2, "barn_raising": 1}, "free_used": true}, 1: {"loadout": {}, "free_used": false}},
 		"guns": {0: {&"revolver": 0, &"lever_rifle": 3}},
@@ -63,10 +63,11 @@ func test_round_trip_keeps_everything() -> void:
 	assert_eq(back["wells"][0]["stored"], 4)
 	assert_false((back["wells"][0] as Dictionary).has("working"), "old saves' broken/fixed flag is dropped: the well always works")
 	var eco: Dictionary = back["economy"]
-	assert_eq(eco["stock"][0][&"scrap"], 240)
+	assert_eq(eco["stock"][EconomyLedger.TEAM][&"scrap"], 255, "the team pot")
+	assert_eq(eco["stock"][0][&"chitin"], 12)
 	assert_eq(eco["stock"][0][&"seed_corn"], 2)
 	assert_eq(eco["stock"][1][&"water"], 3)
-	assert_true(bool(eco["shared"]))
+	assert_true(bool(eco["cpu_mode"]))
 	assert_eq(eco["gained"][&"scrap"], 900)
 	assert_eq(eco["cpu_spent"]["Dusty"][&"scrap"], 120)
 	assert_almost(float(eco["cpu_share"]), 0.5)
@@ -94,8 +95,9 @@ func test_missing_fields_get_defaults() -> void:
 	assert_eq((back["homesteads"] as Array).size(), 2)
 	assert_eq(back["homesteads"][0]["floors"], 1)
 	assert_eq((back["builds"] as Array).size(), 0)
-	assert_eq((back["economy"]["stock"] as Dictionary).size(), 2)
-	assert_false(bool(back["economy"]["shared"]))
+	assert_eq((back["economy"]["stock"] as Dictionary).size(), 3, "two cliffs and the team pot")
+	assert_eq(back["economy"]["stock"][EconomyLedger.TEAM][&"scrap"], 0)
+	assert_false(bool(back["economy"]["cpu_mode"]))
 	assert_eq((back["players"] as Dictionary).size(), 0)
 
 
@@ -166,3 +168,28 @@ func test_turret_perks_overtime_and_scavenger_survive() -> void:
 	var old: Dictionary = RunSave.decode(RunSave.encode(_sample()))["builds"][1]
 	assert_almost(float(old["perk"][3]), 0.0, 0.001, "older save: no mend")
 	assert_almost(float(old["perk"][4]), 1.0, 0.001, "older save: plain scrap")
+
+
+func test_old_per_cliff_scrap_sums_into_the_team_pot() -> void:
+	var old := '{"wave": 4, "economy": {"stock": {"0": {"scrap": 140, "chitin": 9}, "1": {"scrap": 60, "chitin": 3}}}}'
+	var stock: Dictionary = RunSave.decode(old)["economy"]["stock"]
+	assert_eq(stock[EconomyLedger.TEAM][&"scrap"], 200, "both cliffs' scrap pooled")
+	assert_false((stock[0] as Dictionary).has(&"scrap"), "no scrap left on a cliff")
+	assert_eq(stock[0][&"chitin"], 9, "chitin stays personal")
+	assert_eq(stock[1][&"chitin"], 3)
+
+
+func test_old_cpu_pool_save_splits_chitin_and_pools_scrap() -> void:
+	var old := '{"economy": {"shared": true, "stock": {"0": {"scrap": 101, "chitin": 10}, "1": {}}}}'
+	var eco: Dictionary = RunSave.decode(old)["economy"]
+	assert_eq(eco["stock"][EconomyLedger.TEAM][&"scrap"], 101)
+	assert_eq(eco["stock"][0][&"chitin"] + eco["stock"][1][&"chitin"], 10)
+	assert_eq(eco["stock"][1][&"chitin"], 5)
+	assert_true(bool(eco["cpu_mode"]))
+
+
+func test_fit_cliffs_keeps_the_pot_for_bigger_maps() -> void:
+	var fitted := RunSave.fit_cliffs({0: {&"chitin": 4}, 1: {}, EconomyLedger.TEAM: {&"scrap": 90}}, 4)
+	assert_eq(fitted.size(), 5)
+	assert_eq(fitted[EconomyLedger.TEAM][&"scrap"], 90)
+	assert_eq((fitted[3] as Dictionary).size(), 0)

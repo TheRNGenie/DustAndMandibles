@@ -14,6 +14,14 @@ func _ready() -> void:
 			func(v: float) -> void: Settings.set_value("mouse_sensitivity", v * 0.0022))))
 	add_child(UiStyle.row("Invert mouse Y", UiStyle.check(Settings.invert_y,
 			func(on: bool) -> void: Settings.set_value("invert_y", on))))
+	add_child(UiStyle.section("Camera"))
+	var cam := OptionButton.new()
+	cam.add_item("First Person")
+	cam.add_item("Third Person")
+	cam.selected = 1 if Settings.build_cam_third else 0
+	cam.item_selected.connect(func(i: int) -> void: Settings.set_value("build_cam_third", i == 1))
+	add_child(UiStyle.row("Build Camera", cam))
+	add_child(UiStyle.note("Remembered: switching views in build mode (%s) changes this too." % KeyHints.key_for("build_camera")))
 	add_child(UiStyle.section("Key Bindings"))
 	add_child(UiStyle.note("Click a binding, then press the new key or mouse button. Esc cancels."))
 	for action: String in Settings.REMAPPABLE:

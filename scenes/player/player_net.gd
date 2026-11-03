@@ -73,6 +73,21 @@ func _take_damage(amount: float) -> void:
 		player.vitals.apply_damage(amount)
 
 
+## Owner: brew a sarsaparilla root into a tonic for your partner (PartnerTonic).
+func request_tonic() -> void:
+	Audio.play_ui(&"herb_eat", -6.0)
+	if multiplayer.is_server():
+		Economy.send_tonic(multiplayer.get_unique_id(), player.cliff_id)
+	else:
+		_request_tonic.rpc_id(1)
+
+
+@rpc("any_peer", "reliable")
+func _request_tonic() -> void:
+	if multiplayer.is_server() and multiplayer.get_remote_sender_id() == player.get_multiplayer_authority():
+		Economy.send_tonic(multiplayer.get_remote_sender_id(), player.cliff_id)
+
+
 ## Owner: ask the host to spend 1 food or water so you can eat or drink.
 func request_consume(kind: StringName) -> void:
 	if multiplayer.is_server():

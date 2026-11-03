@@ -28,7 +28,7 @@ var _ok := false
 var _grid: MultiMeshInstance3D
 var _coverage: CoveragePreview
 var _grid_t := 0.0
-## Additions: how covered the far wall already is, and the raised build camera (Tab).
+## Additions: how covered the far wall already is, and the third-person build camera (Tab).
 var _heatmap: CoverageHeatmap
 var _build_cam: BuildCamera
 
@@ -109,6 +109,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_act_on_target(&"tier_up")
 	elif active and not menu_open and event.is_action_pressed("build_camera"):
 		_build_cam.set_raised(not _build_cam.raised)
+		# Remembered: the next build mode opens in the view you left it in.
+		if Settings.build_cam_third != _build_cam.raised:
+			Settings.build_cam_third = _build_cam.raised
+			Settings.save_settings()
 		get_viewport().set_input_as_handled()
 	elif active and not menu_open and event.is_action_pressed("next_item"):
 		_cycle(1)
@@ -224,6 +228,8 @@ func _set_active(on: bool) -> void:
 		if _build_cam != null:
 			_build_cam.set_raised(false)
 	active = on
+	if on and _build_cam != null and Settings.build_cam_third and not player.is_downed():
+		_build_cam.set_raised(true) # Settings > Controls > Build Camera: Third Person
 	if not on and menu_open:
 		close_menu()
 	_ghost.visible = on
@@ -356,7 +362,7 @@ func build_info(icon: Texture2D) -> Dictionary:
 		"afford": GameState.is_solo() or _can_pay(payer, id),
 		"status": status, "status_bad": bad,
 		"keys": [[KeyHints.key_for("fire"), "Place"], [KeyHints.key_for("demolish"), _sell_hint()], ["Wheel", "Next"], [KeyHints.key_for("build_menu"), "Catalog"],
-				[KeyHints.key_for("build_camera"), "Eye view" if _build_cam != null and _build_cam.raised else "Raised view"], [KeyHints.key_for("alt_fire"), "Done"]],
+				[KeyHints.key_for("build_camera"), "First Person" if _build_cam != null and _build_cam.raised else "Third Person"], [KeyHints.key_for("alt_fire"), "Done"]],
 	}
 
 
@@ -399,7 +405,7 @@ func _aim_hit() -> Dictionary:
 	if _build_cam != null and _build_cam.raised:
 		# Raised view: aim through its crosshair, reaching past the extra distance.
 		from = _build_cam.global_position
-		to = from - _build_cam.global_transform.basis.z * (REACH + BuildCamera.BACK + 4.0)
+		to = from - _build_cam.global_transform.basis.z * (REACH + BuildCamera.full_arm() + 4.0)
 	var q := PhysicsRayQueryParameters3D.create(from, to, WorldLayout.LAYER_WORLD | WorldLayout.LAYER_STRUCTURE | WorldLayout.LAYER_TRAP)
 	q.exclude = [player.get_rid()]
 	return get_world_3d().direct_space_state.intersect_ray(q)

@@ -422,6 +422,46 @@
         "Carry a few into every wave: a dose heals 50 HP.",
         "Herbs fetch the most scrap per unit at the market."
       ]
+    },
+    "sarsaparilla": {
+      "lore": "A twining vine with heart-shaped leaves and a thick, knobbly root that brews the canyon's best tonic. You don't grow it for yourself: you grow it for whoever is guarding your wall.",
+      "tips": [
+        "Hold a root (hotbar 4) and left click to send your partner a tonic: their turrets, the ones covering YOUR wall, fire 15% faster.",
+        "Each tonic adds 60 s, stacking up to 3 minutes. The clock only runs during a wave, so send them any time.",
+        "Can't use it yourself? Store roots in your partner's deposit box and let them brew for you.",
+        "The market won't buy it. Seeds are at the airship market."
+      ]
+    }
+  },
+  "basics": {
+    "team_scrap": {
+      "title": "Scrap: The Team Pot",
+      "icon": "scrap",
+      "lore": "Scrap is shared. Everyone builds turrets, scaffolds, farm plots and house repairs from one team pot, and every kill, town bounty, sale and salvage pays back into it.",
+      "tips": [
+        "The Team Scrap counter (bottom left) is the same number on every screen.",
+        "Talk it over before a big build: it's everyone's scrap.",
+        "Breaching bugs steal from the pot, so keep them off the plateau.",
+        "A CPU teammate only ever spends its fair share of the team's scrap."
+      ]
+    },
+    "your_chitin": {
+      "title": "Chitin: Yours Alone",
+      "icon": "chitin",
+      "lore": "Chitin is personal. It pays for your own gun upgrades, turret upgrades and house upgrades, and comes from your kills, chilies sold at the market and the casino.",
+      "tips": [
+        "Your Chitin (bottom left) is only yours: your partner can't spend it.",
+        "Water, crops, seeds, parts and crafted turrets are personal too."
+      ]
+    },
+    "grow_for_partner": {
+      "title": "Grow for Your Partner",
+      "icon": "sarsaparilla",
+      "lore": "Your turrets guard your partner's wall and theirs guard yours. Sarsaparilla Root works the same way: you grow it, and it makes THEIR turrets fire faster.",
+      "tips": [
+        "Left click with a root out to send a tonic.",
+        "A green line under your health shows a tonic on your turrets, or yours on theirs."
+      ]
     }
   }
 }

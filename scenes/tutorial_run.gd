@@ -43,7 +43,7 @@ const STEPS: Array[Dictionary] = [
 		"tasks": ["Dust Mites Shot"], "keys": [["fire", "Shoot"], ["reload", "Reload"]], "marker": "Dust Mite"},
 	{"title": "Build for Each Other", "body": "Turrets on your lip shoot across the canyon at your partner's wall, and theirs guard yours. The green patch is the wall one would cover.",
 		"tasks": ["Look at the Covered Wall"], "keys": [["accept", "Continue"]], "marker": "Partner's Wall", "look": true},
-	{"title": "Build a Gatling Post", "body": "Open the build menu, pick the Gatling Post and place it on the marked lip. Green means it fits.",
+	{"title": "Build a Gatling Post", "body": "Open the build menu, pick the Gatling Post and place it on the marked lip. Turrets cost scrap from the team pot you share with your partner.",
 		"tasks": ["Open the Build Menu", "Pick the Gatling Post", "Place It on Your Lip"],
 		"keys": [["build_menu", "Build Menu"], ["fire", "Place"], ["alt_fire", "Cancel"]], "marker": "Your Lip"},
 	{"title": "Sell It and Build Again", "body": "Changed your mind? Aim at a build and sell it for half its scrap back, then put it up again.",

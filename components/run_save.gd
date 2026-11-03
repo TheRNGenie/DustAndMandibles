@@ -12,7 +12,9 @@ extends RefCounted
 ##   builds: [{type, cliff, row, col, level, owner, hp, tier, levels, armed,
 ##             perk: [range, rate, hp], stored, crop: {id, stage, progress, watered}}]
 ##   wells: [{path, stored}]  (the homestead wells; older saves also have "working", ignored)
-##   economy: {stock: {cliff: {res: n}}, shared, gained, cpu_spent: {name: {res: n}}, cpu_share}
+##   economy: {stock: {cliff: {res: n}, -1: {scrap: n}}, cpu_mode, gained, cpu_spent: {name: {res: n}}, cpu_share}
+##     (-1 = the team pot: scrap is shared, the rest per cliff. Older saves kept
+##     scrap per cliff, and a CPU game's old 'shared' pool under cliff 0: both convert.)
 ##   players: {cliff: {food, water}}
 ##   perks: {cliff: {loadout: {perk: rank}, free_used}}  (the locked loadout; Barn Raising spent)
 ##   guns: {cliff: {weapon: mod code}}
@@ -95,11 +97,20 @@ static func normalize(raw: Dictionary) -> Dictionary:
 	var raw_stock: Dictionary = eco.get("stock", {}) if eco.get("stock") is Dictionary else {}
 	for cid in cliffs:
 		stock[cid] = _amounts(raw_stock.get(str(cid), raw_stock.get(cid, {})))
+	var team_key: Variant = str(EconomyLedger.TEAM) if raw_stock.has(str(EconomyLedger.TEAM)) else EconomyLedger.TEAM
+	if raw_stock.has(team_key):
+		stock[EconomyLedger.TEAM] = _amounts(raw_stock[team_key])
+	elif _b(eco, "shared", false):
+		# An older save with a CPU teammate pooled everything under cliff 0:
+		# give each cliff its even part of the personal resources back.
+		stock = fit_stock(stock, true, false)
+	# Older saves kept scrap per cliff: sum it into the team pot.
+	stock = EconomyLedger.pool_shared(stock)
 	var spent := {}
 	var raw_spent: Dictionary = eco.get("cpu_spent", {}) if eco.get("cpu_spent") is Dictionary else {}
 	for who: Variant in raw_spent:
 		spent[str(who)] = _amounts(raw_spent[who])
-	out["economy"] = {"stock": stock, "shared": _b(eco, "shared", false), "gained": _amounts(eco.get("gained", {})),
+	out["economy"] = {"stock": stock, "cpu_mode": _b(eco, "cpu_mode", _b(eco, "shared", false)), "gained": _amounts(eco.get("gained", {})),
 			"cpu_spent": spent, "cpu_share": _f(eco, "cpu_share", 0.0)}
 	var players := {}
 	var raw_players: Dictionary = raw.get("players", {}) if raw.get("players") is Dictionary else {}
@@ -158,11 +169,17 @@ static func _build(b: Dictionary, cliffs: int = 2) -> Dictionary:
 ## Stockpiles saved with a CPU partner share one pool (cliff 0); played without
 ## one, they're separate. Moves the resources to fit how this game is set up.
 static func fit_stock(stock: Dictionary, was_shared: bool, now_shared: bool) -> Dictionary:
-	# Maps: one stockpile per cliff (2, 3 or 4).
-	var n := maxi(stock.size(), 2)
+	# Maps: one stockpile per cliff (2, 3 or 4), plus the team pot if any.
 	var out := {}
+	var n := 0
+	for k: Variant in stock:
+		if int(k) != EconomyLedger.TEAM:
+			n += 1
+	n = maxi(n, 2)
 	for cid in n:
 		out[cid] = (stock.get(cid, {}) as Dictionary).duplicate()
+	if stock.get(EconomyLedger.TEAM) is Dictionary:
+		out[EconomyLedger.TEAM] = (stock[EconomyLedger.TEAM] as Dictionary).duplicate()
 	if was_shared and not now_shared:
 		# Split the team pool evenly (cliff 0 keeps any odd ones).
 		var pool: Dictionary = out[0]
@@ -177,6 +194,16 @@ static func fit_stock(stock: Dictionary, was_shared: bool, now_shared: bool) -> 
 				out[0][r] = int((out[0] as Dictionary).get(r, 0)) + int(out[cid][r])
 				out[cid][r] = 0
 	return out
+
+
+## A saved stockpile fitted to this map's cliff count: missing cliffs start
+## empty, and the team pot is always there.
+static func fit_cliffs(stock: Dictionary, cliffs: int) -> Dictionary:
+	var out := {}
+	for cid in cliffs:
+		out[cid] = (stock.get(cid, {}) as Dictionary).duplicate()
+	out[EconomyLedger.TEAM] = (stock.get(EconomyLedger.TEAM, {}) as Dictionary).duplicate()
+	return EconomyLedger.pool_shared(out)
 
 
 static func _amounts(v: Variant) -> Dictionary:

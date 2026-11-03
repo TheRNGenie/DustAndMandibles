@@ -199,7 +199,7 @@ func _think(delta: float) -> void:
 		if not has_ammo:
 			_cooldown = 1.0
 			return
-	_cooldown = def.interval_at(tier) * Weather.turret_fire_interval(GameState.weather) * perk_rate # Perk: Well Oiled
+	_cooldown = def.interval_at(tier) * Weather.turret_fire_interval(GameState.weather) * perk_rate * Economy.tonic_interval_mult(cliff_id) # Perk: Well Oiled; Sarsaparilla tonic from the partner
 	shots += 1
 	if randf() <= def.hit_chance * Weather.turret_accuracy(GameState.weather):
 		TurretEffects.apply(self, _target, aim_point, def.damage_at(tier, TurretDef.is_heavy(_target.def)))
