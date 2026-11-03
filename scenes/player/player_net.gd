@@ -223,7 +223,7 @@ func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, see
 			continue
 		# Per-gun roles: shotguns lose punch with distance; the Gatling pins bugs down.
 		var dmg := Gun.damage_at(id, level, origin.distance_to(hit["position"]))
-		dmg *= Perks.gun_hit_mult(player.get_multiplayer_authority(), hit) # Perk: Heavy Slugs / Marksman
+		dmg *= Perks.gun_hit_mult(player.get_multiplayer_authority(), hit, origin.distance_to(hit["position"])) # Perk: Heavy Slugs / Marksman / Lucky Shot / Point Blank
 		Gun.apply_hit_result(hit, d, dmg, Gun.pierce_for(id, level), player.display_name(), player.cliff_id)
 		if def.suppress_slow < 1.0:
 			var hb := hit["collider"] as Hitbox

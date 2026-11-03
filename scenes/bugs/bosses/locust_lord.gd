@@ -34,11 +34,16 @@ func think(delta: float) -> bool:
 	_clock += delta
 	# Drift in a slow figure eight over the middle of the gap.
 	var z := sin(_clock * 0.11) * 13.0
-	var w := Bug.cliffs.plateau_point(WorldLayout.WEST, 0.0, z)
-	var e := Bug.cliffs.plateau_point(WorldLayout.EAST, 0.0, z)
-	var mid := (w + e) * 0.5
-	var across := (e - w).normalized()
-	var goal := mid + across * sin(_clock * 0.22) * 5.0
+	var goal: Vector3
+	if WorldLayout.map().is_canyon():
+		var w := Bug.cliffs.plateau_point(WorldLayout.WEST, 0.0, z)
+		var e := Bug.cliffs.plateau_point(WorldLayout.EAST, 0.0, z)
+		var mid := (w + e) * 0.5
+		var across := (e - w).normalized()
+		goal = mid + across * sin(_clock * 0.22) * 5.0
+	else:
+		# Maps: the same slow figure eight over the middle of the basin / lake.
+		goal = WorldLayout.map().center + Vector3(sin(_clock * 0.22) * 5.0, 0, z)
 	goal.y = WorldLayout.CLIFF_HEIGHT + HOVER + sin(_clock * 0.7) * 1.2
 	var to := goal - bug.ground_pos
 	var step := bug.def.walk_speed * bug.speed() * delta
@@ -68,9 +73,9 @@ func _release() -> void:
 	send(&"burst", [world(SAC)])
 	var bm := BugManager.instance
 	for i in CLOUD:
-		# Half the cloud goes for each cliff.
+		# The cloud splits between the cliffs (Maps: every cliff on the map).
 		_side += 1
-		var cliff := _side % 2
+		var cliff := _side % WorldLayout.cliff_count()
 		var p := world(SAC) + Vector3(randf_range(-1.5, 1.5), randf_range(-1.0, 0.5), randf_range(-1.5, 1.5))
 		bm.spawn_at(&"locust", cliff, randi() % WorldLayout.LANE_Z.size(), p.z, 0.0, Bug.State.FLYING, p)
 

@@ -35,7 +35,7 @@ const SETS: Dictionary = {
 		"tab": "#2E1D10", "tab_sel": "#F2C14E", "accent": "#3E8E7E", "gold": "#E8B53A", "good": "#3F6B2A",
 		"bad": "#9B3B2E", "dim": "#140B0599", "hud": "#F2E3C2", "bg": "#3B2A1E",
 		"hud_bg": "#2A1A0FE6", "hud_rim": "#9C7440", "radius": 6,
-		"fonts": ["Georgia", "Cambria", "Times New Roman"], "weight": 700, "italic": false, "spacing": 1, "wdth": 0,
+		"file": "res://assets/fonts/Rye-Regular.ttf", "fonts": ["Georgia", "Cambria", "Times New Roman"], "weight": 700, "italic": false, "spacing": 1, "wdth": 0,
 	},
 	&"sheaf": {
 		"name": "The Sheaf", "ink": "#2F2A12", "ink_soft": "#5E5532", "title": "#F1D27A", "outline": "#14200A",
@@ -43,7 +43,7 @@ const SETS: Dictionary = {
 		"tab": "#2F2A12", "tab_sel": "#F1D27A", "accent": "#5E8C31", "gold": "#D9A928", "good": "#3F6B2A",
 		"bad": "#9B3B2E", "dim": "#16140899", "hud": "#F3E7C4", "bg": "#4A3A22",
 		"hud_bg": "#22341AE6", "hud_rim": "#C9A04A", "radius": 4,
-		"fonts": ["Constantia", "Palatino Linotype", "Georgia"], "weight": 700, "italic": false, "spacing": 1, "wdth": 0,
+		"file": "res://assets/fonts/Sancreek-Regular.ttf", "fonts": ["Constantia", "Palatino Linotype", "Georgia"], "weight": 700, "italic": false, "spacing": 1, "wdth": 0,
 	},
 	&"irons": {
 		"name": "The Crossed Irons", "ink": "#1E1A16", "ink_soft": "#4E463C", "title": "#E8C06A", "outline": "#0A0D12",
@@ -51,7 +51,7 @@ const SETS: Dictionary = {
 		"tab": "#1E1A16", "tab_sel": "#E8C06A", "accent": "#B8862E", "gold": "#E3B55B", "good": "#4B6B2A",
 		"bad": "#A33A2A", "dim": "#0B0E1199", "hud": "#E6EAEE", "bg": "#22140C",
 		"hud_bg": "#141C26E6", "hud_rim": "#B8862E", "radius": 3,
-		"fonts": ["Bahnschrift", "Arial Narrow", "Impact"], "weight": 700, "italic": false, "spacing": 2, "wdth": 75,
+		"file": "res://assets/fonts/SpecialElite-Regular.ttf", "fonts": ["Bahnschrift", "Arial Narrow", "Impact"], "weight": 700, "italic": false, "spacing": 2, "wdth": 75,
 	},
 	&"snake": {
 		"name": "The Snake Eyes", "ink": "#17120F", "ink_soft": "#5A4A44", "title": "#E9C46A", "outline": "#0A1F10",
@@ -59,7 +59,7 @@ const SETS: Dictionary = {
 		"tab": "#17120F", "tab_sel": "#FFF5E6", "accent": "#B3261E", "gold": "#E9C46A", "good": "#2E7D32",
 		"bad": "#B3261E", "dim": "#06140A99", "hud": "#F4ECDA", "bg": "#123B1E",
 		"hud_bg": "#123A20E6", "hud_rim": "#E9C46A", "radius": 10,
-		"fonts": ["Palatino Linotype", "Book Antiqua", "Georgia"], "weight": 700, "italic": true, "spacing": 1, "wdth": 0,
+		"file": "res://assets/fonts/Ewert-Regular.ttf", "fonts": ["Palatino Linotype", "Book Antiqua", "Georgia"], "weight": 700, "italic": true, "spacing": 1, "wdth": 0,
 	},
 }
 
@@ -189,6 +189,15 @@ static func _fill_font(set_id: StringName) -> void:
 		sf.font_italic = bool(s["italic"])
 		sf.allow_system_fallback = true
 		_sys_fonts[set_id] = sf
+		# A bundled free display font (assets/fonts, OFL/Apache) so every PC sees
+		# the same titles; the system font stays as its fallback.
+		var path := str(s.get("file", ""))
+		if path != "" and ResourceLoader.exists(path):
+			var ff := load(path) as FontFile
+			if ff != null:
+				ff = ff.duplicate() as FontFile
+				ff.fallbacks = [sf]
+				_sys_fonts[set_id] = ff
 	var f := display_font() if _display != null else null
 	if f == null:
 		return

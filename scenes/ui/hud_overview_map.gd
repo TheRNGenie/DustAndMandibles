@@ -1,6 +1,7 @@
 class_name HudOverviewMap
 extends Control
-## The overview map (M): a top-down plan of the canyon. Each cliff is labelled
+## The overview map (M): a top-down plan of the map (any map, north up on the
+## bigger ones; MapDef frames place each cliff). Each cliff is labelled
 ## by name with its owner in (brackets), every turret and structure sits on its
 ## grid cell, and the airship shows where it hangs. Hold-free: press M to open,
 ## M or Esc to close. Refreshes twice a second while open.
@@ -12,6 +13,10 @@ const Z_MAX := 62.0
 const PAD := 28.0
 
 var player: Player
+## Map pixels per metre, and the world (x, z) drawn at the canvas's padded corner.
+var _scale := SCALE
+var _origin := Vector2.ZERO
+var _size := Vector2.ZERO
 var _panel: PanelContainer
 var _canvas: Control
 var _t := 0.0
@@ -33,7 +38,8 @@ func _ready() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 8)
 	_panel.add_child(col)
-	var title := KeyHints.text("CANYON MAP", 22, Palette.GLOW_YELLOW)
+	_fit()
+	var title := KeyHints.text("CANYON MAP" if WorldLayout.map().is_canyon() else WorldLayout.map().display_name.to_upper(), 22, Palette.GLOW_YELLOW)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
 	_canvas = Control.new()
@@ -74,25 +80,44 @@ static func _depth() -> float:
 	return Buildable.LIP_MARGIN + Buildable.ROWS * WorldLayout.CELL + 4.0
 
 
-static func _map_size() -> Vector2:
-	var w := (WorldLayout.HALF_GAP + _depth()) * 2.0 * SCALE + PAD * 2.0
-	var h := (Z_MAX - Z_MIN) * SCALE + PAD * 2.0
-	return Vector2(w, h)
+## Works out the scale and framing: the canyon keeps its fixed strip; the
+## bigger maps fit every plateau and the airship into about 900 x 640 pixels.
+func _fit() -> void:
+	var m := WorldLayout.map()
+	if m.is_canyon():
+		_scale = SCALE
+		_origin = Vector2(-(WorldLayout.HALF_GAP + _depth()), Z_MIN)
+		_size = Vector2((WorldLayout.HALF_GAP + _depth()) * 2.0 * SCALE + PAD * 2.0, (Z_MAX - Z_MIN) * SCALE + PAD * 2.0)
+		return
+	var half_w := WorldLayout.PLATEAU_WIDTH * 0.5
+	var box := Rect2(Vector2(m.airship_ring.x, m.airship_ring.z), Vector2.ZERO)
+	for cid in m.count():
+		for corner: Vector2 in [Vector2(0, -half_w), Vector2(0, half_w), Vector2(_depth(), -half_w), Vector2(_depth(), half_w)]:
+			var w := WorldLayout.plateau_to_world(cid, corner.x, corner.y, 0.0)
+			box = box.expand(Vector2(w.x, w.z))
+	box = box.grow(16.0)
+	_scale = minf(900.0 / box.size.x, 640.0 / box.size.y)
+	_origin = box.position
+	_size = box.size * _scale + Vector2(PAD, PAD) * 2.0
 
 
-## Map position for a canyon-space point: x across the canyon, z along it.
-static func _to_map(x: float, z: float) -> Vector2:
-	var size := _map_size()
-	return Vector2(size.x * 0.5 + x * SCALE, PAD + (z - Z_MIN) * SCALE)
+func _map_size() -> Vector2:
+	return _size
 
 
-## Unwarped canyon x of a grid row on a cliff.
-static func _row_x(cid: int, d: float) -> float:
-	return WorldLayout.side_sign(cid) * (WorldLayout.HALF_GAP + d)
+## Map position for a world point (x, z); the bigger maps put north (-z) at the top.
+func _to_map(x: float, z: float) -> Vector2:
+	return Vector2(PAD + (x - _origin.x) * _scale, PAD + (z - _origin.y) * _scale)
+
+
+## Map position of a plateau point (d back from the lip, z along it).
+func _plateau_map(cid: int, d: float, z: float) -> Vector2:
+	var w := WorldLayout.plateau_to_world(cid, d, z, 0.0)
+	return _to_map(w.x, w.z)
 
 
 static func cliff_name(cid: int) -> String:
-	return "West Cliff" if cid == WorldLayout.WEST else "East Cliff"
+	return WorldLayout.map().name_of(cid)
 
 
 static func owner_of(cid: int) -> String:
@@ -112,12 +137,29 @@ func _draw_map() -> void:
 	var c := _canvas
 	var font := get_theme_default_font()
 	var size := _map_size()
-	# Canyon floor between the lips.
-	var a := _to_map(-WorldLayout.HALF_GAP, Z_MIN)
-	var b := _to_map(WorldLayout.HALF_GAP, Z_MAX)
-	c.draw_rect(Rect2(a, b - a), Color(Palette.OUTLINE, 0.45))
-	_center_text(c, font, "canyon", (a + b) * 0.5, 13, Palette.BONE.darkened(0.3))
-	for cid in 2:
+	var m := WorldLayout.map()
+	if m.is_canyon():
+		# Canyon floor between the lips.
+		var a := _to_map(-WorldLayout.HALF_GAP, Z_MIN)
+		var b := _to_map(WorldLayout.HALF_GAP, Z_MAX)
+		c.draw_rect(Rect2(a, b - a), Color(Palette.OUTLINE, 0.45))
+		_center_text(c, font, "canyon", (a + b) * 0.5, 13, Palette.BONE.darkened(0.3))
+	else:
+		# The basin or lake: everything inside the lips.
+		var ctr := _to_map(m.center.x, m.center.z)
+		var rim := PackedVector2Array()
+		for cid in m.count():
+			for k in 9:
+				var z := lerpf(-m.span_v, m.span_v, float(k) / 8.0)
+				rim.append(_plateau_map(cid, 0.0, z))
+		var hull := Geometry2D.convex_hull(rim)
+		c.draw_colored_polygon(hull, Color(Palette.OUTLINE, 0.45))
+		_center_text(c, font, "dry lake" if m.id == MapDef.BUTTES else "basin", ctr + Vector2(0, 26), 13, Palette.BONE.darkened(0.3))
+		for i in m.tunnel_count():
+			var t: Array = m.tunnels[i]
+			var tp: Vector3 = t[0]
+			c.draw_circle(_to_map(tp.x, tp.z), 3.0, Color("#160C0A"))
+	for cid in m.count():
 		_draw_cliff(c, font, cid)
 	_draw_bugs(c)
 	_draw_airship(c, font)
@@ -134,14 +176,15 @@ func _draw_bugs(c: Control) -> void:
 		if b == null or not b.is_alive():
 			continue
 		var z := b.global_position.z
-		if z < Z_MIN or z > Z_MAX:
+		var at := _to_map(b.global_position.x, z)
+		if at.x < 0.0 or at.y < 0.0 or at.x > _size.x or at.y > _size.y:
 			continue
 		match b.state:
 			Bug.State.CLIMBING:
-				var lip := _to_map(_row_x(b.cliff_id, 0.0), z)
-				var s := WorldLayout.side_sign(b.cliff_id)
-				var len := 3.0 + 14.0 * clampf(b.climb_y / WorldLayout.CLIFF_HEIGHT, 0.0, 1.0)
-				c.draw_line(lip, lip - Vector2(s * len, 0), Color(Palette.TEAM_WEST.lightened(0.15), 0.95), 3.0)
+				var lip := _plateau_map(b.cliff_id, 0.0, b.lane_z)
+				var inw := WorldLayout.inward(b.cliff_id)
+				var tick := 3.0 + 14.0 * clampf(b.climb_y / WorldLayout.CLIFF_HEIGHT, 0.0, 1.0)
+				c.draw_line(lip, lip + Vector2(inw.x, inw.z) * tick, Color(Palette.TEAM_WEST.lightened(0.15), 0.95), 3.0)
 			Bug.State.CRESTING, Bug.State.BREACHING:
 				c.draw_circle(_to_map(b.global_position.x, z), 3.5, Palette.TEAM_WEST.lightened(0.2))
 			Bug.State.CROSSING, Bug.State.FLYING:
@@ -162,24 +205,33 @@ func _draw_pings(c: Control, font: Font) -> void:
 
 
 func _draw_cliff(c: Control, font: Font, cid: int) -> void:
-	var s := WorldLayout.side_sign(cid)
+	var m := WorldLayout.map()
 	var half_w := WorldLayout.PLATEAU_WIDTH * 0.5
-	# The plateau.
-	var p0 := _to_map(_row_x(cid, 0.0), -half_w)
-	var p1 := _to_map(_row_x(cid, _depth()), half_w)
-	var rect := Rect2(Vector2(minf(p0.x, p1.x), p0.y), Vector2(absf(p1.x - p0.x), p1.y - p0.y))
-	c.draw_rect(rect, Color(Palette.SAND, 0.85))
-	c.draw_rect(rect, Palette.OUTLINE, false, 2.0)
-	# Grid cells.
+	# The plateau: along the lip (it bends on a butte's prow), then back along the rear.
+	var outline := PackedVector2Array()
+	for k in 21:
+		outline.append(_plateau_map(cid, 0.0, lerpf(-half_w, half_w, float(k) / 20.0)))
+	for k in 21:
+		outline.append(_plateau_map(cid, _depth(), lerpf(half_w, -half_w, float(k) / 20.0)))
+	var rect := Rect2(outline[0], Vector2.ZERO)
+	for q in outline:
+		rect = rect.expand(q)
+	c.draw_colored_polygon(outline, Color(Palette.SAND, 0.85))
+	var closed := outline.duplicate()
+	closed.append(outline[0])
+	c.draw_polyline(closed, Palette.OUTLINE, 2.0)
+	# Grid cells (bigger maps: the lip row tinted by the cliff each spot covers).
 	for row in Buildable.ROWS:
 		for col in Buildable.COLS:
 			var cell := Vector2i(row, col)
-			var r := _cell_rect(cid, cell)
 			var house := Buildable.house_cells().has_point(cell)
-			c.draw_rect(r.grow(-0.5), Color(Palette.WOOD_DARK, 0.55) if house else Color(Palette.OUTLINE, 0.08))
+			var fill := Color(Palette.WOOD_DARK, 0.55) if house else Color(Palette.OUTLINE, 0.08)
+			if not house and row == 0 and not m.is_canyon():
+				fill = Color(Palette.team_color(m.covered_cliff(cid, col)), 0.45)
+			c.draw_colored_polygon(_cell_poly(cid, cell, 0.5), fill)
 	var hc := Buildable.house_cells()
-	var hr := _cell_rect(cid, hc.position).merge(_cell_rect(cid, hc.position + hc.size - Vector2i.ONE))
-	_center_text(c, font, "house", hr.get_center(), 12, Palette.BONE)
+	var hcenter := _poly_center(_cell_poly(cid, hc.position, 0.0) + _cell_poly(cid, hc.position + hc.size - Vector2i.ONE, 0.0))
+	_center_text(c, font, "house", hcenter, 12, Palette.BONE)
 	# Built things.
 	for n: Node in get_tree().get_nodes_in_group("turrets"):
 		if int(n.get("cliff_id")) != cid or n.get("cell") == null:
@@ -188,13 +240,15 @@ func _draw_cliff(c: Control, font: Font, cid: int) -> void:
 		if cell.x < 0:
 			continue
 		var def: TurretDef = n.get("def")
-		var r := _cell_rect(cid, cell).grow(-1.0)
+		var poly := _cell_poly(cid, cell, 1.0)
 		var col := _turret_colour(def)
-		c.draw_rect(r, col)
-		c.draw_rect(r, Palette.OUTLINE, false, 1.5)
+		c.draw_colored_polygon(poly, col)
+		var ring := poly.duplicate()
+		ring.append(poly[0])
+		c.draw_polyline(ring, Palette.OUTLINE, 1.5)
 		var ini := _initials(def.display_name if def != null else "?")
 		var tw := font.get_string_size(ini, HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x
-		c.draw_string(font, r.get_center() + Vector2(-tw * 0.5, 3.5), ini, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Palette.OUTLINE)
+		c.draw_string(font, _poly_center(poly) + Vector2(-tw * 0.5, 3.5), ini, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Palette.OUTLINE)
 	for n: Node in get_tree().get_nodes_in_group("crops"):
 		if int(n.get("cliff_id")) != cid:
 			continue
@@ -203,27 +257,39 @@ func _draw_cliff(c: Control, font: Font, cid: int) -> void:
 	# Name plate: "West Cliff (Logan)", out past the back of the plateau.
 	var label := "%s (%s)" % [cliff_name(cid), owner_of(cid)]
 	var mine := player != null and player.cliff_id == cid
-	_center_text(c, font, label, Vector2(rect.get_center().x, rect.position.y - 12.0), 16,
-			Palette.GLOW_YELLOW if mine else Palette.BONE)
+	var at := Vector2(rect.get_center().x, rect.position.y - 12.0)
+	var below := Vector2(rect.get_center().x, rect.end.y + 14.0)
+	if not m.is_canyon():
+		# Bigger maps: the name sits just behind the plateau, away from the middle.
+		at = _plateau_map(cid, _depth() + 9.0, 0.0)
+		below = _plateau_map(cid, _depth() - 4.0, 0.0)
+	_center_text(c, font, label, at, 16, Palette.GLOW_YELLOW if mine else Palette.BONE)
 	if mine:
-		_center_text(c, font, "you are here", Vector2(rect.get_center().x, rect.end.y + 14.0), 12, Palette.GLOW_YELLOW)
-	var _unused := s
+		_center_text(c, font, "you are here", below, 12, Palette.GLOW_YELLOW)
 
 
-func _cell_rect(cid: int, cell: Vector2i) -> Rect2:
+## A grid cell's corners on the map, pulled `inset` pixels in from its edges.
+func _cell_poly(cid: int, cell: Vector2i, inset: float) -> PackedVector2Array:
 	var d0 := Buildable.LIP_MARGIN + float(cell.x) * WorldLayout.CELL
 	var z0 := -WorldLayout.PLATEAU_WIDTH * 0.5 + float(cell.y) * WorldLayout.CELL
-	var a := _to_map(_row_x(cid, d0), z0)
-	var b := _to_map(_row_x(cid, d0 + WorldLayout.CELL), z0 + WorldLayout.CELL)
-	return Rect2(Vector2(minf(a.x, b.x), a.y), Vector2(absf(b.x - a.x), b.y - a.y))
+	var pts := PackedVector2Array([_plateau_map(cid, d0, z0), _plateau_map(cid, d0, z0 + WorldLayout.CELL),
+			_plateau_map(cid, d0 + WorldLayout.CELL, z0 + WorldLayout.CELL), _plateau_map(cid, d0 + WorldLayout.CELL, z0)])
+	if inset > 0.0:
+		var ctr := _poly_center(pts)
+		for i in pts.size():
+			pts[i] = pts[i] + (ctr - pts[i]).normalized() * inset
+	return pts
 
 
-func _world_to_map(cid: int, pos: Vector3) -> Vector2:
-	var cliffs := (get_tree().current_scene.get("cliffs")) as CliffBuilder
-	if cliffs == null:
-		return _to_map(pos.x, pos.z)
-	var pc := cliffs.plateau_coords(cid, pos)
-	return _to_map(_row_x(cid, pc.x), pc.y)
+static func _poly_center(pts: PackedVector2Array) -> Vector2:
+	var sum := Vector2.ZERO
+	for q in pts:
+		sum += q
+	return sum / maxf(float(pts.size()), 1.0)
+
+
+func _world_to_map(_cid: int, pos: Vector3) -> Vector2:
+	return _to_map(pos.x, pos.z)
 
 
 func _draw_airship(c: Control, font: Font) -> void:

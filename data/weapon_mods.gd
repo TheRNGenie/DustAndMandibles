@@ -47,6 +47,11 @@ const MODS: Dictionary = {
 		{"name": "Cordite loads", "desc": "+20% damage.", "cost": 40, "fx": {"damage": 1.2}},
 		{"name": "Ejector springs", "desc": "Spent cases pop out: reloads 30% faster.", "cost": 35, "fx": {"reload": 0.7}},
 	],
+	&"dino_rifle": [
+		{"name": "Fresh twine", "desc": "Re-tied tight: the glass zooms in a third further.", "cost": 15, "fx": {"zoom": 1.3}},
+		{"name": "Rhino loads", "desc": "+20% damage.", "cost": 25, "fx": {"damage": 1.2}},
+		{"name": "Stripper clip", "desc": "All four barrels load in one push: reloads 35% faster.", "cost": 25, "fx": {"reload": 0.65}},
+	],
 	&"blunderbuss": [
 		{"name": "Nail charge", "desc": "Six more pieces of scrap in every load.", "cost": 20, "fx": {"pellets": 6}},
 		{"name": "Flared bell", "desc": "+20% damage, wider blast.", "cost": 20, "fx": {"damage": 1.2, "spread": 1.25}},

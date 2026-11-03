@@ -267,6 +267,19 @@ func _show_message(text: String) -> void:
 	_center_label.text = text
 
 
+## Maps: who holds cliff `cid`: a player's name, a CPU teammate's, or "empty".
+static func owner_name(cid: int) -> String:
+	for id: int in NetworkManager.players:
+		if int((NetworkManager.players[id] as Dictionary)["cliff"]) == cid:
+			return str((NetworkManager.players[id] as Dictionary)["name"])
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		for n: Node in tree.get_nodes_in_group("cpu_teammates"):
+			if int(n.get("cliff_id")) == cid:
+				return str(n.get("display_name"))
+	return "you" if GameState.is_solo() else "empty"
+
+
 ## Theme: the HUD sign is the theme set's HUD card.
 static func wood_sign_style() -> StyleBoxFlat:
 	return UiStyle.hud_flat()
@@ -424,8 +437,9 @@ class SpeedLines extends Control:
 			draw_rect(Rect2(Vector2.ZERO, size), Color(1, 1, 0.95, _flash * 0.85))
 
 
-## The Elephant Gun's magnifying glass: when you're looking through it, the
-## view is a round lens in a dark surround with a fine cross.
+## The Elephant Gun's (and Dino Rifle's) magnifying glass: when you're looking
+## through it, the view is a round lens in a dark surround with a fine cross.
+## The Dino Rifle's glass sits wherever it got tied on (DinoGlass).
 class ScopeOverlay extends Control:
 	var gun: Gun
 
@@ -437,10 +451,22 @@ class ScopeOverlay extends Control:
 			queue_redraw()
 
 	func _draw() -> void:
+		var short := minf(size.x, size.y)
 		var c := size * 0.5
-		var r := minf(size.x, size.y) * 0.42
+		var r := short * 0.42
+		# Dino Rifle: where and how its glass got tied on (DinoGlass).
+		var fit := {}
+		if gun != null and is_instance_valid(gun) and gun.def != null and gun.def.id == &"dino_rifle":
+			fit = DinoGlass.get_fit(gun.code_of(&"dino_rifle"))
+			c += (fit["lens"] as Vector2) * short
+			r *= float(fit["size"])
+			var wob := float(fit["wobble"])
+			if wob > 0.0:
+				var s := Time.get_ticks_msec() / 1000.0
+				c += Vector2(sin(s * 2.3) + 0.5 * sin(s * 5.1), cos(s * 1.7) + 0.4 * sin(s * 4.3)) * wob * short
+				r *= 1.0 + 0.04 * sin(s * 3.1)
 		# Dark surround: a thick ring from the lens edge out past the corners.
-		var outer := size.length()
+		var outer := size.length() + (c - size * 0.5).length()
 		draw_arc(c, (r + outer) * 0.5, 0.0, TAU, 96, Color(0.04, 0.03, 0.02, 0.97), outer - r + 2.0, true)
 		# Brass rim and a soft inner shadow.
 		draw_arc(c, r + 6.0, 0.0, TAU, 96, Color("#B8893A"), 12.0, true)
@@ -450,3 +476,28 @@ class ScopeOverlay extends Control:
 		for d: Vector2 in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
 			draw_line(c + d * 14.0, c + d * r, line, 2.0)
 		draw_circle(c, 2.5, line)
+		if fit.is_empty():
+			return
+		if float(fit["wobble"]) > 0.0:
+			# Fisheye: the edge of the glass bulges and smears.
+			for i in 3:
+				draw_arc(c, r * (0.78 + 0.07 * i), 0.0, TAU, 64, Color(1, 1, 1, 0.05), r * 0.06, true)
+		if bool(fit["cracked"]):
+			_draw_crack(c, r)
+
+
+	## A crack across the lens: one jagged run edge to edge, with a few branches.
+	func _draw_crack(c: Vector2, r: float) -> void:
+		var ink := Color(0.95, 0.97, 1.0, 0.55)
+		var dark := Color(0, 0, 0, 0.35)
+		var main: PackedVector2Array = [c + Vector2(-0.98, -0.2) * r, c + Vector2(-0.62, -0.12) * r, c + Vector2(-0.4, 0.02) * r,
+			c + Vector2(-0.12, -0.05) * r, c + Vector2(0.08, 0.1) * r, c + Vector2(0.35, 0.06) * r, c + Vector2(0.6, 0.22) * r,
+			c + Vector2(0.97, 0.25) * r]
+		draw_polyline(main, dark, 4.0, true)
+		draw_polyline(main, ink, 1.6, true)
+		for b: PackedVector2Array in [
+				PackedVector2Array([c + Vector2(-0.4, 0.02) * r, c + Vector2(-0.33, 0.3) * r, c + Vector2(-0.38, 0.55) * r]),
+				PackedVector2Array([c + Vector2(0.08, 0.1) * r, c + Vector2(0.02, -0.3) * r, c + Vector2(0.12, -0.62) * r]),
+				PackedVector2Array([c + Vector2(0.6, 0.22) * r, c + Vector2(0.55, 0.5) * r])]:
+			draw_polyline(b, dark, 3.0, true)
+			draw_polyline(b, ink, 1.2, true)

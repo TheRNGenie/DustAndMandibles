@@ -162,3 +162,10 @@ func test_brand_earnings() -> void:
 	var endless := BrandRules.earnings(23, 20, 0, false, true)
 	assert_eq(endless["total"], 5 + 60 + 12)
 	assert_eq(BrandRules.earnings(0, 20, 0, false, true)["total"], 5, "even wave 1 pays something")
+
+
+func test_new_gun_and_engineer_perks() -> void:
+	assert_eq(PerkTable.describe(&"lucky_shot", 2), "Your gun hits have a 10% chance to do double damage.")
+	assert_eq(PerkTable.describe(&"point_blank", 1), "Gun hits within 8 m do 12% more damage.")
+	assert_eq(PerkTable.describe(&"overtime", 2), "When a wave ends, turrets you built patch 30% of their HP.")
+	assert_eq(PerkTable.describe(&"scrap_scavenger", 1), "Kills by turrets you built drop 15% more scrap.")

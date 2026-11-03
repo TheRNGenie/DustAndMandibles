@@ -11,18 +11,21 @@ const SHELF: Array[Dictionary] = [
 	{"kind": "buy", "id": &"blunderbuss"},
 	{"kind": "buy", "id": &"crank_gatling"},
 	{"kind": "buy", "id": &"elephant_gun"},
+	{"kind": "buy", "id": &"dino_rifle"},
 	{"kind": "upgrade", "id": &"revolver"},
 	{"kind": "upgrade", "id": &"lever_rifle"},
 	{"kind": "upgrade", "id": &"coach_shotgun"},
 	{"kind": "upgrade", "id": &"blunderbuss"},
 	{"kind": "upgrade", "id": &"crank_gatling"},
 	{"kind": "upgrade", "id": &"elephant_gun"},
+	{"kind": "upgrade", "id": &"dino_rifle"},
 	{"kind": "mods", "id": &"revolver"},
 	{"kind": "mods", "id": &"lever_rifle"},
 	{"kind": "mods", "id": &"coach_shotgun"},
 	{"kind": "mods", "id": &"blunderbuss"},
 	{"kind": "mods", "id": &"crank_gatling"},
 	{"kind": "mods", "id": &"elephant_gun"},
+	{"kind": "mods", "id": &"dino_rifle"},
 ]
 
 ## Host: what every peer owns, peer_id -> {weapon id: level}.
@@ -108,6 +111,8 @@ func menu_items(tab: int) -> Array:
 	for item: Dictionary in SHELF:
 		var id: StringName = item["id"]
 		var w := Gun.weapon(id)
+		if id == &"dino_rifle" and not Perks.has_secret(multiplayer.get_unique_id(), &"weapon", id) and not gun.owns(id):
+			continue # secret: only once its code has been entered
 		if tab == 0 and item["kind"] == "buy":
 			var why := ""
 			if gun.owns(id):
@@ -211,7 +216,11 @@ func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
 		if owned.size() >= Gun.MAX_WEAPONS:
 			Economy.notify(peer_id, "Your three weapon slots are full. Drop one first (Q).")
 			return
+		if id == &"dino_rifle" and not Perks.has_secret(peer_id, &"weapon", id):
+			return
 		cost = w.price_chitin
+		if id == &"dino_rifle":
+			level = DinoGlass.with_variant(0, DinoGlass.roll()) # every glass is tied on differently
 	elif kind == "mod":
 		var mods := WeaponMods.list(id)
 		if not owned.has(id) or slot < 0 or slot >= mods.size() or WeaponMods.has_mod(int(owned[id]), slot):
@@ -232,6 +241,9 @@ func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
 	var player := _player_of(peer_id)
 	if player != null:
 		player.net.grant_weapon(id, level)
+	if kind == "buy" and id == &"dino_rifle":
+		var fit := DinoGlass.get_fit(level)
+		Economy.notify(peer_id, "Your glass: %s. %s" % [fit["name"], fit["blurb"]])
 	_sold.rpc()
 
 

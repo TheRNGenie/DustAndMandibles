@@ -50,13 +50,13 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 		return
 	_tunnel_spin += 1
 	# Out of a tunnel down the canyon (a group's lane picks which).
-	var tunnel: Array = WorldLayout.TUNNELS[(lane * 3 + cliff * 5 + _tunnel_spin) % WorldLayout.TUNNELS.size()]
+	# Maps: [mouth, way out] from the map's tunnels (the canyon's are in either wall).
+	var tunnel: Array = Bug.cliffs.tunnel((lane * 3 + cliff * 5 + _tunnel_spin) % Bug.cliffs.tunnel_count()) if Bug.cliffs != null else [Vector3.ZERO, Vector3.RIGHT]
 	var def := Defs.bug(bug_id)
 	if start_y <= 0.0 and is_big(def) and Bug.cliffs != null:
 		# Brutes and the boss are heard before they're seen: dust and a rumble
 		# at the tunnel mouth, then they come out of that same tunnel.
-		var wall := int(tunnel[0])
-		_rumble.rpc(Bug.cliffs.tunnel_mouth(wall, float(tunnel[1])), wall, def.size)
+		_rumble.rpc(tunnel[0], tunnel[1], def.size) # Maps:
 		_pending += count
 		get_tree().create_timer(TELEGRAPH_TIME, false).timeout.connect(_spawn_heralded.bind(bug_id, count, cliff, lane, tunnel))
 		return
@@ -97,8 +97,7 @@ func _spawn_from(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 		# and cross the canyon floor first (unless a test starts them up the face).
 		if start_y <= 0.0:
 			st = Bug.State.CROSSING
-			var wall := int(tunnel[0])
-			pos = Bug.cliffs.tunnel_mouth(wall, float(tunnel[1])) + Vector3(WorldLayout.side_sign(wall) * (1.2 + float(i) * 1.5), 0, 0)
+			pos = (tunnel[0] as Vector3) - (tunnel[1] as Vector3) * (1.2 + float(i) * 1.5) # Maps:
 		match def.behavior:
 			BugDef.Behavior.BURROWER:
 				# Tunnels in: pops up somewhere inside the plateau, never climbs.
@@ -107,13 +106,11 @@ func _spawn_from(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 			BugDef.Behavior.FLIER:
 				st = Bug.State.FLYING
 				# Flies out of the same tunnels down the canyon, low over the floor.
-				var wall := int(tunnel[0])
-				pos = Bug.cliffs.tunnel_mouth(wall, float(tunnel[1])) + Vector3(-WorldLayout.side_sign(wall) * (1.5 + float(i) * 1.2), 1.8, 0)
+				pos = (tunnel[0] as Vector3) + (tunnel[1] as Vector3) * (1.5 + float(i) * 1.2) + Vector3(0, 1.8, 0) # Maps:
 			BugDef.Behavior.BOSS:
 				# Boss: some bosses leave the tunnel another way (the Locust Swarm Lord flies out).
 				if start_y <= 0.0:
-					var wall := int(tunnel[0])
-					var o := BossBrain.spawn_override(def.id, Bug.cliffs.tunnel_mouth(wall, float(tunnel[1])), Vector3(-WorldLayout.side_sign(wall), 0, 0))
+					var o := BossBrain.spawn_override(def.id, tunnel[0] as Vector3, tunnel[1] as Vector3) # Maps: mouth + way out
 					if not o.is_empty():
 						st = int(o["state"])
 						pos = o["pos"]
@@ -122,8 +119,8 @@ func _spawn_from(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 
 ## Every peer: dust boils out of a tunnel mouth and the ground rumbles.
 @rpc("authority", "call_local", "reliable")
-func _rumble(mouth: Vector3, wall: int, size: float) -> void:
-	TunnelRumble.play(get_parent(), mouth, wall, size, TELEGRAPH_TIME)
+func _rumble(mouth: Vector3, way_out: Vector3, size: float) -> void: # Maps: direction, not wall
+	TunnelRumble.play(get_parent(), mouth, way_out, size, TELEGRAPH_TIME)
 	if vfx != null:
 		vfx.shake_requested.emit(mouth, 0.15 * size)
 
@@ -190,6 +187,7 @@ func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 	BossFx.on_bug_died(bug) # Boss: the Bone Collector eats the dead near it
 	var loot := {&"scrap": bug.def.scrap_drop, &"chitin": bug.def.chitin_drop * Weather.chitin_mult(GameState.weather)}
 	loot = Brand.kill_loot(loot, source_cliff) # Theme: Crossed Irons brand, more per kill
+	loot[&"scrap"] = roundi(float(loot[&"scrap"]) * Perks.kill_scrap_mult(source)) # Perk: Scrap Scavenger
 	Economy.earn(bug.cliff_id, loot)
 	_corpse.rpc(get_path_to(bug))
 	# Bugs that made it up off the cliff wall leave something to loot.
@@ -224,7 +222,7 @@ func _corpse(path: NodePath) -> void:
 func _pop(pos: Vector3, color: Color, size: float) -> void:
 	if vfx != null:
 		vfx.pop(pos, color, size)
-	Audio.play_at(&"bug_pop", pos)
+	# (No death sound: the owner cut the "boing" pop.)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -485,6 +483,8 @@ func separate() -> void:
 # ------------------------------------------------------------------ loot
 
 func _over_plateau(bug: Bug) -> bool:
+	if not WorldLayout.map().is_canyon(): # Maps:
+		return WorldLayout.map().cliff_at(bug.global_position) >= 0
 	return absf(bug.global_position.x) > WorldLayout.HALF_GAP + 1.0
 
 

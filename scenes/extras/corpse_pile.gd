@@ -25,7 +25,9 @@ func _ready() -> void:
 	_rng.randomize()
 	var mesh := husk_mesh()
 	var mat := Materials.toon(0.02)
-	for cid in 2:
+	_next.resize(WorldLayout.cliff_count()) # Maps: one pile per cliff
+	_count.resize(WorldLayout.cliff_count())
+	for cid in WorldLayout.cliff_count():
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_colors = true
@@ -99,11 +101,11 @@ func _land(batch: PackedFloat32Array) -> void:
 
 ## A husk at the foot of cliff `cid` near z: tumbled out a little from the wall.
 func _add(cid: int, z: float, scale_v: float, shell: Color) -> void:
-	if cid < 0 or cid > 1 or cliffs == null:
+	if cid < 0 or cid >= _mm.size() or cliffs == null: # Maps:
 		return
 	z += _rng.randf_range(-1.2, 1.2)
 	var base := cliffs.face_point(cid, 0.0, z)
-	var out := Vector3(-WorldLayout.side_sign(cid), 0.0, 0.0)
+	var out := WorldLayout.inward(cid) # Maps:
 	var p := base + out * _rng.randf_range(0.8, 4.5)
 	p.y = cliffs.floor_height(p.x, p.z) - 0.08 * scale_v
 	var basis := Basis(Vector3.UP, _rng.randf() * TAU)

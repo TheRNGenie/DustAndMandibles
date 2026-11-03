@@ -84,8 +84,11 @@ func reset() -> void:
 	end_reason = ""
 	god_mode = false
 	var hp := config().homestead_hp
-	homestead_hp = [hp, hp]
-	homestead_max = [hp, hp]
+	homestead_hp.clear()
+	homestead_max.clear()
+	for cid in WorldLayout.cliff_count(): # Maps: one Homestead per cliff
+		homestead_hp.append(hp)
+		homestead_max.append(hp)
 
 
 func is_solo() -> bool:
@@ -120,7 +123,7 @@ func start_run(first_wave: int = 1) -> void: # [Foundation hook] first_wave for 
 	reset()
 	Economy.reset()
 	GunShop.reset_loadouts()
-	_sync_homesteads_reliable.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
+	_sync_homesteads_reliable.rpc(homestead_hp, homestead_max)
 	wave = maxi(first_wave, 1)
 	if first_wave <= 1 and has_flag("--debug") and flag_value("--startwave") != "":
 		wave = clampi(int(flag_value("--startwave")), 1, 999)
@@ -215,25 +218,25 @@ func damage_homestead(cliff_id: int, amount: float) -> void:
 	if not multiplayer.is_server() or phase == Phase.GAME_OVER or god_mode:
 		return
 	homestead_hp[cliff_id] = maxf(homestead_hp[cliff_id] - amount, 0.0)
-	_sync_homesteads.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
+	_sync_homesteads.rpc(homestead_hp, homestead_max)
 	if homestead_hp[cliff_id] <= 0.0:
-		var side := "west" if cliff_id == WorldLayout.WEST else "east"
+		var side := WorldLayout.map().name_of(cliff_id) # Maps: "West Cliff", "North Butte"...
 		_finish.rpc(false, "The %s Homestead fell on wave %d." % [side, wave])
 
 
 @rpc("authority", "call_local", "unreliable_ordered")
-func _sync_homesteads(west: float, east: float, west_max: float, east_max: float) -> void:
-	homestead_hp = [west, east]
-	homestead_max = [west_max, east_max]
-	for cid in 2:
+func _sync_homesteads(hp: Array, mx: Array) -> void: # Maps: one entry per cliff
+	homestead_hp.assign(hp)
+	homestead_max.assign(mx)
+	for cid in homestead_hp.size():
 		homestead_changed.emit(cid, homestead_hp[cid], homestead_max[cid])
 
 
 # One-shot changes (run start, upgrades, repairs) must arrive: a dropped packet
 # would leave the partner's HUD on stale (or 0/0) house HP until the next hit.
 @rpc("authority", "call_local", "reliable")
-func _sync_homesteads_reliable(west: float, east: float, west_max: float, east_max: float) -> void:
-	_sync_homesteads(west, east, west_max, east_max)
+func _sync_homesteads_reliable(hp: Array, mx: Array) -> void:
+	_sync_homesteads(hp, mx)
 
 
 ## Host: raise a Homestead's max HP (the extra is added to its current HP too).
@@ -242,7 +245,7 @@ func raise_homestead_max(cliff_id: int, extra: float) -> void:
 		return
 	homestead_max[cliff_id] += extra
 	homestead_hp[cliff_id] += extra
-	_sync_homesteads_reliable.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
+	_sync_homesteads_reliable.rpc(homestead_hp, homestead_max)
 
 
 ## Host: patch a Homestead up (never past its max).
@@ -250,7 +253,7 @@ func heal_homestead(cliff_id: int, amount: float) -> void:
 	if not multiplayer.is_server() or phase == Phase.GAME_OVER:
 		return
 	homestead_hp[cliff_id] = minf(homestead_hp[cliff_id] + amount, homestead_max[cliff_id])
-	_sync_homesteads_reliable.rpc(homestead_hp[0], homestead_hp[1], homestead_max[0], homestead_max[1])
+	_sync_homesteads_reliable.rpc(homestead_hp, homestead_max)
 
 
 @rpc("authority", "call_local", "reliable")

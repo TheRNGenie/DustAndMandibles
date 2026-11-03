@@ -164,6 +164,13 @@ func far_turrets(reach: float = 120.0) -> Array[Turret]:
 	return out
 
 
+## Host: a message to the players whose turrets cover the boss's cliff
+## (Maps: every defender, not just the canyon's other cliff).
+func notify_defenders(text: String) -> void:
+	for cid in WorldLayout.map().defenders_of(bug.cliff_id):
+		Economy.notify_cliff(cid, text)
+
+
 ## Host: spawns small bugs around the boss (climbing beside it, or on its plateau).
 func spawn_minions(id: StringName, count: int, spread: float = 2.0) -> void:
 	var bm := BugManager.instance

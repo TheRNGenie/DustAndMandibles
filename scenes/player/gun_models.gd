@@ -16,6 +16,7 @@ const PIVOTS := {
 	"crank_gatling_barrels": Vector3(0.004, 0.0147, -0.3),
 	"crank_gatling_crank": Vector3(-0.07, 0.015, -0.221),
 	"zippo_lid": Vector3(0.019, 0.0395, 0.0),
+	"dino_rifle_glass": Vector3(-0.005, 0.072, -0.395), # the lens; its fit turns about here (DinoGlass)
 }
 static var _cache: Dictionary = {}
 
@@ -60,7 +61,7 @@ static func pivot(id: StringName, part: String) -> Vector3:
 
 
 ## The whole gun in one piece (body and every part at rest), for hands and the ground.
-static func whole(id: StringName, outline: float = 0.006, shadows: bool = true) -> Node3D:
+static func whole(id: StringName, outline: float = 0.006, shadows: bool = true, variant: int = 0) -> Node3D:
 	var body := make(id, "body", outline, shadows)
 	if body == null:
 		return null
@@ -68,4 +69,27 @@ static func whole(id: StringName, outline: float = 0.006, shadows: bool = true) 
 		var p := make(id, part, outline, shadows)
 		if p != null:
 			body.add_child(p)
+	var g := glass(id, variant, outline, shadows)
+	if g != null:
+		body.add_child(g)
 	return body
+
+
+## The Dino Rifle's glass, placed for its fit (DinoGlass variant), on a pivot at the lens.
+static func glass(id: StringName, variant: int, outline: float = 0.006, shadows: bool = false) -> Node3D:
+	var part := make(id, "glass", outline, shadows)
+	if part == null:
+		return null
+	var piv := Node3D.new()
+	piv.name = "Glass"
+	place_glass(piv, id, variant)
+	part.position = -pivot(id, "glass")
+	piv.add_child(part)
+	return piv
+
+
+static func place_glass(piv: Node3D, id: StringName, variant: int) -> void:
+	var fit: Dictionary = DinoGlass.VARIANTS[clampi(variant, 0, DinoGlass.VARIANTS.size() - 1)]
+	piv.position = pivot(id, "glass") + (fit["pos"] as Vector3)
+	var r: Vector3 = fit["rot"]
+	piv.rotation = Vector3(deg_to_rad(r.x), deg_to_rad(r.y), deg_to_rad(r.z))

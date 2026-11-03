@@ -35,9 +35,14 @@ func update(delta: float) -> void:
 	# Down in the canyon: fly up the canyon into the play area, rising as it
 	# goes, before heading over the lip (so it doesn't hit the walls).
 	if bug.ground_pos.y < WorldLayout.CLIFF_HEIGHT + 2.0:
-		var into := clampf(bug.ground_pos.z, -WorldLayout.PLATEAU_WIDTH * 0.4, WorldLayout.PLATEAU_WIDTH * 0.4)
-		var climb := WorldLayout.CLIFF_HEIGHT + CRUISE_HEIGHT if absf(bug.ground_pos.z) < WorldLayout.PLATEAU_WIDTH * 0.5 + 6.0 else bug.ground_pos.y + 6.0
-		goal = Vector3(0.0, climb, into)
+		var m := WorldLayout.map()
+		if m.is_canyon():
+			var into := clampf(bug.ground_pos.z, -WorldLayout.PLATEAU_WIDTH * 0.4, WorldLayout.PLATEAU_WIDTH * 0.4)
+			var climb := WorldLayout.CLIFF_HEIGHT + CRUISE_HEIGHT if absf(bug.ground_pos.z) < WorldLayout.PLATEAU_WIDTH * 0.5 + 6.0 else bug.ground_pos.y + 6.0
+			goal = Vector3(0.0, climb, into)
+		else:
+			# Maps: rise over the gap in front of the target cliff first.
+			goal = m.rise_point(bug.cliff_id, bug.ground_pos, WorldLayout.CLIFF_HEIGHT + CRUISE_HEIGHT)
 	_fly_to(goal, delta)
 	if bug.ground_pos.distance_to(_target.global_position + Vector3.UP * 1.5) < 1.5:
 		_steal()
@@ -64,6 +69,9 @@ func _steal() -> void:
 func _start_escape() -> void:
 	_escaping = true
 	_escape_point = Vector3(0.0, WorldLayout.CLIFF_HEIGHT + 25.0, bug.ground_pos.z + randf_range(-30.0, 30.0))
+	if not WorldLayout.map().is_canyon(): # Maps: off over the middle of the map
+		var c := WorldLayout.map().center
+		_escape_point = Vector3(c.x + randf_range(-25.0, 25.0), WorldLayout.CLIFF_HEIGHT + 25.0, c.z + randf_range(-25.0, 25.0))
 
 
 func _pick_target() -> Node3D:

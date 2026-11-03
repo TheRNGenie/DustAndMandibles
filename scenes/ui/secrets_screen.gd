@@ -124,6 +124,8 @@ func _try() -> void:
 ## "Dino Rifle (at the gunsmith)", "Bug Skull (in the Wardrobe)".
 static func _pretty(e: Variant) -> String:
 	var d: Dictionary = e if e is Dictionary else {}
+	if str(d.get("kind", "")) == "notches":
+		return "%s Notches" % str(d.get("id", "0"))
 	var bits := str(d.get("id", "")).split(":")
 	var where := " (at the gunsmith)" if str(d.get("kind", "")) == "weapon" else " (in the Wardrobe)"
 	return UiStyle.tc(bits[bits.size() - 1].replace("_", " ")) + where

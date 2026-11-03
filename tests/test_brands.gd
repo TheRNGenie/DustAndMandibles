@@ -93,7 +93,9 @@ func test_secret_codes_hash() -> void:
 	assert_true(SecretCodes.is_secret_look("hat", "demo_hat", table))
 	assert_true(SecretCodes.is_secret("weapon", "demo_gun", table))
 	assert_false(SecretCodes.is_secret_look("hat", "ten_gallon", table))
-	assert_eq(SecretCodes.TABLE.size(), 0, "no codes ship until the owner picks them")
+	for v: Variant in SecretCodes.TABLE.values():
+		for e: Variant in v:
+			assert_true(SecretCodes.KINDS.has(str(e["kind"])), "every shipped code unlocks a known kind")
 	var p := PerkProfile.new()
 	assert_eq(p.unlock_secret(got).size(), 2)
 	assert_eq(p.unlock_secret(got), [], "already unlocked")
@@ -119,3 +121,13 @@ func test_title_case() -> void:
 	assert_eq(UiStyle.tc("host game (west cliff)"), "Host Game (West Cliff)")
 	assert_eq(UiStyle.tc("rank up 50"), "Rank Up 50")
 	assert_eq(UiStyle.tc("the end of the line"), "The End of the Line")
+
+
+func test_notches_secret_repeats() -> void:
+	var prof := PerkProfile.new()
+	var before := prof.brands
+	var gift := [{"kind": "notches", "id": "120"}]
+	assert_eq(prof.unlock_secret(gift).size(), 1)
+	assert_eq(prof.brands, before + 120)
+	assert_eq(prof.unlock_secret(gift).size(), 1)
+	assert_eq(prof.brands, before + 240)

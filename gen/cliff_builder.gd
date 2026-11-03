@@ -1,8 +1,10 @@
 class_name CliffBuilder
 extends RefCounted
-## Generates the canyon: two plateaus, two cliff faces with an overhanging lip and
-## carved climb lanes, the canyon floor and end walls. Keeps its noise so later
-## systems (bug climbing in M2) can query the exact cliff surface.
+## Generates the map's terrain: on the canyon, two plateaus, two cliff faces with
+## an overhanging lip and carved climb lanes, the canyon floor and end walls (other
+## maps: MapTerrain). Keeps its noise so later systems (bug climbing) can query the
+## exact cliff surface. Every query works in a cliff's own frame (MapDef): z / v
+## is the distance along that cliff's lip.
 
 const FACE_Y_STEP := 0.6
 const FACE_Z_STEP := 1.0
@@ -12,14 +14,23 @@ const FLOOR_STEP := 1.5
 const FLOOR_HALF_X := 27.0
 
 var _noise: Array[FastNoiseLite] = []
+## The map being built (MapDef.current when made).
+var map: MapDef
+var _canyon := true
+## Which noise stream each cliff's face uses (the buttes all share one).
+var _ni: PackedInt32Array = []
 var _floor_noise := FastNoiseLite.new()
 ## Beyond the play area the canyon stops being a straight trench: it meanders,
 ## pinches and widens, and its walls get buttresses, jagged rims and mesas.
 var _wild := FastNoiseLite.new()
 
 
-func _init(seed_value: int = 1234) -> void:
-	for i in 2:
+func _init(seed_value: int = 1234, map_def: MapDef = null) -> void:
+	map = map_def if map_def != null else MapDef.get_current()
+	_canyon = map.is_canyon()
+	for c in map.cliffs:
+		_ni.append(c.noise)
+	for i in 4:
 		var n := FastNoiseLite.new()
 		n.seed = seed_value + i * 101
 		n.frequency = 1.0
@@ -37,6 +48,8 @@ func _init(seed_value: int = 1234) -> void:
 ## 0 inside the play area, rising to 1 a short way past it. Everything below
 ## only changes the canyon where this is above 0, so gameplay is untouched.
 func wildness(z: float) -> float:
+	if not _canyon:
+		return 0.0
 	return smoothstep(WorldLayout.WORLD_HALF_Z, WorldLayout.WORLD_HALF_Z + 70.0, absf(z))
 
 
@@ -75,7 +88,7 @@ func floor_x(x: float, z: float) -> float:
 ## Buttresses: big rock fins that jut out of the far walls into the canyon,
 ## stepped like eroded sandstone. Metres of protrusion at (y, z).
 func _buttress(cliff_id: int, y: float, z: float) -> float:
-	var k := _wild.get_noise_2d(z * 0.035 + cliff_id * 300.0, 7.0)
+	var k := _wild.get_noise_2d(z * 0.035 + _ni[cliff_id] * 300.0, 7.0)
 	var fin := maxf(k - 0.15, 0.0) * 16.0
 	if fin <= 0.0:
 		return 0.0
@@ -83,7 +96,7 @@ func _buttress(cliff_id: int, y: float, z: float) -> float:
 	var h := WorldLayout.CLIFF_HEIGHT
 	var tier := floorf(y / (h / 3.0))
 	var taper := 1.0 - tier * 0.28 - (y / h) * 0.15
-	return fin * maxf(taper, 0.0) + _noise[cliff_id].get_noise_2d(z * 0.6, y * 0.4) * 1.2 * minf(fin, 1.0)
+	return fin * maxf(taper, 0.0) + _noise[_ni[cliff_id]].get_noise_2d(z * 0.6, y * 0.4) * 1.2 * minf(fin, 1.0)
 
 
 # ---------------------------------------------------------------- surface queries
@@ -92,15 +105,16 @@ func _buttress(cliff_id: int, y: float, z: float) -> float:
 func edge_offset(cliff_id: int, z: float) -> float:
 	var w := wildness(z)
 	var jag := 0.0
+	var n := _noise[_ni[cliff_id]]
 	if w > 0.0:
 		# A ragged, zig-zagging rim far from the play area.
-		jag = w * (_noise[cliff_id].get_noise_2d(z * 0.018, 900.0) * 7.0 + _noise[cliff_id].get_noise_2d(z * 0.11, 950.0) * 2.2)
-	return _noise[cliff_id].get_noise_2d(z * 0.05, 500.0) * 0.8 + jag
+		jag = w * (n.get_noise_2d(z * 0.018, 900.0) * 7.0 + n.get_noise_2d(z * 0.11, 950.0) * 2.2)
+	return n.get_noise_2d(z * 0.05, 500.0) * 0.8 + jag
 
 
 ## How far (metres) the cliff face at height y sits toward the canyon from the nominal lip line.
 func face_offset(cliff_id: int, y: float, z: float) -> float:
-	var n := _noise[cliff_id]
+	var n := _noise[_ni[cliff_id]]
 	var prof := 0.0
 	if y < WorldLayout.UNDERSIDE_BOTTOM:
 		# Recessed face with a wider base.
@@ -129,11 +143,10 @@ const GRID_Y0 := -2.0
 const GRID_Y1 := WorldLayout.CLIFF_HEIGHT + 2.0
 const GRID_NZ := int(GRID_Z * 2.0 / GRID_STEP) + 1
 const GRID_NY := int((GRID_Y1 - GRID_Y0) / GRID_STEP) + 1
-## One grid per cliff (separate members so rows are written in place), and which rows are filled.
-var _g0 := PackedFloat32Array()
-var _g1 := PackedFloat32Array()
-var _r0 := PackedByteArray()
-var _r1 := PackedByteArray()
+## One grid per face noise stream (cliffs that share a climb surface share a
+## grid), all in one array so rows are written in place, and which rows are filled.
+var _g := PackedFloat32Array()
+var _r := PackedByteArray()
 
 
 ## face_offset from the grid (exact face_offset outside it).
@@ -144,45 +157,34 @@ func face_offset_fast(cliff_id: int, y: float, z: float) -> float:
 		return face_offset(cliff_id, y, z)
 	var iy := int(fy)
 	var iz := int(fz)
-	var rows := _r0 if cliff_id == 0 else _r1
-	if rows.is_empty() or rows[iy] == 0 or rows[iy + 1] == 0:
+	var ro := _ni[cliff_id] * GRID_NY + iy
+	if _r.is_empty() or _r[ro] == 0 or _r[ro + 1] == 0:
 		_fill_row(cliff_id, iy)
 		_fill_row(cliff_id, iy + 1)
-	var g := _g0 if cliff_id == 0 else _g1
-	var o := iy * GRID_NZ + iz
+	var o := ro * GRID_NZ + iz
 	var tz := fz - iz
-	var a := lerpf(g[o], g[o + 1], tz)
-	var b := lerpf(g[o + GRID_NZ], g[o + GRID_NZ + 1], tz)
+	var a := lerpf(_g[o], _g[o + 1], tz)
+	var b := lerpf(_g[o + GRID_NZ], _g[o + GRID_NZ + 1], tz)
 	return lerpf(a, b, fy - iy)
 
 
 func _fill_row(cliff_id: int, iy: int) -> void:
 	var y := GRID_Y0 + iy * GRID_STEP
-	if cliff_id == 0:
-		if _r0.is_empty():
-			_r0.resize(GRID_NY)
-			_g0.resize(GRID_NY * GRID_NZ)
-		if _r0[iy] != 0:
-			return
-		for iz in GRID_NZ:
-			_g0[iy * GRID_NZ + iz] = face_offset(0, y, -GRID_Z + iz * GRID_STEP)
-		_r0[iy] = 1
-	else:
-		if _r1.is_empty():
-			_r1.resize(GRID_NY)
-			_g1.resize(GRID_NY * GRID_NZ)
-		if _r1[iy] != 0:
-			return
-		for iz in GRID_NZ:
-			_g1[iy * GRID_NZ + iz] = face_offset(1, y, -GRID_Z + iz * GRID_STEP)
-		_r1[iy] = 1
+	if _r.is_empty():
+		_r.resize(GRID_NY * _noise.size())
+		_g.resize(GRID_NY * GRID_NZ * _noise.size())
+	var ro := _ni[cliff_id] * GRID_NY + iy
+	if _r[ro] != 0:
+		return
+	for iz in GRID_NZ:
+		_g[ro * GRID_NZ + iz] = face_offset(cliff_id, y, -GRID_Z + iz * GRID_STEP)
+	_r[ro] = 1
 
 
 ## A climbing bug's frame on the face at (y, z): Y along the outward normal,
 ## -Z up the face, origin `clear` out from the rock. Same as building it from
 ## face_point/face_normal, but off the grid.
 func face_frame(cliff_id: int, y: float, z: float, clear: float) -> Transform3D:
-	var s := WorldLayout.side_sign(cliff_id)
 	if wildness(z) > 0.0:
 		var n0 := face_normal(cliff_id, y, z)
 		var p0 := face_point(cliff_id, y, z)
@@ -190,13 +192,18 @@ func face_frame(cliff_id: int, y: float, z: float, clear: float) -> Transform3D:
 		var z0 := -(up0 - n0 * up0.dot(n0)).normalized()
 		return Transform3D(Basis(n0.cross(z0).normalized(), n0, z0), p0 + n0 * clear)
 	var e := 0.4
-	# Points are (s * (HALF_GAP - offset), y, z) in the play area (no warp).
-	var dy := Vector3(-s * (face_offset_fast(cliff_id, y + e, z) - face_offset_fast(cliff_id, y - e, z)), 2.0 * e, 0.0)
-	var dz := Vector3(-s * (face_offset_fast(cliff_id, y, z + e) - face_offset_fast(cliff_id, y, z - e)), 0.0, 2.0 * e)
+	# Points are origin + inward * (offset + prow) + along * z (no warp in the play area).
+	var cl := map.cliffs[cliff_id]
+	var nin := cl.inward
+	var du_z := face_offset_fast(cliff_id, y, z + e) - face_offset_fast(cliff_id, y, z - e)
+	if cl.prow_half > 0.0:
+		du_z += map.prow_u(cliff_id, z + e) - map.prow_u(cliff_id, z - e)
+	var dy := nin * (face_offset_fast(cliff_id, y + e, z) - face_offset_fast(cliff_id, y - e, z)) + Vector3(0.0, 2.0 * e, 0.0)
+	var dz := nin * du_z + cl.along * (2.0 * e)
 	var n := dz.cross(dy).normalized()
-	if n.x * -s < 0.0:
+	if n.dot(nin) < 0.0:
 		n = -n
-	var p := Vector3(s * (WorldLayout.HALF_GAP - face_offset_fast(cliff_id, y, z)), y, z)
+	var p := cl.origin + nin * (face_offset_fast(cliff_id, y, z) + map.prow_u(cliff_id, z)) + cl.along * z + Vector3(0.0, y, 0.0)
 	var up := dy.normalized()
 	var z_axis := -(up - n * up.dot(n)).normalized()
 	return Transform3D(Basis(n.cross(z_axis).normalized(), n, z_axis), p + n * clear)
@@ -209,10 +216,9 @@ const PGRID_D := 64.0
 const PGRID_Z := 48.0
 const PGRID_ND := int(PGRID_D / PGRID_STEP) + 1
 const PGRID_NZ := int(PGRID_Z * 2.0 / PGRID_STEP) + 1
-var _p0 := PackedFloat32Array()
-var _p1 := PackedFloat32Array()
-var _pr0 := PackedByteArray()
-var _pr1 := PackedByteArray()
+## One plateau height grid per cliff, all in one array (rows written in place).
+var _p := PackedFloat32Array()
+var _pr := PackedByteArray()
 
 
 func ground_height_fast(cliff_id: int, pos: Vector3) -> float:
@@ -223,42 +229,34 @@ func ground_height_fast(cliff_id: int, pos: Vector3) -> float:
 		return plateau_height(cliff_id, maxf(pc.x, 0.0), pc.y)
 	var id := int(fd)
 	var iz := int(fz)
-	var rows := _pr0 if cliff_id == 0 else _pr1
-	if rows.is_empty() or rows[id] == 0 or rows[id + 1] == 0:
+	var ro := cliff_id * PGRID_ND + id
+	if _pr.is_empty() or _pr[ro] == 0 or _pr[ro + 1] == 0:
 		_fill_prow(cliff_id, id)
 		_fill_prow(cliff_id, id + 1)
-	var g := _p0 if cliff_id == 0 else _p1
-	var o := id * PGRID_NZ + iz
+	var o := ro * PGRID_NZ + iz
 	var tz := fz - iz
-	return lerpf(lerpf(g[o], g[o + 1], tz), lerpf(g[o + PGRID_NZ], g[o + PGRID_NZ + 1], tz), fd - id)
+	return lerpf(lerpf(_p[o], _p[o + 1], tz), lerpf(_p[o + PGRID_NZ], _p[o + PGRID_NZ + 1], tz), fd - id)
 
 
 func _fill_prow(cliff_id: int, id: int) -> void:
 	var d := id * PGRID_STEP
-	if cliff_id == 0:
-		if _pr0.is_empty():
-			_pr0.resize(PGRID_ND)
-			_p0.resize(PGRID_ND * PGRID_NZ)
-		if _pr0[id] != 0:
-			return
-		for iz in PGRID_NZ:
-			_p0[id * PGRID_NZ + iz] = plateau_height(0, d, -PGRID_Z + iz * PGRID_STEP)
-		_pr0[id] = 1
-	else:
-		if _pr1.is_empty():
-			_pr1.resize(PGRID_ND)
-			_p1.resize(PGRID_ND * PGRID_NZ)
-		if _pr1[id] != 0:
-			return
-		for iz in PGRID_NZ:
-			_p1[id * PGRID_NZ + iz] = plateau_height(1, d, -PGRID_Z + iz * PGRID_STEP)
-		_pr1[id] = 1
+	if _pr.is_empty():
+		_pr.resize(PGRID_ND * map.count())
+		_p.resize(PGRID_ND * PGRID_NZ * map.count())
+	var ro := cliff_id * PGRID_ND + id
+	if _pr[ro] != 0:
+		return
+	for iz in PGRID_NZ:
+		_p[ro * PGRID_NZ + iz] = plateau_height(cliff_id, d, -PGRID_Z + iz * PGRID_STEP)
+	_pr[ro] = 1
 
 
 ## World position on a cliff face.
 func face_point(cliff_id: int, y: float, z: float) -> Vector3:
-	var s := WorldLayout.side_sign(cliff_id)
-	return warp(Vector3(s * (WorldLayout.HALF_GAP - face_offset(cliff_id, y, z)), y, z))
+	if _canyon:
+		var s := WorldLayout.side_sign(cliff_id)
+		return warp(Vector3(s * (WorldLayout.HALF_GAP - face_offset(cliff_id, y, z)), y, z))
+	return map.to_world(cliff_id, face_offset(cliff_id, y, z) + map.prow_u(cliff_id, z), z) + Vector3(0.0, y, 0.0)
 
 
 ## Outward surface normal of a cliff face (pointing into the canyon).
@@ -267,13 +265,16 @@ func face_normal(cliff_id: int, y: float, z: float) -> Vector3:
 	var dy := face_point(cliff_id, y + e, z) - face_point(cliff_id, y - e, z)
 	var dz := face_point(cliff_id, y, z + e) - face_point(cliff_id, y, z - e)
 	var n := dz.cross(dy).normalized()
-	var outward := Vector3(-WorldLayout.side_sign(cliff_id), 0.0, 0.0)
+	var outward := map.cliffs[cliff_id].inward
 	return n if n.dot(outward) >= 0.0 else -n
 
 
 ## Plateau coordinates (d back from the lip, z) of a world position.
 func plateau_coords(cliff_id: int, pos: Vector3) -> Vector2:
-	return Vector2(WorldLayout.side_sign(cliff_id) * unwarp_x(pos.x, pos.z) - WorldLayout.HALF_GAP, pos.z)
+	if _canyon:
+		return Vector2(WorldLayout.side_sign(cliff_id) * unwarp_x(pos.x, pos.z) - WorldLayout.HALF_GAP, pos.z)
+	var uv := map.local_uv(cliff_id, pos)
+	return Vector2(map.prow_u(cliff_id, uv.y) - uv.x, uv.y)
 
 
 ## Ground height under a world position on a plateau.
@@ -284,7 +285,9 @@ func ground_height_at(cliff_id: int, pos: Vector3) -> float:
 
 ## Plateau ground height at plateau coordinates (d back from lip, z along the canyon).
 func plateau_height(cliff_id: int, d: float, z: float) -> float:
-	var n := _noise[cliff_id]
+	if map.id == MapDef.BUTTES:
+		return MapTerrain.butte_height(self, cliff_id, d, z)
+	var n := _noise[_ni[cliff_id]]
 	var flat := n.get_noise_2d(d * 0.08, z * 0.08) * 0.35 * smoothstep(0.0, 3.0, d)
 	var back_hill := smoothstep(34.0, 48.0, d)
 	var side_hill := smoothstep(23.0, 36.0, absf(z)) * smoothstep(3.0, 12.0, d)
@@ -306,7 +309,7 @@ func plateau_height(cliff_id: int, d: float, z: float) -> float:
 ## each homestead, and rock walls closing off both ends of each plateau, all
 ## topped with broken teeth. Starts outside the fences, so nothing playable moves.
 func _enclosure(cliff_id: int, d: float, z: float) -> float:
-	var n := _noise[cliff_id]
+	var n := _noise[_ni[cliff_id]]
 	var back_rise := smoothstep(44.0, 54.0, d)
 	var back_h := 34.0 + 16.0 * (n.get_noise_2d(z * 0.04, 300.0) * 0.5 + 0.5)
 	var back_teeth := maxf(n.get_noise_2d(z * 0.18, d * 0.18 + 90.0), 0.0) * 18.0 * smoothstep(50.0, 58.0, d)
@@ -318,13 +321,17 @@ func _enclosure(cliff_id: int, d: float, z: float) -> float:
 
 
 func plateau_point(cliff_id: int, d: float, z: float) -> Vector3:
-	var s := WorldLayout.side_sign(cliff_id)
 	var e := edge_offset(cliff_id, z) * (1.0 - smoothstep(0.0, 4.0 + 8.0 * wildness(z), d))
-	return warp(Vector3(s * (WorldLayout.HALF_GAP - e + d), plateau_height(cliff_id, d, z), z))
+	if _canyon:
+		var s := WorldLayout.side_sign(cliff_id)
+		return warp(Vector3(s * (WorldLayout.HALF_GAP - e + d), plateau_height(cliff_id, d, z), z))
+	return map.to_world(cliff_id, map.prow_u(cliff_id, z) + e - d, z) + Vector3(0.0, plateau_height(cliff_id, d, z), 0.0)
 
 
 ## Canyon floor height under a world position.
 func floor_height(x: float, z: float) -> float:
+	if not _canyon:
+		return MapTerrain.floor_at(self, x, z)
 	return _raw_floor(unwarp_x(x, z), z)
 
 
@@ -344,6 +351,20 @@ func tunnel_mouth(cliff_id: int, z: float) -> Vector3:
 	return Vector3(p.x, floor_height(p.x, z), z)
 
 
+## Bug tunnel i: [mouth on the floor, the (horizontal) way bugs come out of it].
+func tunnel(i: int) -> Array:
+	if _canyon:
+		var tn: Array = WorldLayout.TUNNELS[i % WorldLayout.TUNNELS.size()]
+		return [tunnel_mouth(int(tn[0]), float(tn[1])), map.cliffs[int(tn[0])].inward]
+	var t: Array = map.tunnels[i % map.tunnels.size()]
+	var m: Vector3 = t[0]
+	return [Vector3(m.x, floor_height(m.x, m.z), m.z), t[1]]
+
+
+func tunnel_count() -> int:
+	return map.tunnel_count()
+
+
 ## Dark tunnel mouths at the foot of both cliffs, one per lane, with a broken rock
 ## rim and rubble spilling out: the bugs crawl out of these and across the floor.
 func _bug_tunnels() -> ArrayMesh:
@@ -351,42 +372,49 @@ func _bug_tunnels() -> ArrayMesh:
 	rng.seed = 5150
 	var st := MeshKit.begin()
 	var rim_cols := [Color("#6E3A2C"), Color("#5A3028"), Color("#7E4434")]
-	for cid in 2:
-		var s := WorldLayout.side_sign(cid)
-		var out := Vector3(-s, 0, 0) # from the cliff into the canyon
-		for tn: Array in WorldLayout.TUNNELS:
-			if int(tn[0]) != cid:
-				continue
-			var m := tunnel_mouth(cid, float(tn[1]))
-			var w := rng.randf_range(4.4, 5.4)
-			var h := rng.randf_range(3.6, 4.3)
-			# The hole: nested dark arches, blackest at the back, so it reads as deep.
-			for k in 4:
-				var depth := 0.35 - k * 0.12
-				var shrink := 1.0 - k * 0.12
-				var col := Color("#160C0A").darkened(k * 0.3)
-				var prev := m + out * depth + Vector3(0, 0, -w * 0.5 * shrink)
-				var c0 := m + out * depth
-				for j in 13:
-					var a := PI * float(j) / 12.0
-					var pt := m + out * depth + Vector3(0, sin(a) * h * shrink, -cos(a) * w * 0.5 * shrink)
-					MeshKit.tri(st, c0, prev, pt, out, out, out, MeshKit.vcol(col), out)
-					prev = pt
-			# Rough rock rim round the opening.
-			var last := Vector3.ZERO
-			for j in 15:
-				var a := PI * float(j) / 14.0
-				var pt := m + out * 0.45 + Vector3(0, sin(a) * (h + 0.35), -cos(a) * (w * 0.5 + 0.35))
-				pt += Vector3(rng.randf_range(-0.15, 0.15), rng.randf_range(-0.12, 0.12), rng.randf_range(-0.12, 0.12))
-				if j > 0:
-					MeshKit.add_limb(st, last, pt, rng.randf_range(0.5, 0.8), rim_cols[rng.randi() % rim_cols.size()], 6)
-				last = pt
-			# Rubble and claw-scraped dirt spilling out onto the floor.
-			for k in 7:
-				var r := m + out * rng.randf_range(0.8, 3.5) + Vector3(0, 0.1, rng.randf_range(-w * 0.6, w * 0.6))
-				MeshKit.add_ellipsoid(st, Transform3D(Basis(), r), Vector3(rng.randf_range(0.25, 0.6), rng.randf_range(0.15, 0.35), rng.randf_range(0.25, 0.6)),
-						4, 7, rim_cols[rng.randi() % rim_cols.size()].darkened(0.1), 0.25, rng)
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(), m + out * 2.0 + Vector3(0, 0.02, 0)), Vector3(2.4, 0.04, w * 0.55), 3, 12, Color("#7A5038"))
+	# The canyon builds the west wall's tunnels first, then the east's.
+	var order: Array[int] = []
+	for cid in map.count():
+		for i in tunnel_count():
+			if not _canyon or int(WorldLayout.TUNNELS[i][0]) == cid:
+				if not order.has(i):
+					order.append(i)
+	for i in order:
+		var tn := tunnel(i)
+		var m: Vector3 = tn[0]
+		var out: Vector3 = tn[1] # from the wall out onto the floor
+		# The arch's width runs along the wall.
+		var wide := Vector3(0, 0, 1) if _canyon else out.cross(Vector3.UP).normalized()
+		var w := rng.randf_range(4.4, 5.4)
+		var h := rng.randf_range(3.6, 4.3)
+		# The hole: nested dark arches, blackest at the back, so it reads as deep.
+		for k in 4:
+			var depth := 0.35 - k * 0.12
+			var shrink := 1.0 - k * 0.12
+			var col := Color("#160C0A").darkened(k * 0.3)
+			var prev := m + out * depth + wide * (-w * 0.5 * shrink)
+			var c0 := m + out * depth
+			for j in 13:
+				var a := PI * float(j) / 12.0
+				var pt := m + out * depth + Vector3(0, sin(a) * h * shrink, 0) + wide * (-cos(a) * w * 0.5 * shrink)
+				MeshKit.tri(st, c0, prev, pt, out, out, out, MeshKit.vcol(col), out)
+				prev = pt
+		# Rough rock rim round the opening.
+		var last := Vector3.ZERO
+		for j in 15:
+			var a := PI * float(j) / 14.0
+			var pt := m + out * 0.45 + Vector3(0, sin(a) * (h + 0.35), 0) + wide * (-cos(a) * (w * 0.5 + 0.35))
+			pt += Vector3(rng.randf_range(-0.15, 0.15), rng.randf_range(-0.12, 0.12), rng.randf_range(-0.12, 0.12))
+			if j > 0:
+				MeshKit.add_limb(st, last, pt, rng.randf_range(0.5, 0.8), rim_cols[rng.randi() % rim_cols.size()], 6)
+			last = pt
+		# Rubble and claw-scraped dirt spilling out onto the floor.
+		for k in 7:
+			var r := m + out * rng.randf_range(0.8, 3.5) + Vector3(0, 0.1, 0) + wide * rng.randf_range(-w * 0.6, w * 0.6)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), r), Vector3(rng.randf_range(0.25, 0.6), rng.randf_range(0.15, 0.35), rng.randf_range(0.25, 0.6)),
+					4, 7, rim_cols[rng.randi() % rim_cols.size()].darkened(0.1), 0.25, rng)
+		var spill := Basis() if _canyon else Basis(Vector3.UP, atan2(wide.x, wide.z))
+		MeshKit.add_ellipsoid(st, Transform3D(spill, m + out * 2.0 + Vector3(0, 0.02, 0)), Vector3(2.4, 0.04, w * 0.55), 3, 12, Color("#7A5038"))
 	return MeshKit.finish(st)
 
 
@@ -401,6 +429,9 @@ const FAR_STEP := 4.0
 ## (|z| <= WORLD_HALF_Z) is detailed and collidable; the canyon then keeps going
 ## into the distance in both directions at low detail, without collision.
 func build(parent: Node3D) -> void:
+	if not _canyon:
+		MapTerrain.new(self).build(parent)
+		return
 	var rock := Materials.strata(Palette.SAND)
 	var floor_mat := Materials.strata(Color("#D9A35E"))
 	var near := Vector2(-WorldLayout.WORLD_HALF_Z, WorldLayout.WORLD_HALF_Z)
@@ -726,12 +757,20 @@ static func _zs(span: Vector2, step: float) -> Array[float]:
 func _build_face(cid: int, span: Vector2, z_step: float, y_step: float) -> ArrayMesh:
 	var grid: Array = []
 	var zs := _zs(span, z_step)
+	# Where the plateau top falls away (the ends of a butte), the face drops with it.
+	var squash: Array[float] = []
+	for zz in zs:
+		var top := WorldLayout.CLIFF_HEIGHT if _canyon else plateau_height(cid, 0.0, zz)
+		squash.append(clampf(top / WorldLayout.CLIFF_HEIGHT, 0.0, 1.0) if top < WorldLayout.CLIFF_HEIGHT - 0.05 else 1.0)
 	for y in _face_rows(y_step):
 		var row: Array[Vector3] = []
-		for zz in zs:
-			row.append(face_point(cid, y, zz))
+		for k in zs.size():
+			var p := face_point(cid, y, zs[k])
+			if squash[k] < 1.0:
+				p.y = y * squash[k]
+			row.append(p)
 		grid.append(row)
-	var outward := Vector3(-WorldLayout.side_sign(cid), 0.0, 0.0)
+	var outward := map.cliffs[cid].inward
 	return _grid_mesh(grid, outward)
 
 

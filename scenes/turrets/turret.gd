@@ -1,7 +1,8 @@
 class_name Turret
 extends StaticBody3D
 ## A turret on its owner's cliff edge. It only ever targets bugs climbing the
-## OTHER cliff (Targeting.cliff_allows), within its pitch limit and range, with a
+## cliff its grid spot covers (the OTHER cliff on the canyon; MapDef.covered_cliff,
+## Targeting.cliff_allows), within its pitch limit and range, with a
 ## clear line of sight over the far lip. The host aims and rolls hits; clients get
 ## the aim point and a shot counter, and draw muzzle flashes and tracers themselves.
 
@@ -14,6 +15,8 @@ static var vfx: VfxPool
 var def: TurretDef
 var cliff_id: int = 0
 var cell: Vector2i
+## The cliff whose climbers this turret shoots (from its grid column, see MapDef).
+var covers: int = 1
 var owner_name: String = ""
 ## Scaffold level this turret stands on (0 = ground): +5 degrees look-down and
 ## +5% range per level (TurretDef.RANGE_PER_LEVEL).
@@ -35,6 +38,8 @@ var has_ammo: bool = true
 var perk_range := 1.0
 var perk_rate := 1.0
 var perk_hp := 1.0
+## Perk: Overtime, share of max HP patched when a wave ends.
+var perk_mend := 0.0
 
 var _head: Node3D
 var _gun: Node3D
@@ -62,10 +67,16 @@ func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: Strin
 	def = d
 	cliff_id = cid
 	cell = c
+	covers = WorldLayout.map().covered_cliff(cid, maxi(c.y, 0))
 	level = stack_level
 	owner_name = owner_label
 	position = pos
 	rotation.y = WorldLayout.facing_canyon_yaw(cid)
+	var m := WorldLayout.map()
+	if not m.is_canyon() and covers >= 0 and c.x >= 0:
+		# Bigger maps: rest facing the cliff this spot covers.
+		var to := m.cliff(covers).origin - pos
+		rotation.y = atan2(-to.x, -to.z)
 	collision_layer = WorldLayout.LAYER_STRUCTURE
 	collision_mask = 0
 	var parts := TurretBuilder.build(d.id, Palette.team_color(cid))
@@ -119,7 +130,7 @@ func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: Strin
 	add_child(_make_synchronizer())
 	add_to_group("turrets")
 	add_to_group("structures")
-	aim_point = pos + Vector3(-WorldLayout.side_sign(cid) * 20.0, 0.0, 0.0)
+	aim_point = pos + WorldLayout.inward(cid) * 20.0
 
 
 func _make_synchronizer() -> MultiplayerSynchronizer:
@@ -194,7 +205,7 @@ func _pick_target() -> Bug:
 				best = g
 				best_score = gscore
 		return best
-	for b in bug_manager.climbers_on(WorldLayout.other_cliff(cliff_id)):
+	for b in bug_manager.climbers_on(covers):
 		if not _valid(b):
 			continue
 		var score := Targeting.priority(b.climb_y, b.global_position.distance_to(global_position))
@@ -220,7 +231,7 @@ func _valid(b: Bug) -> bool:
 			var home := Homestead.of(cliff_id)
 			if home == null or b.global_position.distance_to(home.global_position) > Homestead.GUARD_RADIUS:
 				return false
-	elif not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing()):
+	elif not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing(), covers):
 		return false
 	var muzzle := _head.global_position
 	var seen := weather_range()

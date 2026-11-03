@@ -23,8 +23,8 @@ static var _mesh: QuadMesh
 static var _process: ParticleProcessMaterial
 
 
-## Dust at `mouth` (a tunnel at the foot of `wall`) for `seconds`; bigger bugs, more dust.
-static func play(parent: Node, mouth: Vector3, wall: int, size: float, seconds: float) -> void:
+## Dust at `mouth` (a tunnel whose bugs come out along `way_out`) for `seconds`; bigger bugs, more dust.
+static func play(parent: Node, mouth: Vector3, way_out: Vector3, size: float, seconds: float) -> void: # Maps: direction, not wall
 	if parent == null or not parent.is_inside_tree():
 		return
 	_ensure()
@@ -37,7 +37,7 @@ static func play(parent: Node, mouth: Vector3, wall: int, size: float, seconds: 
 	e.visibility_aabb = AABB(Vector3(-8, -2, -8), Vector3(16, 10, 16))
 	parent.add_child(e)
 	# Emitters spray along local -Z: point it out of the tunnel, into the canyon.
-	var out := Vector3(-WorldLayout.side_sign(wall), 0.35, 0.0).normalized()
+	var out := Vector3(way_out.x, 0.35, way_out.z).normalized()
 	e.global_transform = Transform3D(Basis.looking_at(out, Vector3.UP), mouth + Vector3(0, 1.2, 0))
 	e.emitting = true
 	Audio.play_at(&"thunder", mouth, -6.0)

@@ -67,7 +67,7 @@ func _screech() -> void:
 			n += 1
 	send(&"screech", [_center])
 	if n > 0:
-		Economy.notify_cliff(WorldLayout.other_cliff(bug.cliff_id), "The Thunder Cicada's screech stunned %d turret%s!" % [n, "" if n == 1 else "s"])
+		notify_defenders("The Thunder Cicada's screech stunned %d turret%s!" % [n, "" if n == 1 else "s"])
 
 
 func on_event(kind: StringName, args: Array) -> void:

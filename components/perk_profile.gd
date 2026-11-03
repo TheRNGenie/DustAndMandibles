@@ -138,6 +138,11 @@ func unlock_secret(unlocks: Array) -> Array:
 		var kind := str((e as Dictionary).get("kind", ""))
 		var id := str((e as Dictionary).get("id", ""))
 		var k := SecretCodes.key(kind, id)
+		if kind == "notches":
+			# Repeatable (owner's call): pays every time the code is entered.
+			brands += maxi(int(id), 0)
+			added.append({"kind": kind, "id": id})
+			continue
 		if kind == "" or id == "" or secrets.has(k):
 			continue
 		secrets.append(k)

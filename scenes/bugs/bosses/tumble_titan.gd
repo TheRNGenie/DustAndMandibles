@@ -115,7 +115,7 @@ func on_crest() -> void:
 		return
 	_intact = false
 	var start := bug.cliffs.plateau_point(bug.cliff_id, 1.0, bug.lane_z)
-	var dir := Vector3(WorldLayout.side_sign(bug.cliff_id), 0, 0) # inland, away from the canyon
+	var dir := -WorldLayout.inward(bug.cliff_id) # inland, away from the gap (Maps: any cliff)
 	var end := start + dir * ROLL_LENGTH
 	end.y = Bug.cliffs.ground_height_at(bug.cliff_id, end)
 	send(&"roll", [start, end])

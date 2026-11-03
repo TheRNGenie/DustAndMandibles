@@ -29,6 +29,8 @@ var _run_active := false
 var _run_loadout: Dictionary = {}
 ## Host: peers that have used their Barn Raising free turret this run.
 var _free_used: Dictionary = {}
+## Host: turret damage source -> Scrap Scavenger multiplier (filled as turrets spawn).
+var _turret_scrap: Dictionary = {}
 ## Client: our own Barn Raising was used (the host tells us).
 var _local_free_used := false
 var _saves := 0
@@ -237,6 +239,8 @@ func cliff_more(cid: int, id: StringName) -> float:
 func _cliff_of_peer(peer_id: int) -> int:
 	if NetworkManager.is_online():
 		return NetworkManager.cliff_of(peer_id)
+	if GameState.flag_value("--cliff") != "": # Maps:
+		return int(GameState.flag_value("--cliff"))
 	return WorldLayout.EAST if GameState.has_flag("--east") else WorldLayout.WEST
 
 
@@ -332,14 +336,22 @@ func bumper_harvest(peer_id: int, harvest: Dictionary) -> Dictionary:
 	return out
 
 
+## Point Blank: hits closer than this (metres) count.
+const POINT_BLANK_RANGE := 8.0
+
+
 ## Host: damage multiplier for one of this peer's gun hits (Heavy Slugs,
-## Marksman on the weak spot).
-func gun_hit_mult(peer_id: int, hit: Dictionary) -> float:
+## Marksman on the weak spot, Lucky Shot, Point Blank within `dist` metres).
+func gun_hit_mult(peer_id: int, hit: Dictionary, dist: float = -1.0) -> float:
 	var m := more(peer_id, &"heavy_slugs")
 	if rank(peer_id, &"marksman") > 0 and not hit.is_empty():
 		var hb := hit.get("collider") as Hitbox
 		if hb != null and hb.multiplier_at(hit["position"]) > 1.0:
 			m *= more(peer_id, &"marksman")
+	if dist >= 0.0 and dist <= POINT_BLANK_RANGE:
+		m *= more(peer_id, &"point_blank")
+	if randf() < amount(peer_id, &"lucky_shot"):
+		m *= 2.0
 	if not hit.is_empty(): # Brand: Snake Eyes hit bosses harder
 		var hb2 := hit.get("collider") as Hitbox
 		if hb2 != null:
@@ -355,8 +367,28 @@ func apply_turret(t: Turret, peer_id: int) -> void:
 	t.perk_range = PerkTable.more(lo, &"long_sights")
 	t.perk_rate = PerkTable.less(lo, &"well_oiled")
 	t.perk_hp = PerkTable.more(lo, &"reinforced_frames")
+	t.perk_mend = PerkTable.amount_in(lo, &"overtime")
+	var scrap := PerkTable.more(lo, &"scrap_scavenger")
+	if scrap != 1.0:
+		_turret_scrap["%s's %s" % [t.owner_name, t.def.display_name]] = scrap
 	if t.perk_hp != 1.0:
 		t.health.setup(t.def.hp_at(t.tier) * t.perk_hp)
+
+
+## Scrap Scavenger: scrap multiplier for a kill by this damage source
+## ("Logan's Chili Mortar"), 1.0 for anything else.
+func kill_scrap_mult(source: String) -> float:
+	return float(_turret_scrap.get(source, 1.0))
+
+
+## Overtime (host): when a wave ends, each turret patches its builder's share of its HP.
+func _overtime_mend() -> void:
+	if not multiplayer.is_server():
+		return
+	for n: Node in get_tree().get_nodes_in_group("turrets"):
+		var t := n as Turret
+		if t != null and t.perk_mend > 0.0 and t.health != null and t.health.hp > 0.0:
+			t.repair(t.health.max_hp * t.perk_mend)
 
 
 # ------------------------------------------------------------------ wardrobe
@@ -439,12 +471,15 @@ func roster_note(peer_id: int) -> String:
 # ------------------------------------------------------------------ the run
 
 func _on_phase(p: GameState.Phase) -> void:
+	if p == GameState.Phase.BUILD and _run_active:
+		_overtime_mend() # a wave just ended
 	if p != GameState.Phase.BUILD or _run_active:
 		return
 	_run_active = true
 	_run_loadout = profile.loadout_ranks()
 	_free_used.clear()
 	_local_free_used = false
+	_turret_scrap.clear()
 	_saves = 0
 	_banked = {"waves": 0, "saves": 0, "won": false, "rode": false}
 	last_report = {}
@@ -528,7 +563,7 @@ func _start_of_run() -> void:
 			if n > 0:
 				got.append("%d scaffold%s" % [n, "" if n == 1 else "s"])
 		if lo.has(&"stout_timbers"):
-			for c in 2:
+			for c in WorldLayout.cliff_count():
 				if peer_for_cliff(c) == peer:
 					GameState.raise_homestead_max(c, roundf(GameState.homestead_max[c] * PerkTable.amount_in(lo, &"stout_timbers")))
 			got.append("a stouter Homestead")

@@ -75,7 +75,8 @@ func _steal() -> void:
 func _retreat(delta: float) -> void:
 	if bug.state != Bug.State.BREACHING:
 		return
-	var lip := Bug.cliffs.plateau_point(bug.cliff_id, 0.2, bug.ground_pos.z)
+	# Maps: the nearest bit of its own lip (along the lip, in that cliff's frame).
+	var lip := Bug.cliffs.plateau_point(bug.cliff_id, 0.2, Bug.cliffs.plateau_coords(bug.cliff_id, bug.ground_pos).y)
 	var to := lip - bug.ground_pos
 	to.y = 0.0
 	var step := bug.def.walk_speed * bug.speed() * BreachRules.RETREAT_SPEED * delta

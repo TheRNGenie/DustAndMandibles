@@ -6,6 +6,22 @@ extends RefCounted
 ## Metres a heavy bug slips down the wall when a Water Cannon hits it.
 const HEAVY_SLIP := 3.0
 
+## Bosses only slip a little, and at most once every BOSS_SLIP_GAP seconds, so
+## one Water Cannon can't hold a boss on the wall forever.
+const BOSS_SLIP := 1.0
+const BOSS_SLIP_GAP := 6.0
+
+
+static func _slip_for(target: Bug) -> float:
+	if target.boss == null:
+		return HEAVY_SLIP
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - float(target.get_meta(&"water_slip_t", -100.0)) < BOSS_SLIP_GAP:
+		return 0.0
+	target.set_meta(&"water_slip_t", now)
+	return BOSS_SLIP
+
+
 static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 	var source := "%s's %s" % [t.owner_name, t.def.display_name]
 	var dir := (aim - t.muzzle_position()).normalized()
@@ -20,7 +36,7 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 			elif TurretDef.is_heavy(target.def):
 				# Heavy bugs only slip a few metres down the wall.
 				if target.is_climbing():
-					target.climb_y = maxf(target.climb_y - HEAVY_SLIP, 0.0)
+					target.climb_y = maxf(target.climb_y - _slip_for(target), 0.0)
 			else:
 				target.knock_off(source, t.cliff_id)
 		TurretDef.Effect.PIN:

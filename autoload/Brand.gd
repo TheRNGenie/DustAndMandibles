@@ -313,7 +313,7 @@ func _on_phase(p: GameState.Phase) -> void:
 ## Host: brands by cliff for the run save {cliff: id} (the CPU's cliff too).
 func save_state() -> Dictionary:
 	var out: Dictionary = {}
-	for cid in 2:
+	for cid in WorldLayout.cliff_count(): # Maps: every cliff on the map
 		out[cid] = String(of_cliff(cid))
 	return out
 

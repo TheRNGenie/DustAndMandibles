@@ -106,9 +106,23 @@ func _use_model(body: MeshInstance3D) -> void:
 			node.position = GunModels.pivot(id, pair[1])
 			part.position = -node.position
 			node.add_child(part)
+	_glass = GunModels.glass(id, 0, 0.004)
+	if _glass != null:
+		add_child(_glass)
 	# The model's cylinder is part of its body (it doesn't turn).
 	if drum != null:
 		drum.visible = false
+
+
+## Dino Rifle: moves the tied-on glass to this gun's fit (DinoGlass variant).
+func set_glass(variant: int) -> void:
+	if _glass != null and variant != _glass_variant:
+		_glass_variant = variant
+		GunModels.place_glass(_glass, id, variant)
+
+
+var _glass: Node3D
+var _glass_variant := 0
 
 
 func set_look(look: Dictionary) -> void:

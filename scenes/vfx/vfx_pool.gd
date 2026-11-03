@@ -576,9 +576,9 @@ func _ensure_tunnels() -> bool:
 	if Bug.cliffs == null:
 		return false
 	var mat := puff_material(Color("#E9C08A"), Color("#B07E62"))
-	for tn: Array in WorldLayout.TUNNELS:
-		var wall := int(tn[0])
-		var out := Vector3(-WorldLayout.side_sign(wall), 0, 0)
+	for ti in Bug.cliffs.tunnel_count(): # Maps: any map's tunnels
+		var tn := Bug.cliffs.tunnel(ti)
+		var out: Vector3 = tn[1]
 		var e := GPUParticles3D.new()
 		e.amount = 48
 		e.lifetime = 3.0
@@ -595,7 +595,7 @@ func _ensure_tunnels() -> bool:
 		e.draw_pass_1 = quad
 		e.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(e)
-		var at := Bug.cliffs.tunnel_mouth(wall, float(tn[1])) + out * 2.2 + Vector3.UP * 0.4
+		var at: Vector3 = (tn[0] as Vector3) + out * 2.2 + Vector3.UP * 0.4
 		# Emitters spray along -Z: point it out of the tunnel and a little up.
 		e.global_transform = Transform3D(Basis.looking_at((out + Vector3.UP * 0.35).normalized(), Vector3.UP), at)
 		_tunnel_fx.append(e)

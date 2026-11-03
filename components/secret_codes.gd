@@ -7,6 +7,7 @@ extends RefCounted
 ##             hidden Wardrobe option that shows up once unlocked
 ##   weapon    id = a weapon id (data/weapons) - e.g. a secret gun the gunsmith
 ##             only stocks for riders who know the code
+##   notches   id = how many Notches it pays (every time it's entered)
 ## Unlocks are saved in the profile (PerkProfile.secrets, plus cosmetics for
 ## looks). Query with SecretCodes.is_unlocked(kind, id) (this player) or
 ## Perks.has_secret(peer_id, kind, id) (host, any rider).
@@ -15,9 +16,11 @@ extends RefCounted
 ## and paste the line it prints into TABLE.
 
 const SALT := "dust&mandibles:"
-const KINDS: Array[String] = ["cosmetic", "weapon"]
+const KINDS: Array[String] = ["cosmetic", "weapon", "notches"]
 ## sha256 hex -> Array of {"kind", "id"}. Empty until the owner picks codes.
 const TABLE: Dictionary = {
+	"a2bc441e9bd7ae562183d029f1224f0debf316ecbf147ef64753d6dea2f4c067": [{"kind": "weapon", "id": "dino_rifle"}],
+	"0f581a4a1816b73337ada44143a18bf27f7a332afcbea5d3c0aab40985d30787": [{"kind": "notches", "id": "120"}],
 }
 
 

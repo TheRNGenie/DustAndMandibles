@@ -118,7 +118,7 @@ func _break(i: int, source: String) -> void:
 	var drop := _broken % PER_DROP == 0
 	send(&"leg", [i, drop])
 	if source != "":
-		Economy.notify_cliff(WorldLayout.other_cliff(bug.cliff_id), "%s shot a leg off the Stilt Strider!" % source)
+		notify_defenders("%s shot a leg off the Stilt Strider!" % source)
 	if drop:
 		_drops += 1
 		if bug.state == Bug.State.CLIMBING and bug.climb_y > 1.0:

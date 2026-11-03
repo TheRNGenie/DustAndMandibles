@@ -19,6 +19,10 @@ const GLOW_YELLOW := Color("#FFD23F")
 const ACID_GREEN := Color("#9BE564")
 const TEAM_WEST := Color("#E0483C")
 const TEAM_EAST := Color("#3C7BE0")
+## Third and fourth cliffs on the bigger maps.
+const TEAM_THIRD := Color("#4FB04A")
+const TEAM_FOURTH := Color("#E0B23C")
+const TEAMS: Array[Color] = [TEAM_WEST, TEAM_EAST, TEAM_THIRD, TEAM_FOURTH]
 const OUTLINE := Color("#2B1B17")
 
 # Extra props colours, kept inside the same family.
@@ -30,4 +34,4 @@ const BONE := Color("#F2E3C2")
 
 
 static func team_color(cliff_id: int) -> Color:
-	return TEAM_WEST if cliff_id == WorldLayout.WEST else TEAM_EAST
+	return TEAMS[clampi(cliff_id, 0, TEAMS.size() - 1)]

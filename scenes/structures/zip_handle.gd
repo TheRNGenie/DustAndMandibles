@@ -4,6 +4,8 @@ extends StaticBody3D
 ## other house's tower (once both towers stand).
 
 var home: Homestead
+## Bigger maps: a house can have a line to each neighbour; E takes them in turn.
+var _turn := 0
 
 
 func _ready() -> void:
@@ -24,21 +26,29 @@ func _ready() -> void:
 
 
 func interact_prompt() -> String:
-	if ZipLine.current(get_tree()) == null:
-		return "Zip line: your partner needs a tower too"
-	return "E: Ride the zip line across"
+	var lines := ZipLine.lines_from(get_tree(), home.cliff_id)
+	if lines.is_empty():
+		return "Zip line: your partner needs a tower too" if WorldLayout.cliff_count() <= 2 else "Zip line: a neighbour needs a tower too"
+	if lines.size() == 1:
+		var z := lines[0]
+		var to := z.cliff_b if z.cliff_a == home.cliff_id else z.cliff_a
+		return "E: Ride the zip line across" if WorldLayout.cliff_count() <= 2 else "E: Ride the zip line to %s" % WorldLayout.map().name_of(to)
+	return "E: Ride a zip line (%d lines)" % lines.size()
 
 
 func local_interact(holding: bool) -> void:
 	if holding:
 		return
-	var line := ZipLine.current(get_tree())
-	if line == null:
+	var lines := ZipLine.lines_from(get_tree(), home.cliff_id)
+	if lines.is_empty():
 		Economy.notice.emit("The zip line goes up once both houses have a tower.")
 		return
+	var line := lines[_turn % lines.size()]
+	_turn += 1
 	for n: Node in get_tree().get_nodes_in_group("players"):
 		var p := n as Player
 		if p.is_multiplayer_authority():
-			var other := Homestead.of(WorldLayout.other_cliff(home.cliff_id))
-			p.start_zip(line, home.cliff_id == WorldLayout.WEST, other.zip_arrival_global())
+			var from_a := line.cliff_a == home.cliff_id
+			var other := Homestead.of(line.cliff_b if from_a else line.cliff_a)
+			p.start_zip(line, from_a, other.zip_arrival_global())
 			return

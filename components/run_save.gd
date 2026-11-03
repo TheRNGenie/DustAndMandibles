@@ -67,10 +67,12 @@ static func normalize(raw: Dictionary) -> Dictionary:
 		"weather": _i(raw, "weather", 0),
 		"cpu_quality": clampi(_i(raw, "cpu_quality", -1), -1, 2),
 		"saved_at": _i(raw, "saved_at", 0),
+		"map": str(raw.get("map", "canyon")) if MapDef.IDS.has(StringName(str(raw.get("map", "canyon")))) else "canyon",
 	}
+	var cliffs := MapDef.players_of(StringName(str(out["map"]))) # Maps: one house / stockpile per cliff
 	var homes: Array = []
 	var raw_homes: Array = raw.get("homesteads", []) if raw.get("homesteads") is Array else []
-	for cid in 2:
+	for cid in cliffs:
 		var h: Dictionary = raw_homes[cid] if cid < raw_homes.size() and raw_homes[cid] is Dictionary else {}
 		var mx := _f(h, "max", 0.0)
 		homes.append({"hp": _f(h, "hp", mx), "max": mx, "floors": clampi(_i(h, "floors", 1), 1, 3),
@@ -90,7 +92,7 @@ static func normalize(raw: Dictionary) -> Dictionary:
 	var eco: Dictionary = raw.get("economy", {}) if raw.get("economy") is Dictionary else {}
 	var stock := {}
 	var raw_stock: Dictionary = eco.get("stock", {}) if eco.get("stock") is Dictionary else {}
-	for cid in 2:
+	for cid in cliffs:
 		stock[cid] = _amounts(raw_stock.get(str(cid), raw_stock.get(cid, {})))
 	var spent := {}
 	var raw_spent: Dictionary = eco.get("cpu_spent", {}) if eco.get("cpu_spent") is Dictionary else {}
@@ -151,20 +153,24 @@ static func _build(b: Dictionary) -> Dictionary:
 ## Stockpiles saved with a CPU partner share one pool (cliff 0); played without
 ## one, they're separate. Moves the resources to fit how this game is set up.
 static func fit_stock(stock: Dictionary, was_shared: bool, now_shared: bool) -> Dictionary:
-	var out := {0: (stock.get(0, {}) as Dictionary).duplicate(), 1: (stock.get(1, {}) as Dictionary).duplicate()}
+	# Maps: one stockpile per cliff (2, 3 or 4).
+	var n := maxi(stock.size(), 2)
+	var out := {}
+	for cid in n:
+		out[cid] = (stock.get(cid, {}) as Dictionary).duplicate()
 	if was_shared and not now_shared:
-		# Split the team pool down the middle (cliff 0 keeps any odd one).
+		# Split the team pool evenly (cliff 0 keeps any odd ones).
 		var pool: Dictionary = out[0]
-		var half := {}
-		for r: StringName in pool:
-			half[r] = int(pool[r]) / 2
-			pool[r] = int(pool[r]) - int(half[r])
-		for r: StringName in half:
-			out[1][r] = int((out[1] as Dictionary).get(r, 0)) + int(half[r])
+		for r: StringName in pool.keys():
+			var each := int(pool[r]) / n
+			pool[r] = int(pool[r]) - each * (n - 1)
+			for cid in range(1, n):
+				out[cid][r] = int((out[cid] as Dictionary).get(r, 0)) + each
 	elif now_shared and not was_shared:
-		for r: StringName in out[1]:
-			out[0][r] = int((out[0] as Dictionary).get(r, 0)) + int(out[1][r])
-			out[1][r] = 0
+		for cid in range(1, n):
+			for r: StringName in out[cid]:
+				out[0][r] = int((out[0] as Dictionary).get(r, 0)) + int(out[cid][r])
+				out[cid][r] = 0
 	return out
 
 

@@ -201,6 +201,7 @@ func _do_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> void:
 		Perks.note_built(peer_id, id) # Perk: Barn Raising used up
 	if id == &"scaffold" and scaffold_levels(cid, cell) > 0:
 		(_scaffolds[_cell_key(cid, cell)] as ScaffoldNode).set_levels(scaffold_levels(cid, cell) + 1)
+		(_scaffolds[_cell_key(cid, cell)] as ScaffoldNode).paid_levels += 1
 		_built_fx.rpc(Buildable.cell_center(cliffs, cid, cell))
 		return
 	var level := 0
@@ -238,6 +239,7 @@ func _spawn_built(data: Variant) -> Node:
 		var sc := ScaffoldNode.new()
 		sc.setup(cid, cell, pos)
 		_scaffolds[_cell_key(cid, cell)] = sc
+		sc.paid_levels = 1 if d.has("peer") else 0 # free scaffolds under turrets carry no "peer"
 		node = sc
 	elif Defs.structure(id).kind == StructureDef.Kind.RAIN_CATCHER:
 		node = _make_rain_catcher(cid, cell, pos)
@@ -307,7 +309,9 @@ func _do_demolish(peer_id: int, n: Node3D) -> void:
 		if turret_at(cid, sc.cell, sc.levels) != null:
 			Economy.notify(peer_id, "Remove the turret on the top level first.")
 			return
-		Economy.earn(cid, {&"scrap": int(Defs.cost_of(&"scaffold") * DEMOLISH_REFUND * Perks.more(peer_id, &"salvager"))}) # Perk: Salvager
+		if sc.paid_levels > 0: # free levels (put up under turrets) give nothing back
+			sc.paid_levels -= 1
+			Economy.earn(cid, {&"scrap": int(Defs.cost_of(&"scaffold") * DEMOLISH_REFUND * Perks.more(peer_id, &"salvager"))}) # Perk: Salvager
 		if sc.levels <= 1:
 			sc.queue_free()
 		else:

@@ -393,7 +393,9 @@ func _think(delta: float) -> void:
 			var goal := cliffs.tunnel_mouth(cliff_id, lane_z)
 			var to := Vector3(goal.x - ground_pos.x, 0.0, goal.z - ground_pos.z)
 			var step := def.walk_speed * 2.2 * speed() * delta
-			if to.length() <= step + 0.4:
+			# Crowd pushes keep big bugs with the same goal shoving each other off
+			# it, so "arrived" allows for the bug's own body width.
+			if to.length() <= step + 0.4 + crowd_r * 1.5:
 				state = State.CLIMBING
 				climb_y = 0.0
 			else:
@@ -495,7 +497,7 @@ func _plateau_entry() -> Vector3:
 
 ## Direction from the cliff into the canyon.
 func _outward() -> Vector3:
-	return Vector3(-WorldLayout.side_sign(cliff_id), 0.0, 0.0)
+	return WorldLayout.inward(cliff_id) # Maps:
 
 
 ## Projects a point onto the surface under the bug (for foot placement).

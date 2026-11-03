@@ -79,6 +79,7 @@ const WEAPONS: Dictionary = {
 	&"lever_rifle": preload("res://data/weapons/lever_rifle.tres"),
 	&"coach_shotgun": preload("res://data/weapons/coach_shotgun.tres"),
 	&"elephant_gun": preload("res://data/weapons/elephant_gun.tres"),
+	&"dino_rifle": preload("res://data/weapons/dino_rifle.tres"), # secret: unlocked with a code
 	&"blunderbuss": preload("res://data/weapons/blunderbuss.tres"),
 	&"crank_gatling": preload("res://data/weapons/crank_gatling.tres"),
 }

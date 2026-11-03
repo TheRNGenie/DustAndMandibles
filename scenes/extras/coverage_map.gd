@@ -35,7 +35,13 @@ func _ready() -> void:
 	instance = self
 	cols = int(Z_HALF * 2.0 / STEP) + 1
 	rows = int(WorldLayout.CLIFF_HEIGHT / STEP) + 1
-	for w in 2:
+	counts.clear()
+	_suffix.clear()
+	points.clear()
+	for w in WorldLayout.cliff_count():
+		counts.append(PackedByteArray())
+		_suffix.append(PackedInt32Array())
+		points.append(PackedVector3Array())
 		var a := PackedByteArray()
 		a.resize(cols * rows)
 		counts[w] = a
@@ -85,7 +91,7 @@ func _signature() -> int:
 
 func rebuild() -> void:
 	if points[0].is_empty():
-		for w in 2:
+		for w in points.size():
 			var p := PackedVector3Array()
 			p.resize(cols * rows)
 			for r in rows:
@@ -93,7 +99,9 @@ func rebuild() -> void:
 					p[r * cols + c] = cliffs.face_point(w, y_of(r), z_of(c))
 			points[w] = p
 	# Turret arcs: [muzzle, pitch, range] grouped by the wall they cover.
-	var arcs: Array = [[], []]
+	var arcs: Array = []
+	for w in points.size():
+		arcs.append([])
 	for n: Node in get_tree().get_nodes_in_group("turrets"):
 		var t := n as Turret
 		if t == null or not t.is_inside_tree() or t.is_queued_for_deletion() or t.def == null:
@@ -102,8 +110,10 @@ func rebuild() -> void:
 			continue
 		var head := t.get("_head") as Node3D
 		var muzzle := head.global_position if head != null else t.global_position + Vector3.UP * 1.5
-		arcs[WorldLayout.other_cliff(t.cliff_id)].append([muzzle, t.pitch_limit(), t.def.range_at(t.tier, t.level)])
-	for w in 2:
+		if t.covers < 0 or t.covers >= arcs.size():
+			continue
+		arcs[t.covers].append([muzzle, t.pitch_limit(), t.def.range_at(t.tier, t.level)])
+	for w in points.size():
 		var pts := points[w]
 		var cnt := counts[w]
 		for i in cnt.size():
@@ -131,7 +141,7 @@ func count_at(wall: int, r: int, c: int) -> int:
 ## Average number of turrets covering column z of `wall`, from height `from_y`
 ## to the lip (what a bug at that height still has to climb through).
 func cover_ahead(wall: int, z: float, from_y: float) -> float:
-	if wall < 0 or wall > 1 or _suffix[wall].is_empty():
+	if wall < 0 or wall >= _suffix.size() or _suffix[wall].is_empty():
 		return 0.0
 	var c := clampi(roundi((z + Z_HALF) / STEP), 0, cols - 1)
 	var r := clampi(int(from_y / STEP), 0, rows - 1)

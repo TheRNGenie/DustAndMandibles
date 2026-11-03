@@ -16,7 +16,7 @@ func _ready() -> void:
 	anchor_left = 1.0
 	anchor_right = 1.0
 	grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	offset_top = 66
+	offset_top = 66 + (WorldLayout.cliff_count() - 2) * 50 # Maps: under every other cliff's bar
 	visible = false
 	WaveDirector.wave_previewed.connect(func(_m: Array) -> void: _rebuild())
 	GameState.phase_changed.connect(func(_p: GameState.Phase) -> void: _rebuild())

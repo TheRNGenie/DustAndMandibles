@@ -107,7 +107,7 @@ static func on_bug_died(dead: Bug) -> void:
 static func on_world_hit(pos: Vector3) -> void:
 	if pos.y > 8.0 or not BossBrain.any_alive(&"bone_collector"):
 		return
-	for cid in 2:
+	for cid in WorldLayout.cliff_count(): # Maps:
 		_burn_corpses(cid, pos, 1.6, 2)
 
 

@@ -124,6 +124,8 @@ func _build_environment() -> void:
 func _build_world() -> void:
 	var terrain := Node3D.new()
 	add_child(terrain)
+	# Maps: the title screen always flies over the canyon (the world selects the run's map).
+	MapDef.select(MapDef.CANYON)
 	_cliffs = CliffBuilder.new(WORLD_SEED)
 	_cliffs.build(terrain)
 	Bug.cliffs = _cliffs
@@ -212,7 +214,8 @@ func _set_stage(stage: int) -> void:
 				plot.crop_def = crop
 				plot.growth.water()
 				plot.growth.tick(crop.grow_time * (0.45 if stage == 1 else 1.2))
-		plot.call("_broadcast")
+		# Local only (a join may be connecting meanwhile: no RPC through a half-open peer).
+		plot.call("_sync", plot.crop_def.id if plot.crop_def != null else &"", plot.growth.stage, plot.growth.progress, plot.growth.watered)
 
 
 func _set_time(hour: float) -> void:

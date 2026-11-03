@@ -259,6 +259,11 @@ func _process(delta: float) -> void:
 	_vy_smooth = lerpf(_vy_smooth, vy, clampf(delta * 10.0, 0.0, 1.0))
 	rig.move_local = global_basis.inverse() * _body_vel
 	rig.animate(delta, minf(speed, 12.0), sliding, head.rotation.x, _vy_smooth if not is_on_floor() or not is_multiplayer_authority() else 0.0)
+	# Downed: the body topples backwards onto its back (and gets up again).
+	_down_k = move_toward(_down_k, 1.0 if is_downed() else 0.0, delta * (2.2 if is_downed() else 1.6))
+	var fall := _down_k * _down_k * (3.0 - 2.0 * _down_k)
+	rig.rotation.x = fall * PI * 0.5
+	rig.position.y = fall * 0.12
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -669,10 +674,16 @@ func add_recoil(pitch_deg: float, yaw_deg: float, recover: float) -> void:
 	_recoil_rate = _recoil_back / maxf(recover, 0.05)
 
 
+## 0..1: how far the body has gone over onto its back (downed).
+var _down_k := 0.0
+
+
 func _update_camera(delta: float, sprinting: bool) -> void:
 	var eye := EYE_SLIDE if _sliding else EYE_STAND
 	if seated:
 		eye = EYE_SEATED
+	# On your back: the view drops to the ground, looking up at the sky.
+	eye = lerpf(eye, 0.35, _down_k)
 	var speed := Vector2(velocity.x, velocity.z).length()
 	if is_on_floor() and not _sliding and speed > 0.5:
 		_bob_t += delta * speed * 1.6
@@ -690,7 +701,7 @@ func _update_camera(delta: float, sprinting: bool) -> void:
 	gun.feel(speed, sprinting, is_on_floor(), _sliding, delta)
 	head.position.y = lerpf(head.position.y, eye + bob, clampf(delta * 14.0, 0.0, 1.0))
 	camera.position.y = _cam_land * 0.08
-	camera.rotation.x = -fp_hands.dip if fp_hands != null else 0.0
+	camera.rotation.x = (-fp_hands.dip if fp_hands != null else 0.0) + _down_k * 0.9 # downed: staring up
 	# Hungry or thirsty: a slow, slight wander in your aim (shots follow the camera).
 	var sway := vitals.sway() if vitals != null else 0.0
 	_sway_t += delta

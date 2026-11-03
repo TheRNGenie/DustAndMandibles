@@ -15,7 +15,7 @@ signal loadout_changed
 
 ## [Foundation] Guns are registered in Defs.WEAPONS with the rest of the content.
 const WEAPONS: Dictionary = Defs.WEAPONS
-const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun"]
+const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun", &"dino_rifle"]
 const MAX_RANGE := 300.0
 const IMPACT_FORCE := 4.0
 const REST_POS := Vector3(0.2, -0.19, -0.5)
@@ -30,9 +30,10 @@ const MAX_WEAPONS := 3
 ## Right-click aim: where the gun sits, and how far the view zooms in.
 const AIM_POS: Dictionary = {&"revolver": Vector3(0.0, -0.075, -0.5), &"lever_rifle": Vector3(0.0, -0.056, -0.44),
 	&"coach_shotgun": Vector3(0.0, -0.058, -0.4), &"blunderbuss": Vector3(0.0, -0.05, -0.4), &"crank_gatling": Vector3(0.06, -0.12, -0.45),
-	&"elephant_gun": Vector3(-0.0077, -0.036, -0.2)} # the scope's axis on your eye line
+	&"elephant_gun": Vector3(-0.0077, -0.036, -0.2), # the scope's axis on your eye line
+	&"dino_rifle": Vector3(-0.003, -0.072, -0.12)}
 ## The Elephant Gun's lashed-on magnifying glass zooms in hard.
-const AIM_ZOOM: Dictionary = {&"revolver": 1.4, &"lever_rifle": 2.2, &"coach_shotgun": 1.25, &"blunderbuss": 1.15, &"crank_gatling": 1.2, &"elephant_gun": 3.2}
+const AIM_ZOOM: Dictionary = {&"revolver": 1.4, &"lever_rifle": 2.2, &"coach_shotgun": 1.25, &"blunderbuss": 1.15, &"crank_gatling": 1.2, &"elephant_gun": 3.2, &"dino_rifle": 1.0} # Dino Rifle: its glass (DinoGlass) sets the zoom
 ## Player shot tracers per gun: colour, thickness (m), speed (m/s).
 const TRACERS: Dictionary = {
 	&"revolver": [Color("#FFC94A"), 0.055, 240.0],
@@ -41,6 +42,7 @@ const TRACERS: Dictionary = {
 	&"blunderbuss": [Color("#FF5A2A"), 0.045, 160.0],
 	&"crank_gatling": [Color("#FFD23F"), 0.04, 300.0],
 	&"elephant_gun": [Color("#FFF6D0"), 0.09, 420.0],
+	&"dino_rifle": [Color("#E8FFD0"), 0.08, 420.0],
 }
 
 
@@ -346,8 +348,10 @@ func _process(delta: float) -> void:
 	aim = move_toward(aim, 1.0 if aiming else 0.0, delta * 7.0)
 	# Elephant Gun: once the glass is up to your eye you look through it (the HUD
 	# draws the lens), so the gun itself steps out of view.
-	if def != null and def.id == &"elephant_gun" and _models.has(def.id):
+	if def != null and (def.id == &"elephant_gun" or def.id == &"dino_rifle") and _models.has(def.id):
 		(_models[def.id] as Node3D).visible = not is_scoped()
+	if def != null and def.id == &"dino_rifle" and _models.has(def.id):
+		(_models[def.id] as ViewModel).set_glass(DinoGlass.of(code_of(def.id))) # this gun's glass fit
 	var aim_pos: Vector3 = AIM_POS.get(def.id, REST_POS) if def != null else REST_POS
 	_feel_step(delta)
 	var off := _feel_offset()
@@ -429,7 +433,7 @@ func _times() -> Vector3:
 			return Vector3(0.4, reload_time() * 0.6, 0.4) * k
 		&"crank_gatling":
 			return Vector3(0.45, reload_time() * 0.6, 0.4) * k
-		&"elephant_gun":
+		&"elephant_gun", &"dino_rifle":
 			# Break it open, thumb in two fat cartridges one at a time, snap it shut.
 			return Vector3(0.6, reload_time() * 0.5, 0.55) * k
 	return Vector3(0.35, reload_time() * 0.3, 0.3) * k
@@ -530,6 +534,8 @@ func set_aiming(on: bool) -> void:
 ## How much the view is zoomed right now (1 = not at all).
 ## Looking through the Elephant Gun's lashed-on glass (fully aimed).
 func is_scoped() -> bool:
+	if def != null and def.id == &"dino_rifle":
+		return holding == &"" and aim > 0.85 and bool(DinoGlass.get_fit(code_of(def.id))["scoped"])
 	return def != null and def.id == &"elephant_gun" and holding == &"" and aim > 0.85
 
 
@@ -537,6 +543,8 @@ func zoom_factor() -> float:
 	if def == null:
 		return 1.0
 	var zoom := float(AIM_ZOOM.get(def.id, 1.3)) * WeaponMods.mult(def.id, code_of(def.id), "zoom")
+	if def.id == &"dino_rifle":
+		zoom *= float(DinoGlass.get_fit(code_of(def.id))["zoom"])
 	return lerpf(1.0, zoom, aim)
 
 

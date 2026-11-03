@@ -30,7 +30,7 @@ func _ready() -> void:
 
 
 func _add_campfires() -> void:
-	for cid in 2:
+	for cid in WorldLayout.cliff_count():
 		var fire := Campfire.new()
 		fire.name = "Campfire%d" % cid
 		fire.cliff_id = cid

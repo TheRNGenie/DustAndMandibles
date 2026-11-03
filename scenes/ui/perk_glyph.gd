@@ -205,6 +205,22 @@ func _draw() -> void:
 			draw_rect(Rect2(c - Vector2(s, s) * 0.85, Vector2(s, s) * 1.7), Palette.WOOD_DARK, false, w)
 			draw_line(c + Vector2(-s * 0.85, -s * 0.85), c + Vector2(s * 0.85, s * 0.85), Palette.WOOD_DARK, w)
 			draw_line(c + Vector2(-s * 0.85, s * 0.85), c + Vector2(s * 0.85, -s * 0.85), Palette.WOOD_DARK, w)
+		"horseshoe":
+			draw_arc(c + Vector2(0, -s * 0.1), s * 0.72, PI * 0.82, PI * 2.18, 24, k, w * 2.6)
+			for x: float in [-0.66, 0.66]:
+				draw_line(c + Vector2(s * x, s * 0.2), c + Vector2(s * x * 0.95, s * 0.9), k, w * 2.6)
+			for i in 5:
+				var ang := PI * (0.95 + 0.275 * i)
+				draw_circle(c + Vector2(0, -s * 0.1) + Vector2(cos(ang), sin(ang)) * s * 0.72, w * 0.45, Palette.WOOD_DARK)
+		"moon":
+			draw_circle(c, s * 0.9, k)
+			draw_circle(c + Vector2(s * 0.42, -s * 0.3), s * 0.75, Palette.WOOD_DARK)
+			draw_circle(c + Vector2(s * 0.75, s * 0.55), s * 0.1, k)
+		"magnet":
+			draw_arc(c + Vector2(0, -s * 0.15), s * 0.6, PI, TAU, 18, k, w * 3.0)
+			for x: float in [-0.6, 0.6]:
+				draw_line(c + Vector2(s * x, -s * 0.15), c + Vector2(s * x, s * 0.55), k, w * 3.0)
+				draw_line(c + Vector2(s * x, s * 0.55), c + Vector2(s * x, s * 0.95), k.darkened(0.35), w * 3.0)
 		_:
 			draw_circle(c, s * 0.6, k)
 

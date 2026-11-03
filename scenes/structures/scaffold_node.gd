@@ -20,8 +20,10 @@ var levels: int = 1:
 		if is_inside_tree() and v < levels and is_instance_valid(VfxPool.instance):
 			VfxPool.instance.splinters(global_position + Vector3.UP * LEVEL_HEIGHT * (float(v) + 0.5), 1.0)
 		levels = v
-		if is_inside_tree():
+		if is_node_ready(): # set during spawn: _ready() builds it
 			_rebuild()
+## Host only: levels someone paid for (free levels under turrets refund nothing).
+var paid_levels: int = 0
 
 var _mi: MeshInstance3D
 

@@ -19,9 +19,9 @@ static func wave_pay(held: int) -> int:
 	return WAVE_PAY_BASE + WAVE_PAY_PER_WAVE * maxi(held, 0) if held >= 1 else 0
 
 
-func reset(start: Dictionary) -> void:
+func reset(start: Dictionary, cliffs: int = 2) -> void:
 	stock.clear()
-	for cid in 2:
+	for cid in cliffs:
 		var s: Dictionary = {}
 		for r in RESOURCES:
 			s[r] = int(start.get(r, 0))
