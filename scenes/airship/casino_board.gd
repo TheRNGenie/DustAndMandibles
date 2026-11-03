@@ -148,15 +148,15 @@ func text_width(s: String, px: int, deco: bool = false) -> float:
 func arc_text(c: Vector2, r: float, mid: float, s: String, px: int, col: Color, deco: bool = true) -> void:
 	var f := sign_font() if deco else body_font()
 	var total := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
-	var a := mid + total * 0.5 / r
+	var a := mid - total * 0.5 / r
 	for i in s.length():
 		var ch := s[i]
 		var w := f.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
-		var ang := a - w * 0.5 / r
+		var ang := a + w * 0.5 / r
 		var p := c + Vector2(sin(ang), cos(ang)) * r
 		draw_set_transform(p, -ang, Vector2.ONE)
 		draw_string(f, Vector2(-w * 0.5, (f.get_ascent(px) - f.get_descent(px)) * 0.5), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, px, col)
-		a -= w / r
+		a += w / r
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
@@ -353,6 +353,64 @@ func suit_pip(c: Vector2, r: float, suit: int, col: Color, flip: bool = false) -
 			draw_circle(c + Vector2(-r * 0.47, r * 0.1 * s), r * 0.42, col)
 			draw_circle(c + Vector2(r * 0.47, r * 0.1 * s), r * 0.42, col)
 			poly(PackedVector2Array([c + Vector2(0, -r * 0.1 * s), c + Vector2(r * 0.32, r * s), c + Vector2(-r * 0.32, r * s)]), col)
+
+
+## A card dealt from `shoe` to `at`, timed by the table's deal_times[key]: it
+## slides out face down and turns over as it lands (`hole` stays face down
+## until the table's "flip" time). Returns false while it is still in the shoe.
+func deal_card(table: CasinoTable, key: String, at: Vector2, rank: int, suit: int, shoe: Vector2, rot: float = 0.0, k: float = 1.0, hole: bool = false) -> bool:
+	if not table.deal_times.has(key):
+		card(at, rank, suit, 1.0 if rank > 0 else -1.0, rot, k)
+		return true
+	var now := Time.get_ticks_msec() / 1000.0
+	var p := (now - float(table.deal_times[key])) / 0.34
+	if p < 0.0:
+		return false
+	var e := 1.0 - pow(1.0 - clampf(p, 0.0, 1.0), 3.0)
+	var pos := shoe.lerp(at, e)
+	var r := lerpf(-1.1, rot, e)
+	var turn := -1.0
+	if rank > 0 and not hole:
+		turn = -1.0 if p < 0.6 else clampf((p - 0.6) / 0.4 * 2.0 - 1.0, -1.0, 1.0)
+	elif rank > 0 and hole and table.deal_times.has("flip"):
+		var f := (now - float(table.deal_times["flip"])) / 0.3
+		turn = clampf(f * 2.0 - 1.0, -1.0, 1.0)
+	card(pos, rank, suit, turn, r, k)
+	return true
+
+
+## The card shoe: a wooden box with the deck showing at its mouth.
+func shoe_box(at: Vector2) -> void:
+	draw_set_transform(at, -0.25, Vector2.ONE)
+	rrect(Rect2(-52, -34, 104, 68), WOOD_DARK, 8, 2, Color(0, 0, 0, 0.6))
+	rrect(Rect2(-46, -28, 80, 56), Color("#7A1E18"), 4)
+	for i in 5:
+		rrect(Rect2(-40 + i * 2, -24, 66, 48), Color("#A8322A") if i % 2 == 0 else CREAM, 3)
+	rrect(Rect2(28, -34, 24, 68), WOOD, 6)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+	text(at + Vector2(0, 46), "SHOE", 11, Color(1, 1, 1, 0.5), 0, 0, true)
+
+
+## The dealer's chip rack: rows of chip stacks seen edge-on.
+func chip_rack(r: Rect2) -> void:
+	rrect(r.grow(4), WOOD_DARK, 6)
+	rrect(r, Color("#14100C"), 4)
+	var cols := [Color("#1E1A18"), Color("#2E5FA3"), Color("#2E7D32"), Color("#B3261E"), Color("#B3261E"), Color("#2E7D32"), Color("#2E5FA3"), Color("#1E1A18")]
+	var w := r.size.x / cols.size()
+	for i in cols.size():
+		var cr := Rect2(r.position.x + i * w + 3, r.position.y + 4, w - 6, r.size.y - 8)
+		rrect(cr, cols[i], 3)
+		var y := cr.position.y + 3.0
+		while y < cr.end.y - 2:
+			draw_line(Vector2(cr.position.x + 2, y), Vector2(cr.end.x - 2, y), Color(1, 1, 1, 0.35), 1.0)
+			y += 5.0
+
+
+## A hand's total on a small dark plaque.
+func plaque(at: Vector2, s: String, col: Color = Color("#F2E3C2")) -> void:
+	var w := text_width(s, 17, true) + 22
+	rrect(Rect2(at.x - w * 0.5, at.y - 15, w, 30), Color(0.05, 0.04, 0.03, 0.85), 15, 2, GOLD_DARK)
+	text(at, s, 17, col, 0, 0, true)
 
 
 # ------------------------------------------------------------------ chips

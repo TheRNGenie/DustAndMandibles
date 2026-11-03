@@ -32,10 +32,13 @@ func _ready() -> void:
 	var bets := game.ui_bets()
 	var bet := int(p[2]) if p.size() > 2 else (int(bets[0]) if not bets.is_empty() else 0)
 	print("[casino] %s plays %s choice %d bet %d" % [game.name, p[0], choice, bet])
-	game.ui_act(StringName(p[0]), choice, bet)
+	game.ui_choice = choice
+	game.ui_bet_index = maxi(bets.find(bet), 0)
+	game.ui_press(StringName(p[0]))
 	var play2 := GameState.flag_value("--casinoplay2")
 	if play2 != "":
-		await get_tree().create_timer(1.0).timeout
-		game.ui_act(StringName(play2), choice, bet)
+		await get_tree().create_timer(GameState.flag_value("--casinoplay2at").to_float() if GameState.flag_value("--casinoplay2at") != "" else 2.0).timeout
+		print("[casino] %s plays %s" % [game.name, play2])
+		game.ui_press(StringName(play2))
 	await get_tree().create_timer(1.0).timeout
 	print("[casino] %s view %s" % [game.name, str(game.view)])
