@@ -63,10 +63,10 @@ func menu_items(tab: int) -> Array:
 			for id: StringName in bugs:
 				var b := Defs.bug(id)
 				var e := FieldGuide.entry("bugs", id)
-				var stats := "%s  ·  %d HP  ·  Climbs %.1f m/s  ·  %sFrom Wave %d  ·  Drops %s%s" % [
+				var stats := "%s  ·  %d HP  ·  Climbs %.1f m/s  ·  %s%s  ·  Drops %s%s" % [
 						UiStyle.tc(str(BEHAVIORS[b.behavior])), int(b.max_hp), b.climb_speed,
 						("Front Armour %d%%  ·  " % int(b.front_armor * 100.0)) if b.front_armor > 0.0 else "",
-						b.first_wave, UiStyle.cost(b.scrap_drop, "scrap"), (", " + UiStyle.cost(b.chitin_drop, "chitin")) if b.chitin_drop > 0 else ""]
+						"Story Only" if b.story_only else "From Wave %d" % b.first_wave, UiStyle.cost(b.scrap_drop, "scrap"), (", " + UiStyle.cost(b.chitin_drop, "chitin")) if b.chitin_drop > 0 else ""]
 				var icon: Variant = IconStudio.bug(MenuScreen.instance, id) if MenuScreen.instance != null else null
 				# (Bugs helper) The counter, and the variants overusing one method brings.
 				var tips: Array = []
@@ -113,10 +113,9 @@ func menu_items(tab: int) -> Array:
 				out.append(_item(StringName(str(key)), str(e.get("title", key)), StringName(str(e["icon"])) if e.has("icon") else null, str(e.get("lore", "")), str(e.get("stats", "")), e.get("tips", []), ""))
 		5:
 			# Story: one page per chapter won (StoryScreen.journal_pages), the rest torn out.
-			var n := 0
 			for v: Array in StoryScreen.journal_pages():
-				n += 1
-				var doc: Variant = StoryPortrait.texture(MenuScreen.instance, "doc") if MenuScreen.instance != null and bool(v[2]) else null
+				var n := int(v[3])
+				var doc: Variant = StoryPortrait.face_texture(MenuScreen.instance, "doc") if MenuScreen.instance != null and bool(v[2]) else null
 				out.append({"id": "journal_%d" % n, "name": str(v[0]), "icon": doc, "desc": str(v[1]),
 						"price": "Chapter %d" % n if bool(v[2]) else "Not Yet", "price_ok": bool(v[2])})
 	return out

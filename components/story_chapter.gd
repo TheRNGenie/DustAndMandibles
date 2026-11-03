@@ -7,8 +7,9 @@ extends RefCounted
 ## phase, wave start and "held".
 ##
 ## JSON fields: id, number, title, map, first_wave, last_wave, blurb,
-## start_bonus {resource: amount}, objective {kind: hold | fetch | protect, text,
-## ...kind fields}, bosses {"wave": bug id}, extra_bugs {"wave": [[bug id, count]]},
+## start_bonus {resource: amount}, objective {kind: hold | fetch | protect | keep,
+## text, ...kind fields}, requires (the chapter that unlocks it; the one before
+## it in IDS when left out), bosses {"wave": bug id}, extra_bugs {"wave": [[bug id, count]]},
 ## weather {"wave": weather name}, telegram {title, body}, radio {"wave": {build,
 ## wave, held: [[speaker, line]]}}, events {key: [[speaker, line]]}, journal
 ## {title, body}, rewards {notches, unlock {kind, id, name}}, headline_win,
@@ -18,13 +19,16 @@ extends RefCounted
 ## stand-ins (an airship drop, a boss drop) are "fetch" objectives.
 
 const DIR := "res://data/story/"
-## The chapters that can be played, in order.
-const IDS: Array[String] = ["ch1", "ch2", "ch3", "ch4"]
-## The rest of the story, shown locked on the chapter screen.
-const PLANNED: Array = [
-	[5, "The Railroad's Secret"], [6, "Dust and Thunder"], [7, "Down the Hole"], [8, "The Queen"]]
+## The chapters that can be played, in play order. Chapter 7 (Down the Hole)
+## is a Canyon Expedition, built later: until then The Queen follows chapter 6
+## (its `requires` names ch6; point it at ch7 once that's in).
+const IDS: Array[String] = ["ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "ch8"]
+## The rest of the story, shown as "Coming Later" on the chapter screen.
+const PLANNED: Array = [[7, "Down the Hole"]]
 const SPEAKERS: Array[String] = ["stroud", "kettle", "pearl", "doc"]
-const KINDS: Array[String] = ["hold", "fetch", "protect"]
+const KINDS: Array[String] = ["hold", "fetch", "protect", "keep"]
+## keep: what has to be standing on every held cliff whenever a night ends.
+const KEEP_THINGS: Array[String] = ["storeys", "lanterns"]
 const WHENS: Array[String] = ["build", "wave", "held"]
 ## A radio line should fit the card at a glance.
 const MAX_WORDS := 20
@@ -48,6 +52,7 @@ var journal: Dictionary = {}
 var rewards: Dictionary = {}
 var headline_win := ""
 var headline_loss := ""
+var requires := ""
 
 static var _cache: Dictionary = {}
 
@@ -89,6 +94,7 @@ static func from_dict(d: Dictionary) -> StoryChapter:
 	ch.rewards = d.get("rewards", {})
 	ch.headline_win = str(d.get("headline_win", ""))
 	ch.headline_loss = str(d.get("headline_loss", ""))
+	ch.requires = str(d.get("requires", ""))
 	return ch
 
 
@@ -102,6 +108,15 @@ static func all() -> Array[StoryChapter]:
 	return out
 
 
+## The chapter that has to be won before this one ("" for the first): its
+## `requires`, else the one before it in play order.
+func required() -> String:
+	if requires != "":
+		return requires
+	var i := IDS.find(id)
+	return IDS[i - 1] if i > 0 else ""
+
+
 ## The chapter after `chapter_id` ("" if it's the last playable one).
 static func next_id(chapter_id: String) -> String:
 	var i := IDS.find(chapter_id)
@@ -111,6 +126,11 @@ static func next_id(chapter_id: String) -> String:
 static func speaker_name(who: String) -> String:
 	return {"stroud": "Capt. Ada Stroud", "kettle": "Silas Kettle", "pearl": "Pearl \"Snake Eyes\" Doyle",
 			"doc": "Doc Whitlow"}.get(who, who.capitalize())
+
+
+## A short name for small captions ("Capt. Stroud").
+static func speaker_short(who: String) -> String:
+	return {"stroud": "Capt. Stroud", "kettle": "Silas", "pearl": "Pearl", "doc": "Doc"}.get(who, who.capitalize())
 
 
 static func speaker_role(who: String) -> String:
@@ -132,6 +152,21 @@ func objective_text() -> String:
 	return str(objective.get("text", "Hold Out Through Wave %d" % last_wave))
 
 
+## keep: what has to stand ("storeys" or "lanterns").
+func keep_thing() -> String:
+	return str(objective.get("thing", ""))
+
+
+## keep: how many have to stand when `cliffs` cliffs are held.
+func keep_need(cliffs: int) -> int:
+	return int(objective.get("per_cliff", 1)) * maxi(cliffs, 1)
+
+
+## keep: is `have` enough for `cliffs` held cliffs?
+func keep_ok(have: int, cliffs: int) -> bool:
+	return have >= keep_need(cliffs)
+
+
 ## [[speaker, line], ...] for wave `w` at `when` ("build", "wave" or "held").
 func lines(w: int, when: String) -> Array:
 	var per: Dictionary = radio.get(str(w), {})
@@ -143,9 +178,24 @@ func event_lines(key: String) -> Array:
 	return events.get(key, [])
 
 
-## The boss chapter data puts on wave `w` (&"" for none).
+## The boss chapter data puts on wave `w` (&"" for none; the first of them
+## when the wave names several).
 func boss_for(w: int) -> StringName:
-	return StringName(str(bosses.get(str(w), "")))
+	var all_of := bosses_for(w)
+	return all_of[0] if not all_of.is_empty() else &""
+
+
+## Every boss chapter data puts on wave `w` ("bosses": {"18": "id"} or
+## {"18": ["id", "id"]}).
+func bosses_for(w: int) -> Array[StringName]:
+	var out: Array[StringName] = []
+	var v: Variant = bosses.get(str(w), "")
+	if v is Array:
+		for b: Variant in v:
+			out.append(StringName(str(b)))
+	elif str(v) != "":
+		out.append(StringName(str(v)))
+	return out
 
 
 ## The weather this chapter forces on wave `w` (Weather.Kind), or -1 to roll it.
@@ -166,6 +216,23 @@ func map_for_players(players: int) -> StringName:
 		if MapDef.players_of(m) >= players:
 			return m
 	return MapDef.IDS[MapDef.IDS.size() - 1]
+
+
+## Who speaks in this chapter, in the order they first do.
+func speakers() -> Array[String]:
+	var out: Array[String] = []
+	var all_lines: Array = []
+	var waves: Array = radio.keys()
+	waves.sort_custom(func(a: Variant, b: Variant) -> bool: return int(a) < int(b))
+	for wk: Variant in waves:
+		for when in WHENS:
+			all_lines.append_array((radio[wk] as Dictionary).get(when, []))
+	for key: String in events:
+		all_lines.append_array(events[key])
+	for l: Variant in all_lines:
+		if l is Array and (l as Array).size() == 2 and not out.has(str(l[0])):
+			out.append(str(l[0]))
+	return out
 
 
 func notches() -> int:
@@ -190,7 +257,6 @@ func apply_to_plan(plan: Dictionary, w: int) -> Dictionary:
 			cliffs.append(cid)
 	if cliffs.is_empty():
 		cliffs = [0]
-	var boss := boss_for(w)
 	if not bosses.is_empty():
 		var at := -1
 		var kept: Array = []
@@ -202,10 +268,15 @@ func apply_to_plan(plan: Dictionary, w: int) -> Dictionary:
 				continue
 			kept.append(g)
 		groups = kept
-		if boss != &"":
-			if at < 0:
-				at = cliffs[w % cliffs.size()]
-			groups.append({"bug": boss, "count": 1, "cliff": at, "lane": 2, "pulse": 0})
+		if at < 0:
+			at = cliffs[w % cliffs.size()]
+		# Two bosses on one wave climb different cliffs where there are two.
+		var i0 := maxi(cliffs.find(at), 0)
+		var k0 := 0
+		for boss in bosses_for(w):
+			var cliff: int = cliffs[(i0 + k0) % cliffs.size()] if cliffs.has(at) else at
+			groups.append({"bug": boss, "count": 1, "cliff": cliff, "lane": 2, "pulse": 0})
+			k0 += 1
 	var extras: Array = extra_bugs.get(str(w), [])
 	var k := 0
 	for e: Array in extras:
@@ -265,9 +336,10 @@ func problems() -> Array[String]:
 		if words > MAX_WORDS:
 			out.append("line over %d words (%d): %s" % [MAX_WORDS, words, str(l[1])])
 	for wk: String in bosses:
-		var d := Defs.bug(StringName(str(bosses[wk])))
-		if d == null or d.behavior != BugDef.Behavior.BOSS:
-			out.append("boss %s on wave %s isn't a boss" % [str(bosses[wk]), wk])
+		for b in bosses_for(int(wk)):
+			var d := Defs.bug(b)
+			if d == null or d.behavior != BugDef.Behavior.BOSS:
+				out.append("boss %s on wave %s isn't a boss" % [b, wk])
 	for wk: String in extra_bugs:
 		for e: Variant in extra_bugs[wk]:
 			if not e is Array or Defs.bug(StringName(str(e[0]))) == null:
@@ -275,11 +347,29 @@ func problems() -> Array[String]:
 	for wk: String in weather:
 		if weather_for(int(wk)) < 0:
 			out.append("weather %s on wave %s unknown" % [str(weather[wk]), wk])
+	if requires != "" and (requires == id or not IDS.has(requires) and not _planned(requires)):
+		out.append("requires unknown chapter %s" % requires)
+	if kind() == "keep":
+		if not KEEP_THINGS.has(keep_thing()):
+			out.append("keep needs thing storeys or lanterns")
+		if int(objective.get("per_cliff", 0)) <= 0:
+			out.append("keep needs per_cliff")
 	if kind() == "fetch":
 		if not ["airship_drop", "boss_drop"].has(str(objective.get("spawn", ""))):
 			out.append("fetch needs spawn airship_drop or boss_drop")
 		if not ["well", "board"].has(str(objective.get("deliver_to", ""))):
 			out.append("fetch needs deliver_to well or board")
-		if str(objective.get("spawn", "")) == "boss_drop" and not bosses.values().has(str(objective.get("boss", ""))):
+		var brought := false
+		for wk: String in bosses:
+			brought = brought or bosses_for(int(wk)).has(StringName(str(objective.get("boss", ""))))
+		if str(objective.get("spawn", "")) == "boss_drop" and not brought:
 			out.append("boss_drop names a boss the chapter never brings")
 	return out
+
+
+## Is `chapter_id` a planned chapter ("ch7")?
+static func _planned(chapter_id: String) -> bool:
+	for p: Array in PLANNED:
+		if chapter_id == "ch%d" % int(p[0]):
+			return true
+	return false

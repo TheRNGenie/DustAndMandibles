@@ -412,8 +412,8 @@ func _on_host() -> void:
 		NetworkManager.set_ready.call_deferred(true)
 	# Story (debug): --story=N hosts chapter N.
 	var story_n := int(GameState.flag_value("--story"))
-	if story_n > 0 and story_n <= StoryChapter.IDS.size() and GameState.debug_enabled():
-		Story.select(StoryChapter.IDS[story_n - 1])
+	if StoryChapter.IDS.has("ch%d" % story_n) and GameState.debug_enabled():
+		Story.select("ch%d" % story_n)
 	if GameState.has_flag("--solo") or _test_launch():
 		NetworkManager.start_game.call_deferred()
 

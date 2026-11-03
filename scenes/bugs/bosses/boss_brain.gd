@@ -9,6 +9,9 @@ extends RefCounted
 
 ## Every live boss brain on this peer (BossFx hooks walk these).
 static var active: Array[BossBrain] = []
+## Story (Dust and Thunder): the Thunder Cicada's screech breaks the lantern
+## posts inside its ring too. Set by StoryDirector for that chapter only.
+static var screech_breaks_lanterns := false
 
 var bug: Bug
 ## Seconds since this boss appeared (local).

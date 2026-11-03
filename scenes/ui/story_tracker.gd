@@ -2,7 +2,7 @@ class_name StoryTracker
 extends PanelContainer
 ## Story: the chapter's goal in the top-left corner: chapter and title, the
 ## objective, and how it stands (night 2 of 5; the valve on the plateau / on
-## Tom's back / fitted; 9 of 12 sacks of silver left). Local; it reads the
+## Tom's back / fitted; 9 of 12 sacks of silver left; 7 of 8 scaffold storeys). Local; it reads the
 ## StoryDirector's synced state.
 
 var director: StoryDirector
@@ -92,6 +92,15 @@ func refresh() -> void:
 					kind = "bad"
 				elif director.loot_left() < total:
 					kind = "warn"
+		"keep":
+			var need := ch.keep_need(director.held_count())
+			var have := director.keep_have
+			text = "%s: %d / %d  ·  %s" % [UiStyle.tc(director.keep_noun(2)), have, need, nights]
+			if have < need:
+				text += "  ·  Build %d more!" % (need - have)
+				kind = "bad" if GameState.phase == GameState.Phase.WAVE else "warn"
+			else:
+				kind = "good"
 	if director.holding and not director.objective_done():
 		text = "The waves are done. Finish the job!"
 		kind = "warn"

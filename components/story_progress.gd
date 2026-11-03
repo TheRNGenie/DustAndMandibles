@@ -3,7 +3,8 @@ extends RefCounted
 ## Story mode progress, one per player (saved to user://story.json): which
 ## chapters are won, the Doc Whitlow journal pages earned, Silas's blueprints
 ## and the chapter to play next. Pure apart from read / write; unit-tested.
-## A chapter is unlocked once the one before it is won (the first always is).
+## A chapter is unlocked once the one it requires is won (the one before it in
+## play order, unless its data names another; the first always is).
 
 ## chapter id -> {"wins": int, "best_wave": int}
 var done: Dictionary = {}
@@ -20,10 +21,11 @@ func is_done(chapter_id: String) -> bool:
 
 
 func is_unlocked(chapter_id: String) -> bool:
-	var i := StoryChapter.IDS.find(chapter_id)
-	if i < 0:
+	if not StoryChapter.IDS.has(chapter_id):
 		return false
-	return i == 0 or is_done(StoryChapter.IDS[i - 1])
+	var ch := StoryChapter.load_id(chapter_id)
+	var need := ch.required() if ch != null else ""
+	return need == "" or is_done(need)
 
 
 ## The first chapter not yet won (the last one when they all are).

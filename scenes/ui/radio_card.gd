@@ -1,7 +1,7 @@
 class_name RadioCard
 extends Control
 ## Story: a radio line from the Lucky Mandible's crew, on a small card at the
-## left of the screen: a tintype portrait in a brass ring, who's talking and
+## left of the screen: a painted portrait in a brass ring, who's talking and
 ## from where, and the line. It slides in, holds long enough to read, and
 ## slides out; lines that come together queue up. It never stops play.
 ## Purely local (StoryDirector says what to say).
@@ -141,7 +141,7 @@ func _portrait_frame() -> Control:
 
 ## Queues a line from `who` (StoryChapter.SPEAKERS).
 func say(who: String, line: String) -> void:
-	StoryPortrait.texture(self, who) # start rendering now, so it's ready
+	StoryPortrait.face_texture(self, who) # start rendering now, so it's ready
 	_queue.append([who, line])
 	if not _showing:
 		_next()
@@ -155,7 +155,7 @@ func _next() -> void:
 	_showing = true
 	var l: Array = _queue.pop_front()
 	var who := str(l[0])
-	_pic.texture = StoryPortrait.texture(self, who)
+	_pic.texture = StoryPortrait.face_texture(self, who)
 	_name.text = StoryChapter.speaker_name(who)
 	_role.text = StoryChapter.speaker_role(who)
 	_text.text = str(l[1])

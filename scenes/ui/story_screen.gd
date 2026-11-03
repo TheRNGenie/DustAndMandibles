@@ -27,6 +27,8 @@ func is_open() -> bool:
 
 func open() -> void:
 	_picked = Story.progress.next_up() if _picked == "" else _picked
+	if GameState.debug_enabled() and GameState.flag_value("--storypick") != "": # screenshots: --storypick=N
+		_picked = "ch" + GameState.flag_value("--storypick")
 	_journal = GameState.has_flag("--openjournal")
 	_fill()
 	_root.visible = true
@@ -106,10 +108,15 @@ func _fill() -> void:
 	for c in _page.get_children():
 		c.queue_free()
 	_journal_btn.text = "Back to Chapters" if _journal else "Doc Whitlow's Journal"
+	# Chapters by number, the ones still to come in their place among them.
+	var rows: Array = []
 	for ch in StoryChapter.all():
-		_list.add_child(_chapter_row(ch.id, ch.number, ch.title, _state_of(ch.id)))
+		rows.append([ch.number, ch.id, ch.title])
 	for p: Array in StoryChapter.PLANNED:
-		_list.add_child(_chapter_row("", int(p[0]), str(p[1]), "later"))
+		rows.append([int(p[0]), "", str(p[1])])
+	rows.sort_custom(func(a: Array, b: Array) -> bool: return int(a[0]) < int(b[0]))
+	for r: Array in rows:
+		_list.add_child(_chapter_row(str(r[1]), int(r[0]), str(r[2]), _state_of(str(r[1])) if str(r[1]) != "" else "later"))
 	if _journal:
 		_fill_journal()
 	else:
@@ -158,19 +165,32 @@ func _fill_page(ch: StoryChapter) -> void:
 	if ch == null:
 		return
 	var state := _state_of(ch.id)
-	_page.add_child(UiStyle.title("Chapter %d: %s" % [ch.number, ch.title], 34))
+	var title := "Chapter %d: %s" % [ch.number, ch.title]
+	_page.add_child(UiStyle.title(title, 34 if title.length() <= 26 else 28))
 	var meta := UiStyle.label("%s  ·  Waves %d to %d  ·  Solo or 2-4 Riders" % [MapDef.display_name_of(ch.map), ch.first_wave, ch.last_wave], 16)
 	meta.theme_type_variation = "SoftInkLabel"
 	_page.add_child(meta)
+	if ch.first_wave > 1:
+		# Starting out: later chapters start later, with a stake to build with.
+		var tiers := "Mid tier from wave 5, Late from wave 10" if ch.first_wave < 10 else "every turret tier open"
+		var start := UiStyle.label("Starts on wave %d with %s  ·  %s" % [ch.first_wave, _bonus_text(ch), tiers], 15)
+		start.theme_type_variation = "SoftInkLabel"
+		_page.add_child(start)
 	_page.add_child(UiStyle.divider(520))
 	var blurb := UiStyle.label(ch.blurb, 18)
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	blurb.custom_minimum_size.x = 560
 	_page.add_child(blurb)
-	_page.add_child(_fact("The Job", ch.objective_text()))
-	if ch.first_wave > 1:
-		_page.add_child(_fact("Starting Out", "Wave %d, with %s to build with. Mid tier turrets open from wave 5, Late from wave 10." % [ch.first_wave, _bonus_text(ch)]))
+	# The job, with the crew on the wire this chapter beside it.
+	var job_row := HBoxContainer.new()
+	job_row.add_theme_constant_override("separation", 12)
+	_page.add_child(job_row)
+	var job := _fact("The Job", ch.objective_text())
+	job.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	(job.get_child(1) as Label).custom_minimum_size.x = 300
+	job_row.add_child(job)
+	job_row.add_child(_cast(ch))
 	var pay := "%d Notches" % ch.notches()
 	if state == "done":
 		pay = "%d Notches for a replay (won %d time%s)" % [StoryProgress.replay_tip(ch), int(Story.progress.done[ch.id]["wins"]), "" if int(Story.progress.done[ch.id]["wins"]) == 1 else "s"]
@@ -186,7 +206,8 @@ func _fill_page(ch: StoryChapter) -> void:
 	go_row.add_theme_constant_override("separation", 10)
 	_page.add_child(go_row)
 	if state == "locked":
-		var why := UiStyle.status("Win Chapter %d first." % (ch.number - 1), "lock", 15)
+		var need := StoryChapter.load_id(ch.required())
+		var why := UiStyle.status("Win Chapter %d first." % (need.number if need != null else ch.number - 1), "lock", 15)
 		why.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		go_row.add_child(why)
 	var go := MenuScreen.wood_button("Ride Out" if state != "done" else "Ride It Again")
@@ -196,6 +217,24 @@ func _fill_page(ch: StoryChapter) -> void:
 		close()
 		ride.emit(ch.id))
 	go_row.add_child(go)
+
+
+## The crew on the wire this chapter: painted portraits in brass rings.
+func _cast(ch: StoryChapter) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	for who in ch.speakers():
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", 0)
+		var ring := StoryPortrait.framed(self, who, 60.0)
+		ring.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		v.add_child(ring)
+		var l := UiStyle.label(StoryChapter.speaker_short(who), 12)
+		l.theme_type_variation = "SoftInkLabel"
+		l.autowrap_mode = TextServer.AUTOWRAP_OFF
+		v.add_child(l)
+		row.add_child(v)
+	return row
 
 
 func _bonus_text(ch: StoryChapter) -> String:
@@ -220,22 +259,33 @@ func _fact(head: String, text: String) -> Control:
 
 
 func _fill_journal() -> void:
-	_page.add_child(UiStyle.title("Doc Whitlow's Journal", 34))
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 14)
+	_page.add_child(head)
+	head.add_child(StoryPortrait.framed(self, "doc", 96.0))
+	var hcol := VBoxContainer.new()
+	hcol.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(hcol)
+	var t := UiStyle.title("Doc Whitlow's Journal", 34)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	hcol.add_child(t)
 	var sub := UiStyle.label("Pages mailed up from Rail Car 9, one for each chapter won.", 16)
 	sub.theme_type_variation = "SoftInkLabel"
-	_page.add_child(sub)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	sub.autowrap_mode = TextServer.AUTOWRAP_OFF
+	hcol.add_child(sub)
 	_page.add_child(UiStyle.divider(520))
 	for v in journal_pages():
 		_page.add_child(_journal_page(v))
 
 
-## [[title, body, earned], ...] in chapter order (also the Field Guide's Journal tab).
+## [[title, body, earned, chapter number], ...] in chapter order (also the Field Guide's Journal tab).
 static func journal_pages() -> Array:
 	var out: Array = []
 	for ch in StoryChapter.all():
 		var got := Story.progress.journal.has(ch.id)
 		out.append([str(ch.journal.get("title", "")) if got else "A Torn Page",
-				str(ch.journal.get("body", "")) if got else "Win Chapter %d, %s, to read this page." % [ch.number, ch.title], got])
+				str(ch.journal.get("body", "")) if got else "Win Chapter %d, %s, to read this page." % [ch.number, ch.title], got, ch.number])
 	return out
 
 

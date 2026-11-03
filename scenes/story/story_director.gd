@@ -19,6 +19,10 @@ extends Node
 ##   (The Survey Map's Queen Spider gland).
 ## - protect: payroll strongboxes by every house that Dragonfly Bandits rob;
 ##   shoot a bandit with a sack and the silver goes back. All of it gone loses.
+## - keep: so many scaffold storeys (The Railroad's Secret, against the
+##   Burrowing Beetle) or lantern posts (Dust and Thunder, whose Thunder Cicada
+##   breaks lanterns in its screech ring) per held cliff, standing whenever a
+##   night ends. Short when a night ends loses the chapter.
 ##
 ## Debug (with --debug): --story=N plays chapter N, --storywave=W starts at wave W
 ## of it, --storyfetch carries the fetch item to you at once, --storywin /
@@ -29,6 +33,8 @@ enum Cargo { NONE, FALLING, GROUND, CARRIED, DELIVERED }
 const DELIVER_REACH := 3.6
 ## Seconds between "a bandit's got a sack" lines.
 const STEAL_LINE_GAP := 25.0
+## Seconds between "you're short" lines (keep).
+const SHORT_LINE_GAP := 30.0
 
 static var instance: StoryDirector
 
@@ -54,6 +60,10 @@ var _started := false
 var _boards_made := false
 var _said: Dictionary = {}
 var _steal_line_t := -999.0
+var _short_line_t := -999.0
+var _keep_t := 0.0
+## keep: the last count (local, refreshed twice a second for the tracker).
+var keep_have := 0
 var _blueprints_from: Dictionary = {}
 
 
@@ -69,6 +79,7 @@ func _exit_tree() -> void:
 	GameState.forced_weather = {}
 	WaveDirector.plan_hook = Callable()
 	MechWell.valve_broken = false
+	BossBrain.screech_breaks_lanterns = false
 
 
 func _ready() -> void:
@@ -86,6 +97,7 @@ func _ready() -> void:
 	GameState.forced_weather = forced
 	WaveDirector.plan_hook = func(plan: Dictionary) -> Dictionary: return chapter.apply_to_plan(plan, GameState.wave)
 	MechWell.valve_broken = bool(chapter.objective.get("breaks_wells", false))
+	BossBrain.screech_breaks_lanterns = bool(chapter.objective.get("screech_breaks_lanterns", false))
 	var hud := world.get("hud") as Node
 	radio = RadioCard.new()
 	radio.name = "RadioCard"
@@ -152,11 +164,16 @@ func start_wave() -> int:
 	return w
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not _boards_made:
 		_make_boards()
 	if cargo != null and is_instance_valid(cargo):
 		_follow_carrier()
+	if chapter.kind() == "keep":
+		_keep_t -= delta
+		if _keep_t <= 0.0:
+			_keep_t = 0.5
+			keep_have = count_keep()
 	if multiplayer.is_server() and not finished:
 		_host_tick()
 
@@ -171,6 +188,9 @@ func _on_phase(p: GameState.Phase) -> void:
 				_started = true
 				_begin()
 			elif w - 1 >= chapter.first_wave:
+				if multiplayer.is_server() and chapter.kind() == "keep" and not finished and not objective_done():
+					_lose(_keep_lost_reason())
+					return
 				_say_lines(chapter.lines(w - 1, "held"), "held%d" % (w - 1))
 			_say_lines(chapter.lines(w, "build"), "build%d" % w)
 			if multiplayer.is_server():
@@ -238,6 +258,8 @@ func _on_last_wave_cleared() -> void:
 	print("[story] last wave %d cleared, objective done: %s" % [GameState.wave, objective_done()])
 	if objective_done():
 		_win()
+	elif chapter.kind() == "keep":
+		_lose(_keep_lost_reason())
 	else:
 		holding = true
 		_set_holding.rpc()
@@ -257,6 +279,8 @@ func objective_done() -> bool:
 			return cargo_state == Cargo.DELIVERED
 		"protect":
 			return loot_left() + in_flight > 0
+		"keep":
+			return chapter.keep_ok(count_keep() if is_inside_tree() else keep_have, held_count())
 	return true
 
 
@@ -315,6 +339,11 @@ func _host_tick() -> void:
 					b.receive_hit(99999.0, b.global_position, Vector3.FORWARD, true, 1.0, "revolver", 0)
 	if chapter.kind() == "fetch":
 		_host_fetch()
+	elif chapter.kind() == "keep" and _started and GameState.phase == GameState.Phase.WAVE:
+		var now := Time.get_ticks_msec() / 1000.0
+		if not chapter.keep_ok(keep_have, held_count()) and now - _short_line_t > SHORT_LINE_GAP:
+			_short_line_t = now
+			_event.rpc("short")
 	elif chapter.kind() == "protect" and _started and not boxes.is_empty():
 		if loot_left() + in_flight <= 0:
 			_lose("The bandits cleaned out every payroll strongbox.")
@@ -593,6 +622,59 @@ func _box_loot(i: int, loot: int, flying: int, gone: int) -> void:
 		boxes[i].set_loot(loot)
 	if tracker != null:
 		tracker.refresh()
+
+
+# ------------------------------------------------------------------ keep
+
+## How many held cliffs the keep objective counts.
+func held_count() -> int:
+	return _held_cliffs().size() if is_inside_tree() else 1
+
+
+## keep: what's standing on the held cliffs now (local; scaffolds and
+## structures are replicated, so every peer counts the same).
+func count_keep() -> int:
+	if not is_inside_tree():
+		return keep_have
+	var cliffs := _held_cliffs()
+	match chapter.keep_thing():
+		"storeys":
+			var bm := BuildManager.instance
+			return count_storeys(bm.find_children("*", "", true, false) if bm != null else [], cliffs)
+		"lanterns":
+			return count_lanterns(get_tree().get_nodes_in_group("lanterns"), cliffs)
+	return 0
+
+
+## Scaffold storeys standing on `cliffs` (pure; tested).
+static func count_storeys(scaffolds: Array, cliffs: Array[int]) -> int:
+	var n := 0
+	for o: Variant in scaffolds:
+		var sc := o as ScaffoldNode
+		if sc != null and cliffs.has(sc.cliff_id) and not sc.is_queued_for_deletion():
+			n += sc.levels
+	return n
+
+
+## Lantern posts standing on `cliffs` (a lit lighter or a flare doesn't count; pure).
+static func count_lanterns(nodes: Array, cliffs: Array[int]) -> int:
+	var n := 0
+	for o: Variant in nodes:
+		var s := o as StructureNode
+		if s != null and cliffs.has(s.cliff_id) and not s.is_queued_for_deletion() and (s.health == null or not s.health.dead):
+			n += 1
+	return n
+
+
+func keep_noun(count: int) -> String:
+	if chapter.keep_thing() == "lanterns":
+		return "lantern post" if count == 1 else "lantern posts"
+	return "scaffold storey" if count == 1 else "scaffold storeys"
+
+
+func _keep_lost_reason() -> String:
+	var need := chapter.keep_need(held_count())
+	return "Night's end with %d of %d %s standing." % [count_keep(), need, keep_noun(need)]
 
 
 # ------------------------------------------------------------------ noticeboards

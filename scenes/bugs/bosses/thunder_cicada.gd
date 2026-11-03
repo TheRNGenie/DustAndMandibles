@@ -66,6 +66,15 @@ func _screech() -> void:
 			fx().stun(t, STUN)
 			n += 1
 	send(&"screech", [_center])
+	if screech_breaks_lanterns:
+		var broke := 0
+		for l: Node in bug.get_tree().get_nodes_in_group("lanterns"):
+			var s := l as StructureNode
+			if s != null and s.global_position.distance_to(_center) <= RADIUS + 1.0 and not s.health.dead:
+				s.structure_damage(9999.0, "The Thunder Cicada")
+				broke += 1
+		if broke > 0:
+			notify_defenders("The screech shattered %d lantern%s!" % [broke, "" if broke == 1 else "s"])
 	if n > 0:
 		notify_defenders("The Thunder Cicada's screech stunned %d turret%s!" % [n, "" if n == 1 else "s"])
 

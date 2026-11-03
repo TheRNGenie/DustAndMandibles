@@ -7,7 +7,8 @@ extends RefCounted
 ## hourglass, the Burrower's shovel, the Titan's sun-rake head, the Lord's crown
 ## and folded jumping legs, the Matriarch's brood and giant acid bulb, the
 ## Mantis's raised claws, the Wagon's wheels and hive, the Strider's stilts,
-## the Cicada's hammer head and tent wings, the Collector's cattle skull.
+## the Cicada's hammer head and tent wings, the Collector's cattle skull, the
+## Hive Queen's crown and her banded, plated abdomen.
 
 const GOLD := Color("#E8C55A")
 const IVORY := Color("#F2E3C2")
@@ -36,6 +37,8 @@ static func build(def: BugDef) -> Dictionary:
 			return _cicada(def.shell_color)
 		&"bone_collector":
 			return _collector(def.shell_color)
+		&"hive_queen":
+			return _hive_queen(def.shell_color)
 		&"locust":
 			return _locust(def.shell_color)
 		&"hive_drone":
@@ -605,6 +608,158 @@ static func _collector(shell: Color) -> Dictionary:
 	return _spec(st, BugBuilder._legs(3, -0.4, 0.6, 0.52, 0.0, 0.66, -0.34),
 			0.55, 0.62, 0.08, shell.lightened(0.05), Vector3(0, 0.48, -0.42), 0.24, 0.95, 0.4,
 			{"mouth": Vector3(0, 0.02, -1.08), "mandible": 0.12, "antenna": 0.0, "color": shell.lightened(0.1)})
+
+
+# ------------------------------------------------------------------ the Hive Queen
+
+## The mother of the Hive (Story, chapter 8): a termite-queen abdomen the size
+## of a boxcar, banded with mahogany armour plates edged in gold over a pale,
+## faintly glowing brood membrane; an ant's thorax under gilded pauldrons, a
+## ruff of golden bristles, long folded wings lying down her back like a cape;
+## a heart-shaped head with sickle mandibles, elbowed antennae and a crown of
+## ivory spikes set with amber gems round a glowing jewel (her weak spot).
+static func _hive_queen(shell: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2808
+	var st := MeshKit.begin()
+	var plate := shell.darkened(0.08)
+	var sheen := shell.lightened(0.32)
+	var membrane := Color("#F1DDB0")
+	var amber := Color("#FFB238")
+	var wine := Color("#7A1E2C")
+	var wing := Color("#EADBB0")
+	var vein := Color("#9A6A34")
+	var gold_dark := GOLD.darkened(0.35)
+
+	# --- The abdomen: a long pale brood sac, banded with armour plates.
+	var ab_c := Vector3(0, 0.4, 1.2)
+	var ab_r := Vector3(0.86, 0.72, 1.16)
+	_e(st, ab_c, ab_r, membrane, 9, 18)
+	# Glowing brood showing through the membrane between the plates.
+	for k in 7:
+		var t := lerpf(-0.75, 0.8, float(k) / 6.0)
+		var ring_k := sqrt(maxf(1.0 - t * t, 0.0))
+		for sd: float in [-1.0, 1.0]:
+			var a := rng.randf_range(0.5, 1.1)
+			var p := ab_c + Vector3(sd * sin(a) * ab_r.x * ring_k, -cos(a) * ab_r.y * ring_k * 0.6, t * ab_r.z) * 0.985
+			_e(st, p, Vector3(0.09, 0.07, 0.07) * (0.7 + ring_k * 0.5), amber.lightened(0.15), 3, 8, 0.55)
+	# The dorsal plates (tergites): shell bands over the back and upper flanks
+	# only, so the pale brood membrane shows between them and all down the
+	# belly; each with a gold rim on its trailing edge, a sheen and a spine.
+	var bands := 7
+	for i in bands:
+		var t := lerpf(-0.8, 0.84, float(i) / float(bands - 1))
+		var k := sqrt(maxf(1.0 - t * t, 0.0))
+		var z := ab_c.z + t * ab_r.z
+		var w := ab_r.x * k * 1.0 + 0.1
+		var h := ab_r.y * k * 0.92 + 0.1
+		var b := Basis(Vector3.RIGHT, -0.15 + t * 0.12)
+		var c := Vector3(0, ab_c.y + ab_r.y * k * 0.14, z)
+		_e(st, c, Vector3(w, h, 0.2), plate if i % 2 == 0 else plate.darkened(0.12), 6, 18, 0.0, b)
+		_e(st, c + b * Vector3(0, 0.0, 0.15), Vector3(w * 1.015, h * 1.015, 0.035), GOLD.darkened(0.08) if i % 2 == 0 else gold_dark, 3, 18, 0.0, b)
+		_e(st, c + b * Vector3(w * 0.3, h * 0.86, -0.02), Vector3(w * 0.2, 0.03, 0.07), sheen, 3, 8, 0.0, b)
+		_spike(st, c + b * Vector3(0, h * 0.97, 0.0), Vector3(0, 1.0, 0.5), 0.12 + 0.1 * k, 0.05, GOLD.darkened(0.1), 6)
+		if k > 0.6:
+			for sd: float in [-1.0, 1.0]:
+				_e(st, c + b * Vector3(sd * w * 0.9, h * 0.1, 0.03), Vector3.ONE * 0.05, GOLD, 3, 6, 0.15)
+	# The tail end: a stubby gold-capped tip.
+	_e(st, ab_c + Vector3(0, -0.08, ab_r.z * 0.98), Vector3(0.26, 0.22, 0.18), plate, 5, 10)
+	_spike(st, ab_c + Vector3(0, -0.1, ab_r.z * 1.08), Vector3(0, -0.35, 1.0), 0.3, 0.1, GOLD.darkened(0.1), 8)
+
+	# --- The waist and thorax under gilded pauldrons.
+	_e(st, Vector3(0, 0.36, 0.02), Vector3(0.22, 0.2, 0.18), plate, 5, 10)
+	var th := Vector3(0, 0.48, -0.4)
+	_e(st, th, Vector3(0.48, 0.38, 0.4), shell, 7, 14)
+	_e(st, th + Vector3(0, 0.24, 0.02), Vector3(0.34, 0.16, 0.32), sheen.darkened(0.08), 4, 10)
+	for sd: float in [-1.0, 1.0]:
+		var pb := Basis(Vector3.BACK, sd * 0.55) * Basis(Vector3.RIGHT, 0.1)
+		var pc := th + Vector3(sd * 0.36, 0.2, -0.04)
+		_e(st, pc, Vector3(0.3, 0.09, 0.36), plate, 5, 12, 0.0, pb)
+		_e(st, pc + pb * Vector3(0.0, -0.035, 0.0), Vector3(0.315, 0.06, 0.375), GOLD.darkened(0.12), 3, 12, 0.0, pb)
+		_e(st, pc + pb * Vector3(0.03, 0.08, -0.04), Vector3(0.12, 0.03, 0.14), sheen, 3, 8, 0.0, pb)
+		for k in 3:
+			_e(st, pc + pb * Vector3(-0.05 + k * 0.1, 0.07, 0.22), Vector3.ONE * 0.035, GOLD, 3, 6, 0.2)
+	# A ruff of golden bristles round the neck, like an ermine collar.
+	for k in 22:
+		var a := lerpf(-2.4, 2.4, float(k) / 21.0)
+		var dir := Vector3(sin(a), cos(a) * 0.75 + 0.35, -0.25).normalized()
+		var base := Vector3(0, 0.6, -0.74) + Vector3(sin(a) * 0.32, cos(a) * 0.22, 0.0)
+		MeshKit.add_cylinder(st, Transform3D(MeshKit.basis_from_y(dir), base + dir * 0.11), 0.05, 0.0, 0.22 + rng.randf_range(-0.03, 0.05), 5,
+				GOLD.lightened(0.1) if k % 3 == 0 else Color("#C99B45"))
+
+	# --- Short royal wings over the shoulders like a cape, spread a little so
+	# the plated abdomen shows behind them.
+	for sd: float in [-1.0, 1.0]:
+		var wb := Basis(Vector3.UP, -sd * 0.38) * Basis(Vector3.BACK, sd * 0.42)
+		var wc := Vector3(sd * 0.5, 0.86, 0.12)
+		_e(st, wc, Vector3(0.3, 0.03, 0.72), wing, 4, 14, 0.0, wb)
+		_e(st, wc + wb * Vector3(0.0, -0.014, 0.0), Vector3(0.32, 0.026, 0.75), vein, 3, 14, 0.0, wb)
+		MeshKit.add_limb(st, wc + wb * Vector3(-sd * 0.26, 0.035, -0.62), wc + wb * Vector3(-sd * 0.2, 0.035, 0.66), 0.02, vein, 4)
+		for k in 4:
+			var z0 := lerpf(-0.55, 0.45, float(k) / 3.0)
+			MeshKit.add_limb(st, wc + wb * Vector3(-sd * 0.24, 0.036, z0), wc + wb * Vector3(sd * 0.2, 0.036, z0 + 0.22), 0.01, vein, 3)
+		_e(st, wc + wb * Vector3(-sd * 0.18, 0.04, 0.42), Vector3(0.05, 0.012, 0.12), wine, 3, 8, 0.0, wb)
+
+	# --- The head: heart-shaped, with sickle mandibles and elbowed antennae.
+	var hd := Vector3(0, 0.74, -0.98)
+	_e(st, hd, Vector3(0.4, 0.3, 0.3), shell.lightened(0.04), 7, 14)
+	for sd: float in [-1.0, 1.0]:
+		_e(st, hd + Vector3(sd * 0.17, 0.12, 0.04), Vector3(0.22, 0.2, 0.22), shell.lightened(0.04), 5, 10)
+		_e(st, hd + Vector3(sd * 0.2, 0.26, 0.0), Vector3(0.1, 0.05, 0.12), sheen, 3, 8)
+	_e(st, hd + Vector3(0, -0.1, -0.24), Vector3(0.2, 0.1, 0.1), plate, 4, 10)
+	_e(st, hd + Vector3(0, -0.18, -0.26), Vector3(0.13, 0.05, 0.07), wine, 3, 8)
+	for sd: float in [-1.0, 1.0]:
+		var m0 := hd + Vector3(sd * 0.2, -0.14, -0.2)
+		var pts := [m0, m0 + Vector3(sd * 0.1, -0.06, -0.18), m0 + Vector3(sd * 0.05, -0.1, -0.36), m0 + Vector3(-sd * 0.1, -0.1, -0.46)]
+		_horn(st, pts, 0.055, plate.darkened(0.2), 8)
+		_e(st, pts[3], Vector3.ONE * 0.035, GOLD, 3, 6, 0.2)
+		for k in 3:
+			var p: Vector3 = (pts[1] as Vector3).lerp(pts[2], 0.25 + k * 0.3)
+			_spike(st, p, Vector3(-sd, -0.1, -0.3), 0.07, 0.022, IVORY.darkened(0.1), 5)
+	for sd: float in [-1.0, 1.0]:
+		var a0 := hd + Vector3(sd * 0.12, 0.08, -0.26)
+		var elbow := a0 + Vector3(sd * 0.32, 0.4, -0.14)
+		var tip := elbow + Vector3(sd * 0.3, 0.06, -0.5)
+		MeshKit.tube(st, [a0, a0.lerp(elbow, 0.5) + Vector3(0, 0.03, 0), elbow], [0.026, 0.022, 0.02], 6, plate)
+		var flag: Array = []
+		var radii: Array = []
+		for k in 7:
+			var t := float(k) / 6.0
+			flag.append(elbow.lerp(tip, t) + Vector3(0, sin(t * PI) * 0.08, 0))
+			radii.append(0.018 + t * t * 0.026)
+		MeshKit.tube(st, flag, radii, 6, plate.lightened(0.08))
+		_e(st, tip, Vector3(0.055, 0.05, 0.08), GOLD.darkened(0.05), 3, 8, 0.15)
+
+	# --- The crown: a gold circlet on the brow and a crest of ivory spikes set
+	# with amber gems, the tall middle one over the glowing crown jewel.
+	var cr := hd + Vector3(0, 0.3, 0.06)
+	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, -0.25), cr), 0.29, 0.33, 0.09, 18, GOLD)
+	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, -0.25), cr + Vector3(0, 0.05, -0.01)), 0.335, 0.335, 0.025, 18, gold_dark)
+	for k in 7:
+		var a := lerpf(-1.15, 1.15, float(k) / 6.0)
+		var mid := absi(k - 3)
+		var tall: float = [0.6, 0.4, 0.33, 0.24][mid]
+		var base := cr + Vector3(sin(a) * 0.3, 0.05, -cos(a) * 0.12)
+		var dir := Vector3(sin(a) * 0.5, 1.0, 0.16 - cos(a) * 0.06).normalized()
+		_spike(st, base, dir, tall, 0.07 - mid * 0.006, GOLD, 7)
+		_spike(st, base, dir, tall * 0.45, 0.085 - mid * 0.006, gold_dark, 7)
+		_e(st, base + dir * tall, Vector3.ONE * (0.05 - mid * 0.005), IVORY, 4, 8, 0.15)
+		if k % 2 == 1:
+			_e(st, base + dir * 0.05 + Vector3(0, 0, -0.06), Vector3(0.025, 0.03, 0.016), wine.lightened(0.25), 3, 6, 0.4)
+	# The crown jewel at the front of the circlet: small, bright, the target.
+	var jewel := cr + Vector3(0, 0.1, -0.34)
+	_e(st, jewel + Vector3(0, 0, 0.02), Vector3(0.105, 0.12, 0.04), GOLD, 4, 10, 0.1)
+	BugBuilder._weak(st, jewel, Vector3(0.07, 0.085, 0.05), amber)
+	BugBuilder._eyes(st, hd + Vector3(0, 0.06, -0.26), 0.25, 0.1)
+
+	# Legs: shorter and stout for her weight, gold greaves on the shins (LegRig bands).
+	var legs := BugBuilder._legs(3, -0.6, -0.16, 0.4, 0.36, 1.0, -0.55)
+	var spec := _spec(st, legs, 0.82, 0.92, 0.13, plate.darkened(0.15), jewel, 0.3, 1.25, 0.62,
+			{"mouth": hd + Vector3(0, -0.16, -0.3), "mandible": 0.18, "antenna": 0.0, "color": plate})
+	spec["crown"] = jewel
+	spec["belly"] = ab_c + Vector3(0, 0.5, 0.15) # on her back, where it shows from across the canyon
+	spec["mouth_at"] = hd + Vector3(0, -0.16, -0.32)
+	return spec
 
 
 # ------------------------------------------------------------------ the small ones

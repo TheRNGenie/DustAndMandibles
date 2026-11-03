@@ -34,10 +34,13 @@ func _bosses(plan: Dictionary) -> Array:
 
 
 func test_every_chapter_loads_and_is_sound() -> void:
-	assert_eq(StoryChapter.all().size(), 4, "four playable chapters")
+	assert_eq(StoryChapter.all().size(), 7, "seven playable chapters (7 comes later)")
+	var prev := 0
 	for ch in StoryChapter.all():
 		assert_eq(ch.problems(), [] as Array[String], ch.id)
-		assert_eq(ch.id, StoryChapter.IDS[ch.number - 1], "ids in order")
+		assert_eq(ch.id, "ch%d" % ch.number, "ids match numbers")
+		assert_true(ch.number > prev, "play order follows the numbers")
+		prev = ch.number
 
 
 func test_chapters_follow_on_and_rotate_maps() -> void:
@@ -127,7 +130,9 @@ func test_weather_and_maps() -> void:
 
 func test_next_chapter() -> void:
 	assert_eq(StoryChapter.next_id("ch1"), "ch2")
-	assert_eq(StoryChapter.next_id("ch4"), "", "chapter 5 isn't built yet")
+	assert_eq(StoryChapter.next_id("ch4"), "ch5")
+	assert_eq(StoryChapter.next_id("ch6"), "ch8", "chapter 7 is an expedition, built later")
+	assert_eq(StoryChapter.next_id("ch8"), "", "the Queen is the last")
 
 
 func test_progress_unlocks_in_order() -> void:
@@ -228,3 +233,101 @@ func test_director_objective_rules() -> void:
 	assert_true(d.objective_done())
 	box.free()
 	d.free()
+
+
+func test_the_queen_needs_chapter_six_for_now() -> void:
+	var ch8 := StoryChapter.load_id("ch8")
+	assert_eq(ch8.required(), "ch6", "data flag: point it at ch7 once that's built")
+	assert_eq(StoryChapter.load_id("ch6").required(), "ch5", "the rest follow play order")
+	assert_eq(StoryChapter.load_id("ch1").required(), "")
+	var p := StoryProgress.new()
+	for cid in ["ch1", "ch2", "ch3", "ch4", "ch5"]:
+		p.win(StoryChapter.load_id(cid))
+	assert_true(p.is_unlocked("ch6"))
+	assert_false(p.is_unlocked("ch8"))
+	assert_false(p.is_unlocked("ch7"), "a planned chapter is never playable")
+	p.win(StoryChapter.load_id("ch6"))
+	assert_true(p.is_unlocked("ch8"))
+	assert_eq(p.next_up(), "ch8")
+	var later := StoryChapter.from_dict({"id": "ch8", "requires": "ch7"})
+	assert_false(later.problems().has("requires unknown chapter ch7"), "ch7 is a planned chapter")
+	var bad := StoryChapter.from_dict({"id": "ch8", "requires": "ch99"})
+	assert_true(bad.problems().has("requires unknown chapter ch99"))
+
+
+func test_the_story_bosses() -> void:
+	assert_eq(StoryChapter.load_id("ch5").boss_for(15), &"burrow_beetle")
+	assert_eq(StoryChapter.load_id("ch6").bosses_for(18), [&"thunder_cicada", &"mirage_mantis"] as Array[StringName])
+	assert_eq(StoryChapter.load_id("ch6").weather_for(17), Weather.Kind.DUST_STORM)
+	assert_eq(StoryChapter.load_id("ch6").weather_for(18), Weather.Kind.DUST_STORM)
+	assert_eq(StoryChapter.load_id("ch8").boss_for(20), &"hive_queen")
+
+
+func test_two_bosses_on_one_wave_take_different_cliffs() -> void:
+	var ch := StoryChapter.load_id("ch6")
+	var plan := ch.apply_to_plan(_plan(18), 18)
+	var cliffs: Array = []
+	for g: Dictionary in plan["groups"]:
+		if Defs.bug(StringName(str(g["bug"]))).behavior == BugDef.Behavior.BOSS:
+			cliffs.append(int(g["cliff"]))
+	assert_eq(_bosses(plan).size(), 2)
+	assert_true(_bosses(plan).has(&"thunder_cicada") and _bosses(plan).has(&"mirage_mantis"))
+	assert_true(cliffs[0] != cliffs[1], "one on each cliff")
+	var solo := ch.apply_to_plan(_plan(17, 1), 17)
+	assert_eq(_bosses(solo), [&"mirage_mantis"], "one held cliff: one boss on a non-double wave")
+
+
+func test_keep_objective_rules() -> void:
+	var ch5 := StoryChapter.load_id("ch5")
+	assert_eq(ch5.kind(), "keep")
+	assert_eq(ch5.keep_thing(), "storeys")
+	assert_eq(ch5.keep_need(1), 5)
+	assert_eq(ch5.keep_need(2), 10, "per held cliff")
+	assert_true(ch5.keep_ok(10, 2))
+	assert_false(ch5.keep_ok(9, 2))
+	var ch6 := StoryChapter.load_id("ch6")
+	assert_eq(ch6.keep_thing(), "lanterns")
+	assert_eq(ch6.keep_need(3), 12)
+	assert_true(bool(ch6.objective.get("screech_breaks_lanterns", false)), "the Cicada breaks lanterns in chapter 6")
+	assert_false(ch6.event_lines("short").is_empty())
+	assert_false(ch5.event_lines("short").is_empty())
+	var bad := StoryChapter.from_dict({"id": "x", "objective": {"kind": "keep", "thing": "cows"}})
+	assert_true(bad.problems().has("keep needs thing storeys or lanterns"))
+	assert_true(bad.problems().has("keep needs per_cliff"))
+
+
+func test_keep_counts_storeys_and_lanterns() -> void:
+	var a := ScaffoldNode.new()
+	a.cliff_id = 0
+	a.levels = 3
+	var b := ScaffoldNode.new()
+	b.cliff_id = 1
+	b.levels = 2
+	var c := ScaffoldNode.new()
+	c.cliff_id = 2
+	c.levels = 3
+	assert_eq(StoryDirector.count_storeys([a, b, c, null], [0, 1] as Array[int]), 5, "only held cliffs")
+	assert_eq(StoryDirector.count_storeys([a, b, c], [2] as Array[int]), 3)
+	var l1 := StructureNode.new()
+	l1.cliff_id = 0
+	var l2 := StructureNode.new()
+	l2.cliff_id = 0
+	l2.health = Health.new()
+	l2.health.dead = true
+	var l3 := StructureNode.new()
+	l3.cliff_id = 1
+	assert_eq(StoryDirector.count_lanterns([l1, l2, l3], [0] as Array[int]), 1, "a broken lantern doesn't count")
+	assert_eq(StoryDirector.count_lanterns([l1, l2, l3], [0, 1] as Array[int]), 2)
+	var d := StoryDirector.new()
+	d.chapter = StoryChapter.load_id("ch5")
+	d.keep_have = 4
+	assert_false(d.objective_done(), "keep: 4 of 5 storeys")
+	d.keep_have = 5
+	assert_true(d.objective_done())
+	assert_eq(d.keep_noun(1), "scaffold storey")
+	d.chapter = StoryChapter.load_id("ch6")
+	assert_eq(d.keep_noun(2), "lantern posts")
+	for n: Node in [a, b, c, l1, l3, d]:
+		n.free()
+	l2.health.free()
+	l2.free()

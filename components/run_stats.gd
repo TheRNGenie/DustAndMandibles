@@ -12,6 +12,8 @@ static var by_source: Dictionary = {}
 static var by_bug: Dictionary = {}
 ## Boss names killed, in order.
 static var bosses: Array[String] = []
+## Boss name -> who landed the killing blow (the first time it fell).
+static var boss_by: Dictionary = {}
 static var _boss_names: Dictionary = {}
 
 
@@ -21,6 +23,7 @@ static func reset() -> void:
 	by_source = {}
 	by_bug = {}
 	bosses = []
+	boss_by = {}
 
 
 static func note_kill(bug_name: String, source: String, scrap_drop: int) -> void:
@@ -31,6 +34,8 @@ static func note_kill(bug_name: String, source: String, scrap_drop: int) -> void
 	by_bug[bug_name] = int(by_bug.get(bug_name, 0)) + 1
 	if is_boss(bug_name) and not bosses.has(bug_name):
 		bosses.append(bug_name)
+		if source != "":
+			boss_by[bug_name] = source
 
 
 static func is_boss(bug_name: String) -> bool:

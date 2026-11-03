@@ -1,0 +1,57 @@
+{
+	"id": "ch5",
+	"number": 5,
+	"title": "The Railroad's Secret",
+	"map": "mesa",
+	"first_wave": 14,
+	"last_wave": 16,
+	"blurb": "Silas Kettle has a confession about 1889, and a Burrowing Beetle is tunnelling under your scaffolds. Keep the towers standing while he talks.",
+	"start_bonus": {"scrap": 1100, "chitin": 80},
+	"objective": {"kind": "keep", "text": "Keep 5 Scaffold Storeys Standing on Every Cliff", "thing": "storeys", "per_cliff": 5},
+	"bosses": {"15": "burrow_beetle", "16": "burrow_beetle"},
+	"extra_bugs": {"14": [["rattler_beetle", 6]], "15": [["rattler_beetle", 6]], "16": [["rattler_beetle", 8], ["spitter_scorpion", 6]]},
+	"weather": {},
+	"telegram": {
+		"title": "Raise the Towers",
+		"body": "BURROWING BEETLE UNDER THE MESA STOP IT BRINGS DOWN SCAFFOLDS FROM BELOW STOP KEEP FIVE STOREYS STANDING ON EVERY CLIFF AT EVERY DAWN STOP LANTERNS FLUSH IT UP EARLY STOP SILAS WISHES TO SPEAK STOP LET HIM"
+	},
+	"radio": {
+		"14": {
+			"build": [
+				["stroud", "Something's digging under the mesa. Get your scaffolds up: five storeys a cliff, standing at every dawn."],
+				["kettle", "Captain. Ranchers. I've kept something quiet for eleven years. It's about the tunnel."],
+				["stroud", "Silas, they're busy. Confess between waves like a gentleman."]
+			],
+			"wave": [["stroud", "Beetles at the walls. Keep those towers standing!"]]
+		},
+		"15": {
+			"build": [
+				["kettle", "The 1889 blast wasn't an accident. The railroad packed that tunnel on purpose."],
+				["kettle", "They wanted the canyon cleared of homesteaders. Cheaper than buying you out."],
+				["pearl", "Silas. You knew? I've been cheating honest people at cards for less."]
+			],
+			"wave": [["stroud", "Ground's shaking. That beetle's coming up under a tower. Lanterns flush it out!"]]
+		},
+		"16": {
+			"build": [
+				["kettle", "I rigged the charges. They told me it was a mine. Nobody said what was below it."],
+				["doc", "The Hive was always there, Silas. You just rang the dinner bell."],
+				["stroud", "One more night. Then we decide what to do with the truth. And with Silas."]
+			],
+			"wave": [["kettle", "Shoot straight tonight. I owe this canyon that much."]]
+		}
+	},
+	"events": {
+		"short": [["stroud", "Towers are coming down! Rebuild before dawn or the survey's lost."]],
+		"boss_down": [["kettle", "That beetle had my old shovel marks on its back. Good riddance."]],
+		"win": [["stroud", "Towers stood, the beetle's buried, and the railroad's secret is out."], ["kettle", "Feels lighter. Like dropping an anvil off a cliff."]],
+		"lost": [["stroud", "Not enough timber standing at dawn. Back to the mesa, ranchers."]]
+	},
+	"journal": {
+		"title": "Specimen Notes, No. 5",
+		"body": "Silas told me everything tonight. The railroad paid him to blast the tunnel and clear the canyon.\n\nThe beetles dig toward old dynamite. They remember the smell. So, it seems, does Silas.\n\n- E. Whitlow, Rail Car 9"
+	},
+	"rewards": {"notches": 70, "unlock": {"kind": "blueprint", "id": "craft_tripod_cannon_acid", "name": "Silas's Blueprint: Tripod Etching Thumper"}},
+	"headline_win": "Gunsmith Confesses: 1889 Blast 'Was No Accident'",
+	"headline_loss": "Mesa Scaffolds Collapse; Beetle Undermines Ranch"
+}

@@ -36,6 +36,9 @@ enum Behavior { SWARM, TANK, LEAPER, SPITTER, BROOD, BURROWER, FLIER, CROP_EATER
 ## does and what beats it), and the crime under WANTED on its poster.
 @export var boss_tip: String = ""
 @export var wanted_for: String = ""
+## Bosses only: met in Story mode only (the Hive Queen), never picked for a
+## run's boss wave.
+@export var story_only: bool = false
 
 
 ## The plain bug type this is (itself, or the bug a variant is based on).
