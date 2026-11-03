@@ -729,6 +729,9 @@ func _debug_view() -> void:
 					if pl.name == "CratePile%d" % p.cliff_id:
 						pile_at = pl.global_position
 				_place(p, pile_at + (a.foot_stand - pile_at).normalized() * 3.0 + Vector3.UP * 0.1 + a.inward * 1.5, pile_at + Vector3.UP * 0.4)
+				if GameState.has_flag("--ch7take"):
+					await get_tree().create_timer(1.5).timeout
+					request_take()
 		"interior":
 			_place(p, tunnel.entrance_stand() + Vector3.UP * 0.05, tunnel.to_global(MineTunnel.local_at(30.0, 0.0, 1.4)))
 			if multiplayer.is_server():

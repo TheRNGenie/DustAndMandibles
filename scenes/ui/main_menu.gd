@@ -547,7 +547,7 @@ func _refresh() -> void:
 	if ch != null:
 		_map_row.visible = false
 		_map_title.text = "Chapter %d: %s" % [ch.number, ch.title]
-		_map_label.text = "%s  ·  Waves %d to %d  ·  %s\n%s" % [map.display_name, ch.first_wave, ch.last_wave, ch.objective_text(), ch.blurb]
+		_map_label.text = "%s  ·  %s  ·  %s\n%s" % [map.display_name, ch.waves_text(), ch.objective_text(), ch.blurb]
 		if multiplayer.is_server() and NetworkManager.is_online():
 			_solo_btn.text = "Start Chapter Alone" if NetworkManager.players.size() <= 1 else "Start Chapter"
 

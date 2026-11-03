@@ -167,7 +167,7 @@ func _fill_page(ch: StoryChapter) -> void:
 	var state := _state_of(ch.id)
 	var title := "Chapter %d: %s" % [ch.number, ch.title]
 	_page.add_child(UiStyle.title(title, 34 if title.length() <= 26 else 28))
-	var meta := UiStyle.label("%s  ·  Waves %d to %d  ·  Solo or 2-4 Riders" % [MapDef.display_name_of(ch.map), ch.first_wave, ch.last_wave], 16)
+	var meta := UiStyle.label("%s  ·  %s  ·  Solo or 2-4 Riders" % [MapDef.display_name_of(ch.map), ch.waves_text()], 16)
 	meta.theme_type_variation = "SoftInkLabel"
 	_page.add_child(meta)
 	if ch.first_wave > 1:

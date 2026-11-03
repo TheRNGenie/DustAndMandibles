@@ -151,6 +151,11 @@ func wave_count() -> int:
 	return last_wave - first_wave + 1
 
 
+## "Waves 6 to 8", or "Wave 19" for a one-night chapter.
+func waves_text() -> String:
+	return "Wave %d" % first_wave if last_wave == first_wave else "Waves %d to %d" % [first_wave, last_wave]
+
+
 func kind() -> String:
 	return str(objective.get("kind", "hold"))
 
