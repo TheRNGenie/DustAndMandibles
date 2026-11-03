@@ -256,7 +256,7 @@ func damage_homestead(cliff_id: int, amount: float) -> void:
 		_finish.rpc(false, "The %s Homestead fell on wave %d." % [side, wave])
 
 
-@rpc("authority", "call_local", "unreliable_ordered")
+@rpc("authority", "call_local", "unreliable")
 func _sync_homesteads(hp: Array, mx: Array) -> void: # Maps: one entry per cliff
 	homestead_hp.assign(hp)
 	homestead_max.assign(mx)

@@ -561,7 +561,7 @@ var _net_set := false
 
 
 ## Host -> clients: where the CPU stands, which way it faces, how fast it walks.
-@rpc("authority", "call_remote", "unreliable_ordered")
+@rpc("authority", "call_remote", "unreliable")
 func _pose(dzy: Vector3, pitch: float, speed: float) -> void:
 	_net = dzy
 	_pitch = pitch

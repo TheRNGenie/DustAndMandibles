@@ -67,7 +67,7 @@ func server_damage(amount: float) -> void:
 		_take_damage.rpc_id(player.get_multiplayer_authority(), amount)
 
 
-@rpc("any_peer", "call_remote", "unreliable_ordered")
+@rpc("any_peer", "call_remote", "unreliable")
 func _take_damage(amount: float) -> void:
 	if multiplayer.get_remote_sender_id() == 1:
 		player.vitals.apply_damage(amount)

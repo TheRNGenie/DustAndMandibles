@@ -620,7 +620,7 @@ func _leave_seat(tell_host: bool = true) -> void:
 
 
 ## Host: the gunner's aim and triggers, every tick.
-@rpc("any_peer", "unreliable_ordered")
+@rpc("any_peer", "unreliable")
 func _crew_input(aim: Vector3, fire: bool, alt: bool) -> void:
 	if multiplayer.is_server() and multiplayer.get_remote_sender_id() == crew_peer:
 		_set_input(aim, fire, alt)
