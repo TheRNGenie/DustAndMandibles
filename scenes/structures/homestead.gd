@@ -35,6 +35,7 @@ var _col: CollisionShape3D
 var _lights: Array[OmniLight3D] = []
 var _flag: MeshInstance3D
 var _flag_t := 0.0
+var _flag_acc := 1.0
 var _chair: MeshInstance3D
 var _smoke_at := Vector3.ZERO
 var _smoke_t := 0.0
@@ -104,6 +105,11 @@ func _animate_flag(delta: float) -> void:
 	if _flag == null:
 		return
 	_flag_t += delta
+	# The strips are rebuilt as a new mesh: 30 times a second is smooth enough for cloth.
+	_flag_acc += delta
+	if _flag_acc < 1.0 / 30.0:
+		return
+	_flag_acc = 0.0
 	var wind := 2.2 if GameState.weather == Weather.Kind.WINDY or GameState.weather == Weather.Kind.DUST_STORM else 1.0
 	var st := MeshKit.begin()
 	var team := Palette.team_color(cliff_id)

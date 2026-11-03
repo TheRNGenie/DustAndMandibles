@@ -149,7 +149,10 @@ func _make_synchronizer() -> MultiplayerSynchronizer:
 
 func _physics_process(delta: float) -> void:
 	if multiplayer.is_server():
+		var t0 := Time.get_ticks_usec()
 		_think(delta)
+		if CpuProf.on:
+			CpuProf.add(&"turrets", Time.get_ticks_usec() - t0)
 	_aim_visual(delta)
 	if shots != _seen_shots:
 		_seen_shots = shots
@@ -193,30 +196,50 @@ func _think(delta: float) -> void:
 func _pick_target() -> Bug:
 	if bug_manager == null:
 		return null
-	var best: Bug = null
-	var best_score := -INF
+	# Every rule but line of sight first (cheap), then rays only for the best
+	# few in score order: the same pick as testing every bug, without a ray per
+	# bug in range.
+	var muzzle := _sight_point()
+	var seen := weather_range()
+	var pitch := pitch_limit()
+	var max_range := def.range * range_multiplier()
+	var cands: Array[Bug] = []
+	var scores: Array[float] = []
 	if def.guards_plateau or def.anti_air:
 		for n: Node in bug_manager.get_children():
 			var g := n as Bug
-			if g == null or not _valid(g):
+			if g == null or not _valid_cheap(g, muzzle, seen, pitch, max_range):
 				continue
-			var gscore := -g.global_position.distance_to(global_position)
-			if gscore > best_score:
-				best = g
-				best_score = gscore
-		return best
-	for b in bug_manager.climbers_on(covers):
-		if not _valid(b):
-			continue
-		var score := Targeting.priority(b.climb_y, b.global_position.distance_to(global_position))
-		if score > best_score:
-			best = b
-			best_score = score
-	return best
+			cands.append(g)
+			scores.append(-g.global_position.distance_to(global_position))
+	else:
+		for b in bug_manager.climbers_on(covers):
+			if not _valid_cheap(b, muzzle, seen, pitch, max_range):
+				continue
+			cands.append(b)
+			scores.append(Targeting.priority(b.climb_y, b.global_position.distance_to(global_position)))
+	while not cands.is_empty():
+		# The first best score (as a plain scan would keep it).
+		var top := 0
+		for i in range(1, scores.size()):
+			if scores[i] > scores[top]:
+				top = i
+		if _clear_shot(cands[top], muzzle):
+			return cands[top]
+		cands.remove_at(top)
+		scores.remove_at(top)
+	return null
 
 
 ## The cross-defense rule plus pitch limit, range and line of sight.
 func _valid(b: Bug) -> bool:
+	var muzzle := _sight_point() # Crewed: crewed guns look from the gun, not their low turntable
+	return _valid_cheap(b, muzzle, weather_range(), pitch_limit(), def.range * range_multiplier()) and _clear_shot(b, muzzle)
+
+
+## _valid() without the line-of-sight ray (`seen`: weather_range(), `max_range`
+## before the weather: def.range * range_multiplier()).
+func _valid_cheap(b: Bug, muzzle: Vector3, seen: float, pitch: float, max_range: float) -> bool:
 	if not b.is_alive() or b.is_hidden() or b.untargetable(): # Boss: untargetable = Mirage Mantis fading
 		return false
 	if def.anti_air:
@@ -233,12 +256,13 @@ func _valid(b: Bug) -> bool:
 				return false
 	elif not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing(), covers):
 		return false
-	var muzzle := _sight_point() # Crewed: crewed guns look from the gun, not their low turntable
-	var seen := weather_range()
 	if seen < 1.0 and _lit_near(b.global_position):
 		seen = 1.0 # a lantern or a lit lighter shows this bug through the murk
-	if not Targeting.in_arc(muzzle, b.global_position, pitch_limit(), def.range * range_multiplier() * seen):
-		return false
+	return Targeting.in_arc(muzzle, b.global_position, pitch, max_range * seen)
+
+
+## Line of sight from the muzzle to the bug (rock and buildings block it).
+func _clear_shot(b: Bug, muzzle: Vector3) -> bool:
 	var q := PhysicsRayQueryParameters3D.create(muzzle, b.global_position, WorldLayout.LAYER_WORLD)
 	if def.guards_house:
 		# House turrets sit on the porch, balcony and roof deck: their own house's

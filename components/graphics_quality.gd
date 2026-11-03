@@ -41,8 +41,13 @@ const PARTICLE_RATIO: Array[float] = [0.5, 0.75, 1.0]
 ## (microseconds per tick) the rest share, and how close a bug wears a face.
 const BUG_FULL_DETAIL: Array[int] = [16, 28, 40]
 const BUG_FAR_BUDGET: Array[int] = [60, 80, 100]
-const BUG_TURN_BUDGET_US: Array[float] = [3000.0, 4000.0, 5000.0]
+const BUG_TURN_BUDGET_US: Array[float] = [2500.0, 4000.0, 5000.0]
 const BUG_FACE_RANGE: Array[float] = [10.0, 14.0, 17.0]
+## How often (at most, per second) a bug outside the full-detail few gets its
+## turn: on screen, and off screen (where nothing of it is drawn). Its brain
+## gets all the time in between, so bugs move the same at any rate.
+const BUG_ON_SCREEN_HZ: Array[float] = [15.0, 20.0, 30.0]
+const BUG_OFF_SCREEN_HZ: Array[float] = [4.0, 5.0, 6.0]
 
 
 static func level(v: int) -> int:

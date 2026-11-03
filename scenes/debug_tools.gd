@@ -816,8 +816,17 @@ func _soak(seconds: float) -> void:
 			Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0]))
 	var start := Time.get_ticks_msec()
 	var last_seen := {} # --stuckcheck: bug -> [position, seconds unmoved]
+	CpuProf.install(get_tree().root)
+	var prof_t := 0
 	while Time.get_ticks_msec() - start < int(seconds * 1000.0) and GameState.phase != GameState.Phase.GAME_OVER:
 		await get_tree().create_timer(1.0).timeout
+		# Per-system script time every 10 s of a wave (CpuProf).
+		prof_t += 1
+		if prof_t >= 10:
+			prof_t = 0
+			if GameState.phase == GameState.Phase.WAVE:
+				print("[soak cpu] bugs %d turrets %d  %s" % [bugs.alive_count(), get_tree().get_nodes_in_group("turrets").size(), CpuProf.report()])
+			CpuProf.reset()
 		if GameState.has_flag("--stuckcheck"):
 			# Living bugs that haven't moved half a metre in 30 s (rooted/webbed ones excepted).
 			var now := {}
@@ -1366,7 +1375,9 @@ func _stress(count: int) -> void:
 		await get_tree().create_timer(float(GameState.flag_value("--seconds")) if GameState.flag_value("--seconds") != "" else 4.0).timeout
 		get_viewport().get_texture().get_image().save_png(pic)
 		print("[stress] screenshot ", pic)
+	CpuProf.install(get_tree().root)
 	for s in 6:
+		CpuProf.reset()
 		var t0 := Time.get_ticks_msec()
 		var frames := Engine.get_frames_drawn()
 		var proc := 0.0
@@ -1395,6 +1406,7 @@ func _stress(count: int) -> void:
 		RenderingServer.viewport_set_measure_render_time(vp, true)
 		print("[stress]   render cpu %.2f ms  gpu %.2f ms  frame cpu %.2f ms  video mem %.0f MB  textures %.0f MB  static mem %.0f MB" % [RenderingServer.viewport_get_measured_render_time_cpu(vp), RenderingServer.viewport_get_measured_render_time_gpu(vp), RenderingServer.get_frame_setup_time_cpu(),
 				Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0, Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0, Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0])
+		print("[stress]   ", CpuProf.report())
 		print("[stress]   physics active %d  pairs %d  islands %d" % [Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS), Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS), Performance.get_monitor(Performance.PHYSICS_3D_ISLAND_COUNT)])
 		var kinds := {}
 		var states := {}
