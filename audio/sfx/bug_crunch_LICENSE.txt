@@ -1,0 +1,5 @@
+bug_crunch.ogg, bug_crunch__2.ogg, bug_crunch__3.ogg, bug_crunch__4.ogg
+Source: "Crunch sounds (cucumber)" by cogitollc (crunch_1_0, crunch_2_0, crunch_6_0, crunch_5_0.ogg)
+https://opengameart.org/content/crunch-sounds-cucumber
+Licence: CC0 1.0 Universal (public domain dedication) https://creativecommons.org/publicdomain/zero/1.0/
+Edited (trimmed, high-passed at 350 Hz, slightly pitched up, faded, loudness-matched) by tools/audio/import_crunch.py

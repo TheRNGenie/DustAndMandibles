@@ -222,7 +222,10 @@ func _corpse(path: NodePath) -> void:
 func _pop(pos: Vector3, color: Color, size: float) -> void:
 	if vfx != null:
 		vfx.pop(pos, color, size)
-	# (No death sound: the owner cut the "boing" pop.)
+	# A light chitin crunch (the old "boing" pop is gone). Bigger shells crack a touch
+	# lower and louder; Audio caps how many play at once and drops far-off ones.
+	var s := clampf(size, 0.5, 3.0)
+	Audio.play_crunch(pos, -6.0 + 2.0 * (s - 1.0), clampf(1.12 - 0.12 * s, 0.8, 1.1))
 
 
 @rpc("authority", "call_local", "reliable")

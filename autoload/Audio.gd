@@ -16,12 +16,19 @@ const NAMES: Array[StringName] = [&"revolver", &"gatling_1", &"gatling_2", &"gat
 	&"step_dirt", &"step_wood", &"land_dirt", &"land_wood", &"jump", &"slide", &"equip", &"throw",
 	&"harvest_pull", &"plant_dig", &"pump", &"salvage", &"loot_crack", &"chest_open", &"scribble", &"hammer_hit",
 	&"slot_lever", &"card_flick", &"roulette_spin", &"wheel_tick", &"dice", &"register", &"zip_grab", &"zip_start",
-	&"herb_eat", &"cig_light", &"hook_bite", &"spur"]
+	&"herb_eat", &"cig_light", &"hook_bite", &"spur",
+	# Recorded (tools/audio/import_crunch.py): the light shell crack when a bug dies.
+	&"bug_crunch"]
 ## Most sounds have several takes (name.wav, name__2.wav, ...); one is picked at random.
 const MAX_TAKES := 6
 const POOL_3D := 32
 const POOL_UI := 8
 const PITCH_VARIATION := 0.08
+## Bug death crunches: their own small pool so a wave never steals gunfire's players,
+## a steep falloff (soft at 15 m, gone past 38 m) and a cap per 100 ms (SoundLimiter).
+const CRUNCH_POOL := 6
+const CRUNCH_MAX_DISTANCE := 38.0
+const CRUNCH_UNIT_SIZE := 5.0
 
 var _streams: Dictionary = {}
 var _takes: Dictionary = {}
@@ -30,6 +37,8 @@ var _players_3d: Array[AudioStreamPlayer3D] = []
 var _players_ui: Array[AudioStreamPlayer] = []
 var _next_3d := 0
 var _next_ui := 0
+var _players_crunch: Array[AudioStreamPlayer3D] = []
+var _crunch_limit := SoundLimiter.new(CRUNCH_POOL, 4, 100)
 var _music: Array[AudioStreamPlayer] = []
 var _music_on := 0
 var _music_name: StringName = &""
@@ -73,6 +82,16 @@ func _ready() -> void:
 		p.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
 		add_child(p)
 		_players_3d.append(p)
+	for i in CRUNCH_POOL:
+		var c := AudioStreamPlayer3D.new()
+		c.bus = sfx_bus
+		# Inverse square: 0 dB at 5 m, -12 dB at 10 m, -24 dB at 20 m, then a hard stop.
+		c.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_SQUARE_DISTANCE
+		c.unit_size = CRUNCH_UNIT_SIZE
+		c.max_distance = CRUNCH_MAX_DISTANCE
+		c.max_db = 0.0
+		add_child(c)
+		_players_crunch.append(c)
 	for i in POOL_UI:
 		var u := AudioStreamPlayer.new()
 		u.bus = ui_bus
@@ -126,6 +145,28 @@ func play_at(sound: StringName, pos: Vector3, volume_db: float = 0.0, pitch: flo
 	var p := _players_3d[_next_3d]
 	_next_3d = (_next_3d + 1) % _players_3d.size()
 	p.stream = _pick(sound)
+	p.global_position = pos
+	p.volume_db = volume_db
+	p.pitch_scale = randf_range(1.0 - PITCH_VARIATION, 1.0 + PITCH_VARIATION) * pitch
+	p.play()
+
+
+## A bug's death crunch at `pos`, on whichever peer calls it. Deaths beyond earshot
+## cost nothing; when many die at once only the nearest few are heard.
+func play_crunch(pos: Vector3, volume_db: float = 0.0, pitch: float = 1.0) -> void:
+	if not _streams.has(&"bug_crunch"):
+		return
+	var cam: Camera3D = get_viewport().get_camera_3d()
+	var dist := cam.global_position.distance_to(pos) if cam != null else 0.0
+	if dist > CRUNCH_MAX_DISTANCE:
+		return
+	var slot := _crunch_limit.admit(Time.get_ticks_msec(), dist)
+	if slot < 0:
+		return
+	if _log:
+		print("[audio] bug_crunch at %s %.0f m slot %d" % [str(pos.snapped(Vector3.ONE * 0.1)), dist, slot])
+	var p := _players_crunch[slot]
+	p.stream = _pick(&"bug_crunch")
 	p.global_position = pos
 	p.volume_db = volume_db
 	p.pitch_scale = randf_range(1.0 - PITCH_VARIATION, 1.0 + PITCH_VARIATION) * pitch
