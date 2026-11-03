@@ -207,9 +207,13 @@ func _add_cigarette(mouth: Vector3) -> void:
 
 # ------------------------------------------------------------------ pool
 
-## Spare faces by bug kind (and smoker), out of the tree.
+## Spare faces by bug kind (and smoker), out of the tree. Spares are orphan
+## nodes (~20 each), so the pool is capped per kind and in total: the oldest
+## spare goes first, so kinds from earlier waves don't sit there all run.
 static var _pool: Dictionary = {}
-const POOL_PER_KIND := 12
+static var _spares: Array = [] # every pooled face, oldest first
+const POOL_PER_KIND := 4
+const POOL_TOTAL := 16
 
 
 ## A face for `bug` (from the pool when one is spare). Not yet in the tree.
@@ -221,6 +225,7 @@ static func acquire(bug: Bug) -> BugFace:
 		var c: Object = spare.pop_back()
 		if is_instance_valid(c):
 			f = c as BugFace
+			_spares.erase(f)
 	if f == null:
 		f = BugFace.new()
 		f.setup(bug, bug.spec, bug.smoker)
@@ -247,6 +252,12 @@ static func release(f: BugFace) -> void:
 		return
 	spare.append(f)
 	_pool[key] = spare
+	_spares.append(f)
+	while _spares.size() > POOL_TOTAL:
+		var old: Object = _spares.pop_front()
+		if is_instance_valid(old):
+			(_pool.get(old.get_meta("pool_key", ""), []) as Array).erase(old)
+			old.free()
 
 
 ## Frees every pooled face (the world is going away).
@@ -256,6 +267,7 @@ static func clear_pool() -> void:
 			if is_instance_valid(f):
 				f.free()
 	_pool.clear()
+	_spares.clear()
 
 
 ## Got shot: brows jump into a deep scowl, eyes squeeze, mandibles snap.

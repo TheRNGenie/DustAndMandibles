@@ -793,6 +793,39 @@ func _waterworks_test() -> void:
 	get_tree().quit()
 
 
+## --orphans=N (with --soak): every N seconds, groups the nodes outside the tree
+## (Node.get_orphan_node_ids) by class, script and name, plus the roots of the
+## detached subtrees, so a leak shows who made it. Debug builds only.
+static func print_orphan_summary(label: String) -> void:
+	var groups := {}
+	var roots := {}
+	var ids: Array = Node.get_orphan_node_ids()
+	for id: int in ids:
+		var n := instance_from_id(id) as Node
+		if n == null:
+			continue
+		var key := _orphan_key(n)
+		groups[key] = int(groups.get(key, 0)) + 1
+		if n.get_parent() == null:
+			var rkey := "%s (%d kids)" % [key, n.get_child_count(true)]
+			roots[rkey] = int(roots.get(rkey, 0)) + 1
+	print("[orphans %s] total %d (monitor %d)" % [label, ids.size(), Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)])
+	for part: Array in [["by node", groups], ["roots", roots]]:
+		var d: Dictionary = part[1]
+		if d.is_empty():
+			continue
+		var keys := d.keys()
+		keys.sort_custom(func(a: String, b: String) -> bool: return d[a] > d[b])
+		print("  %s:" % part[0])
+		for k: String in keys.slice(0, 20):
+			print("    %5d  %s" % [d[k], k])
+
+
+static func _orphan_key(n: Node) -> String:
+	var scr := n.get_script() as Script
+	return "%s %s '%s'" % [n.get_class(), scr.resource_path.get_file() if scr != null else "-", String(n.name).rstrip("0123456789@")]
+
+
 func _soak(seconds: float) -> void:
 	for i in 20:
 		await get_tree().process_frame
@@ -816,8 +849,12 @@ func _soak(seconds: float) -> void:
 			bugs.alive_count(), Economy.amount(0, &"scrap"), Economy.amount(1, &"scrap"),
 			Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
 			Performance.get_monitor(Performance.OBJECT_COUNT), Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT),
-			Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0]))
+			Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0])
+		if GameState.flag_value("--orphans") != "":
+			print_orphan_summary("phase %d wave %d" % [p, GameState.wave]))
 	var start := Time.get_ticks_msec()
+	var orphan_every := GameState.flag_value("--orphans").to_int()
+	var orphan_t := 0
 	var last_seen := {} # --stuckcheck: bug -> [position, seconds unmoved]
 	CpuProf.install(get_tree().root)
 	var prof_t := 0
@@ -830,6 +867,11 @@ func _soak(seconds: float) -> void:
 			if GameState.phase == GameState.Phase.WAVE:
 				print("[soak cpu] bugs %d turrets %d  %s" % [bugs.alive_count(), get_tree().get_nodes_in_group("turrets").size(), CpuProf.report()])
 			CpuProf.reset()
+		if orphan_every > 0:
+			orphan_t += 1
+			if orphan_t >= orphan_every:
+				orphan_t = 0
+				print_orphan_summary("t=%ds wave %d" % [(Time.get_ticks_msec() - start) / 1000, GameState.wave])
 		if GameState.has_flag("--stuckcheck"):
 			# Living bugs that haven't moved half a metre in 30 s (rooted/webbed ones excepted).
 			var now := {}

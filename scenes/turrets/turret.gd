@@ -463,8 +463,8 @@ func _show_tier() -> void:
 	var r := maxf(box.size.x, box.size.y) * 0.5 + 0.03
 	var centre := Vector3(box.get_center().x, box.get_center().y, 0.0)
 	var bst := MeshKit.begin()
-	var spots: Array[float] = [0.35] if tier == 1 else [0.35, 0.75]
-	for f in spots:
+	var spots: Array = [0.35] if tier == 1 else [0.35, 0.75]
+	for f: float in spots:
 		var z := box.position.z + box.size.z * (1.0 - f)
 		MeshKit.add_cylinder(bst, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), centre + Vector3(0, 0, z)), r, r, 0.07, 10, Color("#E8C55A"), true, 0.25)
 	_brass = MeshInstance3D.new()
