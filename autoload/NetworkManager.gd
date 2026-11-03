@@ -8,6 +8,8 @@ signal connected_to_host
 signal connection_failed(reason: String)
 signal server_closed
 signal player_left(peer_id: int)
+## The host's invite changed (the router opened up, or didn't).
+signal invite_changed
 
 const DEFAULT_PORT := 24565
 const DEFAULT_ADDRESS := "127.0.0.1"
@@ -31,6 +33,14 @@ var _port: int = DEFAULT_PORT
 var _address: String = DEFAULT_ADDRESS
 ## Set by join_from_menu(); the main menu joins it on load.
 var pending_join: Dictionary = {}
+## Invites over the internet: when hosting, the router is asked (UPnP) to open
+## the game's port, and its public address goes into the invite code.
+## "" = not tried yet / working, "open" = the internet can reach us, "lan" = same network only.
+var upnp_state := ""
+var public_ip := ""
+var _upnp: UPNP
+var _upnp_thread: Thread
+var _upnp_port := 0
 
 
 func _ready() -> void:
@@ -71,6 +81,7 @@ func host(port: int = DEFAULT_PORT) -> Error:
 	multiplayer.multiplayer_peer = peer
 	players = {1: {"name": local_name, "cliff": 0, "ready": false}}
 	players_changed.emit()
+	_open_router(port)
 	return OK
 
 
@@ -133,6 +144,7 @@ func join(address: String = DEFAULT_ADDRESS, port: int = DEFAULT_PORT) -> Error:
 
 
 func leave() -> void:
+	_close_router()
 	if _peer != null:
 		_peer.close()
 	_peer = null
@@ -142,11 +154,95 @@ func leave() -> void:
 	players_changed.emit()
 
 
-## "IP:port" a friend can paste to join this game (LAN address of this PC).
+## The code a friend types to join this game (DUST-XXXXX-XXXXX): the router's
+## public address when it let us open the port, else this PC's LAN address.
 func invite_code() -> String:
 	if is_online() and not multiplayer.is_server():
-		return "%s:%d" % [_address, _port] # a client shares the host's address
-	return "%s:%d" % [local_ip(), _port]
+		return InviteCode.encode(_address, _port) # a client shares the host's address
+	var ip := public_ip if upnp_state == "open" and public_ip != "" else local_ip()
+	var code := InviteCode.encode(ip, _port)
+	return code if code != "" else "%s:%d" % [ip, _port]
+
+
+## One line on where the invite works, for the lobby and the Social tab.
+func invite_note() -> String:
+	if is_online() and not multiplayer.is_server():
+		return "The code of the game you're in."
+	match upnp_state:
+		"open":
+			return "Works over the internet. Send it to your friend; they type it into Join."
+		"lan":
+			return "Same network only: your router didn't open port %d by itself. Forward UDP %d, or both use Tailscale / Radmin VPN and join by its IP." % [_port, _port]
+	return "Opening your router for internet play..."
+
+
+# ------------------------------------------------------------------ UPnP (host)
+
+## Ask the router to forward our port (on a thread: discovery takes a second or two).
+func _open_router(port: int) -> void:
+	_close_router()
+	upnp_state = ""
+	public_ip = ""
+	invite_changed.emit()
+	if GameState.has_flag("--debug") or GameState.has_flag("--noupnp"):
+		upnp_state = "lan" # tests and automated runs never touch the router
+		invite_changed.emit()
+		return
+	_upnp_port = port
+	_upnp_thread = Thread.new()
+	_upnp_thread.start(_upnp_work.bind(port))
+
+
+func _upnp_work(port: int) -> void:
+	var u := UPNP.new()
+	var ip := ""
+	var ok := false
+	if u.discover(2000, 2, "InternetGatewayDevice") == UPNP.UPNP_RESULT_SUCCESS 			and u.get_gateway() != null and u.get_gateway().is_valid_gateway():
+		ok = u.add_port_mapping(port, port, "Dust & Mandibles", "UDP", 0) == UPNP.UPNP_RESULT_SUCCESS
+		ip = u.query_external_address()
+	# A router behind the provider's own NAT reports a private address: no good for invites.
+	if ip == "" or _private(ip):
+		ok = false
+	_upnp_done.call_deferred(u, ok, ip)
+
+
+static func _private(ip: String) -> bool:
+	var p := ip.split(".")
+	if p.size() != 4:
+		return true
+	var a := int(p[0])
+	var b := int(p[1])
+	return a == 10 or a == 127 or (a == 192 and b == 168) or (a == 172 and b >= 16 and b <= 31) 			or (a == 100 and b >= 64 and b <= 127) or (a == 169 and b == 254)
+
+
+func _upnp_done(u: UPNP, ok: bool, ip: String) -> void:
+	if _upnp_thread != null:
+		_upnp_thread.wait_to_finish()
+		_upnp_thread = null
+	if not is_online() or not multiplayer.is_server():
+		if ok:
+			u.delete_port_mapping(_upnp_port, "UDP") # we stopped hosting while it worked
+		return
+	_upnp = u if ok else null
+	upnp_state = "open" if ok else "lan"
+	public_ip = ip if ok else ""
+	print("[net] invite: %s (%s)" % [invite_code(), upnp_state])
+	invite_changed.emit()
+
+
+func _close_router() -> void:
+	if _upnp_thread != null:
+		_upnp_thread.wait_to_finish()
+		_upnp_thread = null
+	if _upnp != null:
+		_upnp.delete_port_mapping(_upnp_port, "UDP")
+		_upnp = null
+	upnp_state = ""
+	public_ip = ""
+
+
+func _exit_tree() -> void:
+	_close_router()
 
 
 ## Best-guess LAN IPv4 address of this machine.
@@ -161,11 +257,14 @@ func local_ip() -> String:
 	return fallback
 
 
-## Parses "IP:port" or a bare IP. Returns {} if it isn't usable.
+## Parses an invite code, "IP:port" or a bare IP. Returns {} if it isn't usable.
 func parse_invite(text: String) -> Dictionary:
 	var t := text.strip_edges()
 	if t == "":
 		return {}
+	var coded := InviteCode.decode(t)
+	if not coded.is_empty():
+		return coded
 	var address := t
 	var port := DEFAULT_PORT
 	var colon := t.rfind(":")

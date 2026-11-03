@@ -1,13 +1,14 @@
 class_name SocialTab
 extends VBoxContainer
 ## Social tab: who's in the game, an invite to copy and send to a friend, and joining
-## another game by its invite. Invites are "IP:port" over LAN or a forwarded port for now;
-## a Steam/relay invite can replace this later without changing the tab's layout.
+## another game by its invite code (InviteCode: the host's address as DUST-XXXXX-XXXXX;
+## the host's router is opened automatically when it allows it).
 
 var _players: Label
 var _invite: LineEdit
 var _join_edit: LineEdit
 var _status: Label
+var _note: Label
 
 
 func _ready() -> void:
@@ -19,25 +20,27 @@ func _ready() -> void:
 	add_child(HSeparator.new())
 
 	add_child(UiStyle.label("Invite a partner", 18))
-	add_child(UiStyle.label("Send this to your friend. They paste it into Join below (or on the main menu).", 14, Palette.WOOD_DARK))
+	add_child(UiStyle.label("Send this code to your friend. They type it into Join below (or on the main menu).", 14, Palette.WOOD_DARK))
 	var invite_row := HBoxContainer.new()
 	_invite = LineEdit.new()
 	_invite.editable = false
 	_invite.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	invite_row.add_child(_invite)
-	var copy := UiStyle.button("Copy invite")
+	var copy := UiStyle.button("Copy Code")
 	copy.pressed.connect(func() -> void:
 		DisplayServer.clipboard_set(_invite.text)
 		_status.text = "Invite copied to the clipboard.")
 	invite_row.add_child(copy)
 	add_child(invite_row)
-	add_child(UiStyle.label("Playing over the internet? Forward UDP port %d on your router, or use a LAN tool such as a VPN." % NetworkManager.DEFAULT_PORT, 13, Palette.WOOD_DARK))
+	_note = UiStyle.label("", 13, Palette.WOOD_DARK)
+	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_note)
 	add_child(HSeparator.new())
 
 	add_child(UiStyle.label("Join a game", 18))
 	var join_row := HBoxContainer.new()
 	_join_edit = LineEdit.new()
-	_join_edit.placeholder_text = "IP:port, e.g. 192.168.1.20:%d" % NetworkManager.DEFAULT_PORT
+	_join_edit.placeholder_text = "Invite code, e.g. DUST-7K2MQ-X4P90 (or IP:port)"
 	_join_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	join_row.add_child(_join_edit)
 	var join := UiStyle.button("Join")
@@ -48,6 +51,7 @@ func _ready() -> void:
 	add_child(_status)
 
 	NetworkManager.players_changed.connect(_refresh)
+	NetworkManager.invite_changed.connect(_refresh)
 	visibility_changed.connect(_refresh)
 	_refresh()
 
@@ -63,12 +67,13 @@ func _refresh() -> void:
 		lines.append("Playing offline.")
 	_players.text = "\n".join(lines)
 	_invite.text = NetworkManager.invite_code()
+	_note.text = NetworkManager.invite_note()
 
 
 func _on_join() -> void:
 	var parsed := NetworkManager.parse_invite(_join_edit.text)
 	if parsed.is_empty():
-		_status.text = "That doesn't look like an invite (expected IP:port)."
+		_status.text = "That doesn't look like an invite code."
 		return
 	_status.text = "Leaving this game and joining %s..." % _join_edit.text
 	NetworkManager.join_from_menu(str(parsed["address"]), int(parsed["port"]))

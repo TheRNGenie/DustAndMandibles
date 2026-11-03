@@ -17,6 +17,9 @@ var _map_card: PanelContainer
 var _map_row: Control
 var _connect_box: VBoxContainer
 var _lobby_box: VBoxContainer
+var _invite_card: Control
+var _invite_code: Label
+var _invite_note: Label
 var _solo_btn: Button
 var _auto_ready := false
 var _settings: PauseMenu
@@ -136,7 +139,7 @@ func _build_ui() -> void:
 		_on_host())
 	_connect_box.add_child(host_btn)
 	var row := HBoxContainer.new()
-	_ip_edit = _line_edit("Host IP or invite", NetworkManager.DEFAULT_ADDRESS)
+	_ip_edit = _line_edit("Invite code (DUST-...) or host IP", "")
 	_ip_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_port_edit = _line_edit("Port", str(NetworkManager.DEFAULT_PORT))
 	_port_edit.custom_minimum_size.x = 90
@@ -160,6 +163,29 @@ func _build_ui() -> void:
 	_lobby_box = VBoxContainer.new()
 	_lobby_box.add_theme_constant_override("separation", 8)
 	col.add_child(_lobby_box)
+	# Invite: the host's code (InviteCode) with a copy button, and where it works.
+	_invite_card = UiStyle.panel("CardPanel")
+	var inv_col := VBoxContainer.new()
+	inv_col.add_theme_constant_override("separation", 4)
+	_invite_card.add_child(inv_col)
+	var inv_row := HBoxContainer.new()
+	inv_row.add_theme_constant_override("separation", 8)
+	inv_col.add_child(inv_row)
+	_invite_code = UiStyle.title("", 22)
+	_invite_code.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inv_row.add_child(_invite_code)
+	var copy_btn := UiStyle.button("Copy Code")
+	copy_btn.pressed.connect(func() -> void:
+		DisplayServer.clipboard_set(NetworkManager.invite_code())
+		_status.text = "Invite code copied. Send it to your friend.")
+	inv_row.add_child(copy_btn)
+	_invite_note = _label("", 14, Color(0, 0, 0, 0))
+	_invite_note.theme_type_variation = "SoftInkLabel"
+	_invite_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_invite_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inv_col.add_child(_invite_note)
+	_lobby_box.add_child(_invite_card)
+	NetworkManager.invite_changed.connect(_refresh_invite)
 	_roster = _label("", 18, Color(0, 0, 0, 0))
 	_roster.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_roster.visible = false
@@ -265,7 +291,7 @@ func _on_host() -> void:
 	if err != OK:
 		_show_connect("Could not host on port %s (error %d)." % [_port_edit.text, err])
 		return
-	_show_lobby("Hosting on port %s. Waiting for your partner..." % _port_edit.text)
+	_show_lobby("Hosting. Send your invite code to a friend, or start alone.")
 	if _auto_ready:
 		_ready_btn.set_pressed_no_signal(true)
 		NetworkManager.set_ready.call_deferred(true)
@@ -295,11 +321,10 @@ func _on_join() -> void:
 	# The IP field also accepts a pasted invite ("IP:port").
 	var parsed := NetworkManager.parse_invite(_ip_edit.text)
 	if parsed.is_empty():
-		_show_connect("Enter the host's IP address or paste their invite.")
+		_show_connect("Type your friend's invite code (DUST-...), or the host's IP address.")
 		return
-	if _ip_edit.text.contains(":"):
+	if _ip_edit.text.contains(":") or InviteCode.looks_like_code(_ip_edit.text):
 		_port_edit.text = str(parsed["port"])
-		_ip_edit.text = str(parsed["address"])
 	var err := NetworkManager.join(str(parsed["address"]), int(_port_edit.text))
 	if err != OK:
 		_show_connect("Could not start connecting (error %d)." % err)
@@ -335,7 +360,16 @@ func _show_lobby(message: String) -> void:
 		_brands.open()
 
 
+func _refresh_invite() -> void:
+	if _invite_card == null:
+		return
+	_invite_card.visible = NetworkManager.is_online() and multiplayer.is_server()
+	_invite_code.text = "Invite Code:  " + NetworkManager.invite_code()
+	_invite_note.text = NetworkManager.invite_note()
+
+
 func _refresh() -> void:
+	_refresh_invite()
 	var lines: PackedStringArray = []
 	# Maps: one line per cliff of the chosen map, by cliff name.
 	var map := MapDef.by_id(NetworkManager.map_id)
