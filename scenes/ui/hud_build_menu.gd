@@ -190,7 +190,7 @@ func _tile(i: int, id: StringName, payer: int) -> Button:
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_l.clip_text = true
 	col.add_child(name_l)
-	var price := KeyHints.text("%d scrap" % cost, 14, UiStyle.c("title") if affordable else Palette.TEAM_WEST.lightened(0.3))
+	var price := KeyHints.text(("x%d held" % Economy.amount(payer, id)) if CraftTable.is_craft(id) else ("%d scrap" % cost), 14, UiStyle.c("title") if affordable else Palette.TEAM_WEST.lightened(0.3))
 	price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(price)
 	# Its quick-pick number in the corner.
@@ -209,7 +209,7 @@ func _show_detail(id: StringName, payer: int) -> void:
 	var cost := Perks.build_cost(multiplayer.get_unique_id(), id) # Perk: build discounts
 	var affordable := GameState.is_solo() or Economy.can_afford(payer, {&"scrap": cost})
 	_detail_name.text = Defs.name_of(id)
-	_detail_cost.text = "%d scrap" % cost
+	_detail_cost.text = ("x%d held (crafted)" % Economy.amount(payer, id)) if CraftTable.is_craft(id) else ("%d scrap" % cost)
 	_detail_cost.add_theme_color_override("font_color", Palette.GLOW_YELLOW if affordable else Palette.TEAM_WEST.lightened(0.3))
 	_detail_desc.text = BuildMode._description(id)
 	# Turrets (Helper 3): their one job, weakness and any upkeep on a second line.

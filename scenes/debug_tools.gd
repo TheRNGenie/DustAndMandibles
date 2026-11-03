@@ -1131,6 +1131,8 @@ func _take_screenshot(path: String) -> void:
 		lt.autostart = true
 		add_child(lt)
 		lt.timeout.connect(func() -> void: player.whip.lash())
+	if GameState.has_flag("--crafttest") and multiplayer.is_server():
+		_craft_test.call_deferred()
 	if GameState.flag_value("--endat") != "": # --endat=S[:win]: end the run after S s (newspaper screenshots)
 		var parts := GameState.flag_value("--endat").split(":")
 		get_tree().create_timer(float(parts[0])).timeout.connect(func() -> void:
@@ -2308,3 +2310,37 @@ func _gatling_diag() -> void:
 				hp += (n as Bug).health.hp
 		print("[gatdiag] t %d: east gatling shots %d, beetle hp left %.0f, idle_t %.1f" % [s + 1, shots - shots0, hp, float(mine[0].get("_idle_t"))])
 	get_tree().quit()
+
+
+## --crafttest: buy the workshop, hand out a full set of parts, craft a design,
+## place it from the Crafted tab's item, and log each step (crafting check).
+func _craft_test() -> void:
+	await get_tree().create_timer(3.0).timeout
+	var home := Homestead.of(0)
+	if home == null:
+		print("[craft] no house")
+		return
+	Economy.earn(0, {&"scrap": 400, &"chitin": 60})
+	var idx := -1
+	for i in Homestead.UPGRADES.size():
+		if Homestead.UPGRADES[i]["id"] == &"workshop":
+			idx = i
+	home.buy(multiplayer.get_unique_id(), idx)
+	await get_tree().process_frame
+	var ws := home.get_node_or_null("Workshop") as Workshop
+	print("[craft] workshop built: ", ws != null)
+	var design := CraftTable.design_id(&"swivel", &"scatter", &"fire")
+	Economy.earn(0, CraftTable.recipe(design))
+	print("[craft] menu items: ", ws.menu_items(0).size(), " first: ", str(ws.menu_items(0)[0]["name"]) if ws != null else "")
+	ws._craft(multiplayer.get_unique_id(), design)
+	print("[craft] held after crafting: ", Economy.amount(0, design), "  parts left: ", Economy.amount(0, CraftTable.part_key(&"swivel")))
+	var bm := BuildManager.instance
+	var cell := Vector2i(0, 4)
+	bm.build(design, 0, cell)
+	await get_tree().create_timer(0.5).timeout
+	var placed := 0
+	for n: Node in get_tree().get_nodes_in_group("turrets"):
+		if n.get("def") != null and n.get("def").id == design:
+			placed += 1
+	print("[craft] placed: ", placed, "  held now: ", Economy.amount(0, design), "  name: ", CraftTable.name_of(design))
+

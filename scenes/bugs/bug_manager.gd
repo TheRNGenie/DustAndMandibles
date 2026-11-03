@@ -205,10 +205,32 @@ const _NO_BUGS: Array[Bug] = []
 var _scrap_carry := ScrapCarry.new()
 
 
+## Crafting: bosses always drop two turret parts, big bugs sometimes one, onto
+## the cliff the bug was climbing (like all loot). Made into turrets at the Workshop.
+const PART_CHANCE_HEAVY := 0.06
+
+
+func _drop_parts(bug: Bug) -> void:
+	var n := 0
+	if bug.def.boss_tip != "":
+		n = 2
+	elif TurretDef.is_heavy(bug.def) and randf() < PART_CHANCE_HEAVY:
+		n = 1
+	if n <= 0 or bug.cliff_id < 0:
+		return
+	var got: PackedStringArray = []
+	for i in n:
+		var key := CraftTable.random_part()
+		Economy.earn(bug.cliff_id, {key: 1})
+		got.append(CraftTable.part_name(key))
+	Economy.notify_cliff(bug.cliff_id, "Turret part%s from the %s: %s. Craft at the Workshop." % ["s" if n > 1 else "", bug.def.display_name, ", ".join(got)])
+
+
 func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 	# Loot lands on the cliff the bug was climbing: your turrets earn for your partner.
 	WaveDirector.note_kill(bug.def, source)
 	BossFx.on_bug_died(bug) # Boss: the Bone Collector eats the dead near it
+	_drop_parts(bug)
 	var loot := {&"scrap": bug.def.scrap_drop, &"chitin": bug.def.chitin_drop * Weather.chitin_mult(GameState.weather)}
 	loot = Brand.kill_loot(loot, source_cliff) # Theme: Crossed Irons brand, more per kill
 	var raw_scrap := roundi(float(loot[&"scrap"]))

@@ -12,7 +12,8 @@ const UPGRADES: Array[Dictionary] = [
 	{"id": &"board", "name": "Board up the windows", "cost": {&"scrap": 40}, "desc": "Bugs do 30% less damage to the house."},
 	{"id": &"reinforce", "name": "Reinforce the walls", "cost": {&"scrap": 80, &"chitin": 10}, "desc": "Iron bands and a stone skirt: +250 max HP."},
 	{"id": &"floor2", "name": "Build a second floor", "cost": {&"scrap": 120, &"chitin": 15}, "desc": "Adds a storey and a front balcony with 2 house turret mounts."},
-	{"id": &"floor3", "name": "Build a lookout floor", "cost": {&"scrap": 180, &"chitin": 30}, "desc": "Adds a top storey and a railed roof deck with 2 more mounts."},
+	{"id": &"floor3", "name": "Build a lookout floor", "cost": {&"scrap": 180, &"chitin": 30}, "desc": "Adds a top storey and a railed roof deck with 2 more mounts. A lookout up top spots for your turrets: +8% range for every turret on this cliff."},
+	{"id": &"workshop", "name": "Build a workshop", "cost": {&"scrap": 100, &"chitin": 12}, "desc": "A lean-to shed on the back of the house with a crafting bench: combine turret parts into new turrets."},
 	{"id": &"tower", "name": "Build a zip-line tower", "cost": {&"scrap": 220, &"chitin": 40}, "desc": "A tall lookout tower on the roof deck. Once both houses have one, a zip line joins them across the canyon."},
 ]
 const BOARDED_DAMAGE := 0.7
@@ -27,6 +28,12 @@ var floors := 1
 var boarded := false
 var reinforced := false
 var tower := false
+var workshop := false
+## Cliffs whose house has the lookout floor (turrets there reach further). Kept
+## static so Turret.range_multiplier() needn't search for the house every shot.
+static var lookout_cliffs: Dictionary = {}
+## Turret range from a cliff's lookout floor.
+const LOOKOUT_RANGE := 1.08
 var _ladder: Area3D
 var _handle: ZipHandle
 var _hit_cooldown := 0.0
@@ -49,6 +56,7 @@ static func of(cid: int) -> Homestead:
 
 
 func _ready() -> void:
+	lookout_cliffs.erase(cliff_id) # a new run: no lookout yet
 	add_to_group("structures")
 	add_to_group("homesteads")
 	_mi = MeshInstance3D.new()
@@ -183,6 +191,19 @@ func _rebuild() -> void:
 
 
 ## The tower's ladder zone and the zip-line handle (only once the tower is up).
+## The Workshop shed on the back wall (+Z local), once it's bought.
+func _build_workshop() -> void:
+	if not workshop or get_node_or_null("Workshop") != null:
+		return
+	var w := Workshop.new()
+	w.name = "Workshop"
+	w.home = self
+	# The shed's +Z end (its back) sits against the house's back wall; its open front faces out.
+	w.position = Vector3(0, 0, HouseBuilder.D * 0.5 + 1.35)
+	w.rotation.y = PI
+	add_child(w)
+
+
 func _build_tower_bits() -> void:
 	if not tower or _ladder != null:
 		return
@@ -253,6 +274,9 @@ func can_offer(id: StringName) -> String:
 				return "Already built."
 			if floors < 3:
 				return "Build the lookout floor first."
+		&"workshop":
+			if workshop:
+				return "Already built."
 	return ""
 
 
@@ -278,6 +302,7 @@ func buy(peer_id: int, index: int) -> void:
 	var b := boarded
 	var r := reinforced
 	var tw := tower
+	var ws := workshop
 	match u["id"]:
 		&"patch":
 			GameState.heal_homestead(cliff_id, PATCH_HP)
@@ -292,17 +317,25 @@ func buy(peer_id: int, index: int) -> void:
 			f = 3
 		&"tower":
 			tw = true
-	_set_state.rpc(f, b, r, tw)
+		&"workshop":
+			ws = true
+	_set_state.rpc(f, b, r, tw, ws)
 	Economy.notify_cliff(cliff_id, "Homestead: %s done." % str(u["name"]).to_lower())
 
 
 @rpc("authority", "call_local", "reliable")
-func _set_state(f: int, b: bool, r: bool, tw: bool = false) -> void:
-	var changed := f != floors or b != boarded or r != reinforced or tw != tower
+func _set_state(f: int, b: bool, r: bool, tw: bool = false, ws: bool = false) -> void:
+	var changed := f != floors or b != boarded or r != reinforced or tw != tower or ws != workshop
 	floors = f
 	boarded = b
 	reinforced = r
 	tower = tw
+	workshop = ws
+	if floors >= 3:
+		lookout_cliffs[cliff_id] = true
+	else:
+		lookout_cliffs.erase(cliff_id)
+	_build_workshop()
 	if changed:
 		_rebuild()
 		ZipLine.refresh(get_tree())

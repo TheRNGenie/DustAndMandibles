@@ -120,7 +120,28 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func category_items(c: int) -> Array:
-	return Defs.BUILD_CATEGORIES[c]["items"] if c >= 0 else []
+	if c < 0:
+		return []
+	if Defs.BUILD_CATEGORIES[c]["name"] == "Crafted":
+		return crafted_held()
+	return Defs.BUILD_CATEGORIES[c]["items"]
+
+
+## Crafted turret items your cliff holds (made at the Workshop), for the Crafted tab.
+func crafted_held() -> Array:
+	var payer := _cliff if GameState.is_solo() else player.cliff_id
+	var out: Array = []
+	for id: StringName in CraftTable.all_designs():
+		if Economy.amount(payer, id) > 0:
+			out.append(id)
+	return out
+
+
+## Can `payer` pay for `id`: its scrap, and for a crafted turret one of its items.
+func _can_pay(payer: int, id: StringName) -> bool:
+	if CraftTable.is_craft(id) and Economy.amount(payer, id) <= 0:
+		return false
+	return Economy.can_afford(payer, {&"scrap": Perks.build_cost(multiplayer.get_unique_id(), id)}) # Perk: build discounts
 
 
 func open_menu() -> void:
@@ -246,7 +267,7 @@ func _process(delta: float) -> void:
 	var bm := BuildManager.instance
 	var mine := bm.may_build(multiplayer.get_unique_id(), _cliff)
 	var payer := _cliff if GameState.is_solo() else player.cliff_id
-	var affordable := Economy.can_afford(payer, {&"scrap": Perks.build_cost(multiplayer.get_unique_id(), selected_id())}) # Perk: build discounts
+	var affordable := _can_pay(payer, selected_id())
 	_ok = mine and bm.is_free_for(selected_id(), _cliff, _cell) and affordable
 	_ghost_mat.albedo_color = Color(0.4, 1.0, 0.4, 0.45) if _ok else Color(1.0, 0.3, 0.25, 0.45)
 
@@ -293,7 +314,7 @@ func _aim_house_mount(pos: Vector3) -> void:
 	_ghost.rotation.y = WorldLayout.facing_canyon_yaw(_cliff)
 	var bm := BuildManager.instance
 	var payer := _cliff if GameState.is_solo() else player.cliff_id
-	_ok = bm.may_build(multiplayer.get_unique_id(), _cliff) and bm.is_free_for(selected_id(), _cliff, _cell) 			and Economy.can_afford(payer, {&"scrap": Perks.build_cost(multiplayer.get_unique_id(), selected_id())}) # Perk: build discounts
+	_ok = bm.may_build(multiplayer.get_unique_id(), _cliff) and bm.is_free_for(selected_id(), _cliff, _cell) 			and _can_pay(payer, selected_id())
 	_ghost_mat.albedo_color = Color(0.4, 1.0, 0.4, 0.45) if _ok else Color(1.0, 0.3, 0.25, 0.45)
 
 
@@ -310,12 +331,12 @@ func build_info(icon: Texture2D) -> Dictionary:
 		elif not BuildManager.instance.is_free_for(id, _cliff, _cell):
 			status = "That spot is taken"
 		else:
-			status = "Not enough scrap"
+			status = "None left: craft another at the Workshop" if CraftTable.is_craft(id) else "Not enough scrap"
 	elif not _ghost.visible:
 		status = "Aim at an open spot on your plateau"
 	return {
 		"icon": icon, "name": Defs.name_of(id), "cost": Perks.build_cost(multiplayer.get_unique_id(), id), # Perk: build discounts
-		"afford": GameState.is_solo() or Economy.can_afford(payer, {&"scrap": Perks.build_cost(multiplayer.get_unique_id(), id)}), # Perk: build discounts
+		"afford": GameState.is_solo() or _can_pay(payer, id),
 		"status": status, "status_bad": bad,
 		"keys": [[KeyHints.key_for("fire"), "Place"], [KeyHints.key_for("demolish"), _sell_hint()], ["Wheel", "Next"], [KeyHints.key_for("build_menu"), "Catalog"],
 				[KeyHints.key_for("build_camera"), "Eye view" if _build_cam != null and _build_cam.raised else "Raised view"], [KeyHints.key_for("alt_fire"), "Done"]],

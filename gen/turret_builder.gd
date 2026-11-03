@@ -9,6 +9,8 @@ extends RefCounted
 ## Returns {"base", "head", "gun": ArrayMesh, "head_y", "gun_y": float, "muzzle": Vector3,
 ##          optional "spin": ArrayMesh, "spin_at": Vector3, "recoil": float}
 static func build(id: StringName, team: Color) -> Dictionary:
+	if CraftTable.is_craft(id): # Crafted: its barrel's turret, trimmed in its load's colour
+		return build(CraftTable.model_of(id), team.lerp(CraftTable.tint_of(id), 0.65))
 	if CrewedBuilder.has(id): # Crewed: the 2 x 2 crewed guns (gen/crewed_builder.gd)
 		return CrewedBuilder.build(id, team)
 	match id:

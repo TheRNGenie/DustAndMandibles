@@ -230,11 +230,16 @@ func _do_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> void:
 		return
 	if (_cpu_builder == "" and not may_build(peer_id, cid)) or not is_free_for(id, cid, cell) or GameState.phase == GameState.Phase.GAME_OVER:
 		return
+	# Crafted turrets: placing one uses up the item made at the Workshop (no scrap).
+	if CraftTable.is_craft(id):
+		if _cpu_builder != "" or not Economy.spend(cid, {id: 1}):
+			Economy.notify(peer_id, "You don't have a %s. Craft one at the Workshop." % Defs.name_of(id))
+			return
 	var cost := Perks.build_cost(peer_id, id) # Perk: Bulk Lumber / Barn Raising
 	if _cpu_builder == "" and not Economy.spend(cid, {&"scrap": cost}):
 		Economy.notify(peer_id, "Not enough scrap for a %s (%d)." % [Defs.name_of(id), cost])
 		return
-	if _cpu_builder == "":
+	if _cpu_builder == "" and not CraftTable.is_craft(id):
 		Perks.note_built(peer_id, id) # Perk: Barn Raising used up
 	if id == &"scaffold" and scaffold_levels(cid, cell) > 0:
 		(_scaffolds[_cell_key(cid, cell)] as ScaffoldNode).set_levels(scaffold_levels(cid, cell) + 1)
