@@ -295,7 +295,7 @@ class SlotBoard extends CasinoBoard:
 			var rx := win_r.position.x + i * (REEL_W + 14)
 			_reel(i, Rect2(rx, win_r.position.y, REEL_W, ROW_H * 3), t if spinning else 99.0, lit)
 		# Cover what spins past the window, then its gold frame on top.
-		for band: Rect2 in [Rect2(win_r.position.x - 30, win_r.position.y - 80, win_r.size.x + 60, 74), Rect2(win_r.position.x - 30, win_r.end.y + 6, win_r.size.x + 60, 74)]:
+		for band: Rect2 in [Rect2(win_r.position.x - 30, win_r.position.y - 80, win_r.size.x + 60, 80), Rect2(win_r.position.x - 30, win_r.end.y, win_r.size.x + 60, 80)]:
 			draw_rect(band, Color("#6E1D15"))
 		rrect(win_r.grow(10), Color(0, 0, 0, 0), 12, 5, Color("#C9A04A"))
 		# Marquee with chasing bulbs.

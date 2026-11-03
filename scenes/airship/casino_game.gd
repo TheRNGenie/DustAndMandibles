@@ -133,7 +133,15 @@ func busy_text() -> String:
 
 ## The line under the table once it has settled.
 func result_text() -> String:
-	return str(view.get("result", "Place your bet."))
+	return result_line("Place your bet.")
+
+
+## The view's result, said to whoever is watching: someone else's win reads as theirs.
+func result_line(none: String = "") -> String:
+	var r := str(view.get("result", none))
+	if view.has("peer") and int(view["peer"]) != multiplayer.get_unique_id() and r != none:
+		return "Another player: " + r
+	return r
 
 
 func stake() -> int:

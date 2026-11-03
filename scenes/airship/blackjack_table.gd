@@ -42,7 +42,7 @@ func result_text() -> String:
 		if int(view.get("peer", 0)) != multiplayer.get_unique_id():
 			return "Another hand is being played."
 		return "Your move: hit, stand%s?" % (", double or split" if _can(&"split") else (" or double" if _can(&"double") else ""))
-	return str(view.get("result", "Place your bet and deal."))
+	return result_line("Place your bet and deal.")
 
 
 func ui_actions() -> Array:
@@ -88,6 +88,8 @@ func _act(peer_id: int, action: StringName, _choice: int, bet: int) -> void:
 		var p1: int = shoe.pop_back()
 		var d1: int = shoe.pop_back()
 		var p2: int = shoe.pop_back()
+		if GameState.has_flag("--bjpair"): # debug: deal a pair (split screenshots)
+			p2 = p1
 		var d2: int = shoe.pop_back()
 		_hand = {"peer": peer_id, "bets": [bet], "hands": [[p1, p2]], "active": 0, "dealer": [d1, d2], "shoe": shoe,
 				"round": _round * 1000 + _rng.randi_range(0, 999), "doubled": [false]}
@@ -312,7 +314,8 @@ class BlackjackBoard extends CasinoBoard:
 			for i in hand.size():
 				var key := "h%d:%d" % [h, i]
 				var rot := PI * 0.5 if h < doubled.size() and bool(doubled[h]) and i == 2 else 0.0
-				deal_card(table, key, Vector2(x0 + i * 30.0 * K, 318 - i * 4.0), int(hand[i]), BlackjackTable.card_suit(round_id, key), shoe, rot, K)
+				var at := Vector2(x0 + i * 30.0 * K + (24.0 if rot != 0.0 else 0.0), 318 - i * 4.0)
+				deal_card(table, key, at, int(hand[i]), BlackjackTable.card_suit(round_id, key), shoe, rot, K)
 				if not table.deal_times.has(key) or now >= float(table.deal_times[key]) + 0.25:
 					landed.append(hand[i])
 			if not landed.is_empty():

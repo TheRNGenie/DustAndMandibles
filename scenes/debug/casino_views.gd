@@ -22,6 +22,12 @@ func _ready() -> void:
 	if GameState.flag_value("--casinobets") != "" and game.has_method("debug_bets"):
 		game.call("debug_bets", GameState.flag_value("--casinobets").split(","))
 	MenuScreen.instance.open(game)
+	var seen := [""]
+	game.ui_changed.connect(func() -> void:
+		var r := str(game.view.get("result", ""))
+		if r != seen[0]:
+			seen[0] = r
+			print("[casino] %s sees: %s" % [game.name, r]))
 	var play := GameState.flag_value("--casinoplay")
 	if play == "":
 		return

@@ -100,7 +100,7 @@ func busy_text() -> String:
 func result_text() -> String:
 	if str(view.get("kind", "")) != "wheel":
 		return "Place your chips: click to lay one, right-click to take it back."
-	return str(view.get("result", ""))
+	return result_line()
 
 
 func pending_total() -> int:

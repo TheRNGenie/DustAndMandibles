@@ -128,7 +128,7 @@ func busy_text() -> String:
 func result_text() -> String:
 	if str(view.get("kind", "")) != "race":
 		return "Pick a beetle on the odds board, then race."
-	return str(view.get("result", ""))
+	return result_line()
 
 
 func _racing() -> bool:

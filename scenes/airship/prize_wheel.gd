@@ -109,7 +109,7 @@ func busy_text() -> String:
 func result_text() -> String:
 	if str(view.get("kind", "")) != "wheel":
 		return "Give her a spin: click the wheel or press Spin."
-	return str(view.get("result", ""))
+	return result_line()
 
 
 func _act(peer_id: int, action: StringName, _choice: int, _bet: int) -> void:

@@ -122,7 +122,7 @@ func result_text() -> String:
 				return "Where's the pea? Click a cup."
 			return "Waiting for the player to pick a cup."
 		"reveal":
-			return str(view.get("result", ""))
+			return result_line()
 	return "Pay your stake and the dealer starts the cups moving."
 
 

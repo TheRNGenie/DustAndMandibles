@@ -57,7 +57,7 @@ func busy_text() -> String:
 func result_text() -> String:
 	if str(view.get("kind", "")) != "bac":
 		return "Click Player, Banker or Tie on the felt, then deal."
-	return str(view.get("result", ""))
+	return result_line()
 
 
 func _act(peer_id: int, action: StringName, choice: int, bet: int) -> void:
