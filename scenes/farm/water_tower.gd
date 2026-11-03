@@ -93,7 +93,9 @@ func _process(delta: float) -> void:
 	if not multiplayer.is_server():
 		return
 	var before := int(stored)
-	stored = Waterworks.fill(stored, delta, GameState.pumps_on(), GameState.growth_scale())
+	# One stream of water: the pump fills the well's trough first, and only once
+	# the trough is full does the flow go on up to the tower.
+	stored = Waterworks.fill(stored, delta, GameState.pumps_on() and _trough_full(), GameState.growth_scale())
 	if int(stored) != before:
 		_sync.rpc(stored)
 
@@ -112,14 +114,14 @@ func draw(peer_id: int) -> int:
 	return n
 
 
-## Host: water arriving from the well's full trough (capped at the tank's top).
-func take_overflow(amount: float) -> void:
-	if not multiplayer.is_server():
-		return
-	var before := int(stored)
-	stored = minf(stored + amount, Waterworks.TANK_MAX)
-	if int(stored) != before:
-		_sync.rpc(stored)
+## Is this yard's pump jack trough full (so the pump's flow comes to the tower)?
+## True when there's no pump jack (old layouts): the tower fills as before.
+func _trough_full() -> bool:
+	for n: Node in get_tree().get_nodes_in_group("water_sources"):
+		var w := n as WaterSource
+		if w != null and w.overflows_to_tower and w.cliff_id == cliff_id:
+			return w.trough_full()
+	return true
 
 
 ## Host: set the level outright (resuming a saved run).

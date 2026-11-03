@@ -183,7 +183,7 @@ func interact_prompt() -> String:
 	var line := super()
 	if stored >= capacity:
 		line += "
-Trough's full: the overflow runs into the water tower"
+Trough's full: the pump's sending water up to the tower"
 	if GameState.pumps_on():
 		return line + "\nThe generator's pumping it"
 	return line + "\nFills fast while the generator runs"
