@@ -89,7 +89,7 @@ var _claw_mesh_r: Mesh
 func _enter_tree() -> void:
 	if not _coxa.is_empty() or spec.is_empty():
 		return
-	var mat := Materials.toon(0.015)
+	var mat := Materials.toon_glide(0.015)
 	var root := get_tree().current_scene if get_tree().current_scene != null else get_tree().root
 	_seg_b = LegBatch.of(_seg_mesh, mat, root)
 	_ball_b = LegBatch.of(_ball_mesh_r, mat, root)

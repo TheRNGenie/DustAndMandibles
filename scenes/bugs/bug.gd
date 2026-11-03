@@ -16,7 +16,6 @@ enum State { CLIMBING, CRESTING, BREACHING, DEAD, BURROWED, FLYING, CROSSING }
 
 const CREST_TIME := 0.8
 const KillMethod := preload("res://scenes/bugs/kill_method.gd")
-const SMOOTHING := 10.0
 
 static var cliffs: CliffBuilder
 ## This peer runs the bugs' brains (set each tick by BugManager: cheaper than
@@ -80,7 +79,7 @@ var _body_local := Transform3D()
 var _wing_b: LegBatch
 var _wing_slots: Array[int] = []
 static var _wing_mesh: ArrayMesh
-static var _wing_mat: StandardMaterial3D
+static var _wing_mat: ShaderMaterial
 var _heading := Vector3.FORWARD
 var _last_pos := Vector3.ZERO
 var _placed := false
@@ -156,7 +155,7 @@ func _enter_tree() -> void:
 	var root := get_tree().current_scene if get_tree().current_scene != null else get_tree().root
 	# Bodies of a kind share one mesh, so they draw as one MultiMesh (with shadows).
 	if not bool(spec.get("solo", false)):
-		_body_b = LegBatch.of(spec["body"], Materials.toon(0.03), root, true)
+		_body_b = LegBatch.of(spec["body"], Materials.toon_glide(0.03), root, true)
 		_body_slot = _body_b.take()
 	if bool((spec.get("face", {}) as Dictionary).get("wings", false)):
 		_wing_b = LegBatch.of(_wings_mesh(), _wing_mat, root)
@@ -176,6 +175,19 @@ func _exit_tree() -> void:
 	# A bug that died hands its face back; the world closing just frees them.
 	if is_queued_for_deletion():
 		set_face(false)
+
+
+## Where the body is drawn this frame (its MultiMesh slot, plus the glide
+## offset the shader adds); debug/measuring only.
+func drawn_position() -> Vector3:
+	if not is_inside_tree():
+		return Vector3.ZERO
+	if _body_slot < 0:
+		return global_position
+	var o := _body_b.mm.get_instance_transform(_body_slot).origin
+	if _body_b.mm.use_custom_data:
+		o += LegBatch.glide_offset(_body_b.mm.get_instance_custom_data(_body_slot))
+	return o
 
 
 ## Wears a face (pupils, brows, mandibles...) or hands it back to the pool.
@@ -205,6 +217,20 @@ func _on_hp_changed(_hp: float, _mx: float) -> void:
 func _place_face() -> void:
 	var s := float(spec["scale"])
 	_face.transform = _body_local.scaled_local(Vector3.ONE / s) if s > 0.0 else Transform3D()
+	_face_at = _face.position
+	glide_face()
+
+
+## The face is a node of the bug, not a batch slot: it follows the body's
+## glide here, every frame (BugManager, only for the few bugs wearing one).
+var _face_at := Vector3.ZERO
+
+
+func glide_face() -> void:
+	if _face == null or not is_inside_tree():
+		return
+	var off := LegBatch.glide_offset(_glide)
+	_face.position = _face_at + (global_basis.inverse() * off if off != Vector3.ZERO else Vector3.ZERO)
 
 
 ## Writes the body (and wings) into their MultiMesh slots at the bug's transform.
@@ -232,11 +258,9 @@ func _write_body() -> void:
 ## Four see-through wings that buzz (dragonfly bandits): one mesh for every flier.
 static func _wings_mesh() -> ArrayMesh:
 	if _wing_mesh == null:
-		_wing_mat = StandardMaterial3D.new()
-		_wing_mat.albedo_color = Color(0.85, 0.95, 1.0, 0.45)
-		_wing_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_wing_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		_wing_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		# (A shader, not a StandardMaterial3D: the wings glide with the body.)
+		_wing_mat = ShaderMaterial.new()
+		_wing_mat.shader = preload("res://shaders/bug_wing.gdshader")
 		var st := MeshKit.begin()
 		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.7, 0, 0)), Vector3(0.7, 0.012, 0.16), 3, 10, Color(1, 1, 1))
 		for k in 4:
@@ -313,12 +337,20 @@ func _pp(delta: float) -> void:
 		global_transform = target
 		_placed = true
 	else:
-		var k := 1.0 - exp(-SMOOTHING * delta)
-		if global_position.distance_to(target.origin) > 15.0:
-			global_transform = target # knocked off the cliff: snap
+		# Client: straight from where the bug was when the last state arrived
+		# to where that state puts it, over the time between states (a steady
+		# pace, ~one sync interval behind the host), not an ease that lurches
+		# every packet.
+		if _net_from.origin.distance_to(target.origin) > 15.0:
+			global_transform = target # knocked off the cliff, or swapped cliffs: snap
+			_net_from = target
 		else:
-			global_position = global_position.lerp(target.origin, k)
-			global_basis = global_basis.orthonormalized().slerp(target.basis.orthonormalized(), k)
+			# (Timed from the tick the state arrived, not this bug's turn, which
+			# may have started before it.)
+			var since := float(Engine.get_physics_frames() - _net_tick) / float(Engine.physics_ticks_per_second)
+			var k := clampf(since / _net_dur, 0.0, 1.0)
+			global_transform = Transform3D(_net_from.basis.orthonormalized().slerp(target.basis.orthonormalized(), k),
+					_net_from.origin.lerp(target.origin, k))
 	var spd := global_position.distance_to(_last_pos) / maxf(delta, 0.0001)
 	_last_pos = global_position
 	_update_visibility()
@@ -330,6 +362,8 @@ func _pp(delta: float) -> void:
 	# not at all off-screen (they catch up on return); the body still follows.
 	# (detail is set by BugManager.assign_detail, a few times a second)
 	_anim_acc += delta
+	# Everything written below glides from where it was last drawn (LegBatch).
+	LegBatch.motion = _glide_motion()
 	if detail != 2:
 		_legs.set_lite(detail != 0)
 		# Feet only need the ground's shape off the cliff face (else: the plane under the body).
@@ -338,6 +372,72 @@ func _pp(delta: float) -> void:
 		_animate_body(_anim_acc, spd)
 		_anim_acc = 0.0
 	_write_body()
+	LegBatch.motion = Color()
+	if _face != null:
+		glide_face()
+
+
+## Glide (see LegBatch): a bug updated every few ticks is drawn sliding from
+## where it was drawn at its last update to where it is now, arriving as long
+## after as its updates are apart (smoothed). Never across a state or
+## cliff change, a jump, a long wait, or for bosses (their parts are nodes).
+const GLIDE_MAX_TICKS := 30
+const GLIDE_SNAP := 3.0
+## Off with --noglide (A/B testing): bugs drawn where they are, stepping.
+static var glide_on := true
+var _glide := Color()
+var _glide_at := Vector3.ZERO
+var _glide_tick := -1
+## Smoothed ticks between updates: how long each glide lasts.
+var _glide_gap := 1.0
+var _glide_state := -1
+var _glide_cliff := -1
+
+
+func _glide_motion() -> Color:
+	var now := LegBatch.glide_tick()
+	var p := global_position
+	var ticks := now - _glide_tick
+	if ticks == 0:
+		return _glide
+	var out := Color()
+	if _glide_tick >= 0 and ticks <= GLIDE_MAX_TICKS and glide_on and state == _glide_state and cliff_id == _glide_cliff and boss == null:
+		var d := p - (_glide_at + LegBatch.glide_offset(_glide, float(now)))
+		var dd := d.length_squared()
+		_glide_gap = LegBatch.next_gap(_glide_gap, ticks)
+		if dd < GLIDE_SNAP * GLIDE_SNAP and dd > 0.0000001:
+			out = LegBatch.glide_from(p - d, p, now, roundi(_glide_gap))
+	else:
+		_glide_gap = float(clampi(ticks, 1, GLIDE_MAX_TICKS))
+	_glide = out
+	_glide_at = p
+	_glide_tick = now
+	_glide_state = state
+	_glide_cliff = cliff_id
+	return out
+
+
+## Where the body is drawn relative to where the bug is (corpses start there).
+func glide_offset() -> Vector3:
+	return LegBatch.glide_offset(_glide)
+
+
+## Client: a new state arrived (BugManager._apply_states): glide on from here.
+var _net_from := Transform3D()
+var _net_tick := 0
+var _net_dur := 0.1
+var _net_last_ms := -1
+
+
+func net_received() -> void:
+	var ms := Time.get_ticks_msec()
+	if _net_last_ms >= 0:
+		# Time between states, smoothed (a little over, so a late packet doesn't stall it).
+		_net_dur = lerpf(_net_dur, clampf(float(ms - _net_last_ms) / 1000.0 * 1.1, 0.05, 0.3), 0.3)
+	_net_last_ms = ms
+	if is_inside_tree():
+		_net_from = global_transform
+	_net_tick = Engine.get_physics_frames()
 
 
 ## 0 = close and on screen, 1 = far but on screen, 2 = off screen (no camera: full),

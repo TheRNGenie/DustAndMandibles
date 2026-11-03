@@ -24,6 +24,7 @@ var _fires: Array[Dictionary] = []
 
 func _ready() -> void:
 	instance = self
+	Bug.glide_on = not GameState.has_flag("--noglide")
 	# Hands out update turns before the bugs run each tick.
 	process_physics_priority = -10
 	_spawner = MultiplayerSpawner.new()
@@ -445,10 +446,18 @@ static func set_detail_level(lvl: int) -> void:
 	TURN_GAP_ON = 1.0 / GraphicsQuality.BUG_ON_SCREEN_HZ[lvl]
 	TURN_GAP_OFF = 1.0 / GraphicsQuality.BUG_OFF_SCREEN_HZ[lvl]
 var _detail_t := 0.0
+## Bugs wearing a face (see _process).
+var _faced: Array[Bug] = []
 var _sep_tick := false
 
 
 func _process(delta: float) -> void:
+	# Bugs between updates glide at frame rate (LegBatch): one shader clock, and
+	# the faces (nodes, on the nearest few bugs) follow their bodies.
+	LegBatch.publish_clock()
+	for b in _faced:
+		if is_instance_valid(b):
+			b.glide_face()
 	_detail_t -= delta
 	if _detail_t > 0.0:
 		return
@@ -507,6 +516,7 @@ func assign_detail() -> void:
 	# Faces (pupils, brows, mandibles) only on full-detail bugs close enough to
 	# see them; a few new ones per pass so a rush of bugs can't stall a frame.
 	var handed := 0
+	_faced.clear()
 	for c in get_children():
 		var b := c as Bug
 		if b == null:
@@ -517,6 +527,8 @@ func assign_detail() -> void:
 				continue
 			handed += 1
 		b.set_face(want)
+		if b.has_face():
+			_faced.append(b)
 
 
 func separate() -> void:
@@ -739,4 +751,5 @@ func _apply_states(buf: PackedByteArray) -> int:
 			o += 25
 		if not is_equal_approx(b.health.hp, hp):
 			b.health.hp = hp
+		b.net_received()
 	return n

@@ -45,6 +45,13 @@ common/show_focus_state_on_pointer_event=0
 
 common/physics_ticks_per_second=60
 
+[shader_globals]
+
+bug_glide_now={
+"type": "float",
+"value": 0.0
+}
+
 [rendering]
 
 rendering_device/fallback_to_d3d12=true
