@@ -108,9 +108,17 @@ static func _depth() -> float:
 func _fit() -> void:
 	var m := WorldLayout.map()
 	if m.is_canyon():
-		_scale = SCALE
-		_origin = Vector2(-(WorldLayout.HALF_GAP + _depth()), Z_MIN)
-		_size = Vector2((WorldLayout.HALF_GAP + _depth()) * 2.0 * SCALE + PAD * 2.0, (Z_MAX - Z_MIN) * SCALE + PAD * 2.0)
+		# Canyon Expeditions: stretch down the canyon to take in the raid sites
+		# (the scale shrinks to keep the map on screen).
+		var z0 := Z_MIN
+		var z1 := Z_MAX
+		if SiteManager.instance != null:
+			for s: SitePlan.Site in SiteManager.instance.sites:
+				z0 = minf(z0, s.pos.z - 8.0)
+				z1 = maxf(z1, s.pos.z + 8.0)
+		_scale = minf(SCALE, 700.0 / (z1 - z0))
+		_origin = Vector2(-(WorldLayout.HALF_GAP + _depth()), z0)
+		_size = Vector2((WorldLayout.HALF_GAP + _depth()) * 2.0 * _scale + PAD * 2.0, (z1 - z0) * _scale + PAD * 2.0)
 		return
 	var half_w := WorldLayout.PLATEAU_WIDTH * 0.5
 	var box := Rect2(Vector2(m.airship_ring.x, m.airship_ring.z), Vector2.ZERO)
@@ -163,10 +171,13 @@ func _draw_map() -> void:
 	var m := WorldLayout.map()
 	if m.is_canyon():
 		# Canyon floor between the lips.
-		var a := _to_map(-WorldLayout.HALF_GAP, Z_MIN)
-		var b := _to_map(WorldLayout.HALF_GAP, Z_MAX)
+		var a := _to_map(-WorldLayout.HALF_GAP, _origin.y)
+		var b := _to_map(WorldLayout.HALF_GAP, _origin.y + (_size.y - PAD * 2.0) / _scale)
 		c.draw_rect(Rect2(a, b - a), Color(Palette.OUTLINE, 0.45))
 		_center_text(c, font, "Canyon", (a + b) * 0.5, 13, Palette.BONE.darkened(0.3))
+		for i in WorldLayout.TUNNELS.size():
+			var tm: Vector3 = Bug.cliffs.tunnel(i)[0] if Bug.cliffs != null else Vector3.ZERO
+			c.draw_circle(_to_map(tm.x, tm.z), 3.0, Color("#160C0A"))
 	else:
 		# The basin or lake: everything inside the lips.
 		var ctr := _to_map(m.center.x, m.center.z)
@@ -184,6 +195,7 @@ func _draw_map() -> void:
 			c.draw_circle(_to_map(tp.x, tp.z), 3.0, Color("#160C0A"))
 	for cid in m.count():
 		_draw_cliff(c, font, cid)
+	_draw_sites(c, font)
 	_draw_bugs(c)
 	_draw_airship(c, font)
 	_draw_pings(c, font)
@@ -210,8 +222,28 @@ func _draw_bugs(c: Control) -> void:
 				c.draw_line(lip, lip + Vector2(inw.x, inw.z) * tick, Color(Palette.TEAM_WEST.lightened(0.15), 0.95), 3.0)
 			Bug.State.CRESTING, Bug.State.BREACHING:
 				c.draw_circle(_to_map(b.global_position.x, z), 3.5, Palette.TEAM_WEST.lightened(0.2))
-			Bug.State.CROSSING, Bug.State.FLYING:
+			Bug.State.CROSSING, Bug.State.FLYING, Bug.State.HUNTING:
 				c.draw_circle(_to_map(b.global_position.x, z), 2.0, Color(Palette.TEAM_WEST, 0.6))
+
+
+## Canyon Expeditions: each raid site on the floor as a ringed marker in its
+## colour with its initial and name, dimmed once it's picked clean.
+func _draw_sites(c: Control, font: Font) -> void:
+	var mgr := SiteManager.instance
+	if mgr == null:
+		return
+	for s: SitePlan.Site in mgr.sites:
+		var at := _to_map(s.pos.x, s.pos.z)
+		var col: Color = SitePlan.COLORS[s.kind]
+		var empty := mgr.loot_left(s.index) == 0
+		if empty:
+			col = Color(col.darkened(0.4), 0.7)
+		c.draw_circle(at, 11.0, Palette.OUTLINE)
+		c.draw_circle(at, 9.0, col)
+		c.draw_arc(at, 13.5, 0.0, TAU, 24, Color(col, 0.6), 2.0)
+		_center_text(c, font, s.display_name().substr(0, 1), at, 12, Palette.OUTLINE)
+		var label := s.display_name() + (" (Picked Clean)" if empty else "")
+		_center_text(c, font, label, at + Vector2(0, -20), 11, Palette.BONE)
 
 
 ## Live pings, so a call-out made in the world shows up on the map too.
@@ -384,7 +416,8 @@ func _legend() -> HFlowContainer:
 	h.add_theme_constant_override("h_separation", 16)
 	h.add_theme_constant_override("v_separation", 4)
 	for item: Array in [[Color("#F2C14E"), "Cliff Turret"], [Color("#6FA8DC"), "Air Defence"], [Color("#E0533A"), "Last Resort"],
-			[Color("#7BC96F"), "Crops"], [Palette.TEAM_WEST, "Bugs (Ticks = Climbing)"], [Palette.GLOW_YELLOW, "You"]]:
+			[Color("#7BC96F"), "Crops"], [Palette.TEAM_WEST, "Bugs (Ticks = Climbing)"], [SitePlan.COLORS[SitePlan.Kind.BONEYARD], "Raid Site"],
+			[Palette.GLOW_YELLOW, "You"]]:
 		var cell := HBoxContainer.new()
 		cell.add_theme_constant_override("separation", 6)
 		cell.add_child(UiStyle.swatch(item[0], 14))

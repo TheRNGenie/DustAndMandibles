@@ -148,6 +148,9 @@ func _spawn_bug(data: Variant) -> Node:
 	bug.tree_exited.connect(_forget.bind(bug.net_id, bug))
 	bug.smoker = bool(d.get("smoke", false))
 	bug.site = int(d.get("site", -1))
+	if bug.site >= 0:
+		# (The expedition core lets turrets cover floor bugs flagged like this.)
+		bug.set("floor_bug", true)
 	bug.setup(Defs.bug(StringName(d["bug"])), int(d["cliff"]), int(d["lane"]),
 			float(d["z"]), float(d["y"]), float(d["hp"]), int(d.get("state", Bug.State.CLIMBING)),
 			d.get("pos", Vector3.ZERO))

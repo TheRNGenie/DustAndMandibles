@@ -536,5 +536,58 @@
         "A green line under your health shows a tonic on your turrets, or yours on theirs."
       ]
     }
+  },
+  "sites": {
+    "mouth": {
+      "lore": "Where a bug tunnel opens onto the canyon floor, behind old mine shoring somebody nailed up years back. Shed husks, chitin, the odd turret part, and pages Doc Whitlow dropped on his way in.",
+      "tips": [
+        "A few mites sleep in heaps here. Walk soft: they wake if you get close.",
+        "Gunfire carries. Every sleeper nearby comes to see who rang the bell."
+      ]
+    },
+    "boneyard": {
+      "lore": "The bleached carcass of something enormous, ribs arching out of the sand. Scavenger beetles pick it over, and the rarest turret parts turn up between the bones.",
+      "tips": [
+        "You can walk in under the ribcage.",
+        "The boss trophy carries an upgrade token on its horn."
+      ]
+    },
+    "camp": {
+      "lore": "A railroad survey crew left in a hurry: tents still pitched, the theodolite still level, supper still on the fire. Their crates hold blueprints, Doc's specimen jars and journal pages.",
+      "tips": [
+        "They booby-trapped the place: bear traps in the grass and a dynamite tripwire between the tents.",
+        "Look at a trap and press E to disarm it."
+      ]
+    },
+    "nest": {
+      "lore": "A crater of resin and mud full of humming eggs, glowing green in the dark. Brood guards and spiders sleep round the rim.",
+      "tips": [
+        "E takes a clutch of eggs to sell at the airship market.",
+        "F smashes a clutch. Smash most of them and that tunnel sends a fifth fewer bugs next wave. Smashing is loud."
+      ]
+    },
+    "wreck": {
+      "lore": "Number Seven came off the trestle in '89 and nobody ever hauled her out. Her cars are full of scrap: cartloads of it, more than a night on the cliff pays.",
+      "tips": [
+        "The wreck creaks when it starts to give. When it creaks, leave: timbers come down soon after.",
+        "Once it collapses, the rest of the scrap is buried until the next refill."
+      ]
+    },
+    "egg": {
+      "lore": "A clutch of bug eggs, warm and humming. Sells for scrap at the airship market (the price drops as you sell).",
+      "tips": [
+        "Or smash them at the nest to thin that tunnel's next wave."
+      ]
+    },
+    "specimen": {
+      "lore": "A glass jar with something curled up and glowing inside. Doc Whitlow pays chitin for them through the airship market.",
+      "tips": []
+    },
+    "journal_page": {
+      "lore": "Loose pages of Doc Whitlow's field journal, blown into the tunnel mouths and left at the survey camp.",
+      "tips": [
+        "Each page you pick up reads out a line from the journal."
+      ]
+    }
   }
 }

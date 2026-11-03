@@ -101,7 +101,8 @@ static func generate(tunnels: Array, run_seed: int) -> Array[Site]:
 		var c := Vector3.INF
 		for slide: float in ([0.0] if kind == Kind.MOUTH else SLIDES):
 			var p := mouth + way * (4.5 if kind == Kind.MOUTH else OUT_FROM_MOUTH) + side * slide
-			var clear := true
+			# Clear of the invisible walls at the canyon's ends (z +-90).
+			var clear := absf(p.z) <= WorldLayout.WORLD_HALF_Z - RADIUS - 1.5
 			for s in out:
 				if Vector2(s.pos.x - p.x, s.pos.z - p.z).length() < MIN_SEPARATION:
 					clear = false
@@ -172,7 +173,8 @@ class Loot:
 
 
 ## Items that are new with expeditions (stockpile keys).
-const NEST_EGG := &"nest_egg"
+## (The key the expedition core's backpack weighs at 2.)
+const NEST_EGG := &"egg"
 const SPECIMEN := &"specimen"
 const JOURNAL_PAGE := &"journal_page"
 const NEW_ITEMS: Array[StringName] = [NEST_EGG, SPECIMEN, JOURNAL_PAGE]

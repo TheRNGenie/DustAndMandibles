@@ -5,9 +5,9 @@ extends StaticBody3D
 ## hold E to repeat. Vegetable prices drop as you sell (down to -50%) and climb
 ## back while you don't (up to +50%); the sign shows today's prices.
 
-const ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili", &"herbs", &"nest_egg", &"specimen"]
+const ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili", &"herbs", &"egg", &"specimen"]
 const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Prickly Pear", &"chili": "Firecracker Chili", &"herbs": "Sage Herbs",
-	&"nest_egg": "Nest Egg", &"specimen": "Specimen Jar"}
+	&"egg": "Nest Egg", &"specimen": "Specimen Jar"}
 const SYNC_INTERVAL := 1.5
 ## Seeds for sale: seed resource -> [name, crop id]. Price = MarketPrices.seed_price.
 const SEEDS: Dictionary = {&"seed_corn": ["Corn Seeds", &"corn"], &"seed_prickly_pear": ["Prickly Pear Seeds", &"prickly_pear"],
