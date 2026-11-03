@@ -145,8 +145,9 @@ func _think(delta: float) -> void:
 		_in_fire = false
 		_in_alt = false
 	_tick_chain(delta)
-	# Crewed: on merge with the boss work, also return here when BossFx.holds_fire(self)
-	# (webbed or stunned turrets hold fire), as Turret._think does.
+	# Boss: webbed (Queen Spider) or stunned (Thunder Cicada) guns hold fire, as Turret._think does.
+	if BossFx.holds_fire(self):
+		return
 	if crew_peer != 0:
 		_think_manned(delta)
 	else:
