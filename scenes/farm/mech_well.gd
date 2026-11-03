@@ -17,6 +17,9 @@ const RUN_SPEED := 3.1
 
 ## Screenshots only (--mapcam=well:N:run): pump as if the generator ran.
 static var force_run := false
+## Story (Dry Season): every pump valve has cracked; no well pumps until a new
+## valve is fitted (StoryDirector sets it on every peer).
+static var valve_broken := false
 
 var style: StringName = &"timber"
 ## Jack-local spots set by the dressing: the drive pulley at the generator, the
@@ -129,7 +132,7 @@ func _part(n: String, mesh: Mesh, mat: Material) -> Node3D:
 
 
 func _process(delta: float) -> void:
-	var on := GameState.pumps_on() or force_run
+	var on := (GameState.pumps_on() or force_run) and not valve_broken
 	rates = Vector2(PUMP_RATE, PUMP_RATE)
 	if on:
 		super(delta) # water only comes while the pump runs (Logan: pump and rain are the only sources)
@@ -181,6 +184,8 @@ static func _span(a: Vector3, b: Vector3, spin: float) -> Transform3D:
 
 func interact_prompt() -> String:
 	var line := super()
+	if valve_broken:
+		return line + "\nThe pump valve's cracked: no water till a new one's fitted"
 	if stored >= capacity:
 		line += "
 Trough's full: the pump's sending water up to the tower"

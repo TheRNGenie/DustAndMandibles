@@ -39,6 +39,12 @@ var god_mode: bool = false
 ## never saved and never pays Notches. Not cleared by reset() (start_run calls
 ## it); the main menu clears it.
 var tutorial := false
+## Story mode (StoryDirector sets these while a chapter runs, and clears them):
+## the chapter's last wave (0 = the config's), what the host calls instead of
+## finishing when that wave is cleared, and weather forced per wave {wave: kind}.
+var story_last_wave := 0
+var story_end_hook: Callable
+var forced_weather: Dictionary = {}
 ## Command-line flags (anything after `--` on the command line).
 var flags: PackedStringArray = PackedStringArray()
 
@@ -177,7 +183,11 @@ func _advance() -> void:
 func end_wave() -> void:
 	if not multiplayer.is_server() or phase != Phase.WAVE:
 		return
-	if wave >= config().last_wave and not endless:
+	var last := story_last_wave if story_last_wave > 0 else config().last_wave
+	if wave >= last and not endless:
+		if story_end_hook.is_valid(): # Story: the chapter decides (its objective may not be done yet)
+			story_end_hook.call()
+			return
 		_finish.rpc(true, "You held the canyon for %d waves!" % wave)
 		return
 	wave += 1
@@ -206,6 +216,8 @@ func _enter(p: Phase) -> void:
 			w = Weather.Kind.DUST_STORM
 		if wave <= 1:
 			w = Weather.Kind.CLEAR # the first wave is always plain weather
+		if forced_weather.has(wave): # Story: a chapter's weather (Dry Season's heat wave)
+			w = int(forced_weather[wave])
 		if flag_value("--weather") != "":
 			w = clampi(int(flag_value("--weather")), 0, Weather.Kind.BLOOD_MOON)
 	elif p == Phase.BUILD or p == Phase.LOBBY:
@@ -255,6 +267,12 @@ func _sync_phase(p: int, duration: float, w: int, kind: int) -> void:
 func temperature() -> float:
 	var hour := DayCycle.instance.hour() if DayCycle.instance != null else 12.0
 	return Weather.temperature(hour, weather)
+
+
+## Host: ends the run now (Story: a chapter won, or lost to its objective).
+func finish(did_win: bool, reason: String) -> void:
+	if multiplayer.is_server() and phase != Phase.GAME_OVER:
+		_finish.rpc(did_win, reason)
 
 
 ## Host: damage to a Homestead. Losing either one loses the run (shared fate).

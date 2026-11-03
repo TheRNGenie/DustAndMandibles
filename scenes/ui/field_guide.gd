@@ -40,7 +40,7 @@ func menu_tagline() -> String:
 
 
 func menu_tabs() -> Array:
-	return ["Guns", "Bugs", "Turrets", "Crops"]
+	return ["Guns", "Bugs", "Turrets", "Crops", "Journal"] # Story: Doc Whitlow's journal pages
 
 
 func menu_items(tab: int) -> Array:
@@ -104,6 +104,13 @@ func menu_items(tab: int) -> Array:
 				tips.append_array(e.get("tips", []))
 				var crop_icon: Variant = c.harvest.keys()[0] if not c.harvest.is_empty() else null
 				out.append(_item(id, c.display_name, crop_icon, str(e.get("lore", "")), stats, tips, UiStyle.cost(MarketPrices.seed_price(c), "scrap") + " a Seed"))
+		4:
+			# Story: one page per chapter won (StoryScreen.journal_pages), the rest torn out.
+			var n := 0
+			for v: Array in StoryScreen.journal_pages():
+				n += 1
+				out.append({"id": "journal_%d" % n, "name": str(v[0]), "icon": null, "desc": str(v[1]),
+						"price": "Chapter %d" % n if bool(v[2]) else "Not Yet", "price_ok": bool(v[2])})
 	return out
 
 

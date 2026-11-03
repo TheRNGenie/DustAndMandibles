@@ -23,6 +23,7 @@ WaveDirector="*res://autoload/WaveDirector.gd"
 Audio="*res://autoload/Audio.gd"
 Perks="*res://autoload/Perks.gd"
 Brand="*res://autoload/Brand.gd"
+Story="*res://autoload/Story.gd"
 
 [debug]
 

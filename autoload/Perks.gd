@@ -685,6 +685,8 @@ static func _scaffold_cells() -> Array[Vector2i]:
 func _on_game_over(won: bool, _reason: String) -> void:
 	if not _run_active:
 		return
+	if Story.active():
+		return # Story: the chapter pays its own Notches (StoryDirector reports them)
 	var last := GameState.config().last_wave
 	var held := GameState.wave if won else GameState.wave - 1
 	held = maxi(held, 0)

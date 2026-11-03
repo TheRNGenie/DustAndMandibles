@@ -122,6 +122,12 @@ func _ready() -> void:
 		tut.name = "TutorialRun"
 		tut.world = self
 		add_child(tut)
+	# Story: the chapter's director (objectives, radio, the noticeboard telegram).
+	if Story.active():
+		var story := StoryDirector.new()
+		story.name = "StoryDirector"
+		story.world = self
+		add_child(story)
 
 	if multiplayer.is_server():
 		_on_peer_loaded(1)
@@ -225,7 +231,7 @@ func _on_peer_loaded(id: int) -> void:
 	var resume := RunSave.pending
 	RunSave.pending = {}
 	if not saver.resume(resume):
-		GameState.start_run()
+		GameState.start_run(StoryDirector.instance.start_wave() if StoryDirector.instance != null else 1)
 
 
 ## CPU teammates take every empty cliff and the team shares one pool

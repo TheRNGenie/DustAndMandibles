@@ -57,6 +57,11 @@ func _fly_to(goal: Vector3, delta: float) -> void:
 
 
 func _steal() -> void:
+	# Story (Bandits in the Bargain): a payroll strongbox hands over a sack of silver.
+	if _target.has_method("bandit_steal"):
+		_target.call("bandit_steal", bug)
+		_start_escape()
+		return
 	# Boss: the Swarm Lord's locusts are small and take a bite each (a bandit takes 3).
 	var amount := maxi(1, roundi(bug.def.size * 2.7))
 	if _target is WaterSource:
@@ -76,6 +81,12 @@ func _start_escape() -> void:
 
 func _pick_target() -> Node3D:
 	var options: Array[Node3D] = []
+	# Story: payroll strongboxes with silver left draw every bandit first.
+	for n: Node in bug.get_tree().get_nodes_in_group("story_strongboxes"):
+		if int(n.get("cliff_id")) == bug.cliff_id and bool(n.call("has_loot")):
+			options.append(n as Node3D)
+	if not options.is_empty():
+		return options[randi() % options.size()]
 	for g: String in ["crops", "water_sources"]:
 		for n: Node in bug.get_tree().get_nodes_in_group(g):
 			var node := n as Node3D

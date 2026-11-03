@@ -29,6 +29,8 @@ var _active := false
 var _last_wave := 0
 ## Boss ids met this run, oldest first (BossRotation never repeats one early).
 var boss_seen: Array = []
+## Story: edits each planned wave (StoryDirector: the chapter's boss and extra bugs).
+var plan_hook: Callable
 
 
 func _ready() -> void:
@@ -102,7 +104,10 @@ func _make_plan() -> Dictionary:
 	_planner.boss_seen = boss_seen
 	_planner.cliff_count = WorldLayout.cliff_count() # Maps: this run's map
 	_planner.weights = _live_weights()
-	return _planner.plan(GameState.wave)
+	var plan := _planner.plan(GameState.wave)
+	if plan_hook.is_valid():
+		plan = plan_hook.call(plan)
+	return plan
 
 
 ## The bosses in the current plan (ids, in group order).
