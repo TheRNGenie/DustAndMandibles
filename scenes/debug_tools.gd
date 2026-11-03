@@ -1232,6 +1232,8 @@ func _take_screenshot(path: String) -> void:
 		player.build_mode.toggle()
 		player.build_mode.show_category(int(GameState.flag_value("--buildmenu")))
 		player.build_mode.open_menu()
+	if GameState.flag_value("--gameover") != "": # the end-of-run screen in a shot (win / lose)
+		GameState._finish(GameState.flag_value("--gameover") == "win", "Debug view of the end of the run.")
 	if GameState.has_flag("--showmap"):
 		(world.get("hud") as Hud).overview.visible = true # the overview map (M) open in the shot
 	if GameState.flag_value("--pause") != "":

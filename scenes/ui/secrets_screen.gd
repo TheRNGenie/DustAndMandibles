@@ -10,6 +10,7 @@ var _box: PanelContainer
 var _dial: Dial
 var _code: LineEdit
 var _result: Label
+var _mark: UiStyle.Mark
 var _box_x := 0.0
 
 
@@ -29,6 +30,7 @@ func open() -> void:
 	_code.text = ""
 	_result.text = "Every code opens something. Most open nothing."
 	_result.theme_type_variation = "SoftInkLabel"
+	_set_mark("info")
 	_code.grab_focus.call_deferred()
 
 
@@ -58,7 +60,7 @@ func _build() -> void:
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 0)
 	_box.add_child(outer)
-	outer.add_child(UiStyle.strap("The Strongbox", "", 30))
+	outer.add_child(UiStyle.strap("The Strongbox", "Heard a code somewhere? Dial it in.", 30))
 	var card := PanelContainer.new()
 	card.theme_type_variation = "PaperPanel"
 	outer.add_child(card)
@@ -68,9 +70,6 @@ func _build() -> void:
 	_dial = Dial.new()
 	_dial.custom_minimum_size = Vector2(0, 170)
 	col.add_child(_dial)
-	var hint := UiStyle.label("Heard a code somewhere? Dial it in.", 16)
-	hint.theme_type_variation = "SoftInkLabel"
-	col.add_child(hint)
 	_code = LineEdit.new()
 	_code.placeholder_text = "Code"
 	_code.alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -80,21 +79,37 @@ func _build() -> void:
 	_code.text_changed.connect(func(_t: String) -> void: _dial.turn(randf_range(-0.6, 0.6)))
 	_code.text_submitted.connect(func(_t: String) -> void: _try())
 	col.add_child(_code)
+	# The lock's answer, with a shape as well as a colour (dot, tick or cross).
+	var result_row := HBoxContainer.new()
+	result_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	result_row.add_theme_constant_override("separation", 6)
+	result_row.custom_minimum_size.y = 46
+	col.add_child(result_row)
+	_mark = UiStyle.mark("info", UiStyle.c("ink_soft"), 16)
+	result_row.add_child(_mark)
 	_result = UiStyle.label("", 16)
-	_result.custom_minimum_size.y = 46
-	col.add_child(_result)
+	_result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_result.custom_minimum_size.x = 380
+	_result.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	result_row.add_child(_result)
 	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", UiStyle.GAP_ROW)
 	col.add_child(row)
-	var try_b := UiStyle.button("Try the Lock")
-	try_b.custom_minimum_size.x = 180
+	var hints := UiStyle.paper_hints([["Enter", "Try"], ["Esc", "Close"]])
+	hints.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(hints)
+	var try_b := MenuScreen.wood_button("Try the Lock")
 	try_b.pressed.connect(_try)
 	row.add_child(try_b)
-	var close_b := UiStyle.button("Close")
-	close_b.custom_minimum_size.x = 140
+	var close_b := MenuScreen.wood_button("Close")
 	close_b.pressed.connect(close)
 	row.add_child(close_b)
+
+
+func _set_mark(kind: String) -> void:
+	_mark.kind = kind
+	_mark.color = UiStyle.status_color(kind)
+	_mark.queue_redraw()
 
 
 func _try() -> void:
@@ -102,6 +117,7 @@ func _try() -> void:
 	if not bool(got["ok"]):
 		_result.text = "Nope. The lock doesn't budge."
 		_result.theme_type_variation = "BadLabel"
+		_set_mark("bad")
 		_shake()
 		if Audio.has_sound(&"armor_ping"):
 			Audio.play_ui(&"armor_ping", -8.0)
@@ -109,6 +125,7 @@ func _try() -> void:
 	var added: Array = got["added"]
 	_dial.open_up()
 	_result.theme_type_variation = "GoodLabel"
+	_set_mark("good")
 	_result.text = ("Click! The box swings open: %s." % ", ".join(added.map(func(e: Variant) -> String: return _pretty(e)))) \
 		if not added.is_empty() else "Click! But you've already emptied this one."
 	if Audio.has_sound(&"coin"):

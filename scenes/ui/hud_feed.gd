@@ -11,7 +11,9 @@ var cliff_id: int = 0
 var _feed: VBoxContainer
 var _card: HudPromptCard
 var _prompt_text := ""
-var _over: PanelContainer
+var _over: Control
+var _over_strap: PanelContainer
+var _over_scroll: ScrollContainer
 var _paper: NewspaperFront
 var _over_label: Label
 var _keep_going: Button
@@ -40,36 +42,64 @@ func _ready() -> void:
 	_card = HudPromptCard.new()
 	add_child(_card)
 
-	_over = PanelContainer.new()
-	_over.add_theme_stylebox_override("panel", UiStyle.poster())
-	_over.set_anchors_preset(Control.PRESET_CENTER)
-	_over.offset_left = -280
-	_over.offset_right = 280
-	_over.offset_top = -120
-	_over.offset_bottom = 120
+	# End of the run: the shared menu frame (scrim, strap, paper, footer buttons)
+	# around the newsprint front page and the Notches report.
+	var over_layer := CanvasLayer.new()
+	over_layer.layer = 40 # over the rest of the HUD, under the menus
+	add_child(over_layer)
+	_over = Control.new()
+	_over.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_over.visible = false
 	_over.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_over)
+	over_layer.add_child(_over)
+	_over.add_child(UiStyle.scrim())
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_over.add_child(center)
+	var frame := UiStyle.panel("FramePanel")
+	center.add_child(frame)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 0)
+	frame.add_child(outer)
+	_over_strap = UiStyle.strap("The Run Is Over", "", 30)
+	outer.add_child(_over_strap)
+	var card := UiStyle.panel("PaperPanel")
+	outer.add_child(card)
+	var inner := VBoxContainer.new()
+	inner.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
+	card.add_child(inner)
+	_over_scroll = ScrollContainer.new()
+	_over_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	inner.add_child(_over_scroll)
 	var col := VBoxContainer.new()
-	_over.add_child(col)
+	col.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_over_scroll.add_child(col)
 	_over_label = UiStyle.label("", 26)
 	_over_label.visible = false # the newspaper carries the result now
 	col.add_child(_over_label)
 	_paper = NewspaperFront.new() # end-of-run front page (RunStats)
+	_paper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	col.add_child(_paper)
 	RunStats.reset() # a new world = a new run
 	col.add_child(BrandsReport.new()) # Perk: Brands earned this run
+	Perks.run_banked.connect(func(_r: Dictionary) -> void: _fit_over.call_deferred())
+	_over.resized.connect(func() -> void: _fit_over.call_deferred())
+	var footer := HBoxContainer.new()
+	footer.alignment = BoxContainer.ALIGNMENT_END
+	footer.add_theme_constant_override("separation", UiStyle.GAP_ROW)
+	inner.add_child(footer)
 	# After a win: keep the waves coming past the last one (host decides).
-	_keep_going = UiStyle.button("Keep going (endless)")
+	_keep_going = MenuScreen.wood_button("Keep Going (Endless)")
 	_keep_going.visible = false
 	_keep_going.pressed.connect(func() -> void: GameState.continue_endless())
-	col.add_child(_keep_going)
-	var back := UiStyle.button("Back to main menu")
+	footer.add_child(_keep_going)
+	var back := MenuScreen.wood_button("Back to Main Menu")
 	back.pressed.connect(func() -> void:
 		NetworkManager.leave()
 		GameState.reset()
 		get_tree().change_scene_to_file(NetworkManager.MENU_SCENE))
-	col.add_child(back)
+	footer.add_child(back)
 
 	_boss_box = VBoxContainer.new()
 	_boss_box.anchor_left = 0.5
@@ -236,9 +266,27 @@ func _on_wave_announced(heavy_cliff: int, west_share: float, lane_counts: Array)
 func _on_game_over(won: bool, reason: String) -> void:
 	_over_label.text = ("YOU WIN!\n" if won else "THE CANYON IS LOST\n") + reason
 	_paper.show_run(won, reason)
+	(_over_strap.find_child("Title", true, false) as Label).text = "The Canyon Held" if won else "The Canyon Fell"
+	_keep_going.visible = won and multiplayer.is_server() # the host decides whether to ride on
 	_over.visible = true
+	UiStyle.fade_in(_over)
+	_fit_over.call_deferred()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	GameState.menu_open = true
+
+
+## The front page scrolls only when the screen is too short for it.
+func _fit_over() -> void:
+	if not _over.visible:
+		return
+	# Wrapped lines only know their height once laid out at their real width.
+	for i in 2:
+		await get_tree().process_frame
+	var content := (_over_scroll.get_child(0) as Control).get_combined_minimum_size()
+	var frame := _over_strap.get_parent().get_parent() as Control
+	var chrome := frame.get_combined_minimum_size().y - _over_scroll.custom_minimum_size.y
+	var room := _over.size.y - 48.0 - chrome
+	_over_scroll.custom_minimum_size = Vector2(content.x, clampf(content.y, 120.0, maxf(room, 120.0)))
 
 
 func _cliff_owner_name(cid: int) -> String:

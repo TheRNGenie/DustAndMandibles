@@ -28,8 +28,8 @@ func _ready() -> void:
 	z_index = 20 # above the in-world ping and alert markers
 	visible = false
 	_panel = PanelContainer.new()
-	var sb := KeyHints.card_style()
-	sb.bg_color = Color(Palette.WOOD_DARK, 0.94)
+	var sb := KeyHints.card_style() # the set's HUD card, nearly opaque
+	sb.bg_color = Color(sb.bg_color, 0.98)
 	sb.set_content_margin_all(14)
 	_panel.add_theme_stylebox_override("panel", sb)
 	_panel.set_anchors_preset(Control.PRESET_CENTER)
@@ -39,7 +39,8 @@ func _ready() -> void:
 	col.add_theme_constant_override("separation", 8)
 	_panel.add_child(col)
 	_fit()
-	var title := KeyHints.text("CANYON MAP" if WorldLayout.map().is_canyon() else WorldLayout.map().display_name.to_upper(), 22, Palette.GLOW_YELLOW)
+	var title := KeyHints.text("Canyon Map" if WorldLayout.map().is_canyon() else UiStyle.tc(WorldLayout.map().display_name), 24, UiStyle.c("title"))
+	title.add_theme_font_override("font", UiStyle.display_font())
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
 	_canvas = Control.new()
@@ -72,7 +73,12 @@ func _process(delta: float) -> void:
 			_panel.offset_left = -s.x * 0.5
 			_panel.offset_right = s.x * 0.5
 			_panel.offset_top = -s.y * 0.5
-			_panel.offset_bottom = s.y * 0.5).call()
+			_panel.offset_bottom = s.y * 0.5
+			# Shrink to fit between the plaque and the hotbar on short screens.
+			var vp := get_viewport_rect().size
+			var k := minf(1.0, minf((vp.y - 150.0) / s.y, (vp.x - 60.0) / s.x))
+			_panel.pivot_offset = s * 0.5
+			_panel.scale = Vector2(k, k)).call()
 
 
 ## Plateau depth shown (grid rows plus a margin) and the canyon gap.
@@ -143,7 +149,7 @@ func _draw_map() -> void:
 		var a := _to_map(-WorldLayout.HALF_GAP, Z_MIN)
 		var b := _to_map(WorldLayout.HALF_GAP, Z_MAX)
 		c.draw_rect(Rect2(a, b - a), Color(Palette.OUTLINE, 0.45))
-		_center_text(c, font, "canyon", (a + b) * 0.5, 13, Palette.BONE.darkened(0.3))
+		_center_text(c, font, "Canyon", (a + b) * 0.5, 13, Palette.BONE.darkened(0.3))
 	else:
 		# The basin or lake: everything inside the lips.
 		var ctr := _to_map(m.center.x, m.center.z)
@@ -154,7 +160,7 @@ func _draw_map() -> void:
 				rim.append(_plateau_map(cid, 0.0, z))
 		var hull := Geometry2D.convex_hull(rim)
 		c.draw_colored_polygon(hull, Color(Palette.OUTLINE, 0.45))
-		_center_text(c, font, "dry lake" if m.id == MapDef.BUTTES else "basin", ctr + Vector2(0, 26), 13, Palette.BONE.darkened(0.3))
+		_center_text(c, font, "Dry Lake" if m.id == MapDef.BUTTES else "Basin", ctr + Vector2(0, 26), 13, Palette.BONE.darkened(0.3))
 		for i in m.tunnel_count():
 			var t: Array = m.tunnels[i]
 			var tp: Vector3 = t[0]
@@ -231,7 +237,7 @@ func _draw_cliff(c: Control, font: Font, cid: int) -> void:
 			c.draw_colored_polygon(_cell_poly(cid, cell, 0.5), fill)
 	var hc := Buildable.house_cells()
 	var hcenter := _poly_center(_cell_poly(cid, hc.position, 0.0) + _cell_poly(cid, hc.position + hc.size - Vector2i.ONE, 0.0))
-	_center_text(c, font, "house", hcenter, 12, Palette.BONE)
+	_center_text(c, font, "House", hcenter, 12, UiStyle.c("hud"))
 	# Built things.
 	for n: Node in get_tree().get_nodes_in_group("turrets"):
 		if int(n.get("cliff_id")) != cid or n.get("cell") == null:
@@ -265,7 +271,7 @@ func _draw_cliff(c: Control, font: Font, cid: int) -> void:
 		below = _plateau_map(cid, _depth() - 4.0, 0.0)
 	_center_text(c, font, label, at, 16, Palette.GLOW_YELLOW if mine else Palette.BONE)
 	if mine:
-		_center_text(c, font, "you are here", below, 12, Palette.GLOW_YELLOW)
+		_center_text(c, font, "You Are Here", below, 12, Palette.GLOW_YELLOW)
 
 
 ## A grid cell's corners on the map, pulled `inset` pixels in from its edges.
@@ -303,7 +309,7 @@ func _draw_airship(c: Control, font: Font) -> void:
 	c.draw_rect(r, Color(Palette.TEAM_WEST, 0.35))
 	c.draw_rect(r, Palette.TEAM_WEST.lightened(0.2), false, 2.0)
 	_center_text(c, font, "Airship", mp + Vector2(0, -6), 14, Palette.BONE)
-	_center_text(c, font, "market · casino", mp + Vector2(0, 10), 11, Palette.BONE.darkened(0.2))
+	_center_text(c, font, "Market · Casino", mp + Vector2(0, 10), 11, Palette.BONE.darkened(0.2))
 
 
 func _draw_players(c: Control, font: Font) -> void:
@@ -358,15 +364,11 @@ func _legend() -> HBoxContainer:
 	var h := HBoxContainer.new()
 	h.alignment = BoxContainer.ALIGNMENT_CENTER
 	h.add_theme_constant_override("separation", 16)
-	for item: Array in [[Color("#F2C14E"), "Cliff turret"], [Color("#6FA8DC"), "Air defence"], [Color("#E0533A"), "Last resort"],
-			[Color("#7BC96F"), "Crops"], [Palette.TEAM_WEST, "Bugs (ticks = climbing)"], [Palette.GLOW_YELLOW, "You"]]:
+	for item: Array in [[Color("#F2C14E"), "Cliff Turret"], [Color("#6FA8DC"), "Air Defence"], [Color("#E0533A"), "Last Resort"],
+			[Color("#7BC96F"), "Crops"], [Palette.TEAM_WEST, "Bugs (Ticks = Climbing)"], [Palette.GLOW_YELLOW, "You"]]:
 		var cell := HBoxContainer.new()
 		cell.add_theme_constant_override("separation", 6)
-		var sw := ColorRect.new()
-		sw.color = item[0]
-		sw.custom_minimum_size = Vector2(14, 14)
-		sw.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		cell.add_child(sw)
-		cell.add_child(KeyHints.text(str(item[1]), 13, Palette.BONE))
+		cell.add_child(UiStyle.swatch(item[0], 14))
+		cell.add_child(KeyHints.text(str(item[1]), 14, UiStyle.c("hud")))
 		h.add_child(cell)
 	return h

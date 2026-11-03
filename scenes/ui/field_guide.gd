@@ -82,8 +82,7 @@ func menu_items(tab: int) -> Array:
 					continue
 				var t := Defs.turret(id)
 				var e := FieldGuide.entry("turrets", id)
-				var stats := "%d Damage Every %.2f s  ·  Range %d m  ·  %d HP%s" % [int(t.damage), t.fire_interval, int(t.range), int(t.max_hp),
-						"  ·  Pierces Armour" if t.armor_pierce else ""]
+				var stats := t.stat_line() + "  ·  %d HP" % int(t.max_hp) # the same numbers as in the build menu
 				var icon: Variant = IconStudio.turret(MenuScreen.instance, id) if MenuScreen.instance != null else null
 				out.append(_item(id, t.display_name, icon, str(e.get("lore", t.description)), stats, e.get("tips", []), UiStyle.cost(t.cost_scrap, "scrap")))
 		3:
@@ -102,7 +101,8 @@ func menu_items(tab: int) -> Array:
 						_minutes(c.grow_time), c.water_cost, ", ".join(yields), ", ".join(sells)]
 				var tips: Array = [c.role] if c.role != "" else []
 				tips.append_array(e.get("tips", []))
-				out.append(_item(id, c.display_name, null, str(e.get("lore", "")), stats, tips, UiStyle.cost(MarketPrices.seed_price(c), "scrap") + " a Seed"))
+				var crop_icon: Variant = c.harvest.keys()[0] if not c.harvest.is_empty() else null
+				out.append(_item(id, c.display_name, crop_icon, str(e.get("lore", "")), stats, tips, UiStyle.cost(MarketPrices.seed_price(c), "scrap") + " a Seed"))
 	return out
 
 
