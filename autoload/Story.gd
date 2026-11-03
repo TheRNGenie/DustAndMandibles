@@ -47,6 +47,15 @@ func chapter() -> StoryChapter:
 	return StoryChapter.load_id(chapter_id) if chapter_id != "" else null
 
 
+## The map chapter `ch` plays on for `riders` (Debug: --storymap=<id> forces one,
+## as a 3-4 rider lobby moves a Canyon chapter to the Mesa or the Buttes).
+func map_for(ch: StoryChapter, riders: int) -> StringName:
+	var forced := GameState.flag_value("--storymap")
+	if forced != "" and GameState.debug_enabled() and MapDef.IDS.has(StringName(forced)):
+		return StringName(forced)
+	return ch.map_for_players(riders)
+
+
 func is_unlocked(cid: String) -> bool:
 	return progress.is_unlocked(cid) or (GameState.has_flag("--storyall") and GameState.debug_enabled())
 
@@ -60,9 +69,9 @@ func select(cid: String) -> void:
 		NetworkManager.cpu_quality = -1
 		var ch := chapter()
 		if ch != null:
-			NetworkManager.set_map(ch.map_for_players(maxi(NetworkManager.players.size(), 1)))
+			NetworkManager.set_map(map_for(ch, maxi(NetworkManager.players.size(), 1)))
 			if not NetworkManager.is_online():
-				NetworkManager.map_id = ch.map_for_players(1)
+				NetworkManager.map_id = map_for(ch, 1)
 			_seat_four()
 	if multiplayer.is_server() and NetworkManager.is_online():
 		_sync.rpc(cid)
@@ -74,7 +83,7 @@ func fit_map() -> void:
 	var ch := chapter()
 	if ch == null or not multiplayer.is_server():
 		return
-	var want := ch.map_for_players(maxi(NetworkManager.players.size(), 1))
+	var want := map_for(ch, maxi(NetworkManager.players.size(), 1))
 	if want != NetworkManager.map_id:
 		NetworkManager.set_map(want)
 	_seat_four()
