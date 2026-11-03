@@ -285,7 +285,7 @@ func _ledger_button() -> Button:
 ## Debug/test launches go straight into a solo game, no menu clicks
 ## (except the tests that are about the menu itself).
 func _test_launch() -> bool:
-	return GameState.has_flag("--debug") and not GameState.has_flag("--join") 			and not GameState.has_flag("--menushot") and not GameState.has_flag("--menutab") 			and not GameState.has_flag("--menu")
+	return GameState.has_flag("--debug") and not GameState.has_flag("--join") and GameState.flag_value("--join") == "" 			and not GameState.has_flag("--menushot") and not GameState.has_flag("--menutab") 			and not GameState.has_flag("--menu")
 
 
 func _on_host() -> void:
