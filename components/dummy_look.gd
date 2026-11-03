@@ -8,8 +8,8 @@ extends RefCounted
 const SLOTS: Dictionary = {
 	"hat": ["Hat", [["cattleman", "Cattleman"], ["ten_gallon", "Ten-gallon"], ["gambler", "Flat gambler"], ["bowler", "Bowler"], ["sombrero", "Sombrero"], ["none", "Bare head"]]],
 	"hair": ["Hair", [["none", "None (it's a dummy)"], ["mullet", "Mullet"], ["ponytail", "Ponytail"], ["long", "Long and wild"], ["mohawk", "Mohawk"]]],
-	"facial": ["Facial hair", [["handlebar", "Handlebar"], ["none", "Clean"], ["horseshoe", "Horseshoe"], ["walrus", "Walrus"], ["pencil", "Pencil"], ["goatee", "Goatee"], ["beard", "Full beard"], ["chops", "Mutton chops"]]],
-	"hair_color": ["Hair colour", [["brown", "Brown"], ["black", "Black"], ["blonde", "Blonde"], ["ginger", "Ginger"], ["grey", "Grey"]]],
+	"facial": ["Facial Hair", [["handlebar", "Handlebar"], ["none", "Clean"], ["horseshoe", "Horseshoe"], ["walrus", "Walrus"], ["pencil", "Pencil"], ["goatee", "Goatee"], ["beard", "Full beard"], ["chops", "Mutton chops"]]],
+	"hair_color": ["Hair Colour", [["brown", "Brown"], ["black", "Black"], ["blonde", "Blonde"], ["ginger", "Ginger"], ["grey", "Grey"]]],
 	"outfit": ["Outfit", [["vest", "Leather vest"], ["none", "Just the dummy"], ["duster", "Duster coat"], ["poncho", "Poncho"], ["lawman", "Lawman"]]],
 	"neck": ["Neck", [["bandana", "Bandana"], ["mask", "Bandana mask"], ["bolo", "Bolo tie"], ["none", "Nothing"]]],
 	"extra": ["Extras", [["spurs", "Boots and spurs"], ["none", "Dummy feet"], ["bandolier", "Bandolier"], ["both", "Boots, spurs and bandolier"]]],

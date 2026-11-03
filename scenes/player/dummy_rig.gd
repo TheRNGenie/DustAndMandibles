@@ -305,7 +305,7 @@ func animate(delta: float, speed: float, sliding: bool, pitch: float, vy: float 
 		var hang := -sin(_phase) * 0.55 * k + breathe * 2.0 + 0.08
 		r_sh = Vector3(lerpf(hang, 2.75, wave), 0.0, lerpf(0.08, 0.35, wave))
 		r_el = lerpf(0.3 + k * 0.4, 0.4 + sin(_life * 11.0) * 0.45, wave)
-	var two_hands := 1.0 if _weapon in [&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling"] else 0.0
+	var two_hands := 1.0 if _weapon in [&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun"] else 0.0
 	_two = move_toward(_two, two_hands * (1.0 - _slide * 0.5), dt * 4.0)
 	# Free arm (left, index 0): swings against the left leg, elbow bent to run.
 	var swing := -sin(_phase) * 0.6 * k * dir

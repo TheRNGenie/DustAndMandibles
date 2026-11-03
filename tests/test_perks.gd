@@ -72,7 +72,7 @@ func test_unlock_spends_brands_and_ranks_up() -> void:
 func test_unlock_needs_brands_and_stops_at_max() -> void:
 	var p := _rich(10)
 	assert_false(p.unlock(&"quick_hands"))
-	assert_eq(p.unlock_block(&"quick_hands"), "Needs 5 more Brands.")
+	assert_eq(p.unlock_block(&"quick_hands"), "Needs 5 more Notches.")
 	p.brands = 1000
 	assert_true(p.unlock(&"barn_raising"))
 	assert_false(p.unlock(&"barn_raising"), "single-rank perk can't rank up")

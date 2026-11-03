@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"bear_trap"
-display_name = "Bear trap"
+display_name = "Bear Trap"
 description = "Roots one bug for 4 s. Press E to reset."
 kind = 1
 cost_scrap = 15

@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="BugDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/bug_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"hive_wagon"
+display_name = "The Hive Wagon"
+behavior = 8
+max_hp = 2200.0
+climb_speed = 0.6
+walk_speed = 1.0
+cost = 0
+group_size = 1
+front_armor = 0.0
+scrap_drop = 150
+chitin_drop = 40
+breach_dps = 40.0
+size = 3.2
+shell_color = Color(0.42, 0.27, 0.17, 1)
+first_wave = 5
+counter = "Every hit shakes drones out of the hive on its back, a burst every couple of seconds while it's under fire, and a last swarm when it dies. Hit it with everything at once: the faster it dies, the fewer drones."
+boss_tip = "THE HIVE WAGON is climbing! Hurting it shakes drones out of its hive: kill it fast."
+wanted_for = "FOR KEEPING BEES (THE WRONG KIND)"

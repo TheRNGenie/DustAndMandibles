@@ -27,17 +27,25 @@ func ui_actions() -> Array:
 	return [[&"deal", "Deal"]]
 
 
+func ui_cheat() -> Array:
+	return ["Deal With an Ace Up the Sleeve", "blackjack"] if not bool(view.get("in_hand", false)) else []
+
+
 func _act(peer_id: int, action: StringName, _choice: int, bet: int) -> void:
-	if action == &"deal":
+	if action == &"deal" or action == &"cheat":
 		if not _hand.is_empty():
 			Economy.notify(peer_id, "Wait for the current hand to finish.")
 			return
 		bet = _valid_bet(bet)
+		if action == &"cheat" and _cheat(peer_id, "blackjack", bet) <= 0: # Brand: Snake Eyes palms an ace
+			return
 		if not _take(peer_id, bet):
 			return
 		var shoe := _shoe()
 		_hand = {"peer": peer_id, "bet": bet, "player": [shoe.pop_back(), shoe.pop_back()],
 				"dealer": [shoe.pop_back(), shoe.pop_back()], "shoe": shoe}
+		if action == &"cheat":
+			(_hand["player"] as Array)[0] = 1
 		if CasinoRules.bj_is_blackjack(_hand["player"]) or CasinoRules.bj_is_blackjack(_hand["dealer"]):
 			_finish()
 		else:

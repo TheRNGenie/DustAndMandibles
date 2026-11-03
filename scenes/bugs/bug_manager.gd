@@ -109,6 +109,14 @@ func _spawn_from(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 				# Flies out of the same tunnels down the canyon, low over the floor.
 				var wall := int(tunnel[0])
 				pos = Bug.cliffs.tunnel_mouth(wall, float(tunnel[1])) + Vector3(-WorldLayout.side_sign(wall) * (1.5 + float(i) * 1.2), 1.8, 0)
+			BugDef.Behavior.BOSS:
+				# Boss: some bosses leave the tunnel another way (the Locust Swarm Lord flies out).
+				if start_y <= 0.0:
+					var wall := int(tunnel[0])
+					var o := BossBrain.spawn_override(def.id, Bug.cliffs.tunnel_mouth(wall, float(tunnel[1])), Vector3(-WorldLayout.side_sign(wall), 0, 0))
+					if not o.is_empty():
+						st = int(o["state"])
+						pos = o["pos"]
 		spawn_at(bug_id, cliff, lane, z, y, st, pos)
 
 
@@ -179,7 +187,9 @@ func climbers_on(cliff: int) -> Array[Bug]:
 func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 	# Loot lands on the cliff the bug was climbing: your turrets earn for your partner.
 	WaveDirector.note_kill(bug.def, source)
+	BossFx.on_bug_died(bug) # Boss: the Bone Collector eats the dead near it
 	var loot := {&"scrap": bug.def.scrap_drop, &"chitin": bug.def.chitin_drop * Weather.chitin_mult(GameState.weather)}
+	loot = Brand.kill_loot(loot, source_cliff) # Theme: Crossed Irons brand, more per kill
 	Economy.earn(bug.cliff_id, loot)
 	_corpse.rpc(get_path_to(bug))
 	# Bugs that made it up off the cliff wall leave something to loot.
@@ -254,6 +264,7 @@ func splash(cliff: int, center: Vector3, radius: float, damage: float, source: S
 		var d := b.global_position.distance_to(center)
 		if d <= radius:
 			b.receive_hit(damage * lerpf(1.0, 0.4, d / radius), center, (b.global_position - center).normalized(), true, 1.0, source, source_cliff)
+	BossFx.on_splash(cliff, center, radius, damage, source, source_cliff) # Boss: Tumble Titan's boulder, corpse piles
 	_explode.rpc(center, radius)
 
 
@@ -261,6 +272,7 @@ func splash(cliff: int, center: Vector3, radius: float, damage: float, source: S
 func add_fire(cliff: int, center: Vector3, radius: float, dps: float, seconds: float, source: String, source_cliff: int) -> void:
 	_fires.append({"cliff": cliff, "center": center, "radius": radius, "dps": dps, "left": seconds,
 			"source": source, "source_cliff": source_cliff})
+	BossFx.on_fire(cliff, center, radius) # Boss: fire burns husks the Bone Collector would eat
 	_draw_fire.rpc(center, radius, seconds)
 
 
@@ -519,8 +531,9 @@ func _take_loot(peer_id: int, id: int) -> void:
 	for n: Node in get_tree().get_nodes_in_group("players"):
 		if n.get_multiplayer_authority() == peer_id:
 			cid = (n as Player).cliff_id
-	Economy.earn(cid, {&"chitin": drop.chitin})
-	Economy.notify(peer_id, "Looted the %s: +%d chitin." % [drop.bug_name.to_lower(), drop.chitin])
+	var got := Brand.heap_loot(peer_id, drop.chitin) # Theme: Crossed Irons brand, richer loot
+	Economy.earn(cid, got)
+	Economy.notify(peer_id, "Looted the %s: +%s." % [drop.bug_name.to_lower(), Economy.describe(got)])
 	# [Gameplay hook] Stolen goods go back to the stockpile they were taken from.
 	if _stolen_loot.has(id):
 		var back: Array = _stolen_loot[id]

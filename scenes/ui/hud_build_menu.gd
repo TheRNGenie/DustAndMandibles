@@ -24,10 +24,11 @@ var _detail_id: StringName = &""
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	UiStyle.fit(self) # Theme: bigger on 1440p and up
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel = PanelContainer.new()
 	var sb := UiStyle.wood_sign()
-	sb.bg_color = Color(Palette.WOOD_DARK, 0.95)
+	sb.bg_color.a = 0.95 # Theme: the set's HUD card
 	sb.set_content_margin_all(16)
 	_panel.add_theme_stylebox_override("panel", sb)
 	# Sized to its content (three rows of tiles), clear of the resources panel.
@@ -43,7 +44,7 @@ func _ready() -> void:
 	# Header: title and how much scrap you have.
 	var head := HBoxContainer.new()
 	col.add_child(head)
-	var title := KeyHints.text("BUILD", 28, Palette.GLOW_YELLOW)
+	var title := UiStyle.title("Build", 30, true) # Theme
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
 	_scrap = KeyHints.text("", 18, Palette.BONE)
@@ -142,21 +143,8 @@ func refresh() -> void:
 
 
 func _style_tab(b: Button, on: bool) -> void:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Palette.WOOD.lightened(0.12) if on else Color(Palette.WOOD, 0.7)
-	sb.border_color = Palette.GLOW_YELLOW if on else Palette.OUTLINE
-	sb.set_border_width_all(2)
-	sb.border_width_bottom = 4 if on else 2
-	sb.set_corner_radius_all(5)
-	sb.set_content_margin_all(4)
-	var hover := sb.duplicate() as StyleBoxFlat
-	hover.bg_color = Palette.WOOD.lightened(0.18)
-	for s: String in ["normal", "focus"]:
-		b.add_theme_stylebox_override(s, sb)
-	for s: String in ["hover", "pressed"]:
-		b.add_theme_stylebox_override(s, hover)
-	b.add_theme_color_override("font_color", Palette.GLOW_YELLOW if on else Palette.BONE)
-	b.add_theme_color_override("font_hover_color", Color.WHITE)
+	b.theme_type_variation = "TabButtonSelected" if on else "TabButton" # Theme
+	b.custom_minimum_size.y = 34
 
 
 func _tile(i: int, id: StringName, payer: int) -> Button:
@@ -165,14 +153,16 @@ func _tile(i: int, id: StringName, payer: int) -> Button:
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = TILE
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color(Palette.WOOD, 0.85)
-	normal.border_color = Palette.GLOW_YELLOW if id == build_mode.selected_id() else Palette.OUTLINE
+	# Theme: tiles in the set's HUD colours, the picked one rimmed in its gold.
+	var normal := UiStyle.hud_flat()
+	normal.bg_color = normal.bg_color.lightened(0.12)
+	normal.bg_color.a = 0.9
+	normal.shadow_size = 0
+	normal.border_color = UiStyle.c("gold") if id == build_mode.selected_id() else normal.border_color.darkened(0.35)
 	normal.set_border_width_all(3 if id == build_mode.selected_id() else 2)
-	normal.set_corner_radius_all(6)
 	var hover := normal.duplicate() as StyleBoxFlat
-	hover.bg_color = Palette.WOOD.lightened(0.18)
-	hover.border_color = Palette.BONE
+	hover.bg_color = normal.bg_color.lightened(0.15)
+	hover.border_color = UiStyle.c("hud")
 	b.add_theme_stylebox_override("normal", normal)
 	b.add_theme_stylebox_override("hover", hover)
 	b.add_theme_stylebox_override("pressed", hover)
@@ -200,7 +190,7 @@ func _tile(i: int, id: StringName, payer: int) -> Button:
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_l.clip_text = true
 	col.add_child(name_l)
-	var price := KeyHints.text("%d scrap" % cost, 14, Palette.GLOW_YELLOW if affordable else Palette.TEAM_WEST.lightened(0.3))
+	var price := KeyHints.text("%d scrap" % cost, 14, UiStyle.c("title") if affordable else Palette.TEAM_WEST.lightened(0.3))
 	price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(price)
 	# Its quick-pick number in the corner.

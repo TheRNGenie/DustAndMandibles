@@ -32,6 +32,10 @@ enum Behavior { SWARM, TANK, LEAPER, SPITTER, BROOD, BURROWER, FLIER, CROP_EATER
 ## damage it takes from each kill method (&"bullet", &"fire", &"blast"; 1 = normal).
 @export var variant_of: StringName = &""
 @export var damage_taken: Dictionary = {}
+## Bosses only: the one-line warning in the kill feed when it shows up (what it
+## does and what beats it), and the crime under WANTED on its poster.
+@export var boss_tip: String = ""
+@export var wanted_for: String = ""
 
 
 ## The plain bug type this is (itself, or the bug a variant is based on).

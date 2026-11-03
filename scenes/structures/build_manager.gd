@@ -57,6 +57,19 @@ func free_turret_level(cid: int, cell: Vector2i) -> int:
 	return -1
 
 
+## Where a new turret would go on a cell: the lowest free slot, or, when every
+## level is taken, one more scaffold level on top (added free), up to MAX_SCAFFOLD.
+## Only where a scaffold already stands (not on ground-mounted last resorts). -1 = full.
+func stack_level(cid: int, cell: Vector2i) -> int:
+	var free := free_turret_level(cid, cell)
+	if free >= 0:
+		return free
+	var levels := scaffold_levels(cid, cell)
+	if levels > 0 and levels < MAX_SCAFFOLD:
+		return levels + 1
+	return -1
+
+
 func is_free_for(id: StringName, cid: int, cell: Vector2i) -> bool:
 	if not Buildable.cell_ok_for(id, cell):
 		return false
@@ -66,7 +79,7 @@ func is_free_for(id: StringName, cid: int, cell: Vector2i) -> bool:
 	if id == &"scaffold":
 		return scaffold_levels(cid, cell) < MAX_SCAFFOLD
 	if Defs.is_turret(id) and Buildable.is_turret_cell(cell):
-		return free_turret_level(cid, cell) >= 0
+		return stack_level(cid, cell) >= 0
 	for c in Buildable.footprint(id, cell):
 		if _occupied.has(_key(cid, c, 0)) or scaffold_levels(cid, c) > 0:
 			return false
@@ -197,9 +210,12 @@ func _do_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> void:
 		_spawner.spawn({"id": _next_id, "type": &"scaffold", "cliff": cid, "row": cell.x, "col": cell.y,
 				"level": 0, "owner": _name_of(peer_id)})
 	if Defs.is_turret(id) and Buildable.is_turret_cell(cell):
-		level = free_turret_level(cid, cell)
+		level = stack_level(cid, cell)
 		if Defs.gets_scaffold(id) and level == 0 and scaffold_levels(cid, cell) > 0:
 			level = 1
+		# Placing on top of a full stack: the next scaffold level goes up free.
+		if level > scaffold_levels(cid, cell) and scaffold_levels(cid, cell) > 0:
+			(_scaffolds[_cell_key(cid, cell)] as ScaffoldNode).set_levels(level)
 	_next_id += 1
 	_spawner.spawn({"id": _next_id, "type": id, "cliff": cid, "row": cell.x, "col": cell.y,
 			"level": level, "owner": _name_of(peer_id), "peer": peer_id}) # Perk: "peer" for the builder's perks
@@ -262,7 +278,7 @@ func _make_rain_catcher(cid: int, cell: Vector2i, pos: Vector3) -> WaterSource:
 	w.cliff_id = cid
 	w.cell = cell
 	w.build_id = &"rain_catcher"
-	w.display_name = "Rain catcher"
+	w.display_name = "Rain Catcher"
 	w.rates = Vector2(20.0, 3.0)
 	w.capacity = 8
 	w.position = pos

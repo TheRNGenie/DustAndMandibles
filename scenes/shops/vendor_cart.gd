@@ -6,11 +6,11 @@ extends StaticBody3D
 ## back while you don't (up to +50%); the sign shows today's prices.
 
 const ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili", &"herbs"]
-const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Prickly pear", &"chili": "Firecracker chili", &"herbs": "Sage herbs"}
+const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Prickly Pear", &"chili": "Firecracker Chili", &"herbs": "Sage Herbs"}
 const SYNC_INTERVAL := 1.5
 ## Seeds for sale: seed resource -> [name, crop id]. Price = MarketPrices.seed_price.
-const SEEDS: Dictionary = {&"seed_corn": ["Corn seeds", &"corn"], &"seed_prickly_pear": ["Prickly pear seeds", &"prickly_pear"],
-	&"seed_chili": ["Chili seeds", &"firecracker_chili"], &"seed_herbs": ["Herb seeds", &"herbs"]}
+const SEEDS: Dictionary = {&"seed_corn": ["Corn Seeds", &"corn"], &"seed_prickly_pear": ["Prickly Pear Seeds", &"prickly_pear"],
+	&"seed_chili": ["Chili Seeds", &"firecracker_chili"], &"seed_herbs": ["Herb Seeds", &"herbs"]}
 
 
 static func seed_cost(seed_res: StringName) -> int:
@@ -130,7 +130,7 @@ static func _price_text(item: StringName, p: float) -> String:
 
 
 func menu_tabs() -> Array:
-	return ["Sell produce", "Buy seeds"]
+	return ["Sell Produce", "Buy Seeds"]
 
 
 func menu_items(tab: int) -> Array:

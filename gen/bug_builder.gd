@@ -56,7 +56,10 @@ static func _build(def: BugDef) -> Dictionary:
 		&"iron_tumble":
 			spec = _boss(def.shell_color)
 		_:
-			spec = _mite(def.shell_color)
+			# The bosses and their minions (gen/boss_builder.gd).
+			spec = BossBuilder.build(def)
+			if spec.is_empty():
+				spec = _mite(def.shell_color)
 	if not spec.has("eyes"):
 		spec["eyes"] = _last_eyes.duplicate()
 	return _scaled(spec, def.size)
@@ -79,7 +82,8 @@ static func _scaled(spec: Dictionary, s: float) -> Dictionary:
 	if not face.is_empty():
 		spec["face"] = {"mouth": (face["mouth"] as Vector3) * s, "mandible": float(face["mandible"]) * s,
 				"antenna": float(face.get("antenna", 0.0)) * s, "color": face["color"],
-				"antenna_at": (face.get("antenna_at", face["mouth"]) as Vector3) * s}
+				"antenna_at": (face.get("antenna_at", face["mouth"]) as Vector3) * s,
+				"wings": bool(face.get("wings", false))} # (was dropped here, so fliers never showed their wings)
 	spec["scale"] = s
 	return spec
 

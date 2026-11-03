@@ -21,6 +21,9 @@ var bug_defs: Array[BugDef] = []
 var rng := RandomNumberGenerator.new()
 ## Kill-method variant ids the players have unlocked (mixed in by plan()).
 var variants: Array[StringName] = []
+## Boss ids already met this run, oldest first (BossRotation never repeats one
+## until every unlocked boss has come).
+var boss_seen: Array = []
 var _seed := 0
 
 
@@ -95,12 +98,12 @@ func plan(w: int) -> Dictionary:
 	var pulses := times.size()
 	var groups: Array = []
 	var options := unlocked(w)
-	# The boss climbs the heavier cliff's centre lane in the first pulse: on the
-	# wave it's introduced, and on every boss wave after that.
-	for d in options:
-		if d.behavior == BugDef.Behavior.BOSS and (d.first_wave == w or shape == BOSS):
-			var boss_cliff := WorldLayout.WEST if west_share >= 0.5 else WorldLayout.EAST
-			groups.append({"bug": d.id, "count": 1, "cliff": boss_cliff, "lane": 2, "pulse": 0})
+	# Boss waves: the boss climbs the heavier cliff's centre lane in the first
+	# pulse (BossRotation picks which); the finale's second boss takes the other cliff.
+	var heavy := WorldLayout.WEST if west_share >= 0.5 else WorldLayout.EAST
+	var bosses := BossRotation.pick(_seed, w, bug_defs, boss_seen, config.boss_every, config.last_wave)
+	for i in bosses.size():
+		groups.append({"bug": bosses[i], "count": 1, "cliff": heavy if i % 2 == 0 else WorldLayout.other_cliff(heavy), "lane": 2, "pulse": 0})
 	# Make sure every bug introduced this wave shows up on both cliffs.
 	for newest in _newest(options, w):
 		for cid in 2:

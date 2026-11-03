@@ -17,9 +17,11 @@ var _count: Array[int] = [0, 0]
 var _pending := PackedFloat32Array()
 var _t := 0.0
 var _rng := RandomNumberGenerator.new()
+static var instance: CorpsePile
 
 
 func _ready() -> void:
+	instance = self
 	_rng.randomize()
 	var mesh := husk_mesh()
 	var mat := Materials.toon(0.02)
@@ -137,3 +139,56 @@ static func husk_mesh() -> ArrayMesh:
 			MeshKit.add_limb(st, hip, knee, 0.06, leg, 5)
 			MeshKit.add_limb(st, knee, foot, 0.045, leg, 5)
 	return MeshKit.finish(st)
+
+
+# ------------------------------------------------------------------ Boss: the Bone Collector eats husks; shots, blasts and fire clear them
+
+func _exit_tree() -> void:
+	if instance == self:
+		instance = null
+
+
+## Husks of cliff `cid`'s pile within `radius` of `center`.
+func count_near(cid: int, center: Vector3, radius: float) -> int:
+	if cid < 0 or cid > 1:
+		return 0
+	var mm := _mm[cid]
+	var n := 0
+	for k in _count[cid]:
+		if mm.get_instance_transform(k).origin.distance_to(center) <= radius:
+			n += 1
+	return n
+
+
+## Every peer: up to `at_most` husks near `center` go. `eaten`: a Bone Collector
+## crunched them (bone chips); otherwise they're smashed or burnt to bits.
+@rpc("authority", "call_local", "reliable")
+func clear_near(cid: int, center: Vector3, radius: float, at_most: int, eaten: bool = false) -> void:
+	if cid < 0 or cid > 1:
+		return
+	var mm := _mm[cid]
+	var gone := 0
+	while gone < at_most and _count[cid] > 0:
+		var best := -1
+		var best_d := radius
+		for k in _count[cid]:
+			var d := mm.get_instance_transform(k).origin.distance_to(center)
+			if d <= best_d:
+				best_d = d
+				best = k
+		if best < 0:
+			break
+		var at := mm.get_instance_transform(best).origin
+		var col := mm.get_instance_color(best)
+		# Fill the hole with the last husk, so the visible ones stay packed.
+		var last := _count[cid] - 1
+		mm.set_instance_transform(best, mm.get_instance_transform(last))
+		mm.set_instance_color(best, mm.get_instance_color(last))
+		_count[cid] = last
+		_next[cid] = last
+		mm.visible_instance_count = last
+		gone += 1
+		if is_instance_valid(VfxPool.instance) and gone <= 3:
+			VfxPool.instance.shell_crack(at + Vector3.UP * 0.3, Palette.BONE if eaten else col, 0.8)
+	if gone > 0:
+		Audio.play_at(&"hook_bite" if eaten else &"loot_crack", center, -2.0, 0.8 if eaten else 1.0)

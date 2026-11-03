@@ -8,7 +8,7 @@ extends StaticBody3D
 signal menu_changed
 
 const ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili", &"herbs", &"water"]
-const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Prickly pear", &"chili": "Firecracker chili",
+const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Prickly Pear", &"chili": "Firecracker Chili",
 	&"herbs": "Medicine (sage)", &"water": "Water"}
 const MAX_WEAPONS := 6
 
@@ -105,7 +105,7 @@ func menu_tagline() -> String:
 
 
 func menu_tabs() -> Array:
-	return ["Store", "Take out"]
+	return ["Store", "Take Out"]
 
 
 func _player() -> Player:

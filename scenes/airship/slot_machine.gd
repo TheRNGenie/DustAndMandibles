@@ -65,7 +65,11 @@ func ui_bets() -> Array:
 
 
 func ui_actions() -> Array:
-	return [[&"pull", "Pull the lever"]]
+	return [[&"pull", "Pull the Lever"]]
+
+
+func ui_cheat() -> Array:
+	return ["Pull and Nudge a Reel", "slots"]
 
 
 static func roll(rng: RandomNumberGenerator) -> int:
@@ -81,12 +85,16 @@ static func roll(rng: RandomNumberGenerator) -> int:
 
 
 func _act(peer_id: int, action: StringName, _choice: int, bet: int) -> void:
-	if action != &"pull":
+	if action != &"pull" and action != &"cheat":
 		return
 	bet = _valid_bet(bet)
+	if action == &"cheat" and _cheat(peer_id, "slots", bet) <= 0: # Brand: Snake Eyes nudge
+		return
 	if not _take(peer_id, bet):
 		return
 	var reels := [roll(_rng), roll(_rng), roll(_rng)]
+	if action == &"cheat":
+		reels = BrandTable.nudge_reels(reels, SYMBOLS.size(), func(r: Array) -> int: return CasinoRules.slot_payout(r))
 	var won := CasinoRules.slot_prize(reels, bet)
 	_pay(peer_id, won)
 	_broadcast({"kind": "reels", "peer": peer_id, "reels": [SYMBOLS[reels[0]][0], SYMBOLS[reels[1]][0], SYMBOLS[reels[2]][0]],

@@ -22,6 +22,19 @@ const BUGS: Dictionary = {
 	&"dragonfly_bandit": preload("res://data/bugs/dragonfly_bandit.tres"),
 	&"crop_weevil": preload("res://data/bugs/crop_weevil.tres"),
 	&"iron_tumble": preload("res://data/bugs/iron_tumble.tres"),
+	# Bosses (one comes every boss wave; see BossRotation) and the small bugs they let loose.
+	&"queen_spider": preload("res://data/bugs/queen_spider.tres"),
+	&"burrow_beetle": preload("res://data/bugs/burrow_beetle.tres"),
+	&"tumble_titan": preload("res://data/bugs/tumble_titan.tres"),
+	&"locust_lord": preload("res://data/bugs/locust_lord.tres"),
+	&"acid_matriarch": preload("res://data/bugs/acid_matriarch.tres"),
+	&"mirage_mantis": preload("res://data/bugs/mirage_mantis.tres"),
+	&"hive_wagon": preload("res://data/bugs/hive_wagon.tres"),
+	&"stilt_strider": preload("res://data/bugs/stilt_strider.tres"),
+	&"thunder_cicada": preload("res://data/bugs/thunder_cicada.tres"),
+	&"bone_collector": preload("res://data/bugs/bone_collector.tres"),
+	&"locust": preload("res://data/bugs/locust.tres"),
+	&"hive_drone": preload("res://data/bugs/hive_drone.tres"),
 }
 
 const TURRETS: Dictionary = {
@@ -65,6 +78,7 @@ const WEAPONS: Dictionary = {
 	&"revolver": preload("res://data/weapons/revolver.tres"),
 	&"lever_rifle": preload("res://data/weapons/lever_rifle.tres"),
 	&"coach_shotgun": preload("res://data/weapons/coach_shotgun.tres"),
+	&"elephant_gun": preload("res://data/weapons/elephant_gun.tres"),
 	&"blunderbuss": preload("res://data/weapons/blunderbuss.tres"),
 	&"crank_gatling": preload("res://data/weapons/crank_gatling.tres"),
 }

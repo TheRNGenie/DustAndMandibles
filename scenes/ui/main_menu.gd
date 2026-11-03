@@ -15,6 +15,11 @@ var _solo_btn: Button
 var _auto_ready := false
 var _settings: PauseMenu
 var _ledger: LedgerScreen # Perk: Rancher's Ledger screen
+var _brands: BrandScreen # Brand: the branding-iron pick screen
+var _secrets: SecretsScreen
+var _cinematic: MenuCinematic
+var _brand_row: HBoxContainer
+var _roster_box: VBoxContainer
 
 
 func _ready() -> void:
@@ -58,40 +63,68 @@ func _ready() -> void:
 
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var bg := ColorRect.new()
-	bg.color = Palette.SKY_HORIZON.lerp(Palette.ROCK_C, 0.35)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
-	var poster := PanelContainer.new()
-	poster.add_theme_stylebox_override("panel", poster_style())
-	poster.custom_minimum_size = Vector2(460, 0)
-	center.add_child(poster)
+	UiStyle.fit(self) # Theme: bigger on 1440p and up
+	# Theme: the canyon on film (no run, no bugs) fills the screen behind a menu column on the left.
+	if not GameState.has_flag("--nocinematic") and not _test_launch():
+		_cinematic = MenuCinematic.new()
+		add_child(_cinematic)
+		add_child(_cinematic.fade)
+	else:
+		add_child(UiStyle.backdrop())
+	var column := PanelContainer.new()
+	column.theme_type_variation = "FramePanel"
+	column.anchor_left = 0.0
+	column.anchor_right = 0.31
+	column.anchor_top = 0.0
+	column.anchor_bottom = 1.0
+	column.offset_left = 18
+	column.offset_top = 18
+	column.offset_bottom = -18
+	column.custom_minimum_size.x = 470
+	add_child(column)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 0)
+	column.add_child(outer)
+	var head := PanelContainer.new()
+	head.theme_type_variation = "HeaderPanel"
+	outer.add_child(head)
+	var hcol := VBoxContainer.new()
+	hcol.add_theme_constant_override("separation", 0)
+	head.add_child(hcol)
+	var wanted := UiStyle.title("Wanted: Help", 18, true)
+	wanted.add_theme_color_override("font_color", UiStyle.c("hud"))
+	hcol.add_child(wanted)
+	hcol.add_child(UiStyle.title("Dust & Mandibles", 46, true))
+	var card := PanelContainer.new()
+	card.theme_type_variation = "PaperPanel"
+	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer.add_child(card)
+	var page := VBoxContainer.new()
+	page.add_theme_constant_override("separation", 12)
+	card.add_child(page)
+	var tag := _label("Defend the Homestead", 18, Color(0, 0, 0, 0))
+	tag.theme_type_variation = "SoftInkLabel"
+	page.add_child(tag)
+	page.add_child(UiStyle.divider(360))
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 10)
-	poster.add_child(col)
-
-	col.add_child(_label("WANTED: HELP", 20, Palette.ROCK_B))
-	col.add_child(_label("DUST & MANDIBLES", 40, Palette.OUTLINE))
-	col.add_child(_label("Hold your cliff. Cover your partner's.", 16, Palette.WOOD_DARK))
-	col.add_child(HSeparator.new())
+	col.add_theme_constant_override("separation", 12)
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page.add_child(col)
 
 	_name_edit = _line_edit("Your name", "Rancher")
 	col.add_child(_name_edit)
 
 	_connect_box = VBoxContainer.new()
-	_connect_box.add_theme_constant_override("separation", 8)
+	_connect_box.add_theme_constant_override("separation", 10)
 	col.add_child(_connect_box)
 	# [Foundation] Continue the autosaved run (host it; start alone, with a CPU, or wait for a partner).
 	var saved := RunSave.read()
 	if not saved.is_empty():
-		var cont := _button("Continue last run (wave %d)" % int(saved["wave"]))
+		var cont := _button("Continue Last Run (Wave %d)" % int(saved["wave"]))
 		cont.pressed.connect(func() -> void: _on_continue())
 		_connect_box.add_child(cont)
-	var host_btn := _button("Host game (west cliff)")
+	var host_btn := _button("Host Game (West Cliff)")
 	host_btn.pressed.connect(func() -> void:
 		RunSave.pending = {}
 		_on_host())
@@ -104,10 +137,13 @@ func _build_ui() -> void:
 	row.add_child(_ip_edit)
 	row.add_child(_port_edit)
 	_connect_box.add_child(row)
-	var join_btn := _button("Join game (east cliff)")
+	var join_btn := _button("Join Game (East Cliff)")
 	join_btn.pressed.connect(_on_join)
 	_connect_box.add_child(join_btn)
 	_connect_box.add_child(_ledger_button()) # Perk
+	var secrets_btn := _button("Secrets") # Theme: code entry for secret cosmetics
+	secrets_btn.pressed.connect(func() -> void: _secrets.open())
+	_connect_box.add_child(secrets_btn)
 	var settings_btn := _button("Settings")
 	settings_btn.pressed.connect(func() -> void: _settings.open())
 	_connect_box.add_child(settings_btn)
@@ -118,22 +154,29 @@ func _build_ui() -> void:
 	_lobby_box = VBoxContainer.new()
 	_lobby_box.add_theme_constant_override("separation", 8)
 	col.add_child(_lobby_box)
-	_roster = _label("", 18, Palette.OUTLINE)
+	_roster = _label("", 18, Color(0, 0, 0, 0))
 	_roster.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_roster.visible = false
 	_lobby_box.add_child(_roster)
+	# Brand: the roster as rows, each rider's brand mark beside their name.
+	_roster_box = VBoxContainer.new()
+	_roster_box.add_theme_constant_override("separation", 4)
+	_lobby_box.add_child(_roster_box)
+	_brand_row = HBoxContainer.new()
+	_brand_row.add_theme_constant_override("separation", 8)
+	_lobby_box.add_child(_brand_row)
 	_ready_btn = CheckButton.new()
 	_ready_btn.text = "Ready"
-	_ready_btn.add_theme_color_override("font_color", Palette.OUTLINE)
 	_ready_btn.toggled.connect(func(on: bool) -> void: NetworkManager.set_ready(on))
 	_lobby_box.add_child(_ready_btn)
 	# Host: an optional CPU partner for the empty cliff.
 	_cpu_pick = OptionButton.new()
-	for label: String in ["No CPU partner", "CPU partner: Low", "CPU partner: Medium", "CPU partner: High"]:
+	for label: String in ["No CPU Partner", "CPU Partner: Low", "CPU Partner: Medium", "CPU Partner: High"]:
 		_cpu_pick.add_item(label)
 	_cpu_pick.selected = NetworkManager.cpu_quality + 1
 	_cpu_pick.item_selected.connect(func(i: int) -> void: NetworkManager.set_cpu(i - 1))
 	_lobby_box.add_child(_cpu_pick)
-	_solo_btn = _button("Start alone (testing)")
+	_solo_btn = _button("Start Alone (Testing)")
 	_solo_btn.pressed.connect(func() -> void: NetworkManager.start_game())
 	_lobby_box.add_child(_solo_btn)
 	_lobby_box.add_child(_ledger_button()) # Perk
@@ -144,8 +187,9 @@ func _build_ui() -> void:
 		_show_connect(""))
 	_lobby_box.add_child(leave_btn)
 
-	_status = _label("", 15, Palette.ROCK_B)
-	col.add_child(_status)
+	_status = _label("", 15, Color(0, 0, 0, 0))
+	_status.theme_type_variation = "SoftInkLabel"
+	page.add_child(_status)
 
 	_settings = PauseMenu.new()
 	_settings.in_main_menu = true
@@ -153,6 +197,14 @@ func _build_ui() -> void:
 	_ledger = LedgerScreen.new() # Perk
 	add_child(_ledger)
 	Perks.loadouts_changed.connect(_refresh)
+	_secrets = SecretsScreen.new() # Theme: Secrets
+	add_child(_secrets)
+	_brands = BrandScreen.new() # Brand
+	add_child(_brands)
+	_brands.picked.connect(func(_id: StringName) -> void: _refresh())
+	Brand.changed.connect(_refresh)
+	if GameState.has_flag("--opensecrets"): # screenshots (scenes/debug/theme_views.gd)
+		_secrets.open.call_deferred()
 
 
 # Perk: opens the Rancher's Ledger (perks, loadout, wardrobe items).
@@ -238,6 +290,9 @@ func _show_lobby(message: String) -> void:
 	_lobby_box.visible = true
 	_status.text = message
 	_refresh()
+	# Brand: every run starts at the branding irons (a continued run brings its brands back).
+	if not Brand.has_chosen() and RunSave.pending.is_empty() and not _test_launch():
+		_brands.open()
 
 
 func _refresh() -> void:
@@ -253,55 +308,94 @@ func _refresh() -> void:
 	elif NetworkManager.players.size() < NetworkManager.MAX_PLAYERS:
 		lines.append("(waiting for a partner...)")
 	_roster.text = "\n".join(lines)
+	_fill_roster()
 	_solo_btn.visible = multiplayer.is_server() and NetworkManager.is_online()
-	_solo_btn.text = "Start with CPU partner" if NetworkManager.has_cpu() else "Start alone (testing)"
+	_solo_btn.text = "Start With CPU Partner" if NetworkManager.has_cpu() else "Start Alone (Testing)"
 	_cpu_pick.visible = multiplayer.is_server()
 	_cpu_pick.selected = NetworkManager.cpu_quality + 1
 
 
 # ------------------------------------------------------------------ styling helpers
 
-static func poster_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Palette.BONE
-	sb.border_color = Palette.WOOD_DARK
-	sb.set_border_width_all(6)
-	sb.set_corner_radius_all(4)
-	sb.shadow_color = Color(0, 0, 0, 0.4)
-	sb.shadow_size = 10
-	sb.shadow_offset = Vector2(6, 6)
-	sb.set_content_margin_all(28)
-	return sb
+static func poster_style() -> StyleBox:
+	return UiStyle.poster() # Theme
 
+
+# Brand: roster rows with brand marks, and the "your brand" line.
+func _fill_roster() -> void:
+	if _roster_box == null:
+		return
+	for c in _roster_box.get_children():
+		c.queue_free()
+	for id: int in NetworkManager.players:
+		var p: Dictionary = NetworkManager.players[id]
+		var cliff := "West" if int(p["cliff"]) == WorldLayout.WEST else "East"
+		var tick := "ready" if bool(p["ready"]) else "not ready"
+		_roster_box.add_child(_roster_row(Brand.mark_of(id), "%s Cliff: %s" % [cliff, str(p["name"])],
+				"%s%s" % [tick, Perks.roster_note(id)], bool(p["ready"])))
+	if NetworkManager.has_cpu():
+		var cpu_side := "West" if NetworkManager.cpu_cliff() == WorldLayout.WEST else "East"
+		_roster_box.add_child(_roster_row(Brand.mark_of(Brand.CPU_KEY), "%s Cliff: %s" % [cpu_side, CpuTeammate.NAME],
+				"CPU, %s  -  ready" % NetworkManager.CPU_QUALITY_NAMES[NetworkManager.cpu_quality], true))
+	elif NetworkManager.players.size() < NetworkManager.MAX_PLAYERS:
+		var w := _label("(waiting for a partner...)", 15, Color(0, 0, 0, 0))
+		w.theme_type_variation = "SoftInkLabel"
+		_roster_box.add_child(w)
+	for c in _brand_row.get_children():
+		c.queue_free()
+	_brand_row.add_child(BrandMark.make(Brand.local if Brand.has_chosen() else BrandTable.NONE, 30, UiStyle.ink()))
+	var mine := _label("Your brand: %s" % (BrandTable.name_of(Brand.local) if Brand.has_chosen() else "not chosen yet"), 16, Color(0, 0, 0, 0))
+	mine.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	mine.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_brand_row.add_child(mine)
+	var change := _button("Change Brand" if Brand.has_chosen() else "Choose Brand")
+	change.custom_minimum_size = Vector2(170, 44)
+	change.add_theme_font_size_override("font_size", 16)
+	change.disabled = not Brand.editable()
+	change.pressed.connect(func() -> void: _brands.open())
+	_brand_row.add_child(change)
+
+
+func _roster_row(mark: StringName, who: String, note: String, is_ready: bool) -> Control:
+	var r := PanelContainer.new()
+	r.theme_type_variation = "CardPanel"
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	r.add_child(h)
+	var m := BrandMark.make(mark if mark != &"" else BrandTable.NONE, 28, UiStyle.ink())
+	m.modulate.a = 1.0 if mark != &"" else 0.35
+	h.add_child(m)
+	var name_l := _label(who, 17, Color(0, 0, 0, 0))
+	name_l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	name_l.clip_text = true
+	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(name_l)
+	var n := _label(note, 14, Color(0, 0, 0, 0))
+	n.autowrap_mode = TextServer.AUTOWRAP_OFF
+	n.theme_type_variation = "GoodLabel" if is_ready else "SoftInkLabel"
+	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	h.add_child(n)
+	return r
+
+
+# ------------------------------------------------------------------ styling helpers
 
 func _label(text: String, size: int, color: Color) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", color)
-	return l
+	return UiStyle.label(text, size, color) # Theme: a zero colour follows the set's ink
 
 
 func _line_edit(placeholder: String, value: String) -> LineEdit:
 	var e := LineEdit.new()
 	e.placeholder_text = placeholder
 	e.text = value
+	e.custom_minimum_size.y = 40
+	e.add_theme_font_size_override("font_size", 17)
 	return e
 
 
 func _button(text: String) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.custom_minimum_size.y = 40
-	var normal := Hud.wood_sign_style()
-	normal.set_content_margin_all(6)
-	var hover := normal.duplicate() as StyleBoxFlat
-	hover.bg_color = Palette.WOOD.lightened(0.12)
-	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", hover)
-	b.add_theme_color_override("font_color", Palette.BONE)
-	b.add_theme_color_override("font_hover_color", Color.WHITE)
+	var b := UiStyle.button(text) # Theme: big title-screen buttons
+	b.custom_minimum_size.y = 56
+	b.add_theme_font_size_override("font_size", 21)
 	return b

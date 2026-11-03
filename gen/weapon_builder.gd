@@ -205,14 +205,15 @@ const HINGE := Vector3(0, -0.004, -0.055)
 ## support hand holds, and the wrist or grip the trigger hand wraps [centre, grip axis].
 const LEFT_FIST: Dictionary = {&"revolver": Vector3(-0.022, -0.075, 0.07), &"lever_rifle": Vector3(-0.004, -0.022, -0.194),
 	&"coach_shotgun": Vector3(-0.004, -0.03, -0.25), &"blunderbuss": Vector3(-0.004, -0.068, -0.215),
-	&"crank_gatling": Vector3(-0.108, -0.076, -0.203)}
+	&"crank_gatling": Vector3(-0.108, -0.076, -0.203), &"elephant_gun": Vector3(-0.004, -0.034, -0.27)}
 const RIGHT_GRIP: Dictionary = {&"lever_rifle": [Vector3(0.004, -0.046, 0.114), Vector3(0, 0.55, -0.83)],
 	&"coach_shotgun": [Vector3(0.004, -0.075, 0.112), Vector3(0, 0.75, -0.66)],
 	&"blunderbuss": [Vector3(0.004, -0.064, 0.12), Vector3(0, 0.6, -0.8)],
-	&"crank_gatling": [Vector3(0.004, -0.082, -0.078), Vector3(0, 0.86, -0.52)]}
+	&"crank_gatling": [Vector3(0.004, -0.082, -0.078), Vector3(0, 0.86, -0.52)],
+	&"elephant_gun": [Vector3(0.004, -0.078, 0.118), Vector3(0, 0.75, -0.66)]}
 const LOAD_POINT: Dictionary = {&"revolver": Vector3(0.022, 0.03, 0.03), &"lever_rifle": Vector3(0.026, -0.004, -0.04),
 	&"coach_shotgun": Vector3(0.0, 0.02, -0.09), &"blunderbuss": Vector3(0.0, 0.05, -0.44),
-	&"crank_gatling": Vector3(0.0, 0.1, 0.03)}
+	&"crank_gatling": Vector3(0.0, 0.1, 0.03), &"elephant_gun": Vector3(0.0, 0.02, -0.09)}
 ## Crank Gatling: barrel spin axis origin and the crank's pivot (gun space).
 const GATLING_AXIS := Vector3(0, 0.0, -0.05)
 const GATLING_CRANK := Vector3(0.06, 0.0, 0.04)
@@ -468,7 +469,7 @@ static func arm_right(id: StringName, look: Dictionary = {}) -> ArrayMesh:
 	var paint := DummyLook.paint(look)
 	var st := MeshKit.begin()
 	match id:
-		&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling":
+		&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun":
 			var g: Vector3 = RIGHT_GRIP[id][0]
 			arm(st, g, RIGHT_GRIP[id][1], Vector3(1, 0.2, 0.1), g + Vector3(0.116, -0.3, 0.4), look, true)
 		_:
@@ -484,7 +485,7 @@ static func arm_left(id: StringName, look: Dictionary = {}, local: bool = false)
 	var o: Vector3 = Vector3.ZERO if not local else -(LEFT_FIST[id] as Vector3)
 	var st := MeshKit.begin()
 	match id:
-		&"lever_rifle", &"coach_shotgun", &"blunderbuss":
+		&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"elephant_gun":
 			# Cupping the forend from below.
 			var lf: Vector3 = LEFT_FIST[id]
 			arm(st, o + lf, Vector3(0, 0, -1), Vector3(-0.7, -1, 0), o + lf + Vector3(-0.196, -0.284, 0.28), look)

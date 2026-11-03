@@ -96,18 +96,26 @@ func ui_actions() -> Array:
 	return [] if _racing() else [[&"race", "Race!"]]
 
 
+func ui_cheat() -> Array:
+	return ["Dope Your Beetle", "race"]
+
+
 func _racing() -> bool:
 	return _t < RACE_TIME + 1.0
 
 
 func _act(peer_id: int, action: StringName, choice: int, bet: int) -> void:
-	if action != &"race" or _racing():
+	if (action != &"race" and action != &"cheat") or _racing():
 		return
 	bet = _valid_bet(bet)
+	if action == &"cheat" and _cheat(peer_id, "race", bet) <= 0: # Brand: Snake Eyes doped beetle
+		return
 	if not _take(peer_id, bet):
 		return
 	var pick := clampi(choice, 0, CasinoRules.RACE_BEETLES.size() - 1)
 	var winner := CasinoRules.race_winner(_rng.randf())
+	if action == &"cheat" and winner != pick:
+		winner = CasinoRules.race_winner(_rng.randf()) # the doped beetle gets a second wind
 	var won := CasinoRules.race_payout(pick, winner, bet)
 	# Paid when the race is run, so the scrap counter doesn't give the result away.
 	_pay_later(peer_id, {&"scrap": won} if won > 0 else {}, RACE_TIME + 0.5)

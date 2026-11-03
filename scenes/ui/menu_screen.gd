@@ -18,11 +18,12 @@ extends CanvasLayer
 static var instance: MenuScreen
 
 const WIDTH := 860.0
-const HEIGHT := 620.0
-const INK := Color("#3A2416")
-const PARCHMENT := Color("#F2E3C2")
-const PARCHMENT_DARK := Color("#E2CC9F")
-const GOLD := Color("#FFD23F")
+const HEIGHT := 700.0
+# Theme: these follow the UI theme set (UiStyle.apply keeps them current).
+static var INK := Color("#3A2416")
+static var PARCHMENT := Color("#F2E3C2")
+static var PARCHMENT_DARK := Color("#E2CC9F")
+static var GOLD := Color("#FFD23F")
 
 var provider: Object
 var tab := 0
@@ -42,6 +43,7 @@ func _ready() -> void:
 	_build()
 	_root.visible = false
 	Economy.resources_changed.connect(func(_c: int) -> void: _mark_dirty())
+	UiStyle.notifier.changed.connect(_mark_dirty) # Theme: redraw rows in the new set
 
 
 func is_open() -> bool:
@@ -161,13 +163,14 @@ func _local_player() -> Player:
 func _build() -> void:
 	_root = Control.new()
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	UiStyle.fit(_root) # Theme: bigger on 1440p and up
 	add_child(_root)
 	var dim := ColorRect.new()
 	dim.color = Color(0.12, 0.06, 0.03, 0.45)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(dim)
 	var frame := PanelContainer.new()
-	frame.add_theme_stylebox_override("panel", _frame_style())
+	frame.theme_type_variation = "FramePanel"
 	frame.anchor_left = 0.5
 	frame.anchor_right = 0.5
 	frame.anchor_top = 0.5
@@ -182,7 +185,7 @@ func _build() -> void:
 	frame.add_child(outer)
 	# Plank header.
 	var header := PanelContainer.new()
-	header.add_theme_stylebox_override("panel", _plank_style())
+	header.theme_type_variation = "HeaderPanel"
 	outer.add_child(header)
 	var hrow := HBoxContainer.new()
 	header.add_child(hrow)
@@ -190,17 +193,18 @@ func _build() -> void:
 	htext.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	htext.add_theme_constant_override("separation", 0)
 	hrow.add_child(htext)
-	_title = _outlined("", 32, GOLD)
+	_title = UiStyle.title("", 32, true)
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	htext.add_child(_title)
-	_tagline = _outlined("", 14, PARCHMENT)
+	_tagline = _header_text("", 14)
 	_tagline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	htext.add_child(_tagline)
-	_money = _outlined("", 18, PARCHMENT)
+	_money = _header_text("", 18)
 	_money.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hrow.add_child(_money)
 	# Parchment card.
 	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", _parchment_style())
+	card.theme_type_variation = "PaperPanel"
 	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(card)
 	var inner := VBoxContainer.new()
@@ -232,15 +236,14 @@ func _row(item: Dictionary) -> Control:
 	var disabled := str(item.get("disabled", ""))
 	var buttons: Array = item.get("buttons", [])
 	var row := PanelContainer.new()
-	var sb := _card_style(false)
-	row.add_theme_stylebox_override("panel", sb)
+	row.theme_type_variation = "CardPanel"
 	row.custom_minimum_size.y = 74
 	row.mouse_filter = Control.MOUSE_FILTER_STOP
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 12)
 	row.add_child(h)
 	var icon_box := PanelContainer.new()
-	icon_box.add_theme_stylebox_override("panel", _icon_style())
+	icon_box.theme_type_variation = "IconPanel"
 	icon_box.custom_minimum_size = Vector2(60, 60)
 	icon_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(icon_box)
@@ -260,15 +263,15 @@ func _row(item: Dictionary) -> Control:
 	text.alignment = BoxContainer.ALIGNMENT_CENTER
 	text.add_theme_constant_override("separation", 2)
 	h.add_child(text)
-	var name_l := ink_label(str(item.get("name", "")), 19)
+	var name_l := ink_label(UiStyle.tc(str(item.get("name", ""))), 19)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	text.add_child(name_l)
-	var desc := ink_label(str(item.get("desc", "")), 13, INK.lightened(0.25))
+	var desc := ink_label(str(item.get("desc", "")), 13, UiStyle.c("ink_soft"))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_child(desc)
 	if disabled != "":
-		var why := ink_label(disabled, 12, Color("#9B3B2E"))
+		var why := ink_label(disabled, 12, UiStyle.c("bad"))
 		why.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		text.add_child(why)
 	var right := VBoxContainer.new()
@@ -279,7 +282,7 @@ func _row(item: Dictionary) -> Control:
 		var tag := price_tag(str(item["price"]), bool(item.get("price_ok", true)))
 		right.add_child(tag)
 	if str(item.get("note", "")) != "":
-		var note := ink_label(str(item["note"]), 13, INK.lightened(0.2))
+		var note := ink_label(str(item["note"]), 13, UiStyle.c("ink_soft"))
 		right.add_child(note)
 	var brow := HBoxContainer.new()
 	brow.alignment = BoxContainer.ALIGNMENT_END
@@ -311,68 +314,45 @@ static func ink_label(text: String, size: int = 16, color: Color = INK) -> Label
 static func _outlined(text: String, size: int, color: Color) -> Label:
 	var l := ink_label(text, size, color)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	l.add_theme_color_override("font_outline_color", Palette.OUTLINE)
+	l.add_theme_color_override("font_outline_color", UiStyle.c("outline"))
 	l.add_theme_constant_override("outline_size", 6)
 	return l
 
 
+## Theme: light text on the header strap (follows the set).
+static func _header_text(text: String, size: int) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.theme_type_variation = "HudLabel"
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
+	l.add_theme_constant_override("outline_size", 4)
+	return l
+
+
+## Theme: the set's button (no per-button colours, so it follows live swaps).
 static func wood_button(text: String, small: bool = false) -> Button:
 	var b := Button.new()
-	b.text = text
+	b.text = UiStyle.tc(text)
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(70 if small else 110, 30 if small else 38)
+	b.custom_minimum_size = Vector2(70 if small else 110, 32 if small else 40)
 	b.add_theme_font_size_override("font_size", 14 if small else 17)
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = Palette.WOOD
-	normal.border_color = Palette.OUTLINE
-	normal.set_border_width_all(3)
-	normal.set_corner_radius_all(4)
-	normal.set_content_margin_all(6)
-	normal.shadow_color = Color(0, 0, 0, 0.3)
-	normal.shadow_size = 2
-	normal.shadow_offset = Vector2(2, 2)
-	var hover := normal.duplicate() as StyleBoxFlat
-	hover.bg_color = Palette.WOOD.lightened(0.15)
-	hover.border_color = GOLD.darkened(0.3)
-	var pressed := normal.duplicate() as StyleBoxFlat
-	pressed.bg_color = Palette.WOOD_DARK
-	var disabled := normal.duplicate() as StyleBoxFlat
-	disabled.bg_color = Palette.WOOD.darkened(0.25)
-	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", pressed)
-	b.add_theme_stylebox_override("disabled", disabled)
-	b.add_theme_color_override("font_color", PARCHMENT)
-	b.add_theme_color_override("font_hover_color", Color.WHITE)
-	b.add_theme_color_override("font_disabled_color", PARCHMENT.darkened(0.4))
 	return b
 
 
-## A tab or toggle: lit up in gold when selected.
+## A tab or toggle: lit up in the set's selected style.
 static func tab_button(text: String, selected: bool) -> Button:
 	var b := wood_button(text, true)
 	b.custom_minimum_size.x = 96
-	if selected:
-		var sb := (b.get_theme_stylebox("normal") as StyleBoxFlat).duplicate() as StyleBoxFlat
-		sb.bg_color = Palette.WOOD_DARK
-		sb.border_color = GOLD
-		b.add_theme_stylebox_override("normal", sb)
-		b.add_theme_stylebox_override("hover", sb)
-		b.add_theme_color_override("font_color", GOLD)
+	b.theme_type_variation = "TabButtonSelected" if selected else "TabButton"
 	return b
 
 
 static func price_tag(text: String, ok: bool) -> Control:
 	var p := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color("#3A2416") if ok else Color("#7A2E22")
-	sb.set_corner_radius_all(10)
-	sb.set_content_margin_all(4)
-	sb.content_margin_left = 10
-	sb.content_margin_right = 10
-	p.add_theme_stylebox_override("panel", sb)
+	p.theme_type_variation = "ChipPanel" if ok else "ChipBadPanel"
 	p.size_flags_horizontal = Control.SIZE_SHRINK_END
-	var l := ink_label(text, 15, GOLD if ok else PARCHMENT)
+	var l := ink_label(text, 15, UiStyle.c("gold") if ok else Color("#FBE9E0"))
 	p.add_child(l)
 	return p
 
@@ -423,61 +403,26 @@ static func card(c: int, suit: int) -> Control:
 	return p
 
 
-static func _frame_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Palette.WOOD_DARK
-	sb.border_color = Palette.OUTLINE
-	sb.set_border_width_all(5)
-	sb.set_corner_radius_all(8)
-	sb.set_content_margin_all(10)
-	sb.shadow_color = Color(0, 0, 0, 0.5)
-	sb.shadow_size = 14
-	sb.shadow_offset = Vector2(6, 8)
-	return sb
+# Theme: the surfaces now come from the UI theme set (kept for older callers; each
+# call returns a private copy, so callers may change its margins).
+static func _frame_style() -> StyleBox:
+	return UiStyle.box("frame").duplicate() as StyleBoxTexture
 
 
-static func _plank_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Palette.WOOD
-	sb.border_color = Palette.OUTLINE
-	sb.set_border_width_all(3)
-	sb.set_corner_radius_all(4)
-	sb.content_margin_left = 18
-	sb.content_margin_right = 18
-	sb.content_margin_top = 8
-	sb.content_margin_bottom = 8
-	return sb
+static func _plank_style() -> StyleBox:
+	return UiStyle.box("header").duplicate() as StyleBoxTexture
 
 
-static func _parchment_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = PARCHMENT
-	sb.border_color = Palette.WOOD
-	sb.set_border_width_all(3)
-	sb.set_corner_radius_all(4)
-	sb.set_content_margin_all(16)
-	return sb
+static func _parchment_style() -> StyleBox:
+	return UiStyle.box("paper").duplicate() as StyleBoxTexture
 
 
-static func _card_style(hover: bool) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = PARCHMENT_DARK.lightened(0.1) if hover else PARCHMENT_DARK
-	sb.border_color = Palette.WOOD
-	sb.set_border_width_all(2)
-	sb.border_width_bottom = 4
-	sb.set_corner_radius_all(6)
-	sb.set_content_margin_all(8)
-	return sb
+static func _card_style(hover: bool) -> StyleBox:
+	return UiStyle.box("card_hover" if hover else "card").duplicate() as StyleBoxTexture
 
 
-static func _icon_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Palette.WOOD_DARK
-	sb.border_color = Palette.OUTLINE
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(6)
-	sb.set_content_margin_all(4)
-	return sb
+static func _icon_style() -> StyleBox:
+	return UiStyle.box("icon").duplicate() as StyleBoxTexture
 
 
 ## Spade, heart, diamond, club drawn with polygons (no font glyphs needed).

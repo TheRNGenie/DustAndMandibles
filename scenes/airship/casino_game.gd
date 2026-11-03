@@ -48,6 +48,13 @@ func ui_actions() -> Array:
 	return []
 
 
+## Brand (Snake Eyes): this game's cheat, [button label, game key for the
+## odds in BrandTable.CHEAT_RISK], or empty when it has none. Pressing it sends
+## the action &"cheat" with the same pick and stake as the normal play.
+func ui_cheat() -> Array:
+	return []
+
+
 ## The move your dummy makes when you play: deal cards by default.
 func ui_anim() -> StringName:
 	return &"cards"
@@ -82,14 +89,12 @@ func menu_tagline() -> String:
 
 func menu_build_body(body: Control, _screen: MenuScreen) -> void:
 	var felt := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color("#2E6B3A")
-	sb.border_color = Palette.WOOD_DARK
-	sb.set_border_width_all(6)
-	sb.set_corner_radius_all(12)
-	sb.set_content_margin_all(14)
+	# Theme: the table is always baize with a gold rail (the Snake Eyes felt, whatever the set).
+	var sb := StyleBoxTexture.new()
+	UiStyle._fill_box(sb, "icon", &"snake")
+	sb.set_content_margin_all(16)
 	felt.add_theme_stylebox_override("panel", sb)
-	felt.custom_minimum_size.y = 240
+	felt.custom_minimum_size.y = 210
 	body.add_child(felt)
 	var table := VBoxContainer.new()
 	table.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -120,6 +125,11 @@ func menu_build_body(body: Control, _screen: MenuScreen) -> void:
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	actions.add_theme_constant_override("separation", 12)
 	body.add_child(actions)
+	if Brand.local_banned(): # Brand: a caught cheat sits out
+		var barred := MenuScreen.ink_label("The pit boss has barred you from the tables until wave %d." % Brand.ban_wave(multiplayer.get_unique_id()), 17, UiStyle.c("bad"))
+		body.add_child(barred)
+		return
+	_cheat_row(body, bets)
 	for a: Array in ui_actions():
 		var btn := MenuScreen.wood_button(str(a[1]))
 		btn.custom_minimum_size.x = 140
@@ -128,6 +138,44 @@ func menu_build_body(body: Control, _screen: MenuScreen) -> void:
 			var stake := int(bets[clampi(ui_bet_index, 0, bets.size() - 1)]) if not bets.is_empty() else 0
 			ui_act(id, ui_choice, stake))
 		actions.add_child(btn)
+
+
+## Brand: the Snake Eyes cheat button, with the odds of getting caught right now.
+func _cheat_row(body: Control, bets: Array) -> void:
+	var cheat := ui_cheat()
+	if cheat.is_empty() or not BrandTable.can_cheat(Brand.local_id()) or ui_actions().is_empty():
+		return
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	body.add_child(row)
+	row.add_child(BrandMark.make(BrandTable.SNAKE, 26, UiStyle.c("bad")))
+	var risk := Brand.local_risk(str(cheat[1]))
+	var b := MenuScreen.wood_button("%s  (%d%% Risk)" % [str(cheat[0]), roundi(risk * 100.0)])
+	b.custom_minimum_size.x = 300
+	b.tooltip_text = "Snake Eyes: rig this one. If the pit boss catches you, you lose the stake and you're barred from the tables for a wave. Every cheat this wave makes the next likelier to be caught."
+	b.pressed.connect(func() -> void:
+		var stake := int(bets[clampi(ui_bet_index, 0, bets.size() - 1)]) if not bets.is_empty() else 0
+		ui_act(&"cheat", ui_choice, stake))
+	row.add_child(b)
+
+
+## Host: a cheat attempt. 1 = it worked (now take the stake and rig the game),
+## 0 = not allowed, -1 = caught (the stake is forfeited and the rider barred).
+func _cheat(peer_id: int, game: String, bet: int) -> int:
+	var r := Brand.cheat(peer_id, game)
+	if r < 0:
+		if bet > 0:
+			Economy.spend(_cliff(peer_id), {ui_currency(): bet})
+		_note.rpc("CAUGHT CHEATING! The pit boss takes the stake and shows you the door.")
+	return r
+
+
+@rpc("authority", "call_local", "reliable")
+func _note(text: String) -> void:
+	view["result"] = text
+	view["spinning"] = false
+	ui_changed.emit()
 
 
 ## Draws the game's current state on the felt.
@@ -238,6 +286,9 @@ func _valid_bet(bet: int) -> int:
 
 
 func _take(peer_id: int, amount: int) -> bool:
+	if Brand.is_banned(peer_id): # Brand: caught cheats are barred for a wave
+		Economy.notify(peer_id, "The pit boss won't take your bets until wave %d." % Brand.ban_wave(peer_id))
+		return false
 	if Economy.spend(_cliff(peer_id), {ui_currency(): amount}):
 		return true
 	Economy.notify(peer_id, "You need %d %s for that bet." % [amount, String(ui_currency())])

@@ -172,7 +172,7 @@ func _view_stress() -> void:
 		for col: int in [3, 6, 9, 12, 15]:
 			builds.build(&"gatling_post", cid, Vector2i(0, col))
 	var ids: Array = Defs.active_bug_ids()
-	ids.erase(&"iron_tumble")
+	ids = ids.filter(func(id: StringName) -> bool: return Defs.bug(id).behavior != BugDef.Behavior.BOSS and not [&"locust", &"hive_drone"].has(id)) # every boss (and their minions) out: the same mix as before the bosses
 	for i in n:
 		_bm().spawn_group(ids[i % ids.size()], 1, i % 2, i % 5, float(i % 7) * 4.0)
 	var cl := _cliffs()

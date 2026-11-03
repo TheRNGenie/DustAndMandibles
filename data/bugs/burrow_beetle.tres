@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="BugDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/bug_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"burrow_beetle"
+display_name = "The Burrowing Beetle"
+behavior = 8
+max_hp = 1600.0
+climb_speed = 0.8
+walk_speed = 1.6
+cost = 0
+group_size = 1
+front_armor = 0.0
+scrap_drop = 150
+chitin_drop = 40
+breach_dps = 40.0
+size = 2.8
+shell_color = Color(0.48, 0.32, 0.19, 1)
+first_wave = 10
+counter = "It tunnels under your plateau and bursts up beneath your scaffolds: cracks and dust show where, three seconds early. Lantern light flushes it up before it gets there; it can only be hurt while it's above ground, so be there with your gun."
+boss_tip = "THE BURROWING BEETLE is digging under a plateau! Watch for cracks near your scaffolds and shoot it when it surfaces."
+wanted_for = "FOR UNDERMINING HONEST TIMBER"

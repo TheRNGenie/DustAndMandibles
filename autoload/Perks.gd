@@ -51,6 +51,7 @@ func _ready() -> void:
 	if GameState.has_flag("--perkdemo"):
 		_demo_profile()
 	NetworkManager.connected_to_host.connect(_submit_local)
+	NetworkManager.connected_to_host.connect(_submit_secrets) # Theme: Secrets the gunsmith checks
 	NetworkManager.players_changed.connect(_on_players_changed)
 	GameState.phase_changed.connect(_on_phase)
 	GameState.game_over.connect(_on_game_over)
@@ -109,6 +110,46 @@ func buy_cosmetic(slot: String, option: String) -> bool:
 		return false
 	_changed()
 	return true
+
+
+## Secrets screen: try a code. Returns {"ok": bool, "added": [{"kind", "id"} new to this profile]}.
+func redeem_secret(code: String) -> Dictionary:
+	var unlocks := SecretCodes.rewards(code)
+	if unlocks.is_empty():
+		return {"ok": false, "added": []}
+	var added := profile.unlock_secret(unlocks)
+	if not added.is_empty():
+		_changed()
+		_submit_secrets()
+	return {"ok": true, "added": added}
+
+
+## Host: does this rider have a secret unlocked? (Your own from the profile,
+## others from what their game sent when they connected.)
+func has_secret(peer_id: int, kind: StringName, id: StringName) -> bool:
+	if peer_id == multiplayer.get_unique_id() or peer_id <= 0 and not NetworkManager.is_online():
+		return profile.has_secret(String(kind), String(id))
+	return (peer_secrets.get(peer_id, []) as Array).has(SecretCodes.key(String(kind), String(id)))
+
+
+## Host: peer id -> that rider's secret keys ("weapon:dino_rifle").
+var peer_secrets: Dictionary = {}
+
+
+func _submit_secrets() -> void:
+	if NetworkManager.is_online() and not multiplayer.is_server():
+		_got_secrets.rpc_id(1, PackedStringArray(profile.secrets))
+
+
+@rpc("any_peer", "reliable")
+func _got_secrets(keys: PackedStringArray) -> void:
+	if not multiplayer.is_server():
+		return
+	var clean: Array = []
+	for k: String in keys:
+		if k.contains(":") and clean.size() < 64:
+			clean.append(k)
+	peer_secrets[multiplayer.get_remote_sender_id()] = clean
 
 
 func owns_look(slot: String, option: String) -> bool:
@@ -299,6 +340,10 @@ func gun_hit_mult(peer_id: int, hit: Dictionary) -> float:
 		var hb := hit.get("collider") as Hitbox
 		if hb != null and hb.multiplier_at(hit["position"]) > 1.0:
 			m *= more(peer_id, &"marksman")
+	if not hit.is_empty(): # Brand: Snake Eyes hit bosses harder
+		var hb2 := hit.get("collider") as Hitbox
+		if hb2 != null:
+			m *= Brand.boss_mult(peer_id, hb2.target)
 	return m
 
 
@@ -322,10 +367,12 @@ func lock_look_row(row: Container, slot: String) -> void:
 	for i in mini(row.get_child_count(), opts.size()):
 		var b := row.get_child(i) as Button
 		var opt := str(opts[i][0])
-		if b != null and not owns_look(slot, opt):
+		if b != null and SecretCodes.is_secret_look(slot, opt) and not owns_look(slot, opt):
+			b.visible = false # Theme: secret looks stay hidden until their code is entered
+		elif b != null and not owns_look(slot, opt):
 			b.disabled = true
-			b.text = "%s  (%d Brands)" % [b.text, PerkTable.cosmetic_price(slot, opt)]
-			b.tooltip_text = "Buy it with Brands in the Rancher's Ledger (main menu)."
+			b.text = "%s  (%d Notches)" % [b.text, PerkTable.cosmetic_price(slot, opt)]
+			b.tooltip_text = "Buy it with Notches in the Rancher's Ledger (main menu)."
 
 
 # ------------------------------------------------------------------ networking

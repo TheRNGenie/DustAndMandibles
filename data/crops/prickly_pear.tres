@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"prickly_pear"
-display_name = "Prickly pear"
+display_name = "Prickly Pear"
 grow_time = 300.0
 water_cost = 1
 harvest = {&"prickly_pear": 2, &"water": 2}

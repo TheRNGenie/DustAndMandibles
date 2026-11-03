@@ -15,7 +15,7 @@ signal loadout_changed
 
 ## [Foundation] Guns are registered in Defs.WEAPONS with the rest of the content.
 const WEAPONS: Dictionary = Defs.WEAPONS
-const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling"]
+const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun"]
 const MAX_RANGE := 300.0
 const IMPACT_FORCE := 4.0
 const REST_POS := Vector3(0.2, -0.19, -0.5)
@@ -29,8 +29,10 @@ var slots: Array[StringName] = [&"revolver", &"", &""]
 const MAX_WEAPONS := 3
 ## Right-click aim: where the gun sits, and how far the view zooms in.
 const AIM_POS: Dictionary = {&"revolver": Vector3(0.0, -0.075, -0.5), &"lever_rifle": Vector3(0.0, -0.056, -0.44),
-	&"coach_shotgun": Vector3(0.0, -0.058, -0.4), &"blunderbuss": Vector3(0.0, -0.05, -0.4), &"crank_gatling": Vector3(0.06, -0.12, -0.45)}
-const AIM_ZOOM: Dictionary = {&"revolver": 1.4, &"lever_rifle": 2.2, &"coach_shotgun": 1.25, &"blunderbuss": 1.15, &"crank_gatling": 1.2}
+	&"coach_shotgun": Vector3(0.0, -0.058, -0.4), &"blunderbuss": Vector3(0.0, -0.05, -0.4), &"crank_gatling": Vector3(0.06, -0.12, -0.45),
+	&"elephant_gun": Vector3(-0.0077, -0.036, -0.2)} # the scope's axis on your eye line
+## The Elephant Gun's lashed-on magnifying glass zooms in hard.
+const AIM_ZOOM: Dictionary = {&"revolver": 1.4, &"lever_rifle": 2.2, &"coach_shotgun": 1.25, &"blunderbuss": 1.15, &"crank_gatling": 1.2, &"elephant_gun": 3.2}
 ## Player shot tracers per gun: colour, thickness (m), speed (m/s).
 const TRACERS: Dictionary = {
 	&"revolver": [Color("#FFC94A"), 0.055, 240.0],
@@ -38,6 +40,7 @@ const TRACERS: Dictionary = {
 	&"coach_shotgun": [Color("#FF9A3A"), 0.034, 200.0],
 	&"blunderbuss": [Color("#FF5A2A"), 0.045, 160.0],
 	&"crank_gatling": [Color("#FFD23F"), 0.04, 300.0],
+	&"elephant_gun": [Color("#FFF6D0"), 0.09, 420.0],
 }
 
 
@@ -341,6 +344,10 @@ func _process(delta: float) -> void:
 		vm.pose(_open, load_t, _stage == Reload.LOAD, _cycle, _drum_angle, _loaded_this_reload, catch_t)
 		vm.turn_crank(spin, delta)
 	aim = move_toward(aim, 1.0 if aiming else 0.0, delta * 7.0)
+	# Elephant Gun: once the glass is up to your eye you look through it (the HUD
+	# draws the lens), so the gun itself steps out of view.
+	if def != null and def.id == &"elephant_gun" and _models.has(def.id):
+		(_models[def.id] as Node3D).visible = not is_scoped()
 	var aim_pos: Vector3 = AIM_POS.get(def.id, REST_POS) if def != null else REST_POS
 	_feel_step(delta)
 	var off := _feel_offset()
@@ -412,7 +419,7 @@ func _feel_offset() -> Array:
 
 ## Times for this gun: tipping in, each round, closing up (faster with upgrades).
 func _times() -> Vector3:
-	var k := pow(0.85, level_of(def.id)) * Perks.local_less(&"quick_hands") # Perk: Quick Hands
+	var k := pow(0.85, level_of(def.id)) * Perks.local_less(&"quick_hands") * Brand.reload_mult() # Perk: Quick Hands; Brand: Crossed Irons
 	match def.id:
 		&"lever_rifle":
 			return Vector3(0.3, reload_time() * 0.2, 0.35) * k
@@ -422,6 +429,9 @@ func _times() -> Vector3:
 			return Vector3(0.4, reload_time() * 0.6, 0.4) * k
 		&"crank_gatling":
 			return Vector3(0.45, reload_time() * 0.6, 0.4) * k
+		&"elephant_gun":
+			# Break it open, thumb in two fat cartridges one at a time, snap it shut.
+			return Vector3(0.6, reload_time() * 0.5, 0.55) * k
 	return Vector3(0.35, reload_time() * 0.3, 0.3) * k
 
 
@@ -518,6 +528,11 @@ func set_aiming(on: bool) -> void:
 
 
 ## How much the view is zoomed right now (1 = not at all).
+## Looking through the Elephant Gun's lashed-on glass (fully aimed).
+func is_scoped() -> bool:
+	return def != null and def.id == &"elephant_gun" and holding == &"" and aim > 0.85
+
+
 func zoom_factor() -> float:
 	if def == null:
 		return 1.0
@@ -593,3 +608,5 @@ static func apply_hit_result(hit: Dictionary, dir: Vector3, dmg: float, pierce: 
 	var collider: Object = hit["collider"]
 	if collider != null and not (collider is RigidBody3D) and collider.has_method("apply_hit"):
 		collider.call("apply_hit", dmg, hit["position"], dir, pierce, source, source_cliff)
+	elif collider != null and not collider.has_method("apply_hit"):
+		BossFx.on_world_hit(hit["position"]) # Boss: shooting the corpse pile apart starves the Bone Collector

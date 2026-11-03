@@ -226,7 +226,7 @@ func _process(delta: float) -> void:
 	_ghost.global_position = Buildable.footprint_center(cliffs, _cliff, selected_id(), _cell)
 	var bm0 := BuildManager.instance
 	if Defs.is_turret(selected_id()) and Buildable.is_turret_cell(_cell):
-		_ghost.global_position.y += ScaffoldNode.LEVEL_HEIGHT * maxi(bm0.free_turret_level(_cliff, _cell), 0)
+		_ghost.global_position.y += ScaffoldNode.LEVEL_HEIGHT * maxi(bm0.stack_level(_cliff, _cell), 0)
 	elif selected_id() == &"scaffold":
 		_ghost.global_position.y += ScaffoldNode.LEVEL_HEIGHT * bm0.scaffold_levels(_cliff, _cell)
 	_ghost.rotation.y = WorldLayout.facing_canyon_yaw(_cliff)
@@ -252,7 +252,7 @@ func _update_coverage() -> void:
 		return
 	var level := 0
 	if Buildable.is_turret_cell(_cell) and _cell.x >= 0:
-		level = maxi(BuildManager.instance.free_turret_level(_cliff, _cell), 0)
+		level = maxi(BuildManager.instance.stack_level(_cliff, _cell), 0)
 	_coverage.show_for(id, _cliff, _ghost.global_position, level, _ok)
 
 

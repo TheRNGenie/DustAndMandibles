@@ -27,6 +27,8 @@ var _pulse := 0
 var _clock := 0.0
 var _active := false
 var _last_wave := 0
+## Boss ids met this run, oldest first (BossRotation never repeats one early).
+var boss_seen: Array = []
 
 
 func _ready() -> void:
@@ -47,11 +49,13 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 	match p:
 		GameState.Phase.LOBBY:
 			tally.reset()
+			boss_seen.clear()
 			_last_wave = 0
 		GameState.Phase.BUILD:
 			# A new run (wave count went back): forget last run's kills.
 			if GameState.wave <= 1 or GameState.wave < _last_wave:
 				tally.reset()
+				boss_seen.clear()
 			_last_wave = GameState.wave
 			# Plan the coming wave now, so both players can see what's coming while they build.
 			_plan = _make_plan()
@@ -59,10 +63,13 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 		GameState.Phase.WARNING:
 			if _plan.is_empty():
 				_plan = _make_plan()
+			_weather_bosses()
 			var extra := Weather.extra_bugs(GameState.weather)
 			if extra > 0.0:
-				# Blood moon: fold part of a second wave's worth of bugs into this one.
-				var more: Array = _make_plan()["groups"]
+				# Blood moon: fold part of a second wave's worth of bugs into this one
+				# (never a second boss).
+				var more: Array = (_make_plan()["groups"] as Array).filter(func(g: Dictionary) -> bool:
+					return Defs.bug(StringName(g["bug"])).behavior != BugDef.Behavior.BOSS)
 				var groups: Array = _plan["groups"]
 				for i in int(more.size() * extra):
 					var g: Dictionary = more[i]
@@ -75,13 +82,50 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 			_pulse = 0
 			_clock = 0.0
 			_active = true
+			for id: StringName in _plan_bosses():
+				boss_seen.append(id)
 		_:
 			_active = false
 
 
 func _make_plan() -> Dictionary:
 	_planner.variants = tally.unlocked
+	_planner.boss_seen = boss_seen
 	return _planner.plan(GameState.wave)
+
+
+## The bosses in the current plan (ids, in group order).
+func _plan_bosses() -> Array[StringName]:
+	var out: Array[StringName] = []
+	if _plan.is_empty():
+		return out
+	for g: Dictionary in _plan["groups"]:
+		if Defs.bug(StringName(g["bug"])).behavior == BugDef.Behavior.BOSS:
+			out.append(StringName(g["bug"]))
+	return out
+
+
+## Host, read by GameState's weather roll: is the Mirage Mantis due this wave?
+func mantis_due() -> bool:
+	return multiplayer.is_server() and _plan_bosses().has(BossRotation.MANTIS)
+
+
+## Host, once the weather is known: the Mantis only hunts in dust storms (a
+## stand-in takes her place otherwise), and a dust-storm boss wave brings her.
+func _weather_bosses() -> void:
+	var bosses := _plan_bosses()
+	if bosses.is_empty():
+		return
+	var swapped := BossRotation.apply_weather(_planner._seed, GameState.wave, _planner.bug_defs, boss_seen, bosses,
+			GameState.weather == Weather.Kind.DUST_STORM)
+	if swapped == bosses:
+		return
+	var k := 0
+	for g: Dictionary in _plan["groups"]:
+		if Defs.bug(StringName(g["bug"])).behavior == BugDef.Behavior.BOSS and k < swapped.size():
+			g["bug"] = swapped[k]
+			k += 1
+	_preview.rpc(_mix(), _plan["shape"])
 
 
 func _process(delta: float) -> void:

@@ -42,6 +42,11 @@ const MODS: Dictionary = {
 		{"name": "Heavy buckshot", "desc": "Three more pellets in every shell.", "cost": 20, "fx": {"pellets": 3}},
 		{"name": "Sawn-off barrels", "desc": "Quicker second barrel and reloads, but a wider spray.", "cost": 15, "fx": {"fire_interval": 0.6, "reload": 0.75, "spread": 1.35}},
 	],
+	&"elephant_gun": [
+		{"name": "Ground glass", "desc": "A finer lens: aiming zooms in much further.", "cost": 30, "fx": {"zoom": 1.5}},
+		{"name": "Cordite loads", "desc": "+20% damage.", "cost": 40, "fx": {"damage": 1.2}},
+		{"name": "Ejector springs", "desc": "Spent cases pop out: reloads 30% faster.", "cost": 35, "fx": {"reload": 0.7}},
+	],
 	&"blunderbuss": [
 		{"name": "Nail charge", "desc": "Six more pieces of scrap in every load.", "cost": 20, "fx": {"pellets": 6}},
 		{"name": "Flared bell", "desc": "+20% damage, wider blast.", "cost": 20, "fx": {"damage": 1.2, "spread": 1.25}},

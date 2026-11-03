@@ -10,16 +10,19 @@ const SHELF: Array[Dictionary] = [
 	{"kind": "buy", "id": &"coach_shotgun"},
 	{"kind": "buy", "id": &"blunderbuss"},
 	{"kind": "buy", "id": &"crank_gatling"},
+	{"kind": "buy", "id": &"elephant_gun"},
 	{"kind": "upgrade", "id": &"revolver"},
 	{"kind": "upgrade", "id": &"lever_rifle"},
 	{"kind": "upgrade", "id": &"coach_shotgun"},
 	{"kind": "upgrade", "id": &"blunderbuss"},
 	{"kind": "upgrade", "id": &"crank_gatling"},
+	{"kind": "upgrade", "id": &"elephant_gun"},
 	{"kind": "mods", "id": &"revolver"},
 	{"kind": "mods", "id": &"lever_rifle"},
 	{"kind": "mods", "id": &"coach_shotgun"},
 	{"kind": "mods", "id": &"blunderbuss"},
 	{"kind": "mods", "id": &"crank_gatling"},
+	{"kind": "mods", "id": &"elephant_gun"},
 ]
 
 ## Host: what every peer owns, peer_id -> {weapon id: level}.
@@ -59,7 +62,7 @@ func setup(cid: int) -> void:
 	# No price board in the world: the prices live in the shop screen (Logan's call).
 	board.visible = false
 	var lines: PackedStringArray = ["GUNSMITH", "prices in chitin", ""]
-	for w: StringName in [&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling"]:
+	for w: StringName in [&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun"]:
 		lines.append("%s ... %d" % [Gun.weapon(w).display_name, Gun.weapon(w).price_chitin])
 	lines.append("Upgrades ... from 10 chitin")
 	_label.text = "\n".join(lines)
@@ -93,7 +96,7 @@ func menu_tagline() -> String:
 
 
 func menu_tabs() -> Array:
-	return ["Guns", "Upgrades", "Workshop mods"]
+	return ["Guns", "Upgrades", "Workshop Mods"]
 
 
 func menu_items(tab: int) -> Array:

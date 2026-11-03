@@ -116,8 +116,9 @@ func has_sound(sound: StringName) -> bool:
 	return _streams.has(sound)
 
 
-## Positional one-shot. Pitch is randomized slightly so repeats don't sound identical.
-func play_at(sound: StringName, pos: Vector3, volume_db: float = 0.0) -> void:
+## Positional one-shot. Pitch is randomized slightly so repeats don't sound identical;
+## `pitch` shifts it on top (the bosses reuse recordings higher or lower).
+func play_at(sound: StringName, pos: Vector3, volume_db: float = 0.0, pitch: float = 1.0) -> void:
 	if not _streams.has(sound):
 		return
 	if _log:
@@ -127,7 +128,7 @@ func play_at(sound: StringName, pos: Vector3, volume_db: float = 0.0) -> void:
 	p.stream = _pick(sound)
 	p.global_position = pos
 	p.volume_db = volume_db
-	p.pitch_scale = randf_range(1.0 - PITCH_VARIATION, 1.0 + PITCH_VARIATION)
+	p.pitch_scale = randf_range(1.0 - PITCH_VARIATION, 1.0 + PITCH_VARIATION) * pitch
 	p.play()
 
 

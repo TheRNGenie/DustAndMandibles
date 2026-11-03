@@ -106,6 +106,96 @@
         "Your partner's turrets hit its back as it climbs.",
         "Shoot its glowing belly from above."
       ]
+    },
+    "queen_spider": {
+      "lore": "A black widow the size of a buckboard, crowned in bone. She climbs slow and spits silk at anything that shoots at her.",
+      "tips": [
+        "Watch her spinnerets: when they glow white she's about to spit a web.",
+        "A webbed turret holds fire: shoot the white cocoon (three revolver shots) or wait 8 seconds.",
+        "She never webs more than three turrets at once."
+      ]
+    },
+    "burrow_beetle": {
+      "lore": "A shovel-headed digger that would rather go through your plateau than up your cliff.",
+      "tips": [
+        "A trail of dust puffs shows where it is underground.",
+        "Cracks and an orange ring mark where it will burst up, three seconds early: the top level of every scaffold inside comes down.",
+        "Lantern light forces it up early, before it reaches your scaffolds.",
+        "It can only be hurt above ground, so be there when it surfaces."
+      ]
+    },
+    "tumble_titan": {
+      "lore": "A giant scarab that rolls a boulder bigger than a wagon up the wall, just to drop it on your house.",
+      "tips": [
+        "The boulder shields it from shots from your lip, so shoot the boulder.",
+        "Mortars and dynamite near the boulder chip it too.",
+        "Cracked through, the boulder rolls back over the Titan: a third of its health in one go.",
+        "Reaching the top with it, the boulder flattens everything in a line across your plateau."
+      ]
+    },
+    "locust_lord": {
+      "lore": "A crowned locust that rules the swarm from the air, high over the canyon.",
+      "tips": [
+        "His swarm sac glows before every cloud of six locusts.",
+        "Cliff turrets can't touch him: build anti-air, or shoot him yourself.",
+        "The locusts go for crops and water; down him and they stop coming."
+      ]
+    },
+    "acid_matriarch": {
+      "lore": "A scorpion queen carrying her brood, with an acid sac the size of a water barrel.",
+      "tips": [
+        "She clings about halfway up and spits for half a minute before climbing on.",
+        "Her tail bulb swells green before every spit.",
+        "Acid eats a turret for 14 seconds unless a Water Cannon near it fires: each shot washes every turret around it.",
+        "A Water Cannon hit on her rinses out the spit she's winding up."
+      ]
+    },
+    "locust": {
+      "lore": "One of the Swarm Lord's locusts. One bite of corn and it's gone.",
+      "tips": [
+        "Anti-air flak and shotguns clear the clouds."
+      ]
+    },
+    "hive_drone": {
+      "lore": "A stubby wasp shaken out of the Hive Wagon's hive.",
+      "tips": [
+        "Splash and fire clear them as they climb."
+      ]
+    },
+    "mirage_mantis": {
+      "lore": "A praying mantis the colour of hot sand that only hunts inside a dust storm. She is always a shimmer of heat haze, and every few seconds she slips almost out of sight altogether.",
+      "tips": [
+        "While she has faded, turrets lose her: keep shooting her yourself, you can still hit the ripple.",
+        "Build a lantern post near her climb: in its light she stays solid and every turret keeps firing."
+      ]
+    },
+    "hive_wagon": {
+      "lore": "A plated bug the size of a stagecoach, rolling on wheel-discs, with a paper wasp hive roped onto its back. Every hit stirs the hive up.",
+      "tips": [
+        "While it's under fire it shakes out a burst of drones every couple of seconds, and a last swarm when it dies: kill it fast, with everything at once.",
+        "Splash turrets and fire patches clear the drones."
+      ]
+    },
+    "stilt_strider": {
+      "lore": "A harvestman slung between eight impossibly long legs. It holds its body far out from the wall and steps straight over the lip.",
+      "tips": [
+        "Shoot its legs: every third broken leg drops it to the canyon floor.",
+        "A crippled Strider climbs slower and takes more damage. Turrets aim at its knees half the time."
+      ]
+    },
+    "thunder_cicada": {
+      "lore": "A hammer-headed cicada with amber drums on its sides. When it drums, the whole canyon hears it, and turrets in the ring are shaken senseless.",
+      "tips": [
+        "Watch for the glowing ring on your plateau: everything inside is stunned for 4 seconds when the screech lands.",
+        "Spread your turrets out. It sits still while it drums: that's your moment to pour fire into it."
+      ]
+    },
+    "bone_collector": {
+      "lore": "A black-and-orange burying beetle with a cattle skull on its back. It eats the dead, and the more it eats the bigger it gets.",
+      "tips": [
+        "It stops to feed on the corpse pile at the cliff foot: shoot the pile apart, or burn it with blasts and fire, before it gets there.",
+        "Bugs killed right beside it are a meal too: kill it before the swarm around it."
+      ]
     }
   },
   "turrets": {

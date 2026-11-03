@@ -80,11 +80,12 @@ func refresh() -> void:
 		_counts[i].text = str(info["count"])
 		var sb := UiStyle.wood_sign()
 		sb.set_content_margin_all(4)
-		if bool(info["selected"]):
-			sb.border_color = Palette.GLOW_YELLOW
-			sb.bg_color = Palette.WOOD.lightened(0.15)
+		if bool(info["selected"]): # Theme: the set's trim lights the picked slot
+			sb.border_color = UiStyle.c("gold")
+			sb.set_border_width_all(3)
+			sb.bg_color = sb.bg_color.lightened(0.18)
 		elif info["id"] == &"":
-			sb.bg_color = Palette.WOOD_DARK
+			sb.bg_color.a *= 0.6
 		_panels[i].add_theme_stylebox_override("panel", sb)
 
 

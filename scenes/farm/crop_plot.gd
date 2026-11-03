@@ -94,7 +94,7 @@ func _process(delta: float) -> void:
 	var before := growth.stage
 	var w := GameState.weather
 	var temp_rate := Weather.crop_temp_rate(GameState.temperature())
-	growth.tick(delta * GameState.growth_scale() * temp_rate * Perks.cliff_more(cliff_id, &"green_thumb"), Weather.crop_rate(w) if Weather.is_rain(w) else 0.0, Weather.frost_rate(w)) # Perk: Green Thumb
+	growth.tick(delta * GameState.growth_scale() * temp_rate * Perks.cliff_more(cliff_id, &"green_thumb") * Brand.growth_mult(cliff_id), Weather.crop_rate(w) if Weather.is_rain(w) else 0.0, Weather.frost_rate(w)) # Perk: Green Thumb
 	_sync_t -= delta
 	if growth.stage != before or (growth.stage == CropGrowth.Stage.GROWING and _sync_t <= 0.0):
 		_sync_t = SYNC_INTERVAL
@@ -164,7 +164,7 @@ func _use(peer_id: int, seed_id: StringName) -> void:
 			else:
 				Economy.notify(peer_id, "No water left. Fix the well or build a rain catcher.")
 		CropGrowth.Stage.RIPE:
-			Economy.earn(payer, Perks.bumper_harvest(peer_id, growth.harvest())) # Perk: Bumper Crop
+			Economy.earn(payer, Brand.harvest(peer_id, Perks.bumper_harvest(peer_id, growth.harvest()))) # Perk: Bumper Crop; Brand: The Sheaf
 			_fx.rpc(&"rustle")
 	_broadcast()
 

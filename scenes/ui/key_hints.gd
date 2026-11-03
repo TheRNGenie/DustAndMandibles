@@ -89,16 +89,9 @@ static func text(s: String, size: int, color: Color) -> Label:
 	return l
 
 
-## The card's frame: dark wood, thin dark edge, soft shadow.
+## The card's frame: the theme set's HUD card (UiStyle.hud_flat).
 static func card_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(Palette.WOOD_DARK, 0.9)
-	sb.border_color = Palette.OUTLINE
-	sb.set_border_width_all(3)
-	sb.set_corner_radius_all(8)
-	sb.shadow_color = Color(0, 0, 0, 0.3)
-	sb.shadow_size = 6
-	sb.shadow_offset = Vector2(0, 3)
+	var sb := UiStyle.hud_flat() # Theme
 	sb.content_margin_left = 16
 	sb.content_margin_right = 16
 	sb.content_margin_top = 8

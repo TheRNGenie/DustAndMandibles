@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="BugDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/bug_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"queen_spider"
+display_name = "The Queen Spider"
+behavior = 8
+max_hp = 2400.0
+climb_speed = 0.9
+walk_speed = 1.4
+cost = 0
+group_size = 1
+front_armor = 0.0
+scrap_drop = 150
+chitin_drop = 40
+breach_dps = 40.0
+size = 2.8
+shell_color = Color(0.2, 0.13, 0.2, 1)
+first_wave = 5
+counter = "Her spinnerets glow before she spits: a webbed turret holds fire until a few shots free it (shoot the white cocoon) or the silk rots after 8 seconds. Keep a gun handy near your turrets."
+boss_tip = "THE QUEEN SPIDER is climbing! She webs the turrets shooting her: shoot the cocoons to free them."
+wanted_for = "FOR GUMMING UP GOOD GUNS"

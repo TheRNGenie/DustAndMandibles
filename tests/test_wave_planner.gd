@@ -65,11 +65,8 @@ func test_boss_wave_has_exactly_one_boss() -> void:
 			for g: Dictionary in p.plan(w)["groups"]:
 				if Defs.bug(StringName(g["bug"])).behavior == BugDef.Behavior.BOSS:
 					bosses += int(g["count"])
-			var boss_wave := false
-			for d: BugDef in _active_defs():
-				# The boss comes the wave it unlocks, and on every boss wave after that.
-				if d.behavior == BugDef.Behavior.BOSS and (d.first_wave == w or (p.shape_for(w) == WavePlanner.BOSS and d.first_wave <= w)):
-					boss_wave = true
+			# Boss waves bring one boss (BossRotation picks which); other waves none.
+			var boss_wave := p.shape_for(w) == WavePlanner.BOSS
 			assert_eq(bosses, 1 if boss_wave else 0, "wave %d seed %d" % [w, seed_value])
 
 

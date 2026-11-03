@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="BugDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/bug_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"acid_matriarch"
+display_name = "The Acid Matriarch"
+behavior = 8
+max_hp = 2600.0
+climb_speed = 0.8
+walk_speed = 1.2
+cost = 0
+group_size = 1
+front_armor = 0.0
+scrap_drop = 150
+chitin_drop = 40
+breach_dps = 40.0
+size = 3.0
+shell_color = Color(0.24, 0.3, 0.17, 1)
+first_wave = 10
+counter = "Her tail bulb swells green before she spits: the acid sticks to a turret and eats it for 15 seconds. A Water Cannon washes the acid off every turret near it each time it fires."
+boss_tip = "THE ACID MATRIARCH is climbing! Her acid eats turrets: Water Cannons wash it off."
+wanted_for = "FOR CORRODING GOOD STEEL"

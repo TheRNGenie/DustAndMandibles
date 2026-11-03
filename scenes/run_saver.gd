@@ -120,6 +120,9 @@ func capture() -> Dictionary:
 			guns[cid] = GunShop.loadouts[peer]
 	data["perks"] = perks
 	data["guns"] = guns
+	data["brands"] = Brand.save_state() # Brand: each cliff's brand
+	var seen: Variant = WaveDirector.get("boss_seen")
+	data["bosses_seen"] = (seen as Array).duplicate() if seen is Array else []
 	return data
 
 
@@ -161,6 +164,10 @@ func resume(data: Dictionary) -> bool:
 		return false
 	_resuming = true
 	Perks.resumed = true # the saved run already had its start-of-run gifts
+	# Bosses already met, before start_run plans the saved wave (no early repeats).
+	if WaveDirector.get("boss_seen") is Array:
+		WaveDirector.set("_last_wave", 0)
+		WaveDirector.set("boss_seen", (data.get("bosses_seen", []) as Array).duplicate())
 	GameState.start_run(int(data["wave"])) # [Foundation hook] start at the saved wave
 	# Perks lock everyone back into the loadouts they started this run with.
 	var perks: Dictionary = data["perks"]
@@ -168,6 +175,7 @@ func resume(data: Dictionary) -> bool:
 		var peer := Perks.peer_for_cliff(cid)
 		if peer > 0:
 			Perks.restore_run_state(peer, perks[cid])
+	Brand.restore_state(data.get("brands", {})) # Brand: everyone rides with the brand they saved with
 	var guns: Dictionary = data["guns"]
 	for cid: int in guns:
 		var peer := Perks.peer_for_cliff(cid)

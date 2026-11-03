@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"elephant_gun"
+display_name = "Elephant Gun"
+description = "A double-barrelled big-game rifle with a magnifying glass lashed on for a scope. Hits like a runaway train and goes straight through armour, then takes an age to reload."
+damage = 220.0
+mag_size = 2
+fire_interval = 0.55
+reload_time = 3.2
+pellets = 1
+spread_deg = 0.0
+range = 400.0
+pierce_armor = true
+price_chitin = 120
+upgrade_costs = PackedInt32Array(30, 60)
+shake = 0.9
+sound = &"buffalo"
+recoil_deg = 9.0
+recoil_yaw_deg = 1.6
+recoil_recover = 0.55
+role = "Big game"

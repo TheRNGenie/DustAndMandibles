@@ -252,6 +252,9 @@ func _draw_players(c: Control, font: Font) -> void:
 		if not me:
 			var who := str(n.get("display_name")) if n.is_in_group("cpu_teammates") else _peer_name(n)
 			_center_text(c, font, who, mp + Vector2(0, -12), 11, Palette.BONE)
+			# Theme: the rider's brand mark above their name.
+			BrandMark.paint_at(c, Brand.mark_of(Brand.CPU_KEY if n.is_in_group("cpu_teammates") else int(str(n.name)) if str(n.name).is_valid_int() else -1),
+					mp + Vector2(0, -30), 14.0, Palette.BONE)
 
 
 static func _peer_name(n: Node) -> String:

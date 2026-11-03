@@ -14,6 +14,8 @@ var ranks: Dictionary = {}
 var loadout: Array[StringName] = []
 ## Wardrobe keys bought ("slot:option").
 var cosmetics: Array[String] = []
+## Secrets entered (main menu > Secrets): "kind:id" keys, e.g. "weapon:dino_rifle" (SecretCodes).
+var secrets: Array[String] = []
 var lifetime_brands: int = 0
 var runs: int = 0
 var wins: int = 0
@@ -45,7 +47,7 @@ func unlock_block(id: StringName) -> String:
 	if c < 0:
 		return "Fully ranked."
 	if brands < c:
-		return "Needs %d more Brands." % (c - brands)
+		return "Needs %d more Notches." % (c - brands)
 	return ""
 
 
@@ -121,7 +123,32 @@ func validate() -> void:
 
 
 func owns_cosmetic(slot: String, option: String) -> bool:
+	if SecretCodes.is_secret_look(slot, option): # Theme: secret looks are owned only once their code is entered
+		return cosmetics.has(PerkTable.cosmetic_key(slot, option))
 	return PerkTable.cosmetic_price(slot, option) <= 0 or cosmetics.has(PerkTable.cosmetic_key(slot, option))
+
+
+## Secrets: records unlocks [{"kind", "id"}] (looks also join the owned
+## cosmetics); returns the ones that were new.
+func unlock_secret(unlocks: Array) -> Array:
+	var added: Array = []
+	for e: Variant in unlocks:
+		if not e is Dictionary:
+			continue
+		var kind := str((e as Dictionary).get("kind", ""))
+		var id := str((e as Dictionary).get("id", ""))
+		var k := SecretCodes.key(kind, id)
+		if kind == "" or id == "" or secrets.has(k):
+			continue
+		secrets.append(k)
+		if kind == "cosmetic" and not cosmetics.has(id):
+			cosmetics.append(id)
+		added.append({"kind": kind, "id": id})
+	return added
+
+
+func has_secret(kind: String, id: String) -> bool:
+	return secrets.has(SecretCodes.key(kind, id))
 
 
 func buy_cosmetic(slot: String, option: String) -> bool:
@@ -150,7 +177,7 @@ func to_dict() -> Dictionary:
 	var lo: Array = []
 	for id in loadout:
 		lo.append(String(id))
-	return {"version": VERSION, "brands": brands, "ranks": r, "loadout": lo, "cosmetics": cosmetics.duplicate(),
+	return {"version": VERSION, "brands": brands, "ranks": r, "loadout": lo, "cosmetics": cosmetics.duplicate(), "secrets": secrets.duplicate(),
 		"lifetime_brands": lifetime_brands, "runs": runs, "wins": wins, "best_wave": best_wave}
 
 
@@ -172,6 +199,11 @@ static func from_dict(d: Variant) -> PerkProfile:
 	if c is Array:
 		for k: Variant in c:
 			p.cosmetics.append(str(k))
+	var sec: Variant = dict.get("secrets", [])
+	if sec is Array:
+		for k: Variant in sec:
+			if not p.secrets.has(str(k)):
+				p.secrets.append(str(k))
 	p.lifetime_brands = int(dict.get("lifetime_brands", 0))
 	p.runs = int(dict.get("runs", 0))
 	p.wins = int(dict.get("wins", 0))

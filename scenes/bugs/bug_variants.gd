@@ -24,8 +24,8 @@ const KINDS := {
 }
 ## How far the shell colour moves toward the variant's tint.
 const TINT := 0.7
-## Bugs that never get variants (the boss, spawned children, disabled bugs).
-const NEVER: Array[StringName] = [&"iron_tumble", &"spiderling", &"burrow_tick"]
+## Bugs that never get variants (bosses, spawned children, disabled bugs).
+const NEVER: Array[StringName] = [&"iron_tumble", &"spiderling", &"burrow_tick", &"locust", &"hive_drone"]
 
 static var _made: Dictionary = {}
 
@@ -35,7 +35,7 @@ static func id_for(base: StringName, method: StringName) -> StringName:
 
 
 static func can_vary(base: StringName, method: StringName) -> bool:
-	return KINDS.has(method) and not NEVER.has(base) and Defs.BUGS.has(base)
+	return KINDS.has(method) and not NEVER.has(base) and Defs.BUGS.has(base) 			and (Defs.BUGS[base] as BugDef).behavior != BugDef.Behavior.BOSS
 
 
 ## The variant for an id like "rattler_beetle@bullet" (made once), or null.

@@ -31,11 +31,18 @@ func _hook() -> void:
 	if bm == null:
 		return
 	bm.child_entered_tree.connect(_on_bug_added)
-	if GameState.has_flag("--posters"):
+	if GameState.has_flag("--posters") or GameState.flag_value("--posters") != "":
 		# Debug: put every bounty up at once (screenshots).
-		for id: StringName in [&"rattler_beetle", &"brood_mother", &"iron_tumble"]:
+		var ids: Array[StringName] = [&"rattler_beetle", &"brood_mother", &"iron_tumble"]
+		if GameState.flag_value("--posters") != "":
+			# --posters=queen_spider,tumble_titan,... picks which.
+			ids.clear()
+			for id in GameState.flag_value("--posters").split(","):
+				ids.append(StringName(id))
+		for id: StringName in ids:
 			_post(Defs.bug(id))
-		_set_paid(&"rattler_beetle", "Rancher")
+		if _posters.has(&"rattler_beetle"):
+			_set_paid(&"rattler_beetle", "Rancher")
 
 
 static func bounty_of(def: BugDef) -> int:
@@ -86,17 +93,41 @@ func _set_paid(base: StringName, who: String) -> void:
 # ------------------------------------------------------------------ the posters
 
 func _post(def: BugDef) -> void:
-	if def == null or _posters.has(def.base_id()) or _order.size() >= MAX_POSTERS:
+	if def == null or _posters.has(def.base_id()):
 		return
+	var slot := _order.size()
+	if _order.size() >= MAX_POSTERS:
+		# Wall's full: a new bounty is nailed over the oldest one already paid
+		# (bosses keep coming, every one gets its poster).
+		var old := &""
+		for b: StringName in _order:
+			if bool(_posters[b]["paid"]):
+				old = b
+				break
+		if old == &"":
+			return
+		slot = int(_posters[old]["slot"])
+		_take_down(old)
 	var base := def.base_id()
 	var vp := _render(def)
-	_posters[base] = {"vp": vp, "stamp": vp.get_node("Paper/Stamp"), "paid": false, "def": def}
+	_posters[base] = {"vp": vp, "stamp": vp.get_node("Paper/Stamp"), "paid": false, "def": def, "slot": slot, "quads": []}
 	_order.append(base)
-	var slot := _order.size() - 1
 	for cid in 2:
 		var home := Homestead.of(cid)
 		if home != null:
-			home.add_child(_make_quad(vp.get_texture(), slot))
+			var q := _make_quad(vp.get_texture(), slot)
+			home.add_child(q)
+			(_posters[base]["quads"] as Array).append(q)
+
+
+func _take_down(base: StringName) -> void:
+	var p: Dictionary = _posters[base]
+	for q: Node in p.get("quads", []):
+		if is_instance_valid(q):
+			q.queue_free()
+	(p["vp"] as Node).queue_free()
+	_posters.erase(base)
+	_order.erase(base)
 
 
 ## A poster on the house's left side wall (outside, facing away from the house),
@@ -154,7 +185,8 @@ func _render(def: BugDef) -> SubViewport:
 	col.add_theme_constant_override("separation", 2)
 	paper.add_child(col)
 	col.add_child(_ink("WANTED", 46, MenuScreen.INK))
-	col.add_child(_ink("DEAD  OR  DEAD", 14, MenuScreen.INK.lightened(0.15)))
+	# Bosses carry their crime; everyone else is just wanted.
+	col.add_child(_ink(def.wanted_for if def.wanted_for != "" else "DEAD  OR  DEAD", 14 if def.wanted_for.length() < 26 else 12, MenuScreen.INK.lightened(0.15)))
 	var frame := PanelContainer.new()
 	var fsb := StyleBoxFlat.new()
 	fsb.bg_color = Color("#D9C08A")

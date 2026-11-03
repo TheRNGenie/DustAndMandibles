@@ -44,6 +44,10 @@ func set_lite(on: bool) -> void:
 			_ball_b.hide(_knee_ball[i])
 var _phase := 0.0
 var _initialized := false
+## Boss: knee positions from the last pose (the Stilt Strider's leg hitboxes follow
+## them), and legs that were shot off (not drawn).
+var knees := PackedVector3Array()
+var _broken: Dictionary = {}
 
 
 func setup(leg_spec: Dictionary) -> void:
@@ -64,6 +68,7 @@ func setup(leg_spec: Dictionary) -> void:
 		_hips.append(leg["hip"])
 		_rests.append(leg["rest"])
 	for i in (spec["legs"] as Array).size():
+		knees.append(Vector3.ZERO)
 		_feet.append(Vector3.ZERO)
 		_step_from.append(Vector3.ZERO)
 		_step_to.append(Vector3.ZERO)
@@ -125,6 +130,32 @@ func set_shown(on: bool) -> void:
 					_ball_b.hide(s)
 			for s: int in _claw:
 				_claw_b.hide(s)
+
+
+## Boss: leg i's hip, knee and foot in world space (from the last update).
+func leg_points(i: int, body: Transform3D) -> Array[Vector3]:
+	return [body * _hips[i], knees[i], _feet[i]]
+
+
+func leg_count() -> int:
+	return _hips.size()
+
+
+## Boss: leg i was shot off: it stops being drawn.
+func break_leg(i: int) -> void:
+	if _broken.has(i) or i < 0 or i >= _hips.size():
+		return
+	_broken[i] = true
+	if not _coxa.is_empty():
+		for arr: Array in [_coxa, _upper, _lower]:
+			_seg_b.hide(arr[i])
+		_ball_b.hide(_hip_ball[i])
+		_ball_b.hide(_knee_ball[i])
+		_claw_b.hide(_claw[i])
+
+
+func is_broken(i: int) -> bool:
+	return _broken.has(i)
 
 
 ## Unit tapered cylinder (radius 1 at the base, along Y), per leg colour.
@@ -231,6 +262,8 @@ func set_clearance(c: float) -> void:
 
 ## Places every piece of leg i so it's one continuous limb from body to claw.
 func _pose(i: int, body: Transform3D, a: float, b: float, thick: float, up: Vector3) -> void:
+	if not _broken.is_empty() and _broken.has(i):
+		return
 	var hip_local := _hips[i]
 	var hip := body * hip_local
 	var foot := _feet[i]
@@ -240,6 +273,7 @@ func _pose(i: int, body: Transform3D, a: float, b: float, thick: float, up: Vect
 	if to.length_squared() > reach * reach:
 		foot = hip + to.normalized() * reach
 	var knee := _knee(hip, foot, a, b, up, body.basis * (_rests[i] - hip_local))
+	knees[i] = knee
 	_place(_seg_b, _upper[i], hip, knee, thick)
 	_place(_seg_b, _lower[i], knee, foot, thick * 0.8)
 	if not _lite:

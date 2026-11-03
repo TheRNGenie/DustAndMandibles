@@ -65,18 +65,26 @@ func ui_actions() -> Array:
 	return [] if _busy() else [[&"play", "Play"]]
 
 
+func ui_cheat() -> Array:
+	return ["Peek Under the Cups", "shell"]
+
+
 func _busy() -> bool:
 	return _t < SHUFFLE_TIME + REVEAL_TIME
 
 
 func _act(peer_id: int, action: StringName, choice: int, bet: int) -> void:
-	if action != &"play" or _busy():
+	if (action != &"play" and action != &"cheat") or _busy():
 		return
 	bet = _valid_bet(bet)
+	if action == &"cheat" and _cheat(peer_id, "shell", bet) <= 0: # Brand: Snake Eyes peek
+		return
 	if not _take(peer_id, bet):
 		return
 	var pick := clampi(choice, 0, 2)
 	var pea := CasinoRules.shell_pea(_rng)
+	if action == &"cheat":
+		pick = pea # you saw where it went
 	var won := CasinoRules.shell_payout(pick, pea, bet)
 	# Paid at the reveal, so the scrap counter doesn't give the result away.
 	_pay_later(peer_id, {&"scrap": won} if won > 0 else {}, SHUFFLE_TIME + 0.4)

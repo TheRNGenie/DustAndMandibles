@@ -14,6 +14,7 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 			target.receive_hit(damage, aim, dir, t.def.armor_pierce, 1.0, source, t.cliff_id)
 		TurretDef.Effect.KNOCKBACK:
 			target.receive_hit(damage, aim, dir, false, 1.0, source, t.cliff_id)
+			BossFx.on_water(t, target) # Boss: the spray washes Acid Matriarch acid off nearby turrets
 			if not target.is_alive():
 				pass
 			elif TurretDef.is_heavy(target.def):

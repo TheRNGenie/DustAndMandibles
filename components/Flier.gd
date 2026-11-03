@@ -52,10 +52,12 @@ func _fly_to(goal: Vector3, delta: float) -> void:
 
 
 func _steal() -> void:
+	# Boss: the Swarm Lord's locusts are small and take a bite each (a bandit takes 3).
+	var amount := maxi(1, roundi(bug.def.size * 2.7))
 	if _target is WaterSource:
-		(_target as WaterSource).steal(STEAL)
-	Economy.steal(bug.cliff_id, &"water" if _target is WaterSource else &"corn", STEAL)
-	Economy.notify_cliff(bug.cliff_id, "A Dragonfly Bandit is stealing from your %s!" % ("water" if _target is WaterSource else "crops"))
+		(_target as WaterSource).steal(amount)
+	Economy.steal(bug.cliff_id, &"water" if _target is WaterSource else &"corn", amount)
+	Economy.notify_cliff(bug.cliff_id, "A %s is stealing from your %s!" % [bug.def.display_name, "water" if _target is WaterSource else "crops"])
 	_start_escape()
 
 

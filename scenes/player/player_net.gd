@@ -281,7 +281,7 @@ func _server_melee(origin: Vector3, dir: Vector3) -> void:
 	# The host's own record of this player's whip.
 	var c := int(GunShop.whips.get(player.get_multiplayer_authority(), 0))
 	for b in Whip.targets(player.get_tree(), origin, dir, [player.get_rid()], Whip.reach_for(c)):
-		b.receive_hit(Whip.damage_for(c) * Perks.more(player.get_multiplayer_authority(), &"whip_hand"), b.global_position, dir, false, 1.0, player.display_name(), player.cliff_id) # Perk: Whip Hand
+		b.receive_hit(Whip.damage_for(c) * Perks.more(player.get_multiplayer_authority(), &"whip_hand") * Brand.boss_mult(player.get_multiplayer_authority(), b), b.global_position, dir, false, 1.0, player.display_name(), player.cliff_id) # Perk: Whip Hand
 		if b.is_alive():
 			b.status.root(Whip.stun_for(c))
 

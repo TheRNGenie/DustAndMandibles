@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"barbed_wire"
-display_name = "Barbed wire"
+display_name = "Barbed Wire"
 description = "Slows breachers by half."
 kind = 0
 cost_scrap = 10

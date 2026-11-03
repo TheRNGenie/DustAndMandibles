@@ -45,6 +45,13 @@ var crowd_w := 1.0
 ## Network id (BugManager's batched state sync finds bugs by it).
 var net_id := 0
 var _face: BugFace
+## Bosses: the mechanic (scenes/bugs/bosses/<id>.gd), on every peer. Null for other bugs.
+var boss: BossBrain
+## Boss growth (the Bone Collector swells as it feeds): scales the drawn body.
+var grow := 1.0
+## Bosses drawn on their own (not in the shared MultiMesh), e.g. the Mirage
+## Mantis whose shimmer needs its own material.
+var _solo: MeshInstance3D
 
 # Replicated state.
 var state: int = State.CLIMBING
@@ -100,7 +107,7 @@ func setup(d: BugDef, cid: int, lane_index: int, start_z: float, start_y: float,
 	crowd_w = BugCrowd.weight(d.size, d.behavior == BugDef.Behavior.BOSS)
 	add_child(_legs)
 	health.changed.connect(_on_hp_changed)
-	_hitbox = Hitbox.make_bug(self, float(spec["body_radius"]), Vector3(0, float(spec["clearance"]) * 0.3, 0),
+	_hitbox = Hitbox.make_bug(self, float(spec["body_radius"]), Vector3(0, float(spec.get("hit_lift", float(spec["clearance"]) * 0.3)), 0),
 			float(spec["weak_radius"]), spec["weak_spot"])
 	add_child(_hitbox)
 	status = BugStatus.new(self)
@@ -109,28 +116,38 @@ func setup(d: BugDef, cid: int, lane_index: int, start_z: float, start_y: float,
 	_flier = Flier.new(self)
 	health.died.connect(_on_died)
 	add_to_group("bugs")
+	if d.behavior == BugDef.Behavior.BOSS:
+		boss = BossBrain.make(self)
 
 
 func _ready() -> void:
 	# Every bug announces itself when it appears, so you can hear the lane.
 	var cue := &"skitter"
 	match def.behavior:
-		BugDef.Behavior.TANK, BugDef.Behavior.BROOD:
+		BugDef.Behavior.TANK, BugDef.Behavior.BROOD, BugDef.Behavior.BOSS:
 			cue = &"beetle_hiss"
 		BugDef.Behavior.LEAPER, BugDef.Behavior.FLIER:
 			cue = &"spider_screech"
 	if def.group_size == 1 or name.hash() % 4 == 0:
 		Audio.play_at.call_deferred(cue, target_transform().origin)
+	if bool(spec.get("solo", false)):
+		_solo = MeshInstance3D.new()
+		_solo.name = "Body"
+		_solo.mesh = spec["body"]
+		add_child(_solo)
+	if boss != null:
+		boss.attach()
 	_update_visibility()
 
 
 func _enter_tree() -> void:
-	if _body_slot >= 0:
+	if _body_slot >= 0 or not _wing_slots.is_empty():
 		return
 	var root := get_tree().current_scene if get_tree().current_scene != null else get_tree().root
 	# Bodies of a kind share one mesh, so they draw as one MultiMesh (with shadows).
-	_body_b = LegBatch.of(spec["body"], Materials.toon(0.03), root, true)
-	_body_slot = _body_b.take()
+	if not bool(spec.get("solo", false)):
+		_body_b = LegBatch.of(spec["body"], Materials.toon(0.03), root, true)
+		_body_slot = _body_b.take()
 	if bool((spec.get("face", {}) as Dictionary).get("wings", false)):
 		_wing_b = LegBatch.of(_wings_mesh(), _wing_mat, root)
 		for i in 4:
@@ -144,6 +161,8 @@ func _exit_tree() -> void:
 	for s: int in _wing_slots:
 		_wing_b.give_back(s)
 	_wing_slots.clear()
+	if boss != null:
+		boss.detach()
 	# A bug that died hands its face back; the world closing just frees them.
 	if is_queued_for_deletion():
 		set_face(false)
@@ -180,13 +199,16 @@ func _place_face() -> void:
 
 ## Writes the body (and wings) into their MultiMesh slots at the bug's transform.
 func _write_body() -> void:
-	if _body_slot < 0:
+	if _solo != null:
+		_solo.transform = _body_local
+	elif _body_slot < 0:
 		return
 	var g := global_transform
-	_body_b.put(_body_slot, g * _body_local)
+	if _body_slot >= 0:
+		_body_b.put(_body_slot, g * _body_local)
 	if _wing_slots.is_empty():
 		return
-	var s := float(spec["scale"])
+	var s := float(spec["scale"]) * grow
 	var face := g * (_body_local.scaled_local(Vector3.ONE / s) if s > 0.0 else Transform3D())
 	var k := 0
 	for side: float in [-1.0, 1.0]:
@@ -228,14 +250,16 @@ func is_hidden() -> bool:
 
 ## Current movement multiplier (status effects).
 func speed() -> float:
-	return status.speed_multiplier() * (2.0 if smoker else 1.0) * Weather.bug_speed(GameState.weather) * Weather.bug_temp_speed(GameState.temperature())
+	var boss_k := boss.speed_mult() if boss != null else 1.0
+	return status.speed_multiplier() * (2.0 if smoker else 1.0) * Weather.bug_speed(GameState.weather) * Weather.bug_temp_speed(GameState.temperature()) * boss_k
 
 
 func _physics_process(delta: float) -> void:
 	# Far-off and off-screen bugs update less often (with the time they missed),
 	# so hundreds of bugs fit in a tick. Up close every tick.
 	_tick_acc += delta
-	if detail != 0 and not due and state != State.DEAD and _tick_acc < 0.5:
+	# (Bosses always update: there are one or two, and their telegraphs must be smooth.)
+	if detail != 0 and not due and state != State.DEAD and _tick_acc < 0.5 and boss == null:
 		return
 	due = false
 	var t0 := Time.get_ticks_usec()
@@ -266,6 +290,8 @@ func _pp(delta: float) -> void:
 	var spd := global_position.distance_to(_last_pos) / maxf(delta, 0.0001)
 	_last_pos = global_position
 	_update_visibility()
+	if boss != null:
+		boss.visual(delta)
 	if is_hidden():
 		return
 	# Level of detail: legs and body animation run every update on screen, and
@@ -323,7 +349,7 @@ var _anim_t := randf() * 10.0
 
 func _animate_body(delta: float, spd: float) -> void:
 	_anim_t += delta
-	var s := float(spec["scale"])
+	var s := float(spec["scale"]) * grow
 	var breathe := sin(_anim_t * 2.2) * 0.03
 	var stride := clampf(spd * 0.4, 0.0, 1.0)
 	# Ducking: squashed flat and a little wider, legs splayed (the leg rig follows the body).
@@ -346,8 +372,11 @@ func _update_visibility() -> void:
 	_was_hidden = int(hidden)
 	if hidden and _body_slot >= 0:
 		_body_b.hide(_body_slot)
+	if hidden:
 		for s: int in _wing_slots:
 			_wing_b.hide(s)
+	if _solo != null:
+		_solo.visible = not hidden
 	_legs.set_shown(not hidden)
 	if _face != null:
 		_face.visible = not hidden
@@ -355,6 +384,8 @@ func _update_visibility() -> void:
 
 
 func _think(delta: float) -> void:
+	if boss != null and boss.think(delta):
+		return
 	match state:
 		State.CROSSING:
 			# Out of the tunnel in the far wall and across the canyon floor to the
@@ -386,6 +417,8 @@ func begin_crest() -> void:
 	# The boss crests the lip and rams the Homestead with its horn.
 	if def.behavior == BugDef.Behavior.BOSS:
 		GameState.damage_homestead(cliff_id, 150.0)
+		if boss != null:
+			boss.on_crest()
 
 
 ## Host: a Dragonfly Bandit got away with its loot.
@@ -475,6 +508,16 @@ func _project(point: Vector3, up: Vector3) -> Vector3:
 	return point - up * (point - base).dot(up)
 
 
+## Turrets can't lock on to this bug right now (a boss mechanic, e.g. the Mirage Mantis fading).
+func untargetable() -> bool:
+	return boss != null and boss.untargetable()
+
+
+## Where a turret standing at `from` aims at this bug (a boss may offer parts, e.g. legs).
+func aim_for(from: Vector3) -> Vector3:
+	return boss.aim_for(from) if boss != null else global_position
+
+
 ## Rough world velocity of the bug (for leading shots).
 func velocity_hint() -> Vector3:
 	return (global_position - _last_pos) * float(Engine.physics_ticks_per_second)
@@ -518,6 +561,8 @@ func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, mul
 	# Kill-method variants take more or less from bullets, fire or explosives.
 	if not def.damage_taken.is_empty():
 		dmg *= def.damage_mult(KillMethod.of(source))
+	if boss != null:
+		dmg = boss.body_damage(dmg, _point, source, source_cliff)
 	# The armour plate faces away from the cliff: shots from the canyon side bounce off it.
 	if def.front_armor > 0.0 and not pierce and state == State.CLIMBING:
 		if dir.normalized().dot(global_basis.y) < -0.3:
@@ -528,7 +573,7 @@ func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, mul
 
 func _check_brood() -> void:
 	# The Iron Tumbleweed drops off at half health and re-climbs the other cliff.
-	if def.behavior == BugDef.Behavior.BOSS and not brood_done and health.fraction() <= 0.5 and state == State.CLIMBING:
+	if def.id == &"iron_tumble" and not brood_done and health.fraction() <= 0.5 and state == State.CLIMBING:
 		brood_done = true
 		cliff_id = WorldLayout.other_cliff(cliff_id)
 		climb_y = 0.0
@@ -546,6 +591,8 @@ var died_in := -1
 
 
 func _on_died(source: String, source_cliff: int) -> void:
+	if boss != null:
+		boss.on_death(source, source_cliff)
 	if def.behavior == BugDef.Behavior.BROOD and not brood_done:
 		brood_done = true
 		if brood_burst.is_valid():

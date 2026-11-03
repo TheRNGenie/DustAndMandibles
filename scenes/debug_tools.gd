@@ -26,6 +26,8 @@ func _ready() -> void:
 		_ladder_test()
 	elif GameState.has_flag("--scaffoldtest"):
 		_scaffold_test()
+	elif GameState.has_flag("--stacktest"):
+		_stack_test()
 	elif GameState.has_flag("--ledgertest"):
 		_ledger_test()
 	elif GameState.has_flag("--pausetest"):
@@ -483,6 +485,69 @@ func _scaffold_test() -> void:
 	get_tree().quit()
 
 
+## --stacktest: turrets placed on a full scaffold add a free level on top (up to
+## MAX_SCAFFOLD). Logs scrap paid, levels, turret heights, stack_level (what the
+## ghost uses), the full-stack refusal, demolish order and the save capture.
+## On a client (--join ... --stacktest) it logs the scaffold levels and mesh heights it sees.
+func _stack_test() -> void:
+	for i in 30:
+		await get_tree().process_frame
+	var bm := BuildManager.instance
+	var cell := Vector2i(0, 5)
+	if not multiplayer.is_server():
+		await get_tree().create_timer(8.0).timeout
+		for n: Node in bm.get_children():
+			if n is ScaffoldNode:
+				var sc := n as ScaffoldNode
+				var mi := sc.get("_mi") as MeshInstance3D
+				print("[stack] client sees scaffold at %s levels %d mesh top %.2f collision posts %d" % [str(sc.cell), sc.levels,
+						mi.mesh.get_aabb().end.y if mi != null and mi.mesh != null else -1.0,
+						sc.get_children().filter(func(c: Node) -> bool: return c is CollisionShape3D and not c.is_queued_for_deletion()).size()])
+		for t: Node in get_tree().get_nodes_in_group("turrets"):
+			print("[stack] client sees %s level %d y %.2f" % [(t as Turret).def.id, (t as Turret).level, (t as Turret).global_position.y])
+		get_tree().quit()
+		return
+	Economy.earn(0, {&"scrap": 2000})
+	var ground := Buildable.cell_center(Bug.cliffs, 0, cell).y
+	print("[stack] empty cell: stack_level %d (ghost level)" % bm.stack_level(0, cell))
+	for id: StringName in [&"gatling_post", &"buffalo_rifle", &"duck_gun", &"water_cannon"]:
+		var before := Economy.amount(0, &"scrap")
+		var lvl := bm.stack_level(0, cell)
+		var ok := bm.is_free_for(id, 0, cell)
+		bm.build(id, 0, cell)
+		await get_tree().create_timer(0.3).timeout
+		var paid := before - Economy.amount(0, &"scrap")
+		var hs: PackedStringArray = []
+		for t in bm.turrets_on(0, cell):
+			hs.append("%s@L%d(+%.1fm)" % [String(t.def.id).left(6), t.level, t.global_position.y - ground])
+		print("[stack] %s: allowed %s, ghost level %d, paid %d (cost %d), scaffold levels %d, turrets %s" % [id, ok, lvl, paid,
+				Perks.build_cost(1, id), bm.scaffold_levels(0, cell), ", ".join(hs)])
+	print("[stack] full stack refuses a 4th: %s, stack_level %d" % [not bm.is_free_for(&"gatling_post", 0, cell), bm.stack_level(0, cell)])
+	var data: Dictionary = (world.get("saver") as RunSaver).capture()
+	for b: Dictionary in data["builds"]:
+		if int(b["row"]) == cell.x and int(b["col"]) == cell.y:
+			print("[stack] save: %s level %d levels %s" % [b["type"], int(b["level"]), str(b.get("levels", "-"))])
+	# Demolish: the scaffold's top level stays while a turret stands on it.
+	var sc: ScaffoldNode = bm.get("_scaffolds")[BuildManager._cell_key(0, cell)]
+	var s0 := Economy.amount(0, &"scrap")
+	bm.demolish_node(sc)
+	await get_tree().create_timer(0.3).timeout
+	print("[stack] demolish scaffold under a turret: levels %d, refund %d" % [bm.scaffold_levels(0, cell), Economy.amount(0, &"scrap") - s0])
+	var top := bm.turret_at(0, cell, bm.scaffold_levels(0, cell))
+	s0 = Economy.amount(0, &"scrap")
+	bm.demolish_node(top)
+	await get_tree().create_timer(0.3).timeout
+	var r1 := Economy.amount(0, &"scrap") - s0
+	s0 = Economy.amount(0, &"scrap")
+	bm.demolish_node(sc)
+	await get_tree().create_timer(0.3).timeout
+	print("[stack] top turret refund %d, then the free top level refund %d, levels now %d, turrets %d" % [r1,
+			Economy.amount(0, &"scrap") - s0, bm.scaffold_levels(0, cell), bm.turrets_on(0, cell).size()])
+	if GameState.has_flag("--stackwait"):
+		await get_tree().create_timer(12.0).timeout
+	get_tree().quit()
+
+
 ## Holds forward with the player turned to face local direction `dir`.
 func _walk(player: Player, home: Homestead, dir: Vector3, seconds: float) -> void:
 	var world_dir := home.global_transform.basis * dir
@@ -524,8 +589,23 @@ func _soak(seconds: float) -> void:
 			Time.get_ticks_msec() / 1000.0, GameState.wave, p, str(GameState.homestead_hp),
 			bugs.alive_count(), Economy.amount(0, &"scrap"), Economy.amount(1, &"scrap")]))
 	var start := Time.get_ticks_msec()
+	var last_seen := {} # --stuckcheck: bug -> [position, seconds unmoved]
 	while Time.get_ticks_msec() - start < int(seconds * 1000.0) and GameState.phase != GameState.Phase.GAME_OVER:
 		await get_tree().create_timer(1.0).timeout
+		if GameState.has_flag("--stuckcheck"):
+			# Living bugs that haven't moved half a metre in 30 s (rooted/webbed ones excepted).
+			var now := {}
+			for n: Node in get_tree().get_nodes_in_group("bugs"):
+				var b := n as Bug
+				if not b.is_alive() or b.is_hidden():
+					continue
+				var prev: Array = last_seen.get(b, [b.global_position, 0])
+				var still := int(prev[1]) + 1 if (prev[0] as Vector3).distance_to(b.global_position) < 0.5 else 0
+				now[b] = [prev[0] if still > 0 else b.global_position, still]
+				if still == 30:
+					print("[stuck] %s state %d cliff %d y %.1f pos %s hp %.0f unmoved 30 s" % [b.def.id, b.state, b.cliff_id, b.climb_y,
+							str(b.global_position.snapped(Vector3.ONE * 0.1)), b.health.hp])
+			last_seen = now
 		if GameState.has_flag("--god"):
 			GameState.god_mode = true
 		if GameState.has_flag("--autokill"):
@@ -691,6 +771,8 @@ func _take_screenshot(path: String) -> void:
 		var wid := StringName(GameState.flag_value("--weapon"))
 		player.gun.grant(wid, 0)
 		player.gun.equip(wid)
+		if GameState.has_flag("--aim"):
+			player.gun.aiming = true # hold right click (scope checks)
 		if GameState.has_flag("--shooting"):
 			# Keep firing (and reloading) so screenshots catch tracers mid-flight.
 			var timer := Timer.new()
@@ -1008,7 +1090,7 @@ func _stress(count: int) -> void:
 		_autobuild()
 	var bm := world.get("bugs") as BugManager
 	var ids: Array = Defs.active_bug_ids()
-	ids.erase(&"iron_tumble")
+	ids = ids.filter(func(id: StringName) -> bool: return Defs.bug(id).behavior != BugDef.Behavior.BOSS and not [&"locust", &"hive_drone"].has(id)) # every boss (and their minions) out: the same mix as before the bosses
 	# Look across at the far wall so the bugs are on screen.
 	var pl := world.call("local_player") as Player
 	if pl != null:

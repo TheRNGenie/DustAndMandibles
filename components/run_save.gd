@@ -16,6 +16,8 @@ extends RefCounted
 ##   players: {cliff: {food, water}}
 ##   perks: {cliff: {loadout: {perk: rank}, free_used}}  (the locked loadout; Barn Raising spent)
 ##   guns: {cliff: {weapon: mod code}}
+##   bosses_seen: [boss id, ...]  (oldest first, so Continue never repeats a boss early)
+##   brands: {cliff: brand id}  (each rider's brand, the CPU partner's too; BrandTable ids)
 
 const VERSION := 1
 const DIR := "user://saves"
@@ -116,6 +118,18 @@ static func normalize(raw: Dictionary) -> Dictionary:
 			guns[int(str(key))] = _amounts(raw_guns[key])
 	out["perks"] = perks
 	out["guns"] = guns
+	var seen: Array = []
+	for id: Variant in (raw.get("bosses_seen", []) if raw.get("bosses_seen") is Array else []):
+		if (id is String or id is StringName) and str(id) != "":
+			seen.append(StringName(str(id)))
+	out["bosses_seen"] = seen
+	# Brand: older saves have none (everyone rides unbranded).
+	var brands := {}
+	var raw_brands: Dictionary = raw.get("brands", {}) if raw.get("brands") is Dictionary else {}
+	for key: Variant in raw_brands:
+		if str(key).is_valid_int():
+			brands[int(str(key))] = String(BrandTable.valid(raw_brands[key]))
+	out["brands"] = brands
 	return out
 
 

@@ -148,9 +148,12 @@ func _physics_process(delta: float) -> void:
 func _think(delta: float) -> void:
 	_cooldown -= delta
 	_retarget -= delta
+	# Boss: webbed (Queen Spider) or stunned (Thunder Cicada) turrets hold fire.
+	if BossFx.holds_fire(self):
+		return
 	# Re-pick on a timer (not every tick when there's nothing to shoot), or at once
 	# when the current target dies or leaves the arc.
-	var lost := _target != null and (not is_instance_valid(_target) or not _target.is_alive())
+	var lost := _target != null and (not is_instance_valid(_target) or not _target.is_alive() or _target.untargetable()) # Boss: Mirage Mantis fading
 	if _retarget <= 0.0 or lost:
 		_retarget = RETARGET_TIME + randf() * 0.1
 		_target = _pick_target()
@@ -159,7 +162,7 @@ func _think(delta: float) -> void:
 		if not has_ammo and Economy.can_afford(cliff_id, def.ammo_cost):
 			has_ammo = true
 		return
-	aim_point = _target.global_position
+	aim_point = _target.aim_for(global_position) # Boss: a boss may offer parts to aim at (Stilt Strider legs)
 	_idle_t = 0.0 # tracking a target: never drift into the idle sweep
 	if _cooldown > 0.0 or _aim_error_deg() > ALIGN_TOLERANCE_DEG:
 		return
@@ -203,7 +206,7 @@ func _pick_target() -> Bug:
 
 ## The cross-defense rule plus pitch limit, range and line of sight.
 func _valid(b: Bug) -> bool:
-	if not b.is_alive() or b.is_hidden():
+	if not b.is_alive() or b.is_hidden() or b.untargetable(): # Boss: untargetable = Mirage Mantis fading
 		return false
 	if def.anti_air:
 		if b.state != Bug.State.FLYING:

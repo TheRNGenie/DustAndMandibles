@@ -173,6 +173,10 @@ func _enter(p: Phase) -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.randomize()
 		w = Weather.roll(rng, Weather.is_night(12.0 + 6.0 * float(maxi(wave - 1, 0))))
+		# Boss: the Mirage Mantis only hunts in dust storms; when she's due, the dust often comes with her.
+		var wd := get_node_or_null("/root/WaveDirector")
+		if wd != null and bool(wd.call("mantis_due")) and rng.randf() < BossRotation.MANTIS_DUST_CHANCE:
+			w = Weather.Kind.DUST_STORM
 		if wave <= 1:
 			w = Weather.Kind.CLEAR # the first wave is always plain weather
 		if flag_value("--weather") != "":

@@ -32,7 +32,7 @@ func _show(report: Dictionary) -> void:
 	g.custom_minimum_size = Vector2(30, 30)
 	g.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(g)
-	head.add_child(_label("BRANDS EARNED", 18, INK))
+	head.add_child(_label("NOTCHES EARNED", 18, INK))
 	head.add_child(_label("+%d" % int(report.get("earned", 0)), 28, GOLD_INK))
 	var grid := GridContainer.new()
 	grid.columns = 3
@@ -54,8 +54,8 @@ func _show(report: Dictionary) -> void:
 		grid.add_child(c)
 	if int(report.get("earned", 0)) != int(report.get("total_run", 0)):
 		add_child(_label("(Already banked %d of this at the win.)" % (int(report["total_run"]) - int(report["earned"])), 13, INK.lightened(0.35)))
-	var foot := "You have %d Brands. Spend them in the Rancher's Ledger on the main menu." % int(report.get("brands", 0)) \
-		if bool(report.get("banked", true)) else "Test run (--debug): these Brands are not banked."
+	var foot := "You have %d Notches. Spend them in the Rancher's Ledger on the main menu." % int(report.get("brands", 0)) \
+		if bool(report.get("banked", true)) else "Test run (--debug): these Notches are not banked."
 	var f := _label(foot, 13, INK.lightened(0.2))
 	f.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	f.custom_minimum_size.x = 420

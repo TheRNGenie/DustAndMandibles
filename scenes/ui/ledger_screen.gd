@@ -5,9 +5,9 @@ extends CanvasLayer
 ## wardrobe items. Same wood-and-parchment look as the shop screen (MenuScreen).
 ## `--ledger` opens it on start (with `--debug --menu`), `--ledgertab=1` the wardrobe.
 
-const INK := MenuScreen.INK
-const GOLD := MenuScreen.GOLD
-const PARCHMENT := MenuScreen.PARCHMENT
+static var INK := MenuScreen.INK # Theme: follows the set
+static var GOLD := MenuScreen.GOLD
+static var PARCHMENT := MenuScreen.PARCHMENT
 const RED := Color("#9B3B2E")
 const GREEN := Color("#3F6B2A")
 const TREE_GLYPHS: Dictionary = {&"gun": "item:revolver", &"home": "house", &"eng": "gear"}
@@ -66,6 +66,7 @@ func _process(_delta: float) -> void:
 func _build() -> void:
 	_root = Control.new()
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	UiStyle.fit(_root) # Theme: bigger on 1440p and up
 	add_child(_root)
 	var dim := ColorRect.new()
 	dim.color = Color(0.12, 0.06, 0.03, 0.6)
@@ -85,7 +86,7 @@ func _build() -> void:
 
 	# Plank header: title, then Brands and the loadout counter.
 	var header := PanelContainer.new()
-	header.add_theme_stylebox_override("panel", MenuScreen._plank_style())
+	header.theme_type_variation = "HeaderPanel" # Theme
 	outer.add_child(header)
 	var hrow := HBoxContainer.new()
 	hrow.add_theme_constant_override("separation", 18)
@@ -94,8 +95,10 @@ func _build() -> void:
 	htext.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	htext.add_theme_constant_override("separation", 0)
 	hrow.add_child(htext)
-	htext.add_child(MenuScreen._outlined("RANCHER'S LEDGER", 32, GOLD))
-	var tag := MenuScreen._outlined("Earn Brands every run. Spend them on perks, then pick up to %d to ride out with." % PerkTable.MAX_LOADOUT, 14, PARCHMENT)
+	var title := UiStyle.title("Rancher's Ledger", 34, true) # Theme: display title
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	htext.add_child(title)
+	var tag := MenuScreen._outlined("Earn Notches every run. Spend them on perks, then pick up to %d to ride out with." % PerkTable.MAX_LOADOUT, 14, PARCHMENT)
 	htext.add_child(tag)
 	hrow.add_child(_chip_brands())
 	hrow.add_child(_chip_loadout())
@@ -168,7 +171,7 @@ func _chip_brands() -> Control:
 	row.add_child(col)
 	_brands = MenuScreen._outlined("0", 26, GOLD)
 	col.add_child(_brands)
-	col.add_child(MenuScreen._outlined("BRANDS", 12, PARCHMENT))
+	col.add_child(MenuScreen._outlined("NOTCHES", 12, PARCHMENT))
 	return p
 
 
@@ -195,9 +198,9 @@ func refresh() -> void:
 	_loadout.add_theme_color_override("font_color", GOLD if n >= PerkTable.MAX_LOADOUT else PARCHMENT)
 	_pips.filled = n
 	_pips.queue_redraw()
-	_stats.text = "%d runs  -  %d won  -  best wave %d  -  %d Brands earned in all" % [prof.runs, prof.wins, prof.best_wave, prof.lifetime_brands]
+	_stats.text = "%d runs  -  %d won  -  best wave %d  -  %d Notches earned in all" % [prof.runs, prof.wins, prof.best_wave, prof.lifetime_brands]
 	_clear.visible = tab == 0
-	_hint.text = ("Unlock with Brands, then Add a perk to your loadout. Ranked perks get stronger each rank." if tab == 0
+	_hint.text = ("Unlock with Notches, then Add a perk to your loadout. Ranked perks get stronger each rank." if tab == 0
 		else "Bought looks stay yours for good.") + "   Esc: close"
 	_clear.disabled = n == 0 or not Perks.loadout_editable()
 	for c in _tabs.get_children():
@@ -272,7 +275,9 @@ func _tree_header(tree: StringName) -> Control:
 	text.add_theme_constant_override("separation", -2)
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(text)
-	text.add_child(MenuScreen._outlined(str(PerkTable.TREE_NAMES[tree]).to_upper(), 20, GOLD))
+	var tree_title := UiStyle.title(str(PerkTable.TREE_NAMES[tree]), 21, true) # Theme
+	tree_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	text.add_child(tree_title)
 	text.add_child(MenuScreen._outlined(str(PerkTable.TREE_BLURBS[tree]), 12, PARCHMENT))
 	var owned := 0
 	var taken := 0
@@ -296,12 +301,7 @@ func _perk_card(p: Dictionary) -> Control:
 	var top := PerkTable.max_rank(id)
 	var taken := prof.in_loadout(id)
 	var card := PanelContainer.new()
-	var sb := MenuScreen._card_style(false)
-	if taken:
-		sb.bg_color = Color("#EBD9A8")
-		sb.border_color = GOLD.darkened(0.25)
-		sb.set_border_width_all(3)
-		sb.border_width_bottom = 5
+	var sb := MenuScreen._card_style(taken) # Theme: taken perks sit on the lighter card
 	card.add_theme_stylebox_override("panel", sb)
 	card.custom_minimum_size.y = 92
 	var h := HBoxContainer.new()
@@ -311,8 +311,7 @@ func _perk_card(p: Dictionary) -> Control:
 	var icon_box := PanelContainer.new()
 	var isb := MenuScreen._icon_style()
 	if taken:
-		isb.border_color = GOLD
-		isb.set_border_width_all(3)
+		isb.modulate_color = Color(1.2, 1.12, 0.9) # Theme: a warmer emblem when it's in the loadout
 	icon_box.add_theme_stylebox_override("panel", isb)
 	icon_box.custom_minimum_size = Vector2(56, 56)
 	icon_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -369,7 +368,7 @@ func _perk_card(p: Dictionary) -> Control:
 		var buy := MenuScreen.wood_button("%s  %d" % ["Unlock" if r == 0 else "Rank up", cost], true)
 		buy.custom_minimum_size = Vector2(112, 30)
 		buy.disabled = not afford
-		buy.tooltip_text = "%d Brands" % cost + ("" if afford else " (you have %d)" % prof.brands)
+		buy.tooltip_text = "%d Notches" % cost + ("" if afford else " (you have %d)" % prof.brands)
 		buy.pressed.connect(func() -> void:
 			if Perks.unlock(id) and Audio.has_sound(&"coin"):
 				Audio.play_ui(&"coin", -4.0))
@@ -392,7 +391,7 @@ func _build_wardrobe(keep: Dictionary) -> void:
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 8)
 	scroll.add_child(list)
-	var intro := MenuScreen.ink_label("Buy looks with Brands here; wear them from the Wardrobe (pause menu or the wardrobe in your house).", 14, INK.lightened(0.2))
+	var intro := MenuScreen.ink_label("Buy looks with Notches here; wear them from the Wardrobe (pause menu or the wardrobe in your house).", 14, INK.lightened(0.2))
 	intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	list.add_child(intro)
 	for slot: String in PerkTable.COSMETICS:
@@ -425,7 +424,7 @@ func _look_card(slot: String, option: String, label: String, price: int) -> Cont
 	var n := MenuScreen.ink_label(label, 16)
 	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	text.add_child(n)
-	var s := MenuScreen.ink_label(("Wearing it" if worn else "Owned") if owned else "%d Brands" % price, 12, GREEN if owned else INK.lightened(0.3))
+	var s := MenuScreen.ink_label(("Wearing it" if worn else "Owned") if owned else "%d Notches" % price, 12, GREEN if owned else INK.lightened(0.3))
 	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	text.add_child(s)
 	if owned:

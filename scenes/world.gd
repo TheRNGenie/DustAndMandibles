@@ -40,6 +40,10 @@ func _ready() -> void:
 	bugs.name = "Bugs"
 	bugs.vfx = vfx
 	add_child(bugs)
+	# Boss mechanics' shared effects and their RPC channel (same path on every peer).
+	var boss_fx := BossFx.new()
+	boss_fx.name = "BossFx"
+	add_child(boss_fx)
 	var weather := WeatherFx.new()
 	weather.name = "WeatherFx"
 	add_child(weather)

@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="BugDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/bug_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"stilt_strider"
+display_name = "The Stilt Strider"
+behavior = 8
+max_hp = 2600.0
+climb_speed = 1.5
+walk_speed = 2.0
+cost = 0
+group_size = 1
+front_armor = 0.0
+scrap_drop = 150
+chitin_drop = 40
+breach_dps = 40.0
+size = 2.4
+shell_color = Color(0.72, 0.5, 0.26, 1)
+first_wave = 15
+counter = "It stalks up the wall on long stilt legs with its body held far out, and steps straight over the lip. Shoot its legs: every third broken leg drops it to the canyon floor, and a crippled Strider climbs slowly."
+boss_tip = "THE STILT STRIDER is coming! Shoot its legs to drop it."
+wanted_for = "FOR TRESPASSING ON STILTS"

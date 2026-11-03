@@ -59,14 +59,22 @@ func ui_actions() -> Array:
 	return [] if _t < SPIN_TIME else [[&"spin", "Spin"]]
 
 
+func ui_cheat() -> Array:
+	return ["Load the Ball", "roulette"]
+
+
 func _act(peer_id: int, action: StringName, choice: int, bet: int) -> void:
-	if action != &"spin" or _t < SPIN_TIME:
+	if (action != &"spin" and action != &"cheat") or _t < SPIN_TIME:
 		return
 	bet = _valid_bet(bet)
+	if action == &"cheat" and _cheat(peer_id, "roulette", bet) <= 0: # Brand: Snake Eyes loaded ball
+		return
 	if not _take(peer_id, bet):
 		return
 	var bi := clampi(choice, 0, CasinoRules.ROULETTE_BETS.size() - 1)
 	var n := _rng.randi_range(0, 36)
+	if action == &"cheat" and CasinoRules.roulette_payout(bi, n, bet) <= 0:
+		n = _rng.randi_range(0, 36) # the loaded ball gets a second bounce
 	var won := CasinoRules.roulette_payout(bi, n, bet)
 	var prize: Dictionary = {&"scrap": won} if won > 0 else {}
 	if won > 0 and CasinoRules.ROULETTE_BETS[bi][0] == "seven":

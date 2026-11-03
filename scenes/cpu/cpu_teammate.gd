@@ -283,8 +283,8 @@ func _turret_choice() -> StringName:
 				if def == null:
 					continue
 				total += int(m[1])
-				if def.behavior == BugDef.Behavior.FLIER:
-					fliers += int(m[1])
+				if def.behavior == BugDef.Behavior.FLIER or def.id == &"locust_lord":
+					fliers += int(m[1]) * (40 if def.id == &"locust_lord" else 1) # the Lord only falls to anti-air
 				elif def.behavior in [BugDef.Behavior.TANK, BugDef.Behavior.BOSS]:
 					big += int(m[1])
 			var air_built := _my_turrets().filter(func(t: Node) -> bool: return Defs.turret(t.get("def").id).anti_air if t.get("def") != null else false).size()

@@ -16,8 +16,11 @@ var _over_label: Label
 var _keep_going: Button
 var _build_mode: BuildMode
 var _boss_box: VBoxContainer
-var _boss_bar: ProgressBar
-var _boss_label: Label
+## One name + bar per boss on the field (two in the finale).
+var _boss_bars: Array[ProgressBar] = []
+var _boss_labels: Array[Label] = []
+## Bosses already announced in the feed (by instance id).
+var _boss_seen: Dictionary = {}
 
 
 func _ready() -> void:
@@ -71,18 +74,22 @@ func _ready() -> void:
 	_boss_box.offset_top = 110
 	_boss_box.visible = false
 	add_child(_boss_box)
-	_boss_label = _outlined("", 20, Palette.TEAM_WEST.lightened(0.2))
-	_boss_box.add_child(_boss_label)
-	_boss_bar = ProgressBar.new()
-	_boss_bar.custom_minimum_size = Vector2(640, 22)
-	_boss_bar.show_percentage = false
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Palette.OUTLINE
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Palette.TEAM_WEST
-	_boss_bar.add_theme_stylebox_override("background", bg)
-	_boss_bar.add_theme_stylebox_override("fill", fill)
-	_boss_box.add_child(_boss_bar)
+	_boss_box.add_theme_constant_override("separation", 2)
+	for k in 2:
+		var label := _outlined("", 20, Palette.TEAM_WEST.lightened(0.2))
+		_boss_box.add_child(label)
+		var bar := ProgressBar.new()
+		bar.custom_minimum_size = Vector2(640, 22 if k == 0 else 18)
+		bar.show_percentage = false
+		var bg := StyleBoxFlat.new()
+		bg.bg_color = Palette.OUTLINE
+		var fill := StyleBoxFlat.new()
+		fill.bg_color = Palette.TEAM_WEST if k == 0 else Palette.TEAM_WEST.lerp(Palette.GLOW_YELLOW, 0.35)
+		bar.add_theme_stylebox_override("background", bg)
+		bar.add_theme_stylebox_override("fill", fill)
+		_boss_box.add_child(bar)
+		_boss_labels.append(label)
+		_boss_bars.append(bar)
 	WaveDirector.wave_announced.connect(_on_wave_announced)
 	Economy.notice.connect(func(t: String) -> void: add_line(t, Palette.GLOW_YELLOW))
 	GameState.game_over.connect(_on_game_over)
@@ -128,20 +135,27 @@ func _process(_delta: float) -> void:
 
 
 func _update_boss_bar() -> void:
-	var boss: Bug = null
+	var bosses: Array[Bug] = []
 	for n: Node in get_tree().get_nodes_in_group("bugs"):
 		var b := n as Bug
 		if b.def.behavior == BugDef.Behavior.BOSS and b.is_alive():
-			boss = b
-	if boss == null:
-		_boss_box.visible = false
-		return
-	if not _boss_box.visible:
-		_boss_box.visible = true
-		add_line("THE IRON TUMBLEWEED IS CLIMBING! Partner's turrets hit its back, shoot its glowing belly from above.", Palette.TEAM_WEST)
-	_boss_bar.max_value = boss.health.max_hp
-	_boss_bar.value = boss.health.hp
-	_boss_label.text = "THE IRON TUMBLEWEED  -  %s cliff" % ("west" if boss.cliff_id == WorldLayout.WEST else "east")
+			bosses.append(b)
+	_boss_box.visible = not bosses.is_empty()
+	for k in _boss_bars.size():
+		var on := k < bosses.size()
+		_boss_bars[k].visible = on
+		_boss_labels[k].visible = on
+		if not on:
+			continue
+		var boss := bosses[k]
+		if not _boss_seen.has(boss.get_instance_id()):
+			_boss_seen[boss.get_instance_id()] = true
+			add_line(boss.def.boss_tip if boss.def.boss_tip != "" else "%s is coming!" % boss.def.display_name.to_upper(), Palette.TEAM_WEST)
+		_boss_bars[k].max_value = boss.health.max_hp
+		_boss_bars[k].value = boss.health.hp
+		var status := boss.boss.hud_status() if boss.boss != null else ""
+		_boss_labels[k].text = "%s  -  %s cliff%s" % [boss.def.display_name.to_upper(), "west" if boss.cliff_id == WorldLayout.WEST else "east",
+				("  -  " + status) if status != "" else ""]
 
 
 func add_line(text: String, color: Color = Palette.BONE) -> void:

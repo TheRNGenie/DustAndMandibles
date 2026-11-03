@@ -127,3 +127,14 @@ func test_stock_fits_shared_and_separate_pools() -> void:
 	assert_eq(merged[1][&"scrap"], 0)
 	var same := RunSave.fit_stock(stock, true, true)
 	assert_eq(same[0][&"scrap"], 101)
+
+
+func test_bosses_seen_round_trip_and_defaults() -> void:
+	var d := _sample()
+	d["bosses_seen"] = [&"queen_spider", &"locust_lord"]
+	var back := RunSave.decode(RunSave.encode(d))
+	assert_eq(back["bosses_seen"], [&"queen_spider", &"locust_lord"], "oldest first, as StringNames")
+	assert_true(back["bosses_seen"][0] is StringName)
+	assert_eq(RunSave.decode(RunSave.encode(_sample()))["bosses_seen"], [], "an older save has met no bosses")
+	assert_eq(RunSave.normalize({"bosses_seen": [3, "", "hive_wagon", null]})["bosses_seen"], [&"hive_wagon"], "junk entries skipped")
+	assert_eq(RunSave.normalize({"bosses_seen": "nope"})["bosses_seen"], [])

@@ -9,6 +9,7 @@ var _blackout: ColorRect
 var _debug_label: Label
 var _speed_lines: SpeedLines
 var _crosshair: Control
+var _scope: ScopeOverlay
 var _phase_label: Label
 var _hint_label: Label
 ## "[G] not yet" under the plaque while the ready countdown runs.
@@ -72,13 +73,18 @@ func _ready() -> void:
 	_speed_lines.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_speed_lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_speed_lines)
+	_scope = ScopeOverlay.new()
+	_scope.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_scope.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_scope.visible = false
+	add_child(_scope)
 	_crosshair = Crosshair.new()
 	_crosshair.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_crosshair)
 
 	var ammo_sign := PanelContainer.new()
-	ammo_sign.add_theme_stylebox_override("panel", wood_sign_style())
+	ammo_sign.theme_type_variation = "HudPanel" # Theme
 	ammo_sign.anchor_left = 1.0
 	ammo_sign.anchor_right = 1.0
 	ammo_sign.anchor_top = 1.0
@@ -91,7 +97,8 @@ func _ready() -> void:
 	_ammo_label = Label.new()
 	_ammo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_ammo_label.add_theme_font_size_override("font_size", 30)
-	_ammo_label.add_theme_color_override("font_color", Palette.BONE)
+	_ammo_label.theme_type_variation = "HudLabel" # Theme
+	_ammo_label.add_theme_font_override("font", UiStyle.display_font())
 	ammo_sign.add_child(_ammo_label)
 
 	_blackout = ColorRect.new()
@@ -108,13 +115,14 @@ func _ready() -> void:
 	_center_label.offset_bottom = 110
 	_center_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_center_label.add_theme_font_size_override("font_size", 28)
-	_center_label.add_theme_color_override("font_color", Palette.GLOW_YELLOW)
+	_center_label.add_theme_color_override("font_color", UiStyle.c("title")) # Theme
+	_center_label.add_theme_font_override("font", UiStyle.display_font())
 	_center_label.add_theme_color_override("font_outline_color", Palette.OUTLINE)
 	_center_label.add_theme_constant_override("outline_size", 8)
 	add_child(_center_label)
 
 	var banner := PanelContainer.new()
-	banner.add_theme_stylebox_override("panel", wood_sign_style())
+	banner.theme_type_variation = "HudPanel" # Theme
 	banner.anchor_left = 0.5
 	banner.anchor_right = 0.5
 	banner.offset_left = -230
@@ -128,12 +136,13 @@ func _ready() -> void:
 	_phase_label = Label.new()
 	_phase_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_phase_label.add_theme_font_size_override("font_size", 24)
-	_phase_label.add_theme_color_override("font_color", Palette.BONE)
+	_phase_label.theme_type_variation = "HudLabel" # Theme
+	_phase_label.add_theme_font_override("font", UiStyle.display_font())
 	plaque.add_child(_phase_label)
 	_hint_label = Label.new()
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint_label.add_theme_font_size_override("font_size", 14)
-	_hint_label.add_theme_color_override("font_color", Palette.BONE.darkened(0.2))
+	_hint_label.add_theme_color_override("font_color", UiStyle.c("hud").darkened(0.2))
 	plaque.add_child(_hint_label)
 	_cancel_row = HBoxContainer.new()
 	_cancel_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -165,6 +174,7 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 	tallies.bind(bugs)
 	tutorial.player = player
 	player.gun.ammo_changed.connect(_on_ammo_changed)
+	_scope.gun = player.gun
 	player.gun.hit_confirmed.connect(func(weak: bool) -> void: (_crosshair as Crosshair).flash(weak))
 	(_crosshair as Crosshair).grapple = player.grapple
 	player.gun.reload_started.connect(func(_d: float) -> void: _ammo_label.text = "Reloading")
@@ -257,18 +267,9 @@ func _show_message(text: String) -> void:
 	_center_label.text = text
 
 
-## Wooden sign panel (StyleBoxFlat only, no textures).
+## Theme: the HUD sign is the theme set's HUD card.
 static func wood_sign_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Palette.WOOD
-	sb.border_color = Palette.OUTLINE
-	sb.set_border_width_all(4)
-	sb.set_corner_radius_all(6)
-	sb.shadow_color = Color(0, 0, 0, 0.35)
-	sb.shadow_size = 4
-	sb.shadow_offset = Vector2(3, 3)
-	sb.set_content_margin_all(10)
-	return sb
+	return UiStyle.hud_flat()
 
 
 ## A small cross with a dark outline, drawn in code. Hits flash an X; weak-spot
@@ -421,3 +422,31 @@ class SpeedLines extends Control:
 				draw_line(c + dir * r0, c + dir * (r0 + len), col, 2.0 + 3.0 * k)
 		if _flash > 0.0:
 			draw_rect(Rect2(Vector2.ZERO, size), Color(1, 1, 0.95, _flash * 0.85))
+
+
+## The Elephant Gun's magnifying glass: when you're looking through it, the
+## view is a round lens in a dark surround with a fine cross.
+class ScopeOverlay extends Control:
+	var gun: Gun
+
+	func _process(_delta: float) -> void:
+		var on := gun != null and is_instance_valid(gun) and gun.is_scoped()
+		if on != visible:
+			visible = on
+		if visible:
+			queue_redraw()
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var r := minf(size.x, size.y) * 0.42
+		# Dark surround: a thick ring from the lens edge out past the corners.
+		var outer := size.length()
+		draw_arc(c, (r + outer) * 0.5, 0.0, TAU, 96, Color(0.04, 0.03, 0.02, 0.97), outer - r + 2.0, true)
+		# Brass rim and a soft inner shadow.
+		draw_arc(c, r + 6.0, 0.0, TAU, 96, Color("#B8893A"), 12.0, true)
+		draw_arc(c, r - 10.0, 0.0, TAU, 96, Color(0, 0, 0, 0.25), 20.0, true)
+		# Fine cross with a gap in the middle.
+		var line := Color(0.08, 0.06, 0.04, 0.9)
+		for d: Vector2 in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
+			draw_line(c + d * 14.0, c + d * r, line, 2.0)
+		draw_circle(c, 2.5, line)

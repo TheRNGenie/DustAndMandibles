@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"lantern_post"
-display_name = "Lantern post"
+display_name = "Lantern Post"
 description = "Lights the night and reveals Burrow Ticks."
 kind = 4
 cost_scrap = 10
