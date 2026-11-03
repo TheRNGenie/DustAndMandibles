@@ -8,8 +8,6 @@ extends CanvasLayer
 static var INK := MenuScreen.INK # Theme: follows the set
 static var GOLD := MenuScreen.GOLD
 static var PARCHMENT := MenuScreen.PARCHMENT
-const RED := Color("#9B3B2E")
-const GREEN := Color("#3F6B2A")
 const TREE_GLYPHS: Dictionary = {&"gun": "item:revolver", &"home": "house", &"eng": "gear"}
 
 var tab := 0
@@ -37,8 +35,11 @@ func _ready() -> void:
 
 
 func open() -> void:
+	var was_open := _root.visible
 	_root.visible = true
 	refresh()
+	if not was_open:
+		UiStyle.fade_in(_root)
 
 
 func close() -> void:
@@ -68,12 +69,8 @@ func _build() -> void:
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	UiStyle.fit(_root) # Theme: bigger on 1440p and up
 	add_child(_root)
-	var dim := ColorRect.new()
-	dim.color = Color(0.12, 0.06, 0.03, 0.6)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_root.add_child(dim)
-	var frame := PanelContainer.new()
-	frame.add_theme_stylebox_override("panel", MenuScreen._frame_style())
+	_root.add_child(UiStyle.scrim())
+	var frame := UiStyle.panel("FramePanel")
 	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	frame.offset_left = 36
 	frame.offset_right = -36
@@ -85,31 +82,19 @@ func _build() -> void:
 	frame.add_child(outer)
 
 	# Plank header: title, then Brands and the loadout counter.
-	var header := PanelContainer.new()
-	header.theme_type_variation = "HeaderPanel" # Theme
+	var header := UiStyle.strap("Rancher's Ledger",
+			"Earn Notches every run. Spend them on perks, then pick up to %d to ride out with." % PerkTable.MAX_LOADOUT, 30)
 	outer.add_child(header)
-	var hrow := HBoxContainer.new()
-	hrow.add_theme_constant_override("separation", 18)
-	header.add_child(hrow)
-	var htext := VBoxContainer.new()
-	htext.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	htext.add_theme_constant_override("separation", 0)
-	hrow.add_child(htext)
-	var title := UiStyle.title("Rancher's Ledger", 34, true) # Theme: display title
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	htext.add_child(title)
-	var tag := MenuScreen._outlined("Earn Notches every run. Spend them on perks, then pick up to %d to ride out with." % PerkTable.MAX_LOADOUT, 14, PARCHMENT)
-	htext.add_child(tag)
+	var hrow := UiStyle.strap_row(header)
 	hrow.add_child(_chip_brands())
 	hrow.add_child(_chip_loadout())
 
 	# Parchment card: tabs, body, footer.
-	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", MenuScreen._parchment_style())
+	var card := UiStyle.panel("PaperPanel")
 	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(card)
 	var inner := VBoxContainer.new()
-	inner.add_theme_constant_override("separation", 10)
+	inner.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
 	card.add_child(inner)
 	var trow := HBoxContainer.new()
 	inner.add_child(trow)
@@ -117,7 +102,7 @@ func _build() -> void:
 	_tabs.add_theme_constant_override("separation", 6)
 	_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	trow.add_child(_tabs)
-	_stats = MenuScreen.ink_label("", 13, INK.lightened(0.3))
+	_stats = MenuScreen.ink_label("", 14, UiStyle.c("ink_soft"))
 	_stats.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	trow.add_child(_stats)
 	_body = MarginContainer.new()
@@ -126,12 +111,16 @@ func _build() -> void:
 	var footer := HBoxContainer.new()
 	footer.add_theme_constant_override("separation", 8)
 	inner.add_child(footer)
-	var hint := MenuScreen.ink_label("", 13, INK.lightened(0.25))
+	var hint := MenuScreen.ink_label("", 14, UiStyle.c("ink_soft"))
 	_hint = hint
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	footer.add_child(hint)
-	_clear = MenuScreen.wood_button("Clear loadout")
+	var keys := UiStyle.paper_hints([["Esc", "Close"]])
+	keys.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	footer.add_child(keys)
+	_clear = MenuScreen.wood_button("Clear Loadout")
 	_clear.custom_minimum_size.x = 140
 	_clear.pressed.connect(func() -> void: Perks.clear_loadout())
 	footer.add_child(_clear)
@@ -142,11 +131,7 @@ func _build() -> void:
 
 func _chip(min_w: float) -> PanelContainer:
 	var p := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Palette.WOOD_DARK
-	sb.border_color = Palette.OUTLINE
-	sb.set_border_width_all(3)
-	sb.set_corner_radius_all(6)
+	var sb := UiStyle.chip_flat() # Theme: the same dark chip as the shop's stock
 	sb.content_margin_left = 14
 	sb.content_margin_right = 14
 	sb.content_margin_top = 4
@@ -169,9 +154,9 @@ func _chip_brands() -> Control:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", -4)
 	row.add_child(col)
-	_brands = MenuScreen._outlined("0", 26, GOLD)
+	_brands = MenuScreen._outlined("0", 22, GOLD)
 	col.add_child(_brands)
-	col.add_child(MenuScreen._outlined("NOTCHES", 12, PARCHMENT))
+	col.add_child(MenuScreen._outlined("Notches", 12, PARCHMENT))
 	return p
 
 
@@ -180,7 +165,7 @@ func _chip_loadout() -> Control:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 2)
 	p.add_child(col)
-	_loadout = MenuScreen._outlined("", 20, PARCHMENT)
+	_loadout = MenuScreen._outlined("", 18, PARCHMENT)
 	col.add_child(_loadout)
 	_pips = LoadoutPips.new()
 	_pips.custom_minimum_size = Vector2(200, 12)
@@ -194,14 +179,14 @@ func refresh() -> void:
 	var prof := Perks.profile
 	_brands.text = str(prof.brands)
 	var n := prof.loadout.size()
-	_loadout.text = "LOADOUT  %d / %d" % [n, PerkTable.MAX_LOADOUT]
+	_loadout.text = "Loadout  %d / %d" % [n, PerkTable.MAX_LOADOUT]
 	_loadout.add_theme_color_override("font_color", GOLD if n >= PerkTable.MAX_LOADOUT else PARCHMENT)
 	_pips.filled = n
 	_pips.queue_redraw()
-	_stats.text = "%d runs  -  %d won  -  best wave %d  -  %d Notches earned in all" % [prof.runs, prof.wins, prof.best_wave, prof.lifetime_brands]
+	_stats.text = "%d Runs  ·  %d Won  ·  Best Wave %d  ·  %d Notches Earned" % [prof.runs, prof.wins, prof.best_wave, prof.lifetime_brands]
 	_clear.visible = tab == 0
 	_hint.text = ("Unlock with Notches, then Add a perk to your loadout. Ranked perks get stronger each rank." if tab == 0
-		else "Bought looks stay yours for good.") + "   Esc: close"
+		else "Bought looks stay yours for good.")
 	_clear.disabled = n == 0 or not Perks.loadout_editable()
 	for c in _tabs.get_children():
 		c.queue_free()
@@ -287,7 +272,7 @@ func _tree_header(tree: StringName) -> Control:
 			owned += 1
 		if Perks.profile.in_loadout(perk["id"]):
 			taken += 1
-	var count := MenuScreen._outlined("%d/%d unlocked\n%d in loadout" % [owned, all.size(), taken], 12, PARCHMENT)
+	var count := MenuScreen._outlined("%d / %d Unlocked\n%d in Loadout" % [owned, all.size(), taken], 12, PARCHMENT)
 	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	count.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(count)
@@ -301,8 +286,7 @@ func _perk_card(p: Dictionary) -> Control:
 	var top := PerkTable.max_rank(id)
 	var taken := prof.in_loadout(id)
 	var card := PanelContainer.new()
-	var sb := MenuScreen._card_style(taken) # Theme: taken perks sit on the lighter card
-	card.add_theme_stylebox_override("panel", sb)
+	card.theme_type_variation = "CardHoverPanel" if taken else "CardPanel" # Theme: taken perks sit on the lighter card
 	card.custom_minimum_size.y = 92
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 10)
@@ -329,7 +313,7 @@ func _perk_card(p: Dictionary) -> Control:
 	var name_row := HBoxContainer.new()
 	name_row.add_theme_constant_override("separation", 8)
 	text.add_child(name_row)
-	var name_l := MenuScreen.ink_label(str(p["name"]), 17, INK if r > 0 else INK.lightened(0.3))
+	var name_l := MenuScreen.ink_label(UiStyle.tc(str(p["name"])), 18, INK if r > 0 else UiStyle.c("ink_soft"))
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	name_row.add_child(name_l)
 	var pips := RankPips.new()
@@ -338,24 +322,23 @@ func _perk_card(p: Dictionary) -> Control:
 	pips.custom_minimum_size = Vector2(16 * top, 16)
 	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	name_row.add_child(pips)
-	var desc := MenuScreen.ink_label(PerkTable.describe(id, r), 13, INK.lightened(0.15))
+	var desc := MenuScreen.ink_label(PerkTable.describe(id, r), 14, INK)
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.custom_minimum_size.x = 150
 	text.add_child(desc)
 	var status := ""
-	var status_color := INK.lightened(0.35)
+	var kind := "info"
 	if r > 0 and r < top and PerkTable.value_text(id, r + 1) != "":
-		status = "Next rank: %s" % PerkTable.value_text(id, r + 1)
+		status = "Next Rank: %s" % PerkTable.value_text(id, r + 1)
 	elif r == 0:
-		status = "Locked" + ("  -  up to %s at rank %d" % [PerkTable.value_text(id, top), top] if top > 1 and PerkTable.value_text(id, top) != "" else "")
+		status = "Locked" + ("  ·  Up to %s at Rank %d" % [PerkTable.value_text(id, top), top] if top > 1 and PerkTable.value_text(id, top) != "" else "")
+		kind = "lock"
 	elif r >= top and top > 1:
-		status = "Fully ranked"
-		status_color = GREEN
+		status = "Fully Ranked"
+		kind = "good"
 	if status != "":
-		var s := MenuScreen.ink_label(status, 12, status_color)
-		s.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		text.add_child(s)
+		text.add_child(UiStyle.status(status, kind, 12))
 	# Price and buttons.
 	var right := VBoxContainer.new()
 	right.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -365,7 +348,7 @@ func _perk_card(p: Dictionary) -> Control:
 	var cost := prof.next_cost(id)
 	if cost >= 0:
 		var afford := prof.brands >= cost
-		var buy := MenuScreen.wood_button("%s  %d" % ["Unlock" if r == 0 else "Rank up", cost], true)
+		var buy := MenuScreen.wood_button("%s  %d" % ["Unlock" if r == 0 else "Rank Up", cost], true)
 		buy.custom_minimum_size = Vector2(112, 30)
 		buy.disabled = not afford
 		buy.tooltip_text = "%d Notches" % cost + ("" if afford else " (you have %d)" % prof.brands)
@@ -375,7 +358,7 @@ func _perk_card(p: Dictionary) -> Control:
 		right.add_child(buy)
 	if r > 0:
 		var why := prof.add_block(id)
-		var t := MenuScreen.tab_button("In loadout" if taken else "Add", taken)
+		var t := MenuScreen.tab_button("In Loadout" if taken else "Add", taken)
 		t.custom_minimum_size = Vector2(112, 30)
 		t.disabled = (why != "" and not taken) or not Perks.loadout_editable()
 		t.tooltip_text = why if why != "" else ("Leave it at home" if taken else "Take it into the next run")
@@ -391,11 +374,11 @@ func _build_wardrobe(keep: Dictionary) -> void:
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 8)
 	scroll.add_child(list)
-	var intro := MenuScreen.ink_label("Buy looks with Notches here; wear them from the Wardrobe (pause menu or the wardrobe in your house).", 14, INK.lightened(0.2))
+	var intro := MenuScreen.ink_label("Buy looks with Notches here; wear them from the Wardrobe (pause menu or the wardrobe in your house).", 14, UiStyle.c("ink_soft"))
 	intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	list.add_child(intro)
 	for slot: String in PerkTable.COSMETICS:
-		var title := MenuScreen.ink_label(str(DummyLook.SLOTS[slot][0]), 17)
+		var title := MenuScreen.ink_label(UiStyle.tc(str(DummyLook.SLOTS[slot][0])), 18)
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		list.add_child(title)
 		var flow := HFlowContainer.new()
@@ -411,8 +394,7 @@ func _build_wardrobe(keep: Dictionary) -> void:
 func _look_card(slot: String, option: String, label: String, price: int) -> Control:
 	var owned := Perks.owns_look(slot, option)
 	var worn := str(Settings.look.get(slot, "")) == option
-	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", MenuScreen._card_style(false))
+	var card := UiStyle.panel("CardPanel")
 	card.custom_minimum_size = Vector2(270, 64)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 8)
@@ -421,12 +403,15 @@ func _look_card(slot: String, option: String, label: String, price: int) -> Cont
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.alignment = BoxContainer.ALIGNMENT_CENTER
 	h.add_child(text)
-	var n := MenuScreen.ink_label(label, 16)
+	var n := MenuScreen.ink_label(UiStyle.tc(label), 16)
 	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	text.add_child(n)
-	var s := MenuScreen.ink_label(("Wearing it" if worn else "Owned") if owned else "%d Notches" % price, 12, GREEN if owned else INK.lightened(0.3))
-	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	text.add_child(s)
+	if owned:
+		text.add_child(UiStyle.status("Wearing It" if worn else "Owned", "good", 12))
+	else:
+		var s := MenuScreen.ink_label(UiStyle.cost(price, "Notches"), 12, UiStyle.c("ink_soft"))
+		s.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		text.add_child(s)
 	if owned:
 		var wear := MenuScreen.tab_button("Worn" if worn else "Wear", worn)
 		wear.custom_minimum_size = Vector2(84, 30)

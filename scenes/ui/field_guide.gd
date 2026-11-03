@@ -59,7 +59,7 @@ func menu_items(tab: int) -> Array:
 					stats += "   |   weaker past %d m" % int(w.falloff_start)
 				if w.suppress_slow < 1.0:
 					stats += "   |   hits slow bugs"
-				var price := "starter" if w.price_chitin == 0 else "%d chitin" % w.price_chitin
+				var price := "Starter" if w.price_chitin == 0 else UiStyle.cost(w.price_chitin, "chitin")
 				out.append(_item(id, w.display_name, id, str(e.get("lore", w.description)), stats, e.get("tips", []), price))
 		1:
 			var bugs: Array = Defs.active_bug_ids()
@@ -89,7 +89,7 @@ func menu_items(tab: int) -> Array:
 				var stats := "%d damage every %.2f s   |   range %d m   |   %d HP%s" % [int(t.damage), t.fire_interval, int(t.range), int(t.max_hp),
 						"   |   pierces armour" if t.armor_pierce else ""]
 				var icon: Variant = IconStudio.turret(MenuScreen.instance, id) if MenuScreen.instance != null else null
-				out.append(_item(id, t.display_name, icon, str(e.get("lore", t.description)), stats, e.get("tips", []), "%d scrap" % t.cost_scrap))
+				out.append(_item(id, t.display_name, icon, str(e.get("lore", t.description)), stats, e.get("tips", []), UiStyle.cost(t.cost_scrap, "scrap")))
 		3:
 			# (Gameplay helper) Each crop has a job; the numbers come from the crop data.
 			for id: StringName in CROP_ORDER:
@@ -106,7 +106,7 @@ func menu_items(tab: int) -> Array:
 						_minutes(c.grow_time), c.water_cost, ", ".join(yields), ", ".join(sells)]
 				var tips: Array = [c.role] if c.role != "" else []
 				tips.append_array(e.get("tips", []))
-				out.append(_item(id, c.display_name, null, str(e.get("lore", "")), stats, tips, "%d scrap a seed" % MarketPrices.seed_price(c)))
+				out.append(_item(id, c.display_name, null, str(e.get("lore", "")), stats, tips, UiStyle.cost(MarketPrices.seed_price(c), "scrap") + " a Seed"))
 	return out
 
 

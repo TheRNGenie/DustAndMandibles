@@ -31,6 +31,7 @@ const DIR := "res://assets/ui/theme/%s/%s.png"
 const SETS: Dictionary = {
 	&"base": {
 		"name": "Frontier", "ink": "#2E1D10", "ink_soft": "#6B5034", "title": "#F2C14E", "outline": "#1A0F07",
+		"warn": "#8A5800", "good_hud": "#9BD77E", "bad_hud": "#FF8A73", "warn_hud": "#FFC857", "focus": "#F2C14E",
 		"btn": "#F8EBCF", "btn_hover": "#FFFFFF", "btn_off": "#C9BCA6", "btn_outline": "#2A170B",
 		"tab": "#2E1D10", "tab_sel": "#F2C14E", "accent": "#3E8E7E", "gold": "#E8B53A", "good": "#3F6B2A",
 		"bad": "#9B3B2E", "dim": "#140B0599", "hud": "#F2E3C2", "bg": "#3B2A1E",
@@ -39,6 +40,7 @@ const SETS: Dictionary = {
 	},
 	&"sheaf": {
 		"name": "The Sheaf", "ink": "#2F2A12", "ink_soft": "#5E5532", "title": "#F1D27A", "outline": "#14200A",
+		"warn": "#7F5500", "good_hud": "#B5DE7F", "bad_hud": "#FF8A73", "warn_hud": "#FFD166", "focus": "#F1D27A",
 		"btn": "#F6EFD6", "btn_hover": "#FFFFFF", "btn_off": "#C8C8B4", "btn_outline": "#1A2A0E",
 		"tab": "#2F2A12", "tab_sel": "#F1D27A", "accent": "#5E8C31", "gold": "#D9A928", "good": "#3F6B2A",
 		"bad": "#9B3B2E", "dim": "#16140899", "hud": "#F3E7C4", "bg": "#4A3A22",
@@ -47,6 +49,7 @@ const SETS: Dictionary = {
 	},
 	&"irons": {
 		"name": "The Crossed Irons", "ink": "#1E1A16", "ink_soft": "#4E463C", "title": "#E8C06A", "outline": "#0A0D12",
+		"warn": "#7A5000", "good_hud": "#A8D98A", "bad_hud": "#FF8F7A", "warn_hud": "#FFC857", "focus": "#E8C06A",
 		"btn": "#E6ECF2", "btn_hover": "#FFFFFF", "btn_off": "#A9AEB3", "btn_outline": "#05080C",
 		"tab": "#1E1A16", "tab_sel": "#E8C06A", "accent": "#B8862E", "gold": "#E3B55B", "good": "#4B6B2A",
 		"bad": "#A33A2A", "dim": "#0B0E1199", "hud": "#E6EAEE", "bg": "#22140C",
@@ -55,6 +58,7 @@ const SETS: Dictionary = {
 	},
 	&"snake": {
 		"name": "The Snake Eyes", "ink": "#17120F", "ink_soft": "#5A4A44", "title": "#E9C46A", "outline": "#0A1F10",
+		"warn": "#7F5000", "good_hud": "#8FD694", "bad_hud": "#FF8A80", "warn_hud": "#FFD166", "focus": "#E9C46A",
 		"btn": "#FFF5E6", "btn_hover": "#FFFFFF", "btn_off": "#D8D0C8", "btn_outline": "#3A0806",
 		"tab": "#17120F", "tab_sel": "#FFF5E6", "accent": "#B3261E", "gold": "#E9C46A", "good": "#2E7D32",
 		"bad": "#B3261E", "dim": "#06140A99", "hud": "#F4ECDA", "bg": "#123B1E",
@@ -222,7 +226,7 @@ static func _write_theme(t: Theme) -> void:
 		t.set_stylebox("pressed", type, box("button_pressed"))
 		t.set_stylebox("hover_pressed", type, box("button_pressed"))
 		t.set_stylebox("disabled", type, box("button_disabled"))
-		t.set_stylebox("focus", type, empty)
+		t.set_stylebox("focus", type, focus_ring())
 		_button_colors(t, type, c("btn"), c("btn_hover"), c("btn_off"))
 		t.set_color("font_outline_color", type, c("btn_outline"))
 		t.set_constant("outline_size", type, 4)
@@ -266,7 +270,7 @@ static func _write_theme(t: Theme) -> void:
 		t.set_stylebox("tab_hovered", type, box("tab_hover"))
 		t.set_stylebox("tab_selected", type, box("tab_selected"))
 		t.set_stylebox("tab_disabled", type, box("tab"))
-		t.set_stylebox("tab_focus", type, empty)
+		t.set_stylebox("tab_focus", type, focus_ring())
 		t.set_color("font_unselected_color", type, c("tab"))
 		t.set_color("font_hovered_color", type, c("tab"))
 		t.set_color("font_selected_color", type, c("tab_sel"))
@@ -316,14 +320,16 @@ static func _variations(t: Theme) -> void:
 	t.set_stylebox("disabled", "TabButton", box("button_disabled"))
 	_button_colors(t, "TabButton", c("tab"), c("tab"), c("btn_off"))
 	t.set_constant("outline_size", "TabButton", 0)
+	t.set_stylebox("focus", "TabButton", focus_ring())
 	t.set_type_variation("TabButtonSelected", "Button")
 	for st: String in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
 		t.set_stylebox(st, "TabButtonSelected", box("tab_selected"))
+	t.set_stylebox("focus", "TabButtonSelected", focus_ring())
 	_button_colors(t, "TabButtonSelected", c("tab_sel"), c("tab_sel"), c("tab_sel"))
 	t.set_constant("outline_size", "TabButtonSelected", 0)
 	# Labels.
 	for pair: Array in [["InkLabel", "ink"], ["SoftInkLabel", "ink_soft"], ["HudLabel", "hud"], ["GoldLabel", "gold"],
-			["BadLabel", "bad"], ["GoodLabel", "good"]]:
+			["BadLabel", "bad"], ["GoodLabel", "good"], ["WarnLabel", "warn"]]:
 		t.set_type_variation(pair[0], "Label")
 		t.set_color("font_color", pair[0], c(pair[1]))
 	for pair: Array in [["TitleLabel", "ink", false], ["HeaderTitle", "title", true]]:
@@ -609,6 +615,261 @@ static func tc(text: String) -> String:
 ## Sentence case: first letter up, the rest as written.
 static func sc(text: String) -> String:
 	return text if text == "" else text[0].to_upper() + text.substr(1)
+
+
+# ------------------------------------------------------------------ shared pieces
+# Every menu is built from the same parts: scrim() behind it, a FramePanel holding
+# strap() (title, tagline, stock chips on the right) over a PaperPanel body, rows on
+# CardPanels, a footer of keycap hints (paper_hints) and buttons. Numbers read the
+# same way everywhere: cost() "60 Scrap", held() "x2 Held", clock() "0:45".
+
+## Spacing steps: between rows in a list, between groups.
+const GAP_ROW := 8
+const GAP_GROUP := 12
+## Menu open fade (kept short so it never slows input).
+const FADE_TIME := 0.12
+
+
+## The keyboard-focus ring: a thin outline in the set's highlight, outside the button.
+static func focus_ring() -> StyleBoxFlat:
+	if not _boxes.has("_focus"):
+		var f := StyleBoxFlat.new()
+		f.draw_center = false
+		f.set_border_width_all(2)
+		f.set_corner_radius_all(6)
+		f.set_expand_margin_all(3)
+		f.anti_aliasing = true
+		_boxes["_focus"] = f
+	var sb := _boxes["_focus"] as StyleBoxFlat
+	sb.border_color = c("focus")
+	return sb
+
+
+## The dimmed backdrop behind every full-screen menu (the set's dim colour).
+static func scrim() -> ColorRect:
+	var dim := ColorRect.new()
+	dim.color = c("dim")
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	return dim
+
+
+## A quick fade in for a menu that just opened (never blocks input).
+static func fade_in(node: CanvasItem) -> void:
+	if node == null or not node.is_inside_tree():
+		return
+	var old: Variant = node.get_meta(&"_fade") if node.has_meta(&"_fade") else null
+	if old is Tween and (old as Tween).is_valid():
+		(old as Tween).kill()
+	node.modulate.a = 0.0
+	var tw := node.create_tween().set_ignore_time_scale().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tw.tween_property(node, "modulate:a", 1.0, FADE_TIME).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	node.set_meta(&"_fade", tw)
+
+
+## "60 Scrap", "1 Part", "5 Chitin": a count and its resource, the same everywhere.
+static func cost(n: float, resource: String) -> String:
+	var word := tc(resource.replace("_", " "))
+	var num := str(int(n)) if is_equal_approx(n, roundf(n)) else ("%.1f" % n)
+	return "%s %s" % [num, word]
+
+
+## "x2 Held": how many of a carried thing you have.
+static func held(n: int) -> String:
+	return "x%d Held" % n
+
+
+## "0:45", "2:05": a timer.
+static func clock(seconds: float) -> String:
+	var s := maxi(int(ceilf(seconds)), 0)
+	return "%d:%02d" % [s / 60, s % 60]
+
+
+## Light status colours for text on the dark HUD cards (good, bad, warn).
+static func hud_c(kind: String) -> Color:
+	return c(kind + "_hud")
+
+
+## The header strap of a menu: a display title (and an optional tagline) on the left;
+## add stock chips or buttons to strap_row(strap) on the right.
+static func strap(title_text: String, tagline: String = "", size: int = 30) -> PanelContainer:
+	var head := panel("HeaderPanel")
+	var row := HBoxContainer.new()
+	row.name = "Row"
+	row.add_theme_constant_override("separation", GAP_GROUP)
+	head.add_child(row)
+	var words := VBoxContainer.new()
+	words.name = "Words"
+	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	words.alignment = BoxContainer.ALIGNMENT_CENTER
+	words.add_theme_constant_override("separation", 0)
+	row.add_child(words)
+	var t := title(title_text, size, true)
+	t.name = "Title"
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	words.add_child(t)
+	var tag := strap_text(tagline, 14)
+	tag.name = "Tagline"
+	tag.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tag.visible = tagline != ""
+	words.add_child(tag)
+	return head
+
+
+static func strap_row(head: PanelContainer) -> HBoxContainer:
+	return head.get_node("Row") as HBoxContainer
+
+
+## Light text on a header strap or a dark chip (follows the set).
+static func strap_text(text: String, size: int = 16) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.theme_type_variation = "HudLabel"
+	l.add_theme_font_size_override("font_size", ts(size))
+	l.add_theme_color_override("font_outline_color", Color(c("outline"), 0.7))
+	l.add_theme_constant_override("outline_size", 4)
+	return l
+
+
+## The small dark chip style used for stock counts, price tags on the HUD and
+## feed lines: the set's HUD card, slimmer.
+static func chip_flat() -> StyleBoxFlat:
+	var sb := hud_flat()
+	sb.shadow_size = 0
+	sb.set_border_width_all(1)
+	sb.content_margin_left = 10
+	sb.content_margin_right = 12
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
+	return sb
+
+
+## The swatch colour of each currency (the HUD counters, stock chips and price tags).
+static func resource_color(resource: StringName) -> Color:
+	match resource:
+		&"scrap": return Palette.METAL.lightened(0.2)
+		&"chitin": return Palette.BEETLE_TEAL.lightened(0.15)
+		&"brands", &"notches": return Color(c("gold"))
+	return Palette.BONE
+
+
+## A small rounded square in a currency's colour.
+static func swatch(color: Color, px: float = 16.0) -> Panel:
+	var chip := Panel.new()
+	chip.custom_minimum_size = Vector2(px, px)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = color
+	sb.border_color = Palette.OUTLINE
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(4)
+	chip.add_theme_stylebox_override("panel", sb)
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return chip
+
+
+## A small dark chip for a stock count on a header strap ("[swatch] 370 Scrap").
+static func stock_chip(resource: StringName, amount: int) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", chip_flat())
+	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 7)
+	p.add_child(h)
+	h.add_child(swatch(resource_color(resource), 14))
+	var l := strap_text(cost(amount, String(resource)), 16)
+	l.name = "Text"
+	h.add_child(l)
+	return p
+
+
+## A row of keycap hints for paper ("[E] [Esc] Close"): keys, then inked words.
+## A key of "E/Esc" shows both caps.
+static func paper_hints(pairs: Array) -> HBoxContainer:
+	var r := HBoxContainer.new()
+	r.add_theme_constant_override("separation", 16)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for pair: Array in pairs:
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 5)
+		h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		for k: String in str(pair[0]).split("/"):
+			var cap := KeyHints.chip(k.strip_edges())
+			cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			h.add_child(cap)
+		var l := label(tc(str(pair[1])), 14)
+		l.theme_type_variation = "SoftInkLabel"
+		l.autowrap_mode = TextServer.AUTOWRAP_OFF
+		h.add_child(l)
+		r.add_child(h)
+	return r
+
+
+## A status line with a shape as well as a colour, so it reads without colour vision:
+## kind = good (tick), bad (cross), warn (triangle), lock (padlock), info (dot).
+## `on_hud` picks the light colours for dark cards.
+static func status(text: String, kind: String = "info", size: int = 14, on_hud: bool = false) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 5)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var col := status_color(kind, on_hud)
+	h.add_child(mark(kind, col, ts(size)))
+	var l := label(text, size, col)
+	l.name = "Text"
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if on_hud:
+		l.add_theme_color_override("font_outline_color", Palette.OUTLINE)
+		l.add_theme_constant_override("outline_size", 3)
+	h.add_child(l)
+	return h
+
+
+static func mark(kind: String, color: Color, px: float = 14.0) -> Mark:
+	var m := Mark.new()
+	m.kind = kind
+	m.color = color
+	m.custom_minimum_size = Vector2(px, px)
+	m.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return m
+
+
+static func status_color(kind: String, on_hud: bool = false) -> Color:
+	match kind:
+		"good": return hud_c("good") if on_hud else c("good")
+		"bad": return hud_c("bad") if on_hud else c("bad")
+		"warn", "lock": return hud_c("warn") if on_hud else c("warn")
+	return c("hud") if on_hud else c("ink_soft")
+
+
+## A small drawn status shape (tick, cross, warning triangle, padlock, dot).
+class Mark extends Control:
+	var kind := "info"
+	var color := Color.WHITE
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var s := minf(size.x, size.y)
+		var o := (size - Vector2(s, s)) * 0.5
+		var w := maxf(s * 0.16, 1.5)
+		match kind:
+			"good":
+				draw_polyline(PackedVector2Array([o + Vector2(s * 0.15, s * 0.55), o + Vector2(s * 0.42, s * 0.8), o + Vector2(s * 0.88, s * 0.22)]), color, w, true)
+			"bad":
+				draw_line(o + Vector2(s * 0.2, s * 0.2), o + Vector2(s * 0.8, s * 0.8), color, w, true)
+				draw_line(o + Vector2(s * 0.8, s * 0.2), o + Vector2(s * 0.2, s * 0.8), color, w, true)
+			"warn":
+				draw_colored_polygon(PackedVector2Array([o + Vector2(s * 0.5, s * 0.06), o + Vector2(s * 0.97, s * 0.92), o + Vector2(s * 0.03, s * 0.92)]), color)
+				var cut := Color(1, 1, 1, 0.95) if color.get_luminance() < 0.5 else Color(0, 0, 0, 0.85)
+				draw_line(o + Vector2(s * 0.5, s * 0.36), o + Vector2(s * 0.5, s * 0.62), cut, w * 0.8)
+				draw_circle(o + Vector2(s * 0.5, s * 0.76), w * 0.45, cut)
+			"lock":
+				draw_rect(Rect2(o + Vector2(s * 0.18, s * 0.45), Vector2(s * 0.64, s * 0.47)), color)
+				draw_arc(o + Vector2(s * 0.5, s * 0.45), s * 0.22, PI, TAU, 12, color, w, true)
+			_:
+				draw_circle(o + Vector2(s, s) * 0.5, s * 0.22, color)
 
 
 static var _vignette: GradientTexture2D

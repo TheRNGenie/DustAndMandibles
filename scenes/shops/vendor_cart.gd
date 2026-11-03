@@ -126,8 +126,8 @@ func menu_tagline() -> String:
 
 static func _price_text(item: StringName, p: float) -> String:
 	if MarketPrices.currency(item) == &"chitin":
-		return "%.1f chitin" % p
-	return "%d scrap" % int(roundf(p))
+		return UiStyle.cost(snappedf(p, 0.1), "chitin")
+	return UiStyle.cost(roundf(p), "scrap")
 
 
 func menu_tabs() -> Array:
@@ -153,7 +153,7 @@ func menu_items(tab: int) -> Array:
 			var crop_id: StringName = info[1]
 			var icon: Variant = IconStudio.seed_packet(MenuScreen.instance, crop_id) if MenuScreen.instance != null else null
 			out.append({"id": s, "name": str(info[0]), "icon": icon, "desc": "Plant on a farm plot. You have %d." % Economy.amount(cid, s),
-					"price": "%d scrap" % cost, "price_ok": Economy.amount(cid, &"scrap") >= cost,
+					"price": UiStyle.cost(cost, "scrap"), "price_ok": Economy.amount(cid, &"scrap") >= cost,
 					"buttons": [[&"buy1", "Buy 1"], [&"buy5", "Buy 5"]]})
 	return out
 

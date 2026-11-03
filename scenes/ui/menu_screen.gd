@@ -30,7 +30,7 @@ var tab := 0
 var _root: Control
 var _title: Label
 var _tagline: Label
-var _money: Label
+var _money: HBoxContainer
 var _tabs: HBoxContainer
 var _body: VBoxContainer
 var _scroll: ScrollContainer
@@ -58,10 +58,13 @@ func open(p: Object) -> void:
 	for sig: String in ["menu_changed", "ui_changed"]:
 		if provider.has_signal(sig) and not provider.is_connected(sig, _mark_dirty):
 			provider.connect(sig, _mark_dirty)
+	var was_open := _root.visible
 	_root.visible = true
 	GameState.menu_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	refresh()
+	if not was_open:
+		UiStyle.fade_in(_root)
 
 
 func close() -> void:
@@ -117,7 +120,7 @@ func refresh() -> void:
 	_title.text = str(provider.call("menu_title")).to_upper()
 	_tagline.text = str(provider.call("menu_tagline")) if provider.has_method("menu_tagline") else ""
 	_tagline.visible = _tagline.text != ""
-	_money.text = _money_text()
+	_fill_money()
 	for c in _tabs.get_children():
 		c.queue_free()
 	var tabs: Array = provider.call("menu_tabs") if provider.has_method("menu_tabs") else []
@@ -139,16 +142,20 @@ func refresh() -> void:
 		for item: Dictionary in items:
 			_body.add_child(_row(item))
 		if items.is_empty():
-			_body.add_child(ink_label("Nothing here right now.", 16))
+			_body.add_child(UiStyle.status("Nothing here right now.", "info", 16))
 	_scroll.set_deferred("scroll_vertical", keep_scroll)
 
 
-func _money_text() -> String:
+## Your stock as chips on the header strap ("[swatch] 370 Scrap").
+func _fill_money() -> void:
+	for c in _money.get_children():
+		_money.remove_child(c)
+		c.queue_free()
 	var player := _local_player()
 	if player == null:
-		return ""
-	var cid := player.cliff_id
-	return "SCRAP %d     CHITIN %d" % [Economy.amount(cid, &"scrap"), Economy.amount(cid, &"chitin")]
+		return
+	for r: StringName in [&"scrap", &"chitin"]:
+		_money.add_child(UiStyle.stock_chip(r, Economy.amount(player.cliff_id, r)))
 
 
 func _local_player() -> Player:
@@ -165,10 +172,7 @@ func _build() -> void:
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	UiStyle.fit(_root) # Theme: bigger on 1440p and up
 	add_child(_root)
-	var dim := ColorRect.new()
-	dim.color = Color(0.12, 0.06, 0.03, 0.45)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_root.add_child(dim)
+	_root.add_child(UiStyle.scrim())
 	var frame := PanelContainer.new()
 	frame.theme_type_variation = "FramePanel"
 	frame.anchor_left = 0.5
@@ -183,32 +187,22 @@ func _build() -> void:
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 0)
 	frame.add_child(outer)
-	# Plank header.
-	var header := PanelContainer.new()
-	header.theme_type_variation = "HeaderPanel"
+	# Header strap: title and tagline, your stock on the right.
+	var header := UiStyle.strap("", "", 30)
 	outer.add_child(header)
-	var hrow := HBoxContainer.new()
-	header.add_child(hrow)
-	var htext := VBoxContainer.new()
-	htext.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	htext.add_theme_constant_override("separation", 0)
-	hrow.add_child(htext)
-	_title = UiStyle.title("", 32, true)
-	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	htext.add_child(_title)
-	_tagline = _header_text("", 14)
-	_tagline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	htext.add_child(_tagline)
-	_money = _header_text("", 18)
+	_title = header.find_child("Title", true, false) as Label
+	_tagline = header.find_child("Tagline", true, false) as Label
+	_money = HBoxContainer.new()
+	_money.add_theme_constant_override("separation", 6)
 	_money.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	hrow.add_child(_money)
+	UiStyle.strap_row(header).add_child(_money)
 	# Parchment card.
 	var card := PanelContainer.new()
 	card.theme_type_variation = "PaperPanel"
 	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(card)
 	var inner := VBoxContainer.new()
-	inner.add_theme_constant_override("separation", 10)
+	inner.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
 	card.add_child(inner)
 	_tabs = HBoxContainer.new()
 	_tabs.add_theme_constant_override("separation", 6)
@@ -219,13 +213,12 @@ func _build() -> void:
 	inner.add_child(_scroll)
 	_body = VBoxContainer.new()
 	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_body.add_theme_constant_override("separation", 8)
+	_body.add_theme_constant_override("separation", UiStyle.GAP_ROW)
 	_scroll.add_child(_body)
 	var footer := HBoxContainer.new()
 	inner.add_child(footer)
-	var hint := ink_label("E or Esc: close", 13)
+	var hint := UiStyle.paper_hints([[KeyHints.key_for("interact") + "/Esc", "Close"]])
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	footer.add_child(hint)
 	var close_b := wood_button("Close")
 	close_b.pressed.connect(close)
@@ -263,7 +256,7 @@ func _row(item: Dictionary) -> Control:
 	text.alignment = BoxContainer.ALIGNMENT_CENTER
 	text.add_theme_constant_override("separation", 2)
 	h.add_child(text)
-	var name_l := ink_label(UiStyle.tc(str(item.get("name", ""))), 19)
+	var name_l := ink_label(UiStyle.tc(str(item.get("name", ""))), 18)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	text.add_child(name_l)
 	var desc := ink_label(str(item.get("desc", "")), 13, UiStyle.c("ink_soft"))
@@ -271,18 +264,18 @@ func _row(item: Dictionary) -> Control:
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_child(desc)
 	if disabled != "":
-		var why := ink_label(disabled, 12, UiStyle.c("bad"))
-		why.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		text.add_child(why)
+		text.add_child(UiStyle.status(disabled, str(item.get("disabled_kind", _reason_kind(disabled))), 13))
 	var right := VBoxContainer.new()
 	right.alignment = BoxContainer.ALIGNMENT_CENTER
-	right.custom_minimum_size.x = 150
+	right.add_theme_constant_override("separation", 6)
+	right.custom_minimum_size.x = 170
 	h.add_child(right)
 	if str(item.get("price", "")) != "":
 		var tag := price_tag(str(item["price"]), bool(item.get("price_ok", true)))
 		right.add_child(tag)
 	if str(item.get("note", "")) != "":
 		var note := ink_label(str(item["note"]), 13, UiStyle.c("ink_soft"))
+		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		right.add_child(note)
 	var brow := HBoxContainer.new()
 	brow.alignment = BoxContainer.ALIGNMENT_END
@@ -296,8 +289,18 @@ func _row(item: Dictionary) -> Control:
 		btn.pressed.connect(func() -> void: provider.call("menu_press", id, action))
 		brow.add_child(btn)
 	if disabled != "":
-		row.modulate = Color(1, 1, 1, 0.65)
+		row.modulate = Color(1, 1, 1, 0.75)
 	return row
+
+
+## A disabled row's reason reads as done (a tick) when it is about something
+## already had, otherwise as a warning; providers may pass "disabled_kind".
+static func _reason_kind(reason: String) -> String:
+	var r := reason.to_lower()
+	for done: String in ["fitted", "fully", "owned", "maxed", "already", "golden", "worn", "built"]:
+		if r.begins_with(done) or r.contains(" " + done):
+			return "good"
+	return "warn"
 
 
 # ------------------------------------------------------------------ shared widgets
@@ -306,7 +309,7 @@ static func ink_label(text: String, size: int = 16, color: Color = INK) -> Label
 	var l := Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", UiStyle.ts(size))
 	l.add_theme_color_override("font_color", color)
 	return l
 
@@ -324,7 +327,7 @@ static func _header_text(text: String, size: int) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.theme_type_variation = "HudLabel"
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", UiStyle.ts(size))
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	l.add_theme_constant_override("outline_size", 4)
 	return l
@@ -334,9 +337,9 @@ static func _header_text(text: String, size: int) -> Label:
 static func wood_button(text: String, small: bool = false) -> Button:
 	var b := Button.new()
 	b.text = UiStyle.tc(text)
-	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(70 if small else 110, 32 if small else 40)
-	b.add_theme_font_size_override("font_size", 14 if small else 17)
+	b.focus_mode = Control.FOCUS_ALL # keyboard focus shows the set's ring (never on clicks)
+	b.custom_minimum_size = Vector2(84 if small else 120, 32 if small else 40)
+	b.add_theme_font_size_override("font_size", UiStyle.ts(14 if small else 16))
 	return b
 
 
@@ -348,12 +351,20 @@ static func tab_button(text: String, selected: bool) -> Button:
 	return b
 
 
+## A price chip ("60 Scrap"); one you can't afford also gets a cross, so it
+## doesn't rely on its red alone.
 static func price_tag(text: String, ok: bool) -> Control:
 	var p := PanelContainer.new()
 	p.theme_type_variation = "ChipPanel" if ok else "ChipBadPanel"
 	p.size_flags_horizontal = Control.SIZE_SHRINK_END
-	var l := ink_label(text, 15, UiStyle.c("gold") if ok else Color("#FBE9E0"))
-	p.add_child(l)
+	p.tooltip_text = "" if ok else "You can't afford this yet."
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 4)
+	p.add_child(h)
+	var col := UiStyle.c("gold") if ok else UiStyle.c("hud")
+	if not ok:
+		h.add_child(UiStyle.mark("bad", col, 12))
+	h.add_child(ink_label(UiStyle.tc(text), 14, col))
 	return p
 
 

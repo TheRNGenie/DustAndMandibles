@@ -37,6 +37,10 @@ window/size/viewport_height=900
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[gui]
+
+common/show_focus_state_on_pointer_event=0
+
 [physics]
 
 common/physics_ticks_per_second=60

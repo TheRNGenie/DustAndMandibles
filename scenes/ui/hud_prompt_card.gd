@@ -90,7 +90,7 @@ func _price(cost: int, afford: bool) -> PanelContainer:
 	p.add_theme_stylebox_override("panel", sb)
 	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	p.add_child(KeyHints.text("%d scrap" % cost, 15, Palette.GLOW_YELLOW if afford else Palette.TEAM_WEST.lightened(0.3)))
+	p.add_child(KeyHints.text(UiStyle.cost(cost, "scrap"), 14, Palette.GLOW_YELLOW if afford else Palette.TEAM_WEST.lightened(0.3)))
 	return p
 
 

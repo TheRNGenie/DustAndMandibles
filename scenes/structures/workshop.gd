@@ -113,7 +113,7 @@ func menu_items(tab: int) -> Array:
 		var d := CraftTable.def_for(id)
 		var icon: Variant = IconStudio.turret(MenuScreen.instance, id, Palette.team_color(cid)) if MenuScreen.instance != null else CraftTable.model_of(id)
 		out.append({"id": String(id), "name": d.display_name, "icon": icon,
-				"desc": "%s\n%s" % [d.description, d.role], "price": "3 parts", "price_ok": true,
+				"desc": "%s\n%s" % [d.description, d.role], "price": "3 Parts", "price_ok": true,
 				"disabled": "", "buttons": [[&"craft", "Craft"]]})
 	if out.is_empty():
 		out.append({"id": "", "name": "No full set of parts", "icon": &"hammer",

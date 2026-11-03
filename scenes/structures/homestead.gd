@@ -407,7 +407,7 @@ func _set_state(f: int, b: bool, r: bool, tw: bool = false, ws: bool = false, pr
 static func cost_text(cost: Dictionary) -> String:
 	var parts: PackedStringArray = []
 	for k: StringName in cost:
-		parts.append("%d %s" % [int(cost[k]), String(k)])
+		parts.append(UiStyle.cost(int(cost[k]), String(k)))
 	return " + ".join(parts)
 
 

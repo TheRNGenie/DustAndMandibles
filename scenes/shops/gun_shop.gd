@@ -120,7 +120,7 @@ func menu_items(tab: int) -> Array:
 			elif gun.owned.size() >= Gun.MAX_WEAPONS:
 				why = "Your three weapon slots are full. Drop one first (Q)."
 			out.append({"id": "buy:%s" % id, "name": w.display_name, "icon": id, "desc": w.description,
-					"price": "%d chitin" % w.price_chitin, "price_ok": chitin >= w.price_chitin, "disabled": why,
+					"price": UiStyle.cost(w.price_chitin, "chitin"), "price_ok": chitin >= w.price_chitin, "disabled": why,
 					"buttons": [[&"buy", "Buy"]]})
 		elif tab == 1 and item["kind"] == "upgrade":
 			var level := gun.level_of(id)
@@ -132,7 +132,7 @@ func menu_items(tab: int) -> Array:
 				why = "Fully upgraded."
 			var cost: int = 0 if maxed else int(w.upgrade_costs[level])
 			out.append({"id": "upgrade:%s" % id, "name": "%s  (level %d)" % [w.display_name, level], "icon": id,
-					"desc": "+25% damage and a faster reload per level.", "price": "" if maxed else "%d chitin" % cost,
+					"desc": "+25% damage and a faster reload per level.", "price": "" if maxed else UiStyle.cost(cost, "chitin"),
 					"price_ok": chitin >= cost, "disabled": why, "buttons": [[&"buy", "Upgrade"]]})
 		elif tab == 2 and item["kind"] == "mods":
 			# Only guns you carry, so the list stays short.
@@ -144,7 +144,7 @@ func menu_items(tab: int) -> Array:
 				var m: Dictionary = mods[i]
 				var fitted := WeaponMods.has_mod(code, i)
 				out.append({"id": "mod:%s:%d" % [id, i], "name": "%s: %s" % [w.display_name, m["name"]], "icon": id,
-						"desc": str(m["desc"]), "price": "" if fitted else "%d chitin" % int(m["cost"]),
+						"desc": str(m["desc"]), "price": "" if fitted else UiStyle.cost(int(m["cost"]), "chitin"),
 						"price_ok": chitin >= int(m["cost"]), "disabled": "Fitted." if fitted else "",
 						"buttons": [[&"buy", "Fit it"]]})
 	var p := _player_of(multiplayer.get_unique_id())
@@ -155,7 +155,7 @@ func menu_items(tab: int) -> Array:
 			var maxed := lvl >= WeaponMods.WHIP_LEVEL_COSTS.size()
 			var cost: int = 0 if maxed else WeaponMods.WHIP_LEVEL_COSTS[lvl]
 			out.append({"id": "upgrade:whip", "name": "Bullwhip  (level %d)" % lvl, "icon": &"planks",
-					"desc": "+25% lash damage per level.", "price": "" if maxed else "%d chitin" % cost,
+					"desc": "+25% lash damage per level.", "price": "" if maxed else UiStyle.cost(cost, "chitin"),
 					"price_ok": chitin >= cost, "disabled": "Fully upgraded." if maxed else "", "buttons": [[&"buy", "Upgrade"]]})
 			var gold_why := ""
 			if WeaponMods.is_golden(wc):
@@ -164,7 +164,7 @@ func menu_items(tab: int) -> Array:
 				gold_why = "Max the whip's level and fit all three workshop mods first."
 			out.append({"id": "gild:whip", "name": "THE GOLDEN WHIP", "icon": &"planks",
 					"desc": "Gild the whole lash in gold: +60% damage, 15% more reach, lashes 20% quicker. The gunsmith's masterpiece.",
-					"price": "" if WeaponMods.is_golden(wc) else "%d chitin" % WeaponMods.GOLDEN_COST,
+					"price": "" if WeaponMods.is_golden(wc) else UiStyle.cost(WeaponMods.GOLDEN_COST, "chitin"),
 					"price_ok": chitin >= WeaponMods.GOLDEN_COST, "disabled": gold_why, "buttons": [[&"buy", "Gild it"]]})
 		elif tab == 2:
 			var mods := WeaponMods.list(&"whip")
@@ -172,7 +172,7 @@ func menu_items(tab: int) -> Array:
 				var m: Dictionary = mods[i]
 				var fitted := WeaponMods.has_mod(wc, i)
 				out.append({"id": "mod:whip:%d" % i, "name": "Bullwhip: %s" % m["name"], "icon": &"planks",
-						"desc": str(m["desc"]), "price": "" if fitted else "%d chitin" % int(m["cost"]),
+						"desc": str(m["desc"]), "price": "" if fitted else UiStyle.cost(int(m["cost"]), "chitin"),
 						"price_ok": chitin >= int(m["cost"]), "disabled": "Fitted." if fitted else "", "buttons": [[&"buy", "Fit it"]]})
 	if tab == 2 and out.is_empty():
 		out.append({"id": "", "name": "Nothing to work on", "icon": &"hammer", "desc": "Mods are fitted to the guns you carry.",
