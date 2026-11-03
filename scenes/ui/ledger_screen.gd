@@ -35,7 +35,7 @@ func _ready() -> void:
 
 
 func open() -> void:
-	var was_open := _root.visible
+	var was_open := UiStyle.shown(_root)
 	_root.visible = true
 	refresh()
 	if not was_open:
@@ -43,21 +43,21 @@ func open() -> void:
 
 
 func close() -> void:
-	_root.visible = false
+	UiStyle.fade_out(_root)
 
 
 func is_open() -> bool:
-	return _root.visible
+	return UiStyle.shown(_root)
 
 
 func _input(event: InputEvent) -> void:
-	if _root.visible and event.is_action_pressed("pause_menu"):
+	if UiStyle.shown(_root) and event.is_action_pressed("pause_menu"):
 		close()
 		get_viewport().set_input_as_handled()
 
 
 func _process(_delta: float) -> void:
-	if _dirty and _root.visible:
+	if _dirty and UiStyle.shown(_root):
 		_dirty = false
 		refresh()
 

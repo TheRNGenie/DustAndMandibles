@@ -20,7 +20,7 @@ func _ready() -> void:
 
 
 func is_open() -> bool:
-	return _root.visible
+	return UiStyle.shown(_root)
 
 
 func open() -> void:
@@ -33,11 +33,11 @@ func open() -> void:
 
 
 func close() -> void:
-	_root.visible = false
+	UiStyle.fade_out(_root)
 
 
 func _input(event: InputEvent) -> void:
-	if _root.visible and event.is_action_pressed("pause_menu"):
+	if UiStyle.shown(_root) and event.is_action_pressed("pause_menu"):
 		close()
 		get_viewport().set_input_as_handled()
 

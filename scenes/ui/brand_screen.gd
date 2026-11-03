@@ -23,7 +23,7 @@ func _ready() -> void:
 
 
 func is_open() -> bool:
-	return _root.visible
+	return UiStyle.shown(_root)
 
 
 func open() -> void:
@@ -33,17 +33,17 @@ func open() -> void:
 
 
 func close() -> void:
-	_root.visible = false
+	UiStyle.fade_out(_root)
 
 
 func _input(event: InputEvent) -> void:
-	if _root.visible and event.is_action_pressed("pause_menu") and Brand.has_chosen():
+	if UiStyle.shown(_root) and event.is_action_pressed("pause_menu") and Brand.has_chosen():
 		close()
 		get_viewport().set_input_as_handled()
 
 
 func _process(delta: float) -> void:
-	if not _root.visible:
+	if not UiStyle.shown(_root):
 		return
 	_t += delta
 	for i in _irons.size():

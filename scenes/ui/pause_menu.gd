@@ -20,14 +20,14 @@ func _ready() -> void:
 
 
 func is_open() -> bool:
-	return _root.visible
+	return UiStyle.shown(_root)
 
 
 func open() -> void:
 	_refresh_vote()
 	if PauseVote.instance != null and not PauseVote.instance.votes_changed.is_connected(_refresh_vote):
 		PauseVote.instance.votes_changed.connect(_refresh_vote)
-	var was_open := _root.visible
+	var was_open := UiStyle.shown(_root)
 	_root.visible = true
 	GameState.menu_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -48,7 +48,7 @@ func select_tab(index: int) -> void:
 
 
 func close() -> void:
-	_root.visible = false
+	UiStyle.fade_out(_root)
 	GameState.menu_open = false
 	if not in_main_menu:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
