@@ -162,7 +162,7 @@ func _use(peer_id: int, seed_id: StringName) -> void:
 				growth.water()
 				_fx.rpc(&"water_pour")
 			else:
-				Economy.notify(peer_id, "No water left. Fix the well or build a rain catcher.")
+				Economy.notify(peer_id, "No water left. Fill up at the well or the water tower tap.")
 		CropGrowth.Stage.RIPE:
 			Economy.earn(payer, Brand.harvest(peer_id, Perks.bumper_harvest(peer_id, growth.harvest()))) # Perk: Bumper Crop; Brand: The Sheaf
 			_fx.rpc(&"rustle")

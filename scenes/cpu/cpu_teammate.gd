@@ -99,6 +99,8 @@ func _decide() -> void:
 		GameState.Phase.BUILD:
 			if not _carry.is_empty() and _deposit_task():
 				return
+			if _water_task():
+				return
 			if _rng.randf() < float(_q["farm"]) and _farm_task():
 				return
 			if _build_task():
@@ -112,6 +114,39 @@ func _decide() -> void:
 			_go(Vector2(2.2, clampf(z, -17.0, 17.0)), Task.GUARD)
 		_:
 			pass
+
+
+## Water: a crop on our cliff wants watering and we can't pay for it: fill a
+## bucket at our well's trough (MechWell; it always works, faster while pumping).
+func _water_task() -> bool:
+	var well := _well()
+	if well == null or well.stored < 2:
+		return false
+	var need := 0
+	for n: Node in get_tree().get_nodes_in_group("crops"):
+		var plot := n as CropPlot
+		if plot != null and plot.cliff_id == cliff_id and plot.growth.stage == CropGrowth.Stage.PLANTED and plot.crop_def != null:
+			need = maxi(need, plot.crop_def.water_cost)
+	if need == 0 or Economy.cpu_can_spend(display_name, {&"water": need}):
+		return false
+	# Stand at the trough's far side, facing the spout.
+	var at := well.global_transform * Vector3(0, 0, WellJackBuilder.TROUGH_Z - 1.0)
+	_go(cliffs.plateau_coords(cliff_id, at), Task.FARM, func() -> void:
+		if not is_instance_valid(well):
+			return
+		_face(well.global_transform * Vector3(0, 0, WellJackBuilder.TROUGH_Z))
+		_rig.play_action(&"water")
+		var got := well.draw_for_cpu()
+		if GameState.has_flag("--cpulog"):
+			print("[cpu] %s drew %d water at the well" % [display_name, got]))
+	return true
+
+
+func _well() -> MechWell:
+	for n: Node in get_tree().get_nodes_in_group("water_sources"):
+		if n is MechWell and (n as MechWell).cliff_id == cliff_id:
+			return n as MechWell
+	return null
 
 
 ## Waterworks: nothing left to do this build phase: walk to our generator and

@@ -45,11 +45,35 @@ func test_tower_mesh_reaches_the_tap() -> void:
 		assert_true(aabb.position.y >= -0.05, "%s sits on the ground" % style)
 
 
-func test_every_style_builds_a_well_and_a_pump() -> void:
+func test_every_style_builds_a_pump_jack() -> void:
 	for style: StringName in Waterworks.STYLES:
-		assert_true(_verts(WaterworksBuilder.well(style, 400)) > 100, "%s well" % style)
-		assert_true(_verts(WaterworksBuilder.pump_base(style)) > 20, "%s pump base" % style)
-		assert_true(_verts(WaterworksBuilder.pump_motor(style)) > 20, "%s pump motor" % style)
+		var f := WellJackBuilder.frame(style, 400)
+		assert_true(_verts(f["mesh"]) > 300, "%s frame" % style)
+		assert_true((f["shapes"] as Array).size() >= 3, "%s collision" % style)
+		assert_true(_verts(WellJackBuilder.beam(style, 410)) > 100, "%s beam" % style)
+		assert_true(_verts(WellJackBuilder.crank(style)) > 100, "%s crank" % style)
+		assert_true(_verts(WellJackBuilder.pitman(style)) > 20, "%s pitman" % style)
+		assert_true(_verts(WellJackBuilder.drive_stand(style, Vector3(0.7, 0.75, 2.6), 0.0)) > 20, "%s drive stand" % style)
+	assert_true(_verts(WellJackBuilder.rod()) > 20)
+	assert_true(_verts(WellJackBuilder.drive_pulley()) > 20)
+	assert_true(_verts(WellJackBuilder.tumbler()) > 20)
+	assert_true(_verts(WellJackBuilder.belt(Vector3(0.7, 0.75, 2.6))) > 20)
+
+
+func test_jack_parts_meet() -> void:
+	# The horsehead's face sits ARM from the pivot (the rod hangs plumb there),
+	# the crank turns about its origin, the frame reaches the trough and the bearings.
+	for style: StringName in Waterworks.STYLES:
+		var b := WellJackBuilder.beam(style, 1).get_aabb()
+		assert_almost(b.position.z, -WellJackBuilder.ARM, 0.12, "%s horsehead reach" % style)
+		assert_true(b.end.z >= WellJackBuilder.BEAM_GRAB.z, "%s beam reaches the pitman" % style)
+		var f: ArrayMesh = WellJackBuilder.frame(style, 1)["mesh"]
+		var fa := f.get_aabb().grow(0.05)
+		assert_true(fa.has_point(Vector3(0, WellJackBuilder.pivot_y(style), 0)), "%s saddle at the pivot" % style)
+		assert_true(fa.position.z <= WellJackBuilder.TROUGH_Z - 0.3, "%s trough" % style)
+		assert_true(f.get_aabb().position.y >= -0.05, "%s sits on the ground" % style)
+	var c := WellJackBuilder.crank(&"timber").get_aabb()
+	assert_almost(c.get_center().y, 0.0, 0.1, "crank turns about its shaft")
 
 
 func test_the_four_designs_are_different() -> void:
@@ -57,22 +81,22 @@ func test_the_four_designs_are_different() -> void:
 	var wells := {}
 	for style: StringName in Waterworks.STYLES:
 		towers[_verts(WaterworksBuilder.tower(style, 3)["mesh"])] = true
-		wells[_verts(WaterworksBuilder.well(style, 3))] = true
+		wells[_verts(WellJackBuilder.frame(style, 3)["mesh"])] = true
 	assert_eq(towers.size(), 4, "four different towers")
 	assert_eq(wells.size(), 4, "four different wells")
 
 
 func test_unknown_style_falls_back_to_timber() -> void:
 	assert_eq(_verts(WaterworksBuilder.tower(&"nonsense", 5)["mesh"]), _verts(WaterworksBuilder.tower(&"timber", 5)["mesh"]))
-	assert_eq(_verts(WaterworksBuilder.well(&"nonsense", 5)), _verts(WaterworksBuilder.well(&"timber", 5)))
+	assert_eq(_verts(WellJackBuilder.frame(&"nonsense", 5)["mesh"]), _verts(WellJackBuilder.frame(&"timber", 5)["mesh"]))
 
 
 func test_meshes_stay_inside_the_vertex_budget() -> void:
 	for style: StringName in Waterworks.STYLES:
 		var t := _verts(WaterworksBuilder.tower(style, 11)["mesh"])
-		var w := _verts(WaterworksBuilder.well(style, 11))
+		var w := _verts(WellJackBuilder.frame(style, 11)["mesh"]) + _verts(WellJackBuilder.beam(style, 11)) + _verts(WellJackBuilder.crank(style))
 		assert_true(t < 5000, "%s tower has %d vertices" % [style, t])
-		assert_true(w < 2500, "%s well has %d vertices" % [style, w])
+		assert_true(w < 6000, "%s well has %d vertices" % [style, w])
 	assert_true(_verts(WaterworksBuilder.generator_body(1)) < 2500, "generator")
 	assert_true(_verts(WaterworksBuilder.breaker_box(1)) < 1200, "breaker box")
 

@@ -38,7 +38,7 @@ func test_door_cell_is_path_in_front_of_house() -> void:
 
 
 func test_landmarks_blocked() -> void:
-	for p: Vector2 in [Buildable.WINDMILL, Buildable.WATER_TOWER, Buildable.SALVAGE]:
+	for p: Vector2 in [Buildable.WELL, Buildable.GENERATOR, Buildable.WATER_TOWER, Buildable.SALVAGE]:
 		var cell := Buildable.cell_of(p.x, p.y)
 		if Buildable.zone(cell) == Buildable.Zone.OFF:
 			continue

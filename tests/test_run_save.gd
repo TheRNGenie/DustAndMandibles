@@ -60,6 +60,8 @@ func test_round_trip_keeps_everything() -> void:
 	assert_true(bool(crop["watered"]))
 	assert_eq(builds[4]["stored"], 6)
 	assert_eq(back["wells"][0]["path"], "Dressing/Well0")
+	assert_eq(back["wells"][0]["stored"], 4)
+	assert_false((back["wells"][0] as Dictionary).has("working"), "old saves' broken/fixed flag is dropped: the well always works")
 	var eco: Dictionary = back["economy"]
 	assert_eq(eco["stock"][0][&"scrap"], 240)
 	assert_eq(eco["stock"][0][&"seed_corn"], 2)

@@ -77,7 +77,7 @@ func test_each_cliff_gets_its_own_design() -> void:
 
 
 func test_waterworks_are_grouped_and_off_the_build_grid() -> void:
-	var spots: Array[Vector2] = [Buildable.WELL, Buildable.PUMP, Buildable.GENERATOR, Buildable.WATER_TOWER, Buildable.WINDMILL]
+	var spots: Array[Vector2] = [Buildable.WELL, Buildable.GENERATOR, Buildable.WATER_TOWER]
 	# All on the same side of the yard as each other (the far side from the field and the scrap heap).
 	for p in spots:
 		assert_true(p.y < Buildable.HOUSE_Z - Buildable.HOUSE_HALF_W, "%s is left of the house" % str(p))
@@ -86,6 +86,16 @@ func test_waterworks_are_grouped_and_off_the_build_grid() -> void:
 	var g := Buildable.cell_of(Buildable.GENERATOR.x, Buildable.GENERATOR.y)
 	assert_eq(Buildable.zone(g), Buildable.Zone.LANDMARK)
 	assert_false(Buildable.zone_ok(&"gatling_post", g))
+
+
+func test_the_well_keeps_its_own_cells_and_frees_the_old_windmill_ones() -> void:
+	# The pump jack runs from its trough (row 8) to its crank (row 10), two cells wide.
+	for r in range(8, 11):
+		for c in range(3, 5):
+			assert_eq(Buildable.zone(Vector2i(r, c)), Buildable.Zone.LANDMARK, "well cell %d,%d" % [r, c])
+	# The old windmill's outer cells (cols 2 and 5) are open ground again.
+	for cell: Vector2i in [Vector2i(8, 2), Vector2i(9, 2), Vector2i(8, 5), Vector2i(9, 5), Vector2i(10, 5)]:
+		assert_eq(Buildable.zone(cell), Buildable.Zone.PLOT, "freed %s" % str(cell))
 
 
 func test_saved_waterworks_round_trip() -> void:

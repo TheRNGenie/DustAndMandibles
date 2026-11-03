@@ -1,13 +1,14 @@
 class_name Waterworks
 extends RefCounted
 ## The homestead waterworks, as pure rules (unit-tested): every cliff has a well
-## (the windmill's water source), a small generator with a big circuit-breaker
-## lever, and a water tower, grouped together on the same side of the yard.
+## (a pump jack, MechWell, belted to the generator), a small generator with a big
+## circuit-breaker lever, and a water tower, grouped together on the same side of
+## the yard.
 ##
-## Ready-up is physical: each player throws their own generator's lever (E there,
-## or G from anywhere). Once every human's lever is thrown (CPU teammates throw
+## Ready-up is physical: each player throws their own generator's lever (E there;
+## the ready_up key still throws it from anywhere, unadvertised). Once every human's lever is thrown (CPU teammates throw
 ## theirs when they're done), the short countdown runs, the generators crank up,
-## the well pumps run and the wave comes. Pull your lever back during the
+## the well's pump jack runs and the wave comes. Pull your lever back during the
 ## countdown to call it off. When the wave ends the levers drop and the pumps stop.
 ##
 ## While its pump runs a water tower fills at FILL_PER_MIN up to TANK_MAX; its tap
