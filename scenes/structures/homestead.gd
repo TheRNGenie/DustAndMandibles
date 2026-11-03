@@ -13,6 +13,7 @@ const UPGRADES: Array[Dictionary] = [
 	{"id": &"reinforce", "name": "Reinforce the walls", "cost": {&"scrap": 80, &"chitin": 10}, "desc": "Iron bands and a stone skirt: +250 max HP."},
 	{"id": &"floor2", "name": "Build a second floor", "cost": {&"scrap": 120, &"chitin": 15}, "desc": "Adds a storey and a front balcony with 2 house turret mounts."},
 	{"id": &"floor3", "name": "Build a lookout floor", "cost": {&"scrap": 180, &"chitin": 30}, "desc": "Adds a top storey and a railed roof deck with 2 more mounts. A lookout up top spots for your turrets: +8% range for every turret on this cliff."},
+	{"id": &"porch", "name": "Build a shaded porch", "cost": {&"scrap": 60}, "desc": "Wider covered wings either side of the porch, with benches. Rest under it and your health comes back three times as fast."},
 	{"id": &"workshop", "name": "Build a workshop", "cost": {&"scrap": 100, &"chitin": 12}, "desc": "A lean-to shed on the back of the house with a crafting bench: combine turret parts into new turrets."},
 	{"id": &"tower", "name": "Build a zip-line tower", "cost": {&"scrap": 220, &"chitin": 40}, "desc": "A tall lookout tower on the roof deck. Once both houses have one, a zip line joins them across the canyon."},
 ]
@@ -29,6 +30,11 @@ var boarded := false
 var reinforced := false
 var tower := false
 var workshop := false
+var porch := false
+## Cliffs whose house has the shaded porch (PlayerVitals heals faster on it).
+static var porch_cliffs: Dictionary = {}
+## Health regen multiplier while resting under a shaded porch.
+const PORCH_REGEN := 3.0
 ## Cliffs whose house has the lookout floor (turrets there reach further). Kept
 ## static so Turret.range_multiplier() needn't search for the house every shot.
 static var lookout_cliffs: Dictionary = {}
@@ -57,6 +63,7 @@ static func of(cid: int) -> Homestead:
 
 func _ready() -> void:
 	lookout_cliffs.erase(cliff_id) # a new run: no lookout yet
+	porch_cliffs.erase(cliff_id)
 	add_to_group("structures")
 	add_to_group("homesteads")
 	_mi = MeshInstance3D.new()
@@ -191,6 +198,46 @@ func _rebuild() -> void:
 
 
 ## The tower's ladder zone and the zip-line handle (only once the tower is up).
+## Is this world point under this house's shaded porch (front, -Z local)?
+func under_porch(world_pos: Vector3) -> bool:
+	if not porch:
+		return false
+	var p := to_local(world_pos)
+	return absf(p.x) < HouseBuilder.W * 0.5 + 2.6 and p.z < -HouseBuilder.D * 0.5 + 0.3 and p.z > -HouseBuilder.D * 0.5 - 3.4 and p.y < 3.0
+
+
+## The shaded porch wings, once bought: decks, posts, a plank awning and benches
+## either side of the front porch.
+func _build_porch() -> void:
+	if not porch or get_node_or_null("PorchWings") != null:
+		return
+	var st := MeshKit.begin()
+	var wood := Palette.WOOD
+	var dark := Palette.WOOD_DARK
+	var front := -HouseBuilder.D * 0.5
+	for side: float in [-1.0, 1.0]:
+		var cx := side * (HouseBuilder.W * 0.5 + 1.1)
+		# Deck.
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(cx, 0.22, front - 1.5)), Vector3(2.4, 0.12, 3.0), wood.darkened(0.15))
+		for i in 6:
+			MeshKit.add_box(st, Transform3D(Basis(), Vector3(cx - 1.0 + i * 0.4, 0.29, front - 1.5)), Vector3(0.03, 0.02, 3.0), dark)
+		# Posts and awning.
+		for z: float in [front - 2.9, front - 0.1]:
+			MeshKit.add_box(st, Transform3D(Basis(), Vector3(cx + side * 1.1, 1.45, z)), Vector3(0.14, 2.5, 0.14), dark)
+		MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, 0.12), Vector3(cx, 2.75, front - 1.5)), Vector3(2.6, 0.08, 3.3), wood.lightened(0.05))
+		for i in 5:
+			MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, 0.12), Vector3(cx - 1.1 + i * 0.55, 2.8, front - 1.5)), Vector3(0.05, 0.03, 3.3), dark)
+		# A bench.
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(cx, 0.68, front - 0.45)), Vector3(1.6, 0.08, 0.4), wood.lightened(0.1))
+		for x: float in [-0.65, 0.65]:
+			MeshKit.add_box(st, Transform3D(Basis(), Vector3(cx + x, 0.47, front - 0.45)), Vector3(0.08, 0.36, 0.34), dark)
+	var mi := MeshInstance3D.new()
+	mi.name = "PorchWings"
+	mi.mesh = MeshKit.finish(st)
+	mi.material_override = Materials.toon(0.02)
+	add_child(mi)
+
+
 ## The Workshop shed on the back wall (+Z local), once it's bought.
 func _build_workshop() -> void:
 	if not workshop or get_node_or_null("Workshop") != null:
@@ -277,6 +324,9 @@ func can_offer(id: StringName) -> String:
 		&"workshop":
 			if workshop:
 				return "Already built."
+		&"porch":
+			if porch:
+				return "Already built."
 	return ""
 
 
@@ -303,6 +353,7 @@ func buy(peer_id: int, index: int) -> void:
 	var r := reinforced
 	var tw := tower
 	var ws := workshop
+	var pr := porch
 	match u["id"]:
 		&"patch":
 			GameState.heal_homestead(cliff_id, PATCH_HP)
@@ -319,18 +370,26 @@ func buy(peer_id: int, index: int) -> void:
 			tw = true
 		&"workshop":
 			ws = true
-	_set_state.rpc(f, b, r, tw, ws)
+		&"porch":
+			pr = true
+	_set_state.rpc(f, b, r, tw, ws, pr)
 	Economy.notify_cliff(cliff_id, "Homestead: %s done." % str(u["name"]).to_lower())
 
 
 @rpc("authority", "call_local", "reliable")
-func _set_state(f: int, b: bool, r: bool, tw: bool = false, ws: bool = false) -> void:
-	var changed := f != floors or b != boarded or r != reinforced or tw != tower or ws != workshop
+func _set_state(f: int, b: bool, r: bool, tw: bool = false, ws: bool = false, pr: bool = false) -> void:
+	var changed := f != floors or b != boarded or r != reinforced or tw != tower or ws != workshop or pr != porch
 	floors = f
 	boarded = b
 	reinforced = r
 	tower = tw
 	workshop = ws
+	porch = pr
+	if porch:
+		porch_cliffs[cliff_id] = true
+	else:
+		porch_cliffs.erase(cliff_id)
+	_build_porch()
 	if floors >= 3:
 		lookout_cliffs[cliff_id] = true
 	else:
