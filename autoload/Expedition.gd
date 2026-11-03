@@ -295,20 +295,11 @@ func _take_sack(peer_id: int, id: int) -> void:
 		Economy.notify(peer_id, "Your backpack's full.")
 		return
 	var rest := last_leftover
-	Economy.notify(peer_id, "Into your backpack: %s." % ExpeditionRules.describe(_minus(items, rest)))
+	Economy.notify(peer_id, "Into your backpack: %s." % ExpeditionRules.describe(ExpeditionRules.taken(items, rest)))
 	if rest.is_empty():
 		_remove_sack.rpc(id)
 	else:
 		_update_sack.rpc(id, rest)
-
-
-static func _minus(a: Dictionary, b: Dictionary) -> Dictionary:
-	var out := {}
-	for k: Variant in a:
-		var n := int(a[k]) - int(b.get(k, 0))
-		if n > 0:
-			out[k] = n
-	return out
 
 
 @rpc("authority", "call_local", "reliable")

@@ -1101,6 +1101,10 @@ func _take_screenshot(path: String) -> void:
 		add_child(load("res://scenes/debug/craft_views.gd").new())
 	if GameState.flag_value("--casinoview") != "": # Casino: a game's screen open, optionally mid-play (scenes/debug/casino_views.gd)
 		add_child(load("res://scenes/debug/casino_views.gd").new())
+	if GameState.flag_value("--expview") != "": # Canyon Expeditions: rope, floor, backpack, sack views
+		var ev: Node = load("res://scenes/debug/expedition_views.gd").new()
+		ev.set("world", world)
+		add_child(ev)
 	if GameState.flag_value("--crewview") != "": # Crewed: crewed gun views (scenes/debug/crewed_views.gd)
 		add_child(load("res://scenes/debug/crewed_views.gd").new())
 	if GameState.flag_value("--gunview") != "": # the frontier guns: lineup and each in action (scenes/debug/gun_views.gd)

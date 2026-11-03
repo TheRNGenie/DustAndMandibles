@@ -82,6 +82,16 @@ static func sack_expired(drop_wave: int, wave_now: int) -> bool:
 	return wave_now > drop_wave
 
 
+## What was taken from `offer` when `left` stayed behind ({item: units}).
+static func taken(offer: Dictionary, left: Dictionary) -> Dictionary:
+	var out := {}
+	for k: Variant in offer:
+		var n := int(offer[k]) - int(left.get(k, 0))
+		if n > 0:
+			out[k] = n
+	return out
+
+
 ## Title Case item name for the HUD ("prickly_pear" -> "Prickly Pear").
 static func item_name(item: StringName) -> String:
 	return String(item).capitalize()
