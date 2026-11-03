@@ -11,7 +11,7 @@ const SYNC_INTERVAL := 2.0
 const SIZE := 3.4 # fills a 2 x 2 block of grid cells with a little gap
 const PLANT_SCALE := 1.45
 ## Seed order for F (cycle) on an empty plot.
-const SEEDS: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs"]
+const SEEDS: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs", &"sarsaparilla"]
 
 ## The seed resource each crop needs (bought from the airship market for scrap):
 ## CropDef.seed_item, via Defs.seed_of. [Foundation: was a dictionary here]

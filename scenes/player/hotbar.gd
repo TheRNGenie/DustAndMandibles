@@ -2,7 +2,9 @@ class_name Hotbar
 extends Node
 ## The local player's hotbar, keys 1-8:
 ##   1-3  weapon slots: any weapons you carry, in the order you got them
-##   4-6  pickup slots: whatever harvest you're carrying (corn, prickly pear, chili)
+##   4-6  pickup slots: whatever harvest you're carrying (sarsaparilla first, then
+##        corn, prickly pear, chili); left click with sarsaparilla out sends your
+##        partner a tonic (PartnerTonic)
 ##   7    medicine: herbs (left click with them out heals 50 HP)
 ##   8    water bucket
 ##   9    Zippo lighter (always carried)
@@ -16,8 +18,8 @@ extends Node
 
 signal changed
 
-const PICKUP_ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili"]
-const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Pear", &"chili": "Chili", &"herbs": "Medicine", &"water": "Bucket", &"grapple": "Grapple", &"lighter": "Zippo"}
+const PICKUP_ITEMS: Array[StringName] = [&"sarsaparilla", &"corn", &"prickly_pear", &"chili"]
+const NAMES: Dictionary = {&"sarsaparilla": "Tonic", &"corn": "Corn", &"prickly_pear": "Pear", &"chili": "Chili", &"herbs": "Medicine", &"water": "Bucket", &"grapple": "Grapple", &"lighter": "Zippo"}
 
 const SLOTS := 10
 
@@ -41,6 +43,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("fire") and player.gun.holding == &"herbs":
 		player.vitals.use_medicine()
+	elif event.is_action_pressed("fire") and player.gun.holding == PartnerTonic.ITEM:
+		player.net.request_tonic()
 	elif event.is_action_pressed("fire") and PlayerVitals.FEEDS.has(player.gun.holding):
 		player.vitals.eat_or_drink(player.gun.holding)
 	if event.is_action_pressed("next_item") or event.is_action_pressed("prev_item"):
@@ -95,6 +99,8 @@ func use_slot(i: int, toggle: bool = true) -> void:
 		player.gun.equip(id)
 	else:
 		player.gun.hold_item(id)
+		if id == PartnerTonic.ITEM:
+			Economy.notice.emit("Left Click: send your partner a sarsaparilla tonic (their turrets fire %d%% faster)." % int(round(PartnerTonic.FIRE_RATE_BONUS * 100.0)))
 	selected = i
 	changed.emit()
 

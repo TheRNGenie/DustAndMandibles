@@ -25,6 +25,12 @@ const CHILI_GREEN := Color("#5E9B3A")
 const SAGE := Color("#9DB89A")
 const SAGE_DARK := Color("#7F9C80")
 const SAGE_FLOWER := Color("#9C7AC8")
+const SARSA_VINE := Color("#4E7A3A")
+const SARSA_LEAF := Color("#3F8A48")
+const SARSA_LEAF_DARK := Color("#2F6C3A")
+const SARSA_ROOT := Color("#8A5432")
+const SARSA_BERRY := Color("#2E2440")
+const STAKE := Color("#9A7A52")
 
 static var _cache: Dictionary = {}
 
@@ -70,7 +76,7 @@ static func _plant(st: SurfaceTool, crop: StringName, stage: int, at: Vector3, t
 		return
 	if stage == 1:
 		# Sprout: a short stem and two seed leaves, the same for every crop but tinted.
-		var tint := SAGE if crop == &"herbs" else (PAD if crop == &"prickly_pear" else LEAF)
+		var tint := SAGE if crop == &"herbs" else (PAD if crop == &"prickly_pear" else (SARSA_LEAF if crop == &"sarsaparilla" else LEAF))
 		if crop == &"prickly_pear":
 			MeshKit.add_ellipsoid(st, Transform3D(b, at + Vector3(0, 0.1, 0)), Vector3(0.06, 0.1, 0.025), 4, 8, PAD)
 			return
@@ -85,6 +91,8 @@ static func _plant(st: SurfaceTool, crop: StringName, stage: int, at: Vector3, t
 			_pear(st, b, at, stage, size, rng)
 		&"firecracker_chili":
 			_chili(st, b, at, stage, size, rng)
+		&"sarsaparilla":
+			_sarsaparilla(st, b, at, stage, size, rng)
 		_:
 			_sage(st, b, at, stage, size, rng)
 
@@ -199,10 +207,60 @@ static func _sage(st: SurfaceTool, b: Basis, at: Vector3, stage: int, size: floa
 					MeshKit.add_ellipsoid(st, Transform3D(Basis(), base.lerp(tip, 0.55 + j * 0.13)), Vector3.ONE * 0.02, 3, 6, SAGE_FLOWER, 0.0, null, 0.15)
 
 
+## Sarsaparilla: a twining vine up a whittled stake, glossy heart-shaped leaves,
+## clusters of near-black berries, and the knobbly brown root pushing out of the
+## soil when ripe (that's the harvest: tonic root).
+static func _sarsaparilla(st: SurfaceTool, b: Basis, at: Vector3, stage: int, size: float, rng: RandomNumberGenerator) -> void:
+	var h: float = [0.0, 0.0, 0.42, 0.78, 0.82][stage] * size
+	# The stake, a touch taller than the vine, with a split top.
+	var stake_h := maxf(h + 0.08, 0.3)
+	MeshKit.add_cylinder(st, Transform3D(b, at + b * Vector3(0.05, stake_h * 0.5, 0)), 0.014, 0.018, stake_h, 5, STAKE)
+	MeshKit.add_cylinder(st, Transform3D(b, at + b * Vector3(0.05, stake_h + 0.01, 0)), 0.0, 0.014, 0.03, 5, STAKE.darkened(0.15))
+	# The vine twines up round the stake in a spiral of short limbs.
+	var turns := 2.2 * h / 0.8
+	var steps := int(6 + 10 * h)
+	var prev := at + b * Vector3(0.05 + 0.04, 0.0, 0.0)
+	for i in range(1, steps + 1):
+		var t := float(i) / steps
+		var a := t * turns * TAU
+		var p := at + b * Vector3(0.05 + cos(a) * 0.04, t * h, sin(a) * 0.04)
+		MeshKit.add_limb(st, prev, p, 0.007, SARSA_VINE, 3)
+		prev = p
+		# A heart-shaped leaf every other step, on a short stalk pointing outwards.
+		if i % 2 == 0:
+			var out := (b * Vector3(cos(a), 0.25, sin(a))).normalized()
+			var leaf_at := p + out * 0.07 * size
+			MeshKit.add_limb(st, p, leaf_at, 0.004, SARSA_VINE, 3)
+			var lb := MeshKit.basis_from_y(out) * Basis(Vector3.UP, rng.randf_range(-0.4, 0.4))
+			var col := SARSA_LEAF if (i / 2) % 2 == 0 else SARSA_LEAF_DARK
+			var leaf := 0.85 + 0.3 * t
+			# Two lobes and a tip make the heart.
+			for s: float in [-1.0, 1.0]:
+				MeshKit.add_ellipsoid(st, Transform3D(lb, leaf_at + lb * Vector3(s * 0.022, 0.012, 0) * leaf), Vector3(0.03, 0.035, 0.006) * leaf * size, 3, 7, col)
+			MeshKit.add_ellipsoid(st, Transform3D(lb, leaf_at + lb * Vector3(0, 0.045, 0) * leaf), Vector3(0.02, 0.03, 0.006) * leaf * size, 3, 6, col)
+			if stage >= 3 and i % 4 == 0:
+				# A hanging cluster of berries: green while growing, near-black when ripe.
+				var berry := SARSA_BERRY if stage == 4 else Color("#6E8A4A")
+				var hang := p + out * 0.035 - Vector3(0, 0.03, 0)
+				MeshKit.add_limb(st, p, hang, 0.003, SARSA_VINE, 3)
+				for k in 5:
+					var ka := float(k) * 1.3
+					MeshKit.add_ellipsoid(st, Transform3D(Basis(), hang + Vector3(cos(ka) * 0.014, -0.012 * (k % 3), sin(ka) * 0.014)), Vector3.ONE * 0.011, 3, 6, berry, 0.0, null, 0.2 if stage == 4 else 0.0)
+	if stage == 4:
+		# Ripe: the thick, knobbly roots break the soil at the foot of the vine.
+		for k in 3:
+			var a := float(k) * 2.1 + rng.randf()
+			var from := at + b * Vector3(0.0, 0.03, 0.0)
+			var to := at + b * Vector3(cos(a) * 0.16, 0.015, sin(a) * 0.16)
+			MeshKit.add_limb(st, from, to, 0.024, SARSA_ROOT, 5)
+			MeshKit.add_ellipsoid(st, Transform3D(b, to), Vector3(0.03, 0.025, 0.03), 3, 6, SARSA_ROOT.darkened(0.15))
+		MeshKit.add_ellipsoid(st, Transform3D(b, at + Vector3(0, 0.03, 0)), Vector3(0.05, 0.035, 0.05), 4, 8, SARSA_ROOT)
+
+
 # ------------------------------------------------------------------ seed packets
 
 const PACKET_COLORS: Dictionary = {&"corn": Color("#E9C24A"), &"prickly_pear": Color("#C24A86"),
-	&"firecracker_chili": Color("#D2442A"), &"herbs": Color("#7FA07A")}
+	&"firecracker_chili": Color("#D2442A"), &"herbs": Color("#7FA07A"), &"sarsaparilla": Color("#7A4A2E")}
 
 
 ## A paper seed packet (about 9 x 13 cm) with a coloured band, a little
@@ -236,6 +294,12 @@ static func packet(crop: StringName) -> ArrayMesh:
 		&"firecracker_chili":
 			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, -0.6), pic), Vector3(0.008, 0.028, 0.002), 3, 8, CHILI)
 			MeshKit.add_box(st, Transform3D(Basis(), pic + Vector3(-0.012, 0.024, 0)), Vector3(0.004, 0.012, 0.002), CHILI_GREEN)
+		&"sarsaparilla":
+			# A heart leaf over a knobbly root.
+			for s: float in [-1.0, 1.0]:
+				MeshKit.add_ellipsoid(st, Transform3D(Basis(), pic + Vector3(s * 0.008, 0.018, 0)), Vector3(0.01, 0.011, 0.002), 3, 6, SARSA_LEAF)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), pic + Vector3(0, 0.01, 0)), Vector3(0.007, 0.01, 0.002), 3, 6, SARSA_LEAF)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, 0.5), pic + Vector3(0, -0.016, 0)), Vector3(0.007, 0.02, 0.002), 3, 6, SARSA_ROOT)
 		_:
 			for k in 3:
 				MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, -0.5 + k * 0.5), pic + Vector3(-0.012 + k * 0.012, 0.004 * (k % 2), 0)), Vector3(0.007, 0.018, 0.002), 3, 6, SAGE_DARK)
@@ -252,8 +316,8 @@ static func packet(crop: StringName) -> ArrayMesh:
 static func packet_rack() -> ArrayMesh:
 	var st := MeshKit.begin()
 	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.35), Vector3(0, 0.07, 0.02)), Vector3(0.48, 0.16, 0.02), Palette.WOOD)
-	var crops: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs"]
+	var crops: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs", &"sarsaparilla"]
 	for i in crops.size():
 		var tilt := Basis(Vector3.RIGHT, -0.35)
-		st.append_from(packet(crops[i]), 0, Transform3D(tilt, Vector3(-0.18 + i * 0.12, 0.02, -0.005) + tilt * Vector3(0, 0, -0.012)))
+		st.append_from(packet(crops[i]), 0, Transform3D(tilt, Vector3(-0.2 + i * 0.1, 0.02, -0.005) + tilt * Vector3(0, 0, -0.012)))
 	return MeshKit.finish(st)

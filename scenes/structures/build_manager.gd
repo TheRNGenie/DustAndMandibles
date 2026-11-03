@@ -171,7 +171,7 @@ func cpu_build(cpu_name: String, id: StringName, cid: int, cell: Vector2i) -> bo
 		return false
 	if not Defs.is_unlocked(id, GameState.tier_wave()): # Tiers: not before its wave
 		return false
-	if not Economy.cpu_spend(cpu_name, {&"scrap": Defs.cost_of(id)}):
+	if not Economy.cpu_spend(cpu_name, {&"scrap": Defs.cost_of(id)}, cid):
 		return false
 	# Already paid out of its share; _do_build skips charging while _cpu_builder is set.
 	_cpu_builder = cpu_name

@@ -97,15 +97,15 @@ const PERKS: Array[Dictionary] = [
 		"desc": "Each repair patches {v} more HP for the same Scrap.", "per_rank": 0.20, "fmt": "pct",
 		"costs": [15, 30], "owner": "host"},
 	{"id": &"salvager", "tree": &"eng", "name": "Salvager", "glyph": "hammer",
-		"desc": "Tearing down gives back {v} more Scrap.", "per_rank": 0.15, "fmt": "pct", "costs": [10, 25], "owner": "host"},
+		"desc": "Tearing down gives back {v} more Scrap to the team pot.", "per_rank": 0.15, "fmt": "pct", "costs": [10, 25], "owner": "host"},
 	{"id": &"overtime", "tree": &"eng", "name": "Overtime", "glyph": "moon",
 		"desc": "When a wave ends, turrets you built patch {v} of their HP.", "per_rank": 0.15, "fmt": "pct",
 		"costs": [20, 40], "owner": "host"},
 	{"id": &"scrap_scavenger", "tree": &"eng", "name": "Scrap Scavenger", "glyph": "magnet",
-		"desc": "Kills by turrets you built drop {v} more Scrap.", "per_rank": 0.15, "fmt": "pct",
+		"desc": "Kills by turrets you built drop {v} more Scrap for the team pot.", "per_rank": 0.15, "fmt": "pct",
 		"costs": [20, 40], "owner": "host"},
 	{"id": &"scrap_stash", "tree": &"eng", "name": "Scrap Stash", "glyph": "crate",
-		"desc": "Start every run with {v} extra Scrap.", "per_rank": 20.0, "fmt": "int", "costs": [15, 30], "owner": "host"},
+		"desc": "Start every run with {v} extra Scrap in the team pot.", "per_rank": 20.0, "fmt": "int", "costs": [15, 30], "owner": "host"},
 ]
 
 ## Wardrobe items bought with Brands: slot -> {option id: price}. Options not

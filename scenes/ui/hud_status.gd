@@ -1,17 +1,19 @@
 class_name HudStatus
 extends Control
-## Bottom-left: your health and your two currencies, scrap and chitin, as big
-## counters (vegetables and water live on the hotbar). Top corners: both
+## Bottom-left: your health and your two currencies as big counters: the
+## team's shared scrap pot ("Team Scrap") and your own chitin ("Your Chitin").
+## Vegetables and water live on the hotbar. Top corners: both
 ## Homesteads' health, labelled "Yours" (left) and "Theirs" (right) for each player.
 
 var cliff_id: int = 0
 var _hp_bar: ProgressBar
 var _hp_text: Label
 var _smoke: Label
+## Sarsaparilla tonic: on your turrets (from your partner) or on theirs (from you).
+var _tonic: Label
 var _scrap: Label
 var _chitin: Label
-## Solo on the canyon: the other cliff's stockpile, on a small labelled line.
-var _scrap_other: Label
+## Solo on the canyon: the other cliff's chitin, on a small labelled line.
 var _chitin_other: Label
 var _homes: Array[ProgressBar] = []
 var _captions: Array[Label] = []
@@ -51,15 +53,22 @@ func _ready() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 18)
 	col.add_child(row)
-	_scrap = _counter(row, &"scrap")
-	_scrap_other = _scrap.get_meta(&"other") as Label
-	_chitin = _counter(row, &"chitin")
+	_scrap = _counter(row, &"scrap", "Team Scrap")
+	_scrap.tooltip_text = "Scrap is shared: everyone builds from this pot and every kill pays into it."
+	_chitin = _counter(row, &"chitin", "Your Chitin")
 	_chitin_other = _chitin.get_meta(&"other") as Label
 	_smoke = UiStyle.label("", 13, UiStyle.c("hud"))
 	_smoke.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_smoke.add_theme_color_override("font_outline_color", Palette.OUTLINE)
 	_smoke.add_theme_constant_override("outline_size", 4)
 	col.add_child(_smoke)
+	_tonic = UiStyle.label("", 13, UiStyle.hud_c("good"))
+	_tonic.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_tonic.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_tonic.add_theme_color_override("font_outline_color", Palette.OUTLINE)
+	_tonic.add_theme_constant_override("outline_size", 4)
+	_tonic.visible = false
+	col.add_child(_tonic)
 
 	var needs := VBoxContainer.new()
 	needs.anchor_top = 1.0
@@ -109,6 +118,22 @@ func _ready() -> void:
 	GameState.homestead_changed.connect(func(_c: int, _hp: float, _mx: float) -> void: _refresh_homes())
 	_refresh_homes()
 	_refresh_resources()
+
+
+func _process(_delta: float) -> void:
+	if Economy.tonic_left.is_empty():
+		if _tonic.visible:
+			_tonic.visible = false
+		return
+	var mine := Economy.tonic(cliff_id)
+	var theirs := Economy.tonic(PartnerTonic.partner_of(cliff_id))
+	var pct := int(round(PartnerTonic.FIRE_RATE_BONUS * 100.0))
+	var paused := "" if GameState.phase == GameState.Phase.WAVE else "  ·  Paused"
+	if mine > 0.0:
+		_tonic.text = "Partner's Tonic  ·  +%d%% Fire  ·  %s%s" % [pct, UiStyle.clock(mine), paused]
+	elif theirs > 0.0:
+		_tonic.text = "Your Tonic on %s  ·  %s%s" % [WorldLayout.map().name_of(PartnerTonic.partner_of(cliff_id)), UiStyle.clock(theirs), paused]
+	_tonic.visible = mine > 0.0 or theirs > 0.0
 
 
 func bind_player(player: Player) -> void:
@@ -162,27 +187,25 @@ func _refresh_homes() -> void:
 
 
 func _refresh_resources() -> void:
-	# Maps: with the team's shared pool (CPU teammates) every cliff reads the
-	# same stockpile, so show it once; on 3-4 cliff maps show your own.
-	_scrap.text = str(Economy.amount(cliff_id, &"scrap"))
+	# Scrap is the team's one pot (the same number for everyone); chitin is yours.
+	_scrap.text = str(Economy.team_scrap())
 	_chitin.text = str(Economy.amount(cliff_id, &"chitin"))
-	# Solo on the canyon you build on both cliffs: the big number is the cliff
-	# you stand on, and a small labelled line under it is the other cliff's pile.
+	# Solo on the canyon you play both cliffs: the big chitin number is the cliff
+	# you stand on, and a small labelled line under it is the other cliff's.
 	var other := 1 - cliff_id
-	var both := GameState.is_solo() and not Economy.shared and WorldLayout.cliff_count() == 2 and other >= 0
-	for pair: Array in [[_scrap_other, &"scrap"], [_chitin_other, &"chitin"]]:
-		var l := pair[0] as Label
-		l.visible = both
-		if both:
-			l.text = "%s: %d" % [WorldLayout.map().name_of(other), Economy.amount(other, pair[1])]
+	var both := GameState.is_solo() and WorldLayout.cliff_count() == 2 and other >= 0
+	_chitin_other.visible = both
+	if both:
+		_chitin_other.text = "%s: %d" % [WorldLayout.map().name_of(other), Economy.amount(other, &"chitin")]
 
 
 ## A breaching bug stole from a stockpile: a red "-N" rises off the counter and fades.
+## Scrap comes out of the team pot, so everyone sees that; chitin only its owner.
 func _on_stolen(cid: int, amounts: Dictionary) -> void:
-	if cid != cliff_id and not GameState.is_solo():
-		return
 	var counters := {&"scrap": _scrap, &"chitin": _chitin}
 	for r: StringName in amounts:
+		if not EconomyLedger.is_shared(r) and cid != cliff_id and not GameState.is_solo():
+			continue
 		var counter := counters.get(r) as Label
 		if counter == null:
 			continue
@@ -205,8 +228,8 @@ func _on_stolen(cid: int, amounts: Dictionary) -> void:
 
 
 ## A currency swatch, a small caption and a big number (plus a hidden small line
-## for the other cliff's stockpile, kept on the number's "other" meta).
-func _counter(parent: HBoxContainer, resource: StringName) -> Label:
+## for the other cliff's pile, kept on the number's "other" meta).
+func _counter(parent: HBoxContainer, resource: StringName, caption: String) -> Label:
 	var box := HBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	parent.add_child(box)
@@ -221,7 +244,7 @@ func _counter(parent: HBoxContainer, resource: StringName) -> Label:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", -4)
 	box.add_child(v)
-	var cap := UiStyle.label(UiStyle.tc(String(resource)), 12, Color(UiStyle.c("hud"), 0.75))
+	var cap := UiStyle.label(caption, 12, Color(UiStyle.c("hud"), 0.75))
 	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	cap.autowrap_mode = TextServer.AUTOWRAP_OFF
 	v.add_child(cap)

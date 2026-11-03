@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CropDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/crop_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"sarsaparilla"
+display_name = "Sarsaparilla Root"
+grow_time = 200.0
+water_cost = 1
+harvest = {&"sarsaparilla": 2}
+color = Color(0.55, 0.32, 0.2, 1)
+role = "Grown for your partner: hold a root and left click to send them a tonic. Their turrets fire 15% faster for 60 s of wave time."
+seed_item = &"seed_sarsaparilla"

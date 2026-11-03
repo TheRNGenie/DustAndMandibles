@@ -103,7 +103,7 @@ func capture() -> Dictionary:
 		if w.build_id == &"" and not w.is_queued_for_deletion():
 			wells.append({"path": str(world.get_path_to(w)), "stored": w.stored})
 	data["wells"] = wells
-	data["economy"] = {"stock": Economy.ledger.stock, "shared": Economy.shared, "gained": Economy.gained,
+	data["economy"] = {"stock": Economy.ledger.stock, "cpu_mode": Economy.cpu_mode, "gained": Economy.gained,
 			"cpu_spent": Economy.cpu_spent, "cpu_share": Economy.cpu_share}
 	var players := _vitals.duplicate()
 	var me := _local_player()
@@ -211,8 +211,8 @@ func resume(data: Dictionary) -> bool:
 		if well != null:
 			well._sync.rpc(int(w["stored"])) # older saves also kept "working" (the windmill well started broken): ignored, the well always works now
 	var eco: Dictionary = data["economy"]
-	Economy.ledger.stock = RunSave.fit_stock(eco["stock"], bool(eco["shared"]), Economy.shared)
-	if Economy.shared and bool(eco["shared"]):
+	Economy.ledger.stock = RunSave.fit_cliffs(eco["stock"], WorldLayout.cliff_count())
+	if Economy.cpu_mode and bool(eco["cpu_mode"]):
 		Economy.gained = (eco["gained"] as Dictionary).duplicate()
 		Economy.cpu_spent = (eco["cpu_spent"] as Dictionary).duplicate(true)
 	Economy._push()
@@ -222,9 +222,9 @@ func resume(data: Dictionary) -> bool:
 		var p: Dictionary = players[cid]
 		_vitals[cid] = p
 		_set_vitals.rpc(cid, float(p["food"]), float(p["water"]))
-	print("[save] resumed the run at wave %d: %d of %d builds back up, scrap W%d E%d" % [GameState.wave,
+	print("[save] resumed the run at wave %d: %d of %d builds back up, team scrap %d, chitin W%d E%d" % [GameState.wave,
 			BuildManager.instance.get_child_count() - 1 if BuildManager.instance != null else 0,
-			(data["builds"] as Array).size(), Economy.amount(0, &"scrap"), Economy.amount(1, &"scrap")])
+			(data["builds"] as Array).size(), Economy.team_scrap(), Economy.amount(0, &"chitin"), Economy.amount(1, &"chitin")])
 	set_deferred("_resuming", false)
 	return true
 

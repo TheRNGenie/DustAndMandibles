@@ -82,6 +82,7 @@ const CROPS: Dictionary = {
 	&"prickly_pear": preload("res://data/crops/prickly_pear.tres"),
 	&"firecracker_chili": preload("res://data/crops/firecracker_chili.tres"),
 	&"herbs": preload("res://data/crops/herbs.tres"),
+	&"sarsaparilla": preload("res://data/crops/sarsaparilla.tres"), # grown for your partner (PartnerTonic)
 }
 
 ## Player guns (the gun shop sells them; Gun.WEAPONS points here).

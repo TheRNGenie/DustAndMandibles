@@ -1,22 +1,31 @@
 class_name BuildCamera
 extends Camera3D
-## Build mode's raised view (Tab): an over-the-shoulder camera lifted above and
-## behind your rider, looking where you look, so you can judge how a turret
-## will sit against the far cliff. The build ghost aims through its crosshair.
-## Leaving build mode (or Tab again) drops you back into first person.
+## Build mode's third-person camera (Tab, rebindable): pulled back about 4 m
+## behind and above your rider, looking where you look, so you see your own
+## dummy and can judge how a turret will sit against the far cliff. The build
+## ghost aims through its crosshair. It rides on a spring arm: a sphere swept
+## from your eye that stops short of rock, walls and the house, so it never
+## clips inside them, and eases back out once the way is clear. Leaving build
+## mode drops you back into first person. Settings.build_cam_third remembers
+## which view you like (Settings > Controls > Build Camera).
 
-const BACK := 6.0
-const UP := 3.4
-const SIDE := 0.9
 ## Extra look-down so the plateau edge and the far wall share the frame.
-const TILT := 0.2
-const BLEND := 10.0
+const TILT := 0.15
+## The spring arm's probe: a sphere this big must fit where the camera sits.
+const PROBE_RADIUS := 0.3
 
 var player: Player
 var raised := false
+## Current spring-arm length (shortened by whatever's in the way).
+var _arm := 0.0
 ## Body parts the first-person rig draws as shadows only, shown while raised.
 var _shadow_parts: Array[GeometryInstance3D] = []
 var _hidden: Array[Node3D] = []
+
+
+## Full arm length, about 4 m (BuildCamArm holds the spring-arm maths).
+static func full_arm() -> float:
+	return BuildCamArm.full_arm()
 
 
 func _ready() -> void:
@@ -36,7 +45,8 @@ func set_raised(on: bool) -> void:
 	if on:
 		fov = player.camera.fov
 		far = player.camera.far
-		global_transform = _target()
+		_arm = 0.0
+		global_transform = _target(0.0)
 		current = true
 		_show_body(true)
 	else:
@@ -46,8 +56,8 @@ func set_raised(on: bool) -> void:
 	Audio.play_ui(&"rustle", -10.0)
 
 
-## Where the camera wants to be: up, back and a little to the right of the eye.
-func _target() -> Transform3D:
+## Where the camera sits this frame: on the spring arm behind your eye.
+func _target(delta: float) -> Transform3D:
 	var cam := player.camera
 	var b := cam.global_basis.orthonormalized()
 	var flat_fwd := Vector3(-b.z.x, 0.0, -b.z.z).normalized()
@@ -55,15 +65,25 @@ func _target() -> Transform3D:
 		flat_fwd = -player.global_basis.z
 	var right := flat_fwd.cross(Vector3.UP).normalized()
 	var eye := cam.global_position
-	var want := eye - flat_fwd * BACK + Vector3.UP * UP + right * SIDE
-	# Don't sink into walls or the house: stop just short of whatever's in the way.
-	var q := PhysicsRayQueryParameters3D.create(eye, want, WorldLayout.LAYER_WORLD | WorldLayout.LAYER_STRUCTURE)
+	var dir := BuildCamArm.arm_dir(flat_fwd)
+	var full := full_arm()
+	# Sweep a sphere out along the arm; stop where it would touch rock or a build.
+	var probe := SphereShape3D.new()
+	probe.radius = PROBE_RADIUS
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = probe
+	q.transform = Transform3D(Basis(), eye)
+	q.motion = dir * full
+	q.collision_mask = WorldLayout.LAYER_WORLD | WorldLayout.LAYER_STRUCTURE
 	q.exclude = [player.get_rid()]
-	var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
-	if not hit.is_empty():
-		want = eye + (Vector3(hit["position"]) - eye) * 0.85
+	var free := 1.0
+	var space := player.get_world_3d().direct_space_state
+	var res := space.cast_motion(q)
+	if res.size() >= 1:
+		free = float(res[0])
+	_arm = BuildCamArm.arm_length(full, free, _arm, delta)
 	var look := b.rotated(right, -TILT)
-	return Transform3D(look, want)
+	return Transform3D(look, eye + dir * _arm)
 
 
 func _process(delta: float) -> void:
@@ -72,9 +92,7 @@ func _process(delta: float) -> void:
 	if not player.build_mode.active or player.is_downed():
 		set_raised(false)
 		return
-	var t := _target()
-	global_position = global_position.lerp(t.origin, clampf(delta * BLEND, 0.0, 1.0))
-	global_basis = t.basis
+	global_transform = _target(delta)
 	fov = player.camera.fov
 
 

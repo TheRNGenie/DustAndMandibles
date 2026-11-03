@@ -153,7 +153,7 @@ func refresh() -> void:
 	if build_mode.category < 0:
 		build_mode.category = 1
 	var payer := build_mode.player.cliff_id
-	_scrap.text = UiStyle.cost(Economy.amount(payer, &"scrap"), "scrap")
+	_scrap.text = UiStyle.cost(Economy.amount(payer, &"scrap"), "team scrap") # the shared pot
 	for c in _tabs.size():
 		_style_tab(_tabs[c], c == build_mode.category)
 	for n in _grid.get_children():

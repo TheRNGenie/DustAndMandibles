@@ -40,7 +40,7 @@ func menu_tagline() -> String:
 
 
 func menu_tabs() -> Array:
-	return ["Guns", "Bugs", "Turrets", "Crops"]
+	return ["Guns", "Bugs", "Turrets", "Crops", "Basics"]
 
 
 func menu_items(tab: int) -> Array:
@@ -98,16 +98,23 @@ func menu_items(tab: int) -> Array:
 				for r: StringName in c.harvest:
 					if MarketPrices.BASE.has(r):
 						sells.append(UiStyle.cost(MarketPrices.BASE[r], String(MarketPrices.currency(r))) + " Each")
-				var stats := "Ripe in %s  ·  %d Water  ·  Harvest %s  ·  Sells for %s" % [
-						_minutes(c.grow_time), c.water_cost, ", ".join(yields), ", ".join(sells)]
+				var stats := "Ripe in %s  ·  %d Water  ·  Harvest %s  ·  %s" % [
+						_minutes(c.grow_time), c.water_cost, ", ".join(yields),
+						("Sells for " + ", ".join(sells)) if not sells.is_empty() else "Not Sold: Grown for Your Partner"]
 				var tips: Array = [c.role] if c.role != "" else []
 				tips.append_array(e.get("tips", []))
 				var crop_icon: Variant = c.harvest.keys()[0] if not c.harvest.is_empty() else null
 				out.append(_item(id, c.display_name, crop_icon, str(e.get("lore", "")), stats, tips, UiStyle.cost(MarketPrices.seed_price(c), "scrap") + " a Seed"))
+		4:
+			# Plain-words help: how the team's money works, and the other basics.
+			var basics: Dictionary = text().get("basics", {})
+			for key: Variant in basics:
+				var e: Dictionary = basics[key]
+				out.append(_item(StringName(str(key)), str(e.get("title", key)), StringName(str(e["icon"])) if e.has("icon") else null, str(e.get("lore", "")), str(e.get("stats", "")), e.get("tips", []), ""))
 	return out
 
 
-const CROP_ORDER: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs"]
+const CROP_ORDER: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs", &"sarsaparilla"]
 
 
 static func _minutes(secs: float) -> String:
@@ -120,7 +127,8 @@ func _item(id: StringName, title: String, icon: Variant, lore: String, stats: St
 	var lines: PackedStringArray = []
 	if lore != "":
 		lines.append(lore)
-	lines.append(UiStyle.keep_together(stats)) # wraps only between stat chunks
+	if stats != "":
+		lines.append(UiStyle.keep_together(stats)) # wraps only between stat chunks
 	for t: Variant in tips:
 		lines.append("•  " + str(t))
 	return {"id": id, "name": title, "icon": icon, "desc": "\n".join(lines), "price": price, "price_ok": true}

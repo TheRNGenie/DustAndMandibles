@@ -561,6 +561,21 @@ static func held_item(id: StringName) -> ArrayMesh:
 			MeshKit.add_ellipsoid(st, Transform3D(Basis(), at + Vector3(0.005, 0.012, -0.02)), Vector3(0.006, 0.003, 0.02), 3, 6, Color(1, 1, 1), 0.0, null, 0.4)
 			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, 1.3), at + Vector3(0, -0.012, 0.07)), 0.026, 0.02, 0.012, 8, CropBuilder.CHILI_GREEN)
 			MeshKit.add_limb(st, at + Vector3(0, -0.015, 0.075), at + Vector3(0.01, 0.0, 0.1), 0.005, CropBuilder.CHILI_GREEN, 4)
+		&"sarsaparilla":
+			# Two knobbly sarsaparilla roots tied with twine, a heart leaf still on top.
+			for k in 2:
+				var tilt := Basis(Vector3.BACK, -0.25 + k * 0.5) * Basis(Vector3.RIGHT, 0.3)
+				var root := at + Vector3(-0.012 + k * 0.024, 0.0, 0.0)
+				MeshKit.add_ellipsoid(st, Transform3D(tilt, root), Vector3(0.017, 0.075, 0.017), 5, 8, CropBuilder.SARSA_ROOT.darkened(0.08 * k))
+				for j in 4:
+					MeshKit.add_ellipsoid(st, Transform3D(tilt, root + tilt * Vector3(0.01 * (1 - 2 * (j % 2)), -0.05 + j * 0.032, 0.0)), Vector3.ONE * 0.012, 3, 6, CropBuilder.SARSA_ROOT.darkened(0.2))
+				MeshKit.add_limb(st, root + tilt * Vector3(0, -0.075, 0), root + tilt * Vector3(0.01, -0.1, 0.005), 0.004, CropBuilder.SARSA_ROOT.darkened(0.3), 3)
+			MeshKit.add_cylinder(st, Transform3D(Basis(), at + Vector3(0, 0.01, 0)), 0.034, 0.034, 0.014, 10, Color("#C8A878"))
+			var stem := at + Vector3(0, 0.07, 0)
+			MeshKit.add_limb(st, at + Vector3(0, 0.05, 0), stem + Vector3(0, 0.03, 0), 0.004, CropBuilder.SARSA_VINE, 3)
+			for s: float in [-1.0, 1.0]:
+				MeshKit.add_ellipsoid(st, Transform3D(Basis(), stem + Vector3(s * 0.015, 0.045, 0)), Vector3(0.02, 0.022, 0.005), 3, 7, CropBuilder.SARSA_LEAF)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), stem + Vector3(0, 0.03, 0)), Vector3(0.014, 0.022, 0.005), 3, 6, CropBuilder.SARSA_LEAF)
 		_:
 			# A bundle of sage tied with twine: medicine.
 			for k in 7:

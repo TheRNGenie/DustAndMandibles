@@ -581,7 +581,7 @@ func _start_of_run() -> void:
 				got.append("a farm plot")
 		if not gifts.is_empty():
 			Economy.earn(cid, gifts)
-			var names := {&"scrap": "scrap", &"water": "water", &"herbs": "herbs", &"seed_corn": "corn seeds"}
+			var names := {&"scrap": "scrap for the team pot", &"water": "water", &"herbs": "herbs", &"seed_corn": "corn seeds"}
 			for r: StringName in gifts:
 				got.append("%d %s" % [int(gifts[r]), names.get(r, String(r))])
 		if lo.has(&"old_scaffolds"):

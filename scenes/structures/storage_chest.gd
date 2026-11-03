@@ -7,9 +7,9 @@ extends StaticBody3D
 
 signal menu_changed
 
-const ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili", &"herbs", &"water"]
+const ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili", &"herbs", &"water", &"sarsaparilla"]
 const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Prickly Pear", &"chili": "Firecracker Chili",
-	&"herbs": "Medicine (sage)", &"water": "Water"}
+	&"herbs": "Medicine (sage)", &"water": "Water", &"sarsaparilla": "Sarsaparilla Root"}
 const MAX_WEAPONS := 6
 
 var home: Homestead
