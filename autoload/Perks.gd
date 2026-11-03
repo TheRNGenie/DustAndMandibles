@@ -401,6 +401,9 @@ func lock_look_row(row: Container, slot: String) -> void:
 		var opt := str(opts[i][0])
 		if b != null and SecretCodes.is_secret_look(slot, opt) and not owns_look(slot, opt):
 			b.visible = false # Theme: secret looks stay hidden until their code is entered
+		elif b != null and PerkTable.LUCKY_LOOKS.has(PerkTable.cosmetic_key(slot, opt)) and not owns_look(slot, opt):
+			b.disabled = true # Hive amber: Lucky Moreau sells it, for amber
+			b.tooltip_text = "Sold by Lucky Moreau on the airship, for hive amber."
 		elif b != null and not owns_look(slot, opt):
 			b.disabled = true
 			b.tooltip_text = "Buy it with Notches in the Rancher's Ledger (main menu)."

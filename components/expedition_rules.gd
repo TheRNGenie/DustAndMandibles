@@ -106,6 +106,8 @@ static func split_story(items: Dictionary, story: Array) -> Array:
 
 ## Title Case item name for the HUD ("prickly_pear" -> "Prickly Pear").
 static func item_name(item: StringName) -> String:
+	if item == &"amber":
+		return "Hive Amber" # AmberRules.NAME
 	return String(item).capitalize()
 
 

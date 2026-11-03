@@ -1109,6 +1109,8 @@ func _take_screenshot(path: String) -> void:
 		add_child(load("res://scenes/debug/crewed_views.gd").new())
 	if GameState.flag_value("--gunview") != "": # the frontier guns: lineup and each in action (scenes/debug/gun_views.gd)
 		add_child(load("res://scenes/debug/gun_views.gd").new())
+	if GameState.flag_value("--amberview") != "": # Hive amber: the amber turrets, Lucky's stall (scenes/debug/amber_views.gd)
+		add_child(load("res://scenes/debug/amber_views.gd").new())
 	if GameState.flag_value("--specialview") != "": # Steam Cannon / Flood Gate / Twin Mortar / Bola Launcher views
 		add_child(load("res://scenes/debug/special_views.gd").new())
 	if (GameState.has_flag("--showcase") or GameState.flag_value("--showcase") != "") and multiplayer.is_server():

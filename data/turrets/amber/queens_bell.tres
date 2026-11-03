@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+; Hive amber turret (AmberRules / AmberTurret): crafted, one per team.
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+tier = 2
+id = &"queens_bell"
+display_name = "Queen's Bell"
+description = "A great bell of cast hive amber, rung by a steam hammer. The hive hears its queen in it: every toll turns the ordinary bugs on the partner's wall against each other and knocks fliers out of the sky."
+role = "each toll: bugs in range turn on each other for 6 s, fliers drop, bosses stunned 2 s"
+weakness = "no damage of its own to speak of; bosses only flinch"
+cost_scrap = 0
+max_hp = 460.0
+range = 80.0
+fire_interval = 9.0
+damage = 12.0
+armor_pierce = true
+heavy_mult = 1.0
+pitch_limit_deg = 30.0
+turn_speed = 90.0
+spread_deg = 0.0
+hit_chance = 1.0
+effect = 0
+flight_time = 0.0
+effect_size = 6.0
+ammo_cost = {}
+sound = &"bell"
+special = &"bell"

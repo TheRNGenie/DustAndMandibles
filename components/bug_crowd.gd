@@ -17,6 +17,10 @@ const STIFFNESS := 0.6
 const OVER_RATIO := 3.0
 ## How much the yielding bug still edges aside (fraction of a normal push).
 const YIELD_PUSH := 0.25
+## Hive amber: an Amber Kiln statue weighs this. Nothing shoves it, nothing
+## crawls over it: a bug that runs into one is pushed straight back off it
+## (and must step round it or wait).
+const STATUE_WEIGHT := 1.0e9
 
 
 ## Weight from a bug's size; the boss counts extra.
@@ -57,6 +61,9 @@ static func resolve_packed(pos: PackedVector2Array, radius: PackedFloat32Array, 
 	var ride := PackedFloat32Array()
 	ride.resize(n)
 	ride.fill(0.0)
+	var blocked := PackedByteArray() # hive amber: pushed back off a statue
+	blocked.resize(n)
+	blocked.fill(0)
 	# Bucket the discs into CELL-sized cells (a native sort on cell key, so no
 	# per-disc containers), then visit each pair of neighbouring cells once
 	# (half the 3x3 stencil), so every close pair is checked exactly once:
@@ -92,7 +99,7 @@ static func resolve_packed(pos: PackedVector2Array, radius: PackedFloat32Array, 
 				var j := idx[b_i]
 				var r := ri + radius[j]
 				if pi.distance_squared_to(pos[j]) < r * r:
-					_pair_packed(mini(i, j), maxi(i, j), pos, radius, wt, out, crouch, ride)
+					_pair_packed(mini(i, j), maxi(i, j), pos, radius, wt, out, crouch, ride, blocked)
 		for off: int in _HALF_STENCIL_KEYS:
 			var other: Variant = runs.get(cell + off)
 			if other == null:
@@ -107,8 +114,8 @@ static func resolve_packed(pos: PackedVector2Array, radius: PackedFloat32Array, 
 					var j := idx[b_i]
 					var r := ri + radius[j]
 					if pi.distance_squared_to(pos[j]) < r * r:
-						_pair_packed(mini(i, j), maxi(i, j), pos, radius, wt, out, crouch, ride)
-	return {"push": out, "crouch": crouch, "ride": ride}
+						_pair_packed(mini(i, j), maxi(i, j), pos, radius, wt, out, crouch, ride, blocked)
+	return {"push": out, "crouch": crouch, "ride": ride, "blocked": blocked}
 
 
 ## The neighbouring cells visited from each cell (the other four are visited from them).
@@ -125,7 +132,7 @@ static func _cell_key(p: Vector2) -> int:
 
 ## _pair() on packed arrays (they're passed by reference, so results land in the caller's).
 static func _pair_packed(i: int, j: int, pos: PackedVector2Array, radius: PackedFloat32Array, wt: PackedFloat32Array,
-		out: PackedVector2Array, crouch: PackedFloat32Array, ride: PackedFloat32Array) -> void:
+		out: PackedVector2Array, crouch: PackedFloat32Array, ride: PackedFloat32Array, blocked: PackedByteArray = PackedByteArray()) -> void:
 	var d := pos[j] - pos[i]
 	var min_d := radius[i] + radius[j]
 	var dist2 := d.length_squared()
@@ -136,6 +143,13 @@ static func _pair_packed(i: int, j: int, pos: PackedVector2Array, radius: Packed
 	var overlap := (min_d - dist) * STIFFNESS
 	var big := i if wt[i] >= wt[j] else j
 	var small := j if big == i else i
+	if wt[big] >= STATUE_WEIGHT:
+		# A statue: the other bug is put right back outside it (two statues stay put).
+		if wt[small] < STATUE_WEIGHT:
+			out[small] += (n if small == j else -n) * (min_d - dist)
+			if blocked.size() > small:
+				blocked[small] = 1
+		return
 	if wt[big] >= wt[small] * OVER_RATIO:
 		# Over the top: the small one ducks and edges aside, the big one rides up.
 		var depth := clampf(1.0 - dist / min_d, 0.0, 1.0)

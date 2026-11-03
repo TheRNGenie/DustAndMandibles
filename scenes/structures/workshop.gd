@@ -88,7 +88,7 @@ func menu_tagline() -> String:
 
 
 func menu_tabs() -> Array:
-	return ["Craft", "Parts"]
+	return ["Craft", "Parts", "Amber"]
 
 
 func _cliff() -> int:
@@ -98,6 +98,8 @@ func _cliff() -> int:
 func menu_items(tab: int) -> Array:
 	var cid := _cliff()
 	var out: Array = []
+	if tab == 2:
+		return _amber_items(cid)
 	if tab == 1:
 		for key: StringName in CraftTable.part_keys():
 			var n := Economy.amount(cid, key)
@@ -122,8 +124,39 @@ func menu_items(tab: int) -> Array:
 	return out
 
 
+## Hive amber turrets (AmberRules): blueprint, recipe, and the one-each rule.
+func _amber_items(cid: int) -> Array:
+	var out: Array = []
+	for id: StringName in AmberRules.IDS:
+		var d := Defs.turret(id)
+		var recipe := AmberRules.recipe(id)
+		var need: PackedStringArray = []
+		for k: StringName in recipe:
+			if k == AmberRules.ITEM:
+				continue
+			var have := Economy.amount(cid, k)
+			need.append("%s%s" % [CraftTable.part_name(k), "" if have > 0 else " (missing)"])
+		var why := Amber.craft_block(id)
+		if why == "" and not Economy.can_afford(cid, recipe):
+			why = "You need %d hive amber and: %s." % [AmberRules.amber_cost(id), ", ".join(need)]
+		var icon: Variant = IconStudio.turret(MenuScreen.instance, id, Palette.team_color(cid)) if MenuScreen.instance != null else &"amber"
+		out.append({"id": String(id), "name": d.display_name, "icon": icon,
+				"desc": "%s
+%s
+Parts: %s" % [d.stat_line(), d.role, ", ".join(need)],
+				"price": UiStyle.cost(AmberRules.amber_cost(id), "amber"), "price_ok": Economy.amount(cid, AmberRules.ITEM) >= AmberRules.amber_cost(id),
+				"disabled": why, "buttons": [[&"craft", "Craft"]]})
+	return out
+
+
 func menu_press(id: Variant, _action: StringName) -> void:
 	var design := StringName(str(id))
+	if AmberRules.is_amber(design):
+		if multiplayer.is_server():
+			_craft(multiplayer.get_unique_id(), design)
+		else:
+			_request_craft.rpc_id(1, String(design))
+		return
 	if not CraftTable.is_craft(design):
 		return
 	if multiplayer.is_server():
@@ -140,12 +173,25 @@ func _request_craft(design: String) -> void:
 
 ## Host: use up the three parts, add one crafted turret item.
 func _craft(peer_id: int, design: StringName) -> void:
-	if home == null or CraftTable.parse(design).is_empty():
+	if home == null or (CraftTable.parse(design).is_empty() and not AmberRules.is_amber(design)):
 		return
 	if not GameState.is_solo() and NetworkManager.cliff_of(peer_id) != home.cliff_id:
 		Economy.notify(peer_id, "That's your partner's workshop. Use your own.")
 		return
 	var cid := Economy.payer_cliff(peer_id, home.cliff_id)
+	if AmberRules.is_amber(design):
+		# Hive amber turrets: blueprint known, none fielded by the team, amber and parts.
+		var why := Amber.craft_block(design)
+		if why != "":
+			Economy.notify(peer_id, why)
+			return
+		if not Economy.spend(cid, AmberRules.recipe(design)):
+			Economy.notify(peer_id, "You need %d hive amber and the parts for the %s." % [AmberRules.amber_cost(design), AmberRules.name_of(design)])
+			return
+		Economy.earn(cid, {design: 1})
+		Economy.notify(peer_id, "The %s is ready. Place it from the Crafted tab (B): the team fields only one." % AmberRules.name_of(design))
+		_crafted_fx.rpc()
+		return
 	if not Economy.spend(cid, CraftTable.recipe(design)):
 		Economy.notify(peer_id, "You're missing a part for that.")
 		return

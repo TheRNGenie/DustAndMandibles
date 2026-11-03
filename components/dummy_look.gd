@@ -13,12 +13,12 @@ const SLOTS: Dictionary = {
 	"outfit": ["Outfit", [["vest", "Leather vest"], ["none", "Just the dummy"], ["duster", "Duster coat"], ["poncho", "Poncho"], ["lawman", "Lawman"]]],
 	"neck": ["Neck", [["bandana", "Bandana"], ["mask", "Bandana mask"], ["bolo", "Bolo tie"], ["none", "Nothing"]]],
 	"extra": ["Extras", [["spurs", "Boots and spurs"], ["none", "Dummy feet"], ["bandolier", "Bandolier"], ["both", "Boots, spurs and bandolier"]]],
-	"paint": ["Paint", [["yellow", "Test-lab yellow"], ["orange", "Safety orange"], ["white", "Lab white"]]],
+	"paint": ["Paint", [["yellow", "Test-lab yellow"], ["orange", "Safety orange"], ["white", "Lab white"], ["amber", "Amber lacquer"]]],
 }
 
 const HAIR_COLORS: Dictionary = {"brown": Color("#5A3A22"), "black": Color("#24201E"), "blonde": Color("#E2C26A"),
 	"ginger": Color("#C2602A"), "grey": Color("#A8A4A0")}
-const PAINTS: Dictionary = {"yellow": Color("#F2C230"), "orange": Color("#F08A24"), "white": Color("#E8E4DA")}
+const PAINTS: Dictionary = {"yellow": Color("#F2C230"), "orange": Color("#F08A24"), "white": Color("#E8E4DA"), "amber": Color("#E8901A")}
 
 
 static func default_look() -> Dictionary:

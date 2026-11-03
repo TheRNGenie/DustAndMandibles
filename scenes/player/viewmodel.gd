@@ -224,6 +224,26 @@ func set_glass(variant: int) -> void:
 
 var _glass: Node3D
 var _glass_variant := 0
+var _finish := false
+static var _finish_mat: StandardMaterial3D
+
+
+## Hive amber: Lucky Moreau's finish: a warm gold-and-amber sheen over the gun.
+func set_finish(on: bool) -> void:
+	if on == _finish:
+		return
+	_finish = on
+	if _finish_mat == null:
+		_finish_mat = StandardMaterial3D.new()
+		_finish_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_finish_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_finish_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_finish_mat.albedo_color = Color(AmberRules.COLOR, 0.32)
+	for c in find_children("*", "MeshInstance3D", true, false):
+		var mi := c as MeshInstance3D
+		if mi == _right_mi or mi == _left_mi or mi == _round:
+			continue
+		mi.material_overlay = _finish_mat if on else null
 
 
 func set_look(look: Dictionary) -> void:

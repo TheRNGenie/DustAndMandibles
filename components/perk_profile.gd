@@ -125,6 +125,8 @@ func validate() -> void:
 func owns_cosmetic(slot: String, option: String) -> bool:
 	if SecretCodes.is_secret_look(slot, option): # Theme: secret looks are owned only once their code is entered
 		return cosmetics.has(PerkTable.cosmetic_key(slot, option))
+	if PerkTable.LUCKY_LOOKS.has(PerkTable.cosmetic_key(slot, option)): # Hive amber: bought from Lucky Moreau only
+		return cosmetics.has(PerkTable.cosmetic_key(slot, option))
 	return PerkTable.cosmetic_price(slot, option) <= 0 or cosmetics.has(PerkTable.cosmetic_key(slot, option))
 
 

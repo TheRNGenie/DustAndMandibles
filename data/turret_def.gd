@@ -101,6 +101,10 @@ const HEAVY_HP := 100.0
 const SPECIAL_CHAIN := &"chain"
 const SPECIAL_PIERCE := &"pierce"
 const SPECIAL_SPIKE := &"spike"
+## Hive amber turrets (AmberTurret, AmberRules).
+const SPECIAL_KILN := &"kiln"
+const SPECIAL_BELL := &"bell"
+const SPECIAL_LANCE := &"lance"
 ## Tech tier names, for the build menu's tag chips.
 const ERA_NAMES: Array[String] = ["Early", "Mid", "Late"]
 ## The wave each tech tier unlocks at (Early from the start). The one place to change it.
@@ -180,14 +184,23 @@ func stat_line(upgrade: int = 0) -> String:
 	var dmg := damage_at(upgrade)
 	var parts: PackedStringArray = ["Damage %s" % _num(dmg)]
 	var every := interval_at(upgrade)
-	parts.append(("%s Shots/s" % _num(1.0 / every)) if every < 1.0 else ("1 Shot / %s s" % _num(every)))
+	if special == SPECIAL_LANCE: # Hive amber: one continuous beam
+		parts[0] = "Beam %s Damage/s" % _num(dmg)
+	elif special == SPECIAL_BELL:
+		parts.append("Tolls Every %s s" % _num(every))
+	else:
+		parts.append(("%s Shots/s" % _num(1.0 / every)) if every < 1.0 else ("1 Shot / %s s" % _num(every)))
 	parts.append("Range %d m" % int(roundf(range_at(upgrade))))
+	match special:
+		SPECIAL_KILN: parts.append("Entombs Bugs Below Half HP")
+		SPECIAL_BELL: parts.append("Bugs Turn on Each Other %s s, Fliers Drop" % _num(effect_size))
+		SPECIAL_LANCE: parts.append("Pierces Everything, Burning Trail, Overheats in 8 s")
 	match special:
 		&"steam": parts.append("Steam Cone: Knocks %d Off, Slows the Rest" % special_count)
 		&"flood": parts.append("Floods a %s m Lane" % _num(effect_size))
 		&"twin": parts.append("Fire + Blast %s m" % _num(effect_size))
 		&"bola": parts.append("Tangles %d Bugs %s s" % [special_count, _num(effect_size)])
-	match effect if not special in [&"steam", &"flood", &"twin", &"bola"] else -1:
+	match effect if not special in [&"steam", &"flood", &"twin", &"bola", SPECIAL_BELL, SPECIAL_LANCE] else -1:
 		Effect.KNOCKBACK: parts.append("Knocks Bugs Off")
 		Effect.BURN: parts.append("Burning Patch %s m" % _num(effect_size))
 		Effect.SPLASH: parts.append("Splash %s m" % _num(effect_size))

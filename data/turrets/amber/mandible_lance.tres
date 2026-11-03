@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+; Hive amber turret (AmberRules / AmberTurret): crafted, one per team.
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+tier = 2
+id = &"mandible_lance"
+display_name = "Mandible Lance"
+description = "A heat lance on a rail carriage, its emitter cut from a queen's mandible and fed burning amber. One continuous beam reaches the whole of the partner's wall, cuts through everything in its path and leaves a burning trail where it drags."
+role = "continuous beam pierces everything and leaves a burning trail"
+weakness = "overheats after 8 s of fire, then vents for 10 s"
+cost_scrap = 0
+max_hp = 380.0
+range = 150.0
+fire_interval = 0.1
+damage = 120.0
+armor_pierce = true
+heavy_mult = 1.0
+pitch_limit_deg = 30.0
+turn_speed = 150.0
+spread_deg = 0.0
+hit_chance = 1.0
+effect = 0
+flight_time = 0.0
+effect_size = 1.8
+ammo_cost = {}
+sound = &"water_blast"
+special = &"lance"

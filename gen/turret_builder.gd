@@ -11,6 +11,8 @@ extends RefCounted
 static func build(id: StringName, team: Color) -> Dictionary:
 	if CraftTable.is_craft(id): # Crafted: modular mount + barrel + load (gen/craft_builder.gd)
 		return CraftBuilder.build(id, team)
+	if AmberBuilder.has(id): # Hive amber turrets (gen/amber_builder.gd)
+		return AmberBuilder.build(id, team)
 	if CrewedBuilder.has(id): # Crewed: the 2 x 2 crewed guns (gen/crewed_builder.gd)
 		return CrewedBuilder.build(id, team)
 	if TierBuilder.has(id): # Tiers: the Mid and Late turrets (gen/tier_builder.gd)

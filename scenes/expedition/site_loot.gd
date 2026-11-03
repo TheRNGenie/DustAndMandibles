@@ -38,7 +38,15 @@ func setup(index: int, l: SitePlan.Loot, seed_value: int) -> void:
 	_mi.scale = Vector3.ONE * (1.6 if l.look == &"egg" else 1.3)
 	add_child(_mi)
 	# Small things bob and turn so they read as something to pick up.
-	_spin = l.look in [&"page", &"specimen", &"blueprint"]
+	_spin = l.look in [&"page", &"specimen", &"blueprint", &"amber"]
+	if l.look == &"amber":
+		# Hive amber glows: a small warm light so it shows up across the floor.
+		var glow := OmniLight3D.new()
+		glow.light_color = AmberRules.GLOW
+		glow.light_energy = 1.2
+		glow.omni_range = 2.6
+		glow.position.y = 0.4
+		add_child(glow)
 	set_process(_spin)
 
 

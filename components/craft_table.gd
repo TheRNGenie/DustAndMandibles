@@ -92,6 +92,12 @@ static func is_craft(id: StringName) -> bool:
 	return String(id).begins_with(PREFIX)
 
 
+## A turret placed by using up an item from the stockpile (no scrap): the
+## mount/barrel/load designs and the hive amber turrets (AmberRules).
+static func is_item_turret(id: StringName) -> bool:
+	return is_craft(id) or AmberRules.is_amber(id)
+
+
 static func design_id(mount: StringName, barrel: StringName, load: StringName) -> StringName:
 	return StringName("%s%s_%s_%s" % [PREFIX, mount, barrel, load])
 

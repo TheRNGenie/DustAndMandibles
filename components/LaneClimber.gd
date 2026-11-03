@@ -29,6 +29,11 @@ var _last_y := 0.0
 var _clung := 0.0
 ## Climb height at which it next picks a new direction.
 var _next_turn := 0.0
+## Hive amber: seconds spent shoved back off an amber statue (then step round it).
+var _stuck := 0.0
+## Queen's Bell frenzy: the bug it's going for, and when to look again.
+var _prey: Bug
+var _prey_t := 0.0
 
 
 func _init(b: Bug) -> void:
@@ -46,6 +51,10 @@ func spit_height() -> float:
 
 func update(delta: float) -> void:
 	var d := bug.def
+	if bug.status.is_frenzied(): # Queen's Bell: turns on its neighbours instead of climbing
+		_frenzy(delta)
+		return
+	_step_round_statue(delta)
 	if d.behavior == BugDef.Behavior.SPITTER and bug.climb_y >= spit_height() and _clung < CLING_TIME:
 		_clung += delta
 		_spit(delta)
@@ -89,6 +98,60 @@ func _wander(d: BugDef) -> void:
 		var picks := [cm.cover_ahead(bug.cliff_id, target_z, bug.climb_y), cm.cover_ahead(bug.cliff_id, other, bug.climb_y)]
 		if CoverageMap.pick_weakest(picks, [randf(), randf()]) == 1:
 			target_z = other
+
+
+## Hive amber: pushed back off an Amber Kiln statue for a second, the bug heads
+## off to one side of it to climb on past (or stalls if it's boxed in).
+func _step_round_statue(delta: float) -> void:
+	if bug.statue_blocked <= 0.0:
+		_stuck = maxf(_stuck - delta, 0.0)
+		return
+	bug.statue_blocked = maxf(bug.statue_blocked - delta, 0.0)
+	_stuck += delta
+	if _stuck < 1.0:
+		return
+	_stuck = 0.0
+	var half := WorldLayout.PLATEAU_WIDTH * 0.5 - 2.0
+	var side := -1.0 if randf() < 0.5 else 1.0
+	target_z = clampf(bug.lane_z + side * randf_range(3.0, 5.0), -half, half)
+	_next_turn = bug.climb_y + randf_range(3.0, 5.0)
+
+
+## Queen's Bell frenzy: go for the nearest bug on the wall and bite it.
+func _frenzy(delta: float) -> void:
+	_prey_t -= delta
+	if _prey_t <= 0.0 or _prey == null or not is_instance_valid(_prey) or not _prey.is_alive() or _prey.is_entombed():
+		_prey_t = 0.5
+		_prey = _pick_prey()
+	if _prey == null:
+		return
+	var me := Vector2(bug.lane_z, bug.climb_y)
+	var to := Vector2(_prey.lane_z, _prey.climb_y)
+	var reach := bug.crowd_r + _prey.crowd_r + 0.7
+	if me.distance_to(to) > reach:
+		var step := maxf(bug.def.climb_speed, 1.2) * 1.4 * minf(bug.speed(), 1.5) * delta
+		var nxt := me.move_toward(to, step)
+		bug.lane_z = nxt.x
+		bug.climb_y = clampf(nxt.y, 0.0, WorldLayout.CLIFF_HEIGHT - 0.5)
+		return
+	var dps := AmberRules.frenzy_dps(bug.def.breach_dps, bug.def.size)
+	_prey.health.take_damage(dps * delta, bug.frenzy_source if bug.frenzy_source != "" else "a frenzied " + bug.def.display_name, bug.frenzy_cliff)
+	Bug._tally("bites")
+
+
+func _pick_prey() -> Bug:
+	var bm := bug.get_parent() as BugManager
+	if bm == null:
+		return null
+	var cands: Array[Bug] = []
+	var pts: Array[Vector2] = []
+	for b in bm.climbers_on(bug.cliff_id):
+		if b == bug or not b.is_alive() or b.is_entombed():
+			continue
+		cands.append(b)
+		pts.append(Vector2(b.lane_z, b.climb_y))
+	var i := AmberRules.frenzy_target(Vector2(bug.lane_z, bug.climb_y), pts)
+	return cands[i] if i >= 0 else null
 
 
 func _spit(delta: float) -> void:

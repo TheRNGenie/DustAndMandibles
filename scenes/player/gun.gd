@@ -418,6 +418,8 @@ func _process(delta: float) -> void:
 		(_models[def.id] as Node3D).visible = not is_scoped()
 	if def != null and def.id == &"dino_rifle" and _models.has(def.id):
 		(_models[def.id] as ViewModel).set_glass(DinoGlass.of(code_of(def.id))) # this gun's glass fit
+	if def != null and _models.has(def.id):
+		(_models[def.id] as ViewModel).set_finish(AmberRules.is_lucky(code_of(def.id))) # Hive amber: Lucky's finish
 	if def != null and def.id == &"telescope_rifle" and _models.has(def.id):
 		(_models[def.id] as Node3D).visible = not is_scoped()
 	var rest: Vector3 = REST_POS + (REST_OFF.get(def.id, Vector3.ZERO) if def != null else Vector3.ZERO)

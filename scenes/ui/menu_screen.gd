@@ -274,6 +274,8 @@ func _fill_money() -> void:
 		return
 	for r: StringName in [&"scrap", &"chitin"]:
 		_money.add_child(UiStyle.stock_chip(r, Economy.amount(player.cliff_id, r)))
+	if Economy.amount(player.cliff_id, AmberRules.ITEM) > 0: # Hive amber, once you have some
+		_money.add_child(UiStyle.stock_chip(AmberRules.ITEM, Economy.amount(player.cliff_id, AmberRules.ITEM)))
 
 
 func _local_player() -> Player:

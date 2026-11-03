@@ -16,6 +16,8 @@ var frozen := false # debug showcase
 var _mark_t := 0.0
 ## Bee Smoker: drowsy (slowed hard; fliers sink).
 var _drowsy_t := 0.0
+## Queen's Bell (hive amber): turned on its neighbours instead of climbing.
+var _frenzy_t := 0.0
 
 
 func _init(b: Object) -> void:
@@ -58,6 +60,21 @@ func is_drowsy() -> bool:
 	return _drowsy_t > 0.0
 
 
+## Queen's Bell: attacks the bugs near it instead of climbing for `seconds`.
+func frenzy(seconds: float) -> void:
+	_frenzy_t = maxf(_frenzy_t, seconds)
+
+
+func is_frenzied() -> bool:
+	return _frenzy_t > 0.0
+
+
+## Hive amber: sealed in an Amber Kiln statue (no burning through the resin).
+func _encased() -> bool:
+	var e: Variant = (bug as Object).get("entombed") if bug is Object else null
+	return e != null and float(e) > 0.0
+
+
 func is_rooted() -> bool:
 	return _root_t > 0.0 or frozen
 
@@ -73,7 +90,8 @@ func tick(delta: float) -> void:
 	_root_t = maxf(_root_t - delta, 0.0)
 	_mark_t = maxf(_mark_t - delta, 0.0)
 	_drowsy_t = maxf(_drowsy_t - delta, 0.0)
-	if _burn_t > 0.0:
+	_frenzy_t = maxf(_frenzy_t - delta, 0.0)
+	if _burn_t > 0.0 and not _encased():
 		_burn_t -= delta
 		bug.health.take_damage(_burn_dps * delta, _burn_source, _burn_cliff)
 		if _burn_t <= 0.0:

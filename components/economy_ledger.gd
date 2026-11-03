@@ -10,7 +10,7 @@ extends RefCounted
 ## amount / spend / earn on a cliff read and write the right pile.
 
 const RESOURCES: Array[StringName] = [&"scrap", &"chitin", &"water", &"corn", &"prickly_pear", &"chili", &"herbs",
-	&"seed_corn", &"seed_prickly_pear", &"seed_chili", &"seed_herbs", &"upgrade_token", &"sarsaparilla", &"seed_sarsaparilla"]
+	&"seed_corn", &"seed_prickly_pear", &"seed_chili", &"seed_herbs", &"upgrade_token", &"sarsaparilla", &"seed_sarsaparilla", &"amber"]
 
 ## The team pot's key in `stock`.
 const TEAM := -1

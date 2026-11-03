@@ -215,6 +215,13 @@ func _add_market() -> void:
 	shop.position = Vector3(4.2, 0, 9.5)
 	shop.rotation.y = PI * 0.5
 	add_child(shop)
+	# Hive amber: Lucky Moreau's booth by the starboard rail, between the casino and
+	# the market (it shows itself once he's aboard: Amber.lucky_open).
+	var lucky := LuckyStall.new()
+	lucky.name = "Lucky"
+	lucky.position = Vector3(6.55, 0, 4.4)
+	lucky.rotation.y = PI * 0.5
+	add_child(lucky)
 	# Painted wooden signboards hung from the canopy on ropes, facing the boarding ring.
 	for sx: float in [-1.0, 1.0]:
 		_signboard(Vector3(sx * 4.2, AirshipBuilder.ROOF_Y - 0.95, 9.5),
