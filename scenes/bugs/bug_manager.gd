@@ -155,6 +155,7 @@ func _spawn_bug(data: Variant) -> Node:
 
 
 func _forget(id: int, bug: Bug) -> void:
+	_climbers_tick = -1 # never hand out a freed bug
 	if _by_id.get(id) == bug:
 		_by_id.erase(id)
 
@@ -171,14 +172,33 @@ func alive_count() -> int:
 	return n
 
 
-## Living bugs climbing a given cliff (for turret targeting).
+## Living bugs climbing a given cliff (for turret targeting). Sorted out once
+## per tick for every cliff and shared (read-only!): a bug may have died or
+## crested since, so callers still check each one.
 func climbers_on(cliff: int) -> Array[Bug]:
-	var out: Array[Bug] = []
-	for c in get_children():
-		var b := c as Bug
-		if b != null and b.is_alive() and b.is_climbing() and b.cliff_id == cliff:
-			out.append(b)
-	return out
+	var pf := Engine.get_physics_frames()
+	var f := Engine.get_process_frames()
+	if pf != _climbers_tick or f != _climbers_frame:
+		_climbers_tick = pf
+		_climbers_frame = f
+		_climbers.clear()
+		for c in get_children():
+			var b := c as Bug
+			if b != null and b.state == Bug.State.CLIMBING and b.is_alive():
+				var list: Variant = _climbers.get(b.cliff_id)
+				if list == null:
+					var fresh: Array[Bug] = [b]
+					_climbers[b.cliff_id] = fresh
+				else:
+					(list as Array[Bug]).append(b)
+	var got: Variant = _climbers.get(cliff)
+	return got if got != null else _NO_BUGS
+
+
+var _climbers: Dictionary = {} # cliff -> Array[Bug], this tick's climbers_on()
+var _climbers_tick := -1
+var _climbers_frame := -1
+const _NO_BUGS: Array[Bug] = []
 
 
 func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
@@ -262,6 +282,8 @@ func _on_brood_burst(mother: Bug) -> void:
 ## Damages every climbing bug on `cliff` within `radius` of `center` (falloff to 40% at the edge).
 func splash(cliff: int, center: Vector3, radius: float, damage: float, source: String, source_cliff: int) -> void:
 	for b in climbers_on(cliff):
+		if b.cliff_id != cliff or not b.is_climbing():
+			continue
 		var d := b.global_position.distance_to(center)
 		if d <= radius:
 			b.receive_hit(damage * lerpf(1.0, 0.4, d / radius), center, (b.global_position - center).normalized(), true, 1.0, source, source_cliff)
@@ -288,26 +310,38 @@ static var _avg_us := 60.0
 
 static func note_update(us: int) -> void:
 	_avg_us = lerpf(_avg_us, float(us), 0.01)
+	if CpuProf.on:
+		CpuProf.add(&"bugs", us)
 
 
 func _physics_process(delta: float) -> void:
-	_hand_out_turns()
+	Bug.host = multiplayer.is_server()
+	var t0 := Time.get_ticks_usec()
+	_hand_out_turns(delta)
+	if CpuProf.on:
+		CpuProf.add(&"bm_turns", Time.get_ticks_usec() - t0)
 	if not multiplayer.is_server():
 		return
 	_sync_t += delta
 	if _sync_t >= SYNC_INTERVAL:
 		_sync_t = 0.0
+		t0 = Time.get_ticks_usec()
 		send_states()
+		if CpuProf.on:
+			CpuProf.add(&"bm_sync", Time.get_ticks_usec() - t0)
 	# Every other tick is plenty for keeping bugs apart.
 	_sep_tick = not _sep_tick
 	if _sep_tick:
+		t0 = Time.get_ticks_usec()
 		separate()
+		if CpuProf.on:
+			CpuProf.add(&"bm_separate", Time.get_ticks_usec() - t0)
 	if _fires.is_empty():
 		return
 	for f in _fires:
 		f["left"] = float(f["left"]) - delta
 		for b in climbers_on(int(f["cliff"])):
-			if b.global_position.distance_to(f["center"]) <= float(f["radius"]):
+			if b.is_climbing() and b.cliff_id == int(f["cliff"]) and b.global_position.distance_to(f["center"]) <= float(f["radius"]):
 				b.status.burn(float(f["dps"]), 1.5, str(f["source"]), int(f["source_cliff"]))
 	_fires = _fires.filter(func(f: Dictionary) -> bool: return float(f["left"]) > 0.0)
 
@@ -363,6 +397,9 @@ static var FULL_DETAIL_BUDGET := 40
 static var FACE_RANGE := 17.0
 const FACES_PER_PASS := 8
 static var FAR_BUDGET := 100
+## Least time between turns (s) for a bug on screen / off screen (GraphicsQuality Hz).
+static var TURN_GAP_ON := 1.0 / 30.0
+static var TURN_GAP_OFF := 1.0 / 6.0
 
 
 ## Bug Detail setting: 0 Low, 1 Medium, 2 High (GraphicsQuality).
@@ -371,6 +408,8 @@ static func set_detail_level(lvl: int) -> void:
 	FAR_BUDGET = GraphicsQuality.BUG_FAR_BUDGET[lvl]
 	TURN_BUDGET_US = GraphicsQuality.BUG_TURN_BUDGET_US[lvl]
 	FACE_RANGE = GraphicsQuality.BUG_FACE_RANGE[lvl]
+	TURN_GAP_ON = 1.0 / GraphicsQuality.BUG_ON_SCREEN_HZ[lvl]
+	TURN_GAP_OFF = 1.0 / GraphicsQuality.BUG_OFF_SCREEN_HZ[lvl]
 var _detail_t := 0.0
 var _sep_tick := false
 
@@ -380,21 +419,28 @@ func _process(delta: float) -> void:
 	if _detail_t > 0.0:
 		return
 	_detail_t = 0.25
+	var t0 := Time.get_ticks_usec()
 	assign_detail()
+	if CpuProf.on:
+		CpuProf.add(&"p:bm_detail", Time.get_ticks_usec() - t0)
 
 
-func _hand_out_turns() -> void:
+func _hand_out_turns(delta: float) -> void:
 	var n := get_child_count()
 	if n == 0:
 		return
 	var given := 0
 	var looked := 0
 	var turns := clampi(int(TURN_BUDGET_US / maxf(_avg_us, 5.0)), 20, 400)
+	# A bug that had a turn very recently waits (its brain catches up on the
+	# time when it next runs), so a small wave doesn't update every bug every tick.
+	var gap_on := TURN_GAP_ON - delta - 0.0001
+	var gap_off := TURN_GAP_OFF - delta - 0.0001
 	while given < turns and looked < n:
 		_turn = (_turn + 1) % n
 		looked += 1
 		var b := get_child(_turn) as Bug
-		if b != null and b.detail != 0:
+		if b != null and b.detail != 0 and not b.due and b._tick_acc >= (gap_off if b.detail == 2 else gap_on):
 			b.due = true
 			given += 1
 
@@ -440,56 +486,67 @@ func assign_detail() -> void:
 
 
 func separate() -> void:
-	var groups: Dictionary = {} # surface key -> Array[Bug]
-	for c in get_children():
-		var lone := c as Bug
-		if lone != null:
-			lone.crouch = move_toward(lone.crouch, 0.0, 0.1)
-			lone.ride = move_toward(lone.ride, 0.0, 0.05)
+	# One pass: every bug eases out of last pass's duck/ride, and the ones on a
+	# surface are grouped by it; then each group is resolved on packed arrays.
+	var groups: Dictionary = {} # surface key -> Array of bugs
 	for c in get_children():
 		var b := c as Bug
-		if b == null or not b.is_alive() or b.is_hidden():
+		if b == null:
+			continue
+		b.crouch = move_toward(b.crouch, 0.0, 0.1)
+		b.ride = move_toward(b.ride, 0.0, 0.05)
+		var st := b.state
+		if st == Bug.State.DEAD or st == Bug.State.BURROWED or b.health.dead:
 			continue
 		var key := -1
-		match b.state:
-			Bug.State.CLIMBING:
-				key = b.cliff_id
-			Bug.State.CROSSING:
-				key = 20
-			Bug.State.BREACHING, Bug.State.FLYING:
-				key = 10 + b.cliff_id
-			_:
-				continue
-		if not groups.has(key):
-			groups[key] = []
-		(groups[key] as Array).append(b)
+		if st == Bug.State.CLIMBING:
+			key = b.cliff_id
+		elif st == Bug.State.CROSSING:
+			key = 20
+		elif st == Bug.State.BREACHING or st == Bug.State.FLYING:
+			key = 10 + b.cliff_id
+		else:
+			continue
+		var g: Variant = groups.get(key)
+		if g == null:
+			groups[key] = [b]
+		else:
+			(g as Array).append(b)
+	var lo_z := -WorldLayout.PLATEAU_WIDTH * 0.5 + 1.0
+	var hi_z := WorldLayout.PLATEAU_WIDTH * 0.5 - 1.0
 	for key: int in groups:
 		var bugs: Array = groups[key]
-		if bugs.size() < 2:
+		var n := bugs.size()
+		if n < 2:
 			continue
-		var pos: Array[Vector2] = []
-		var rad: Array[float] = []
-		var wt: Array[float] = []
-		for b: Bug in bugs:
-			pos.append(Vector2(b.lane_z, b.climb_y) if key < 10 else Vector2(b.ground_pos.x, b.ground_pos.z))
-			rad.append(b.crowd_r)
-			wt.append(b.crowd_w)
-		var res := BugCrowd.resolve(pos, rad, wt)
-		var push: Array[Vector2] = res["push"]
-		for i in bugs.size():
+		var pos := PackedVector2Array()
+		pos.resize(n)
+		var rad := PackedFloat32Array()
+		rad.resize(n)
+		var wt := PackedFloat32Array()
+		wt.resize(n)
+		for i in n:
 			var b: Bug = bugs[i]
-			b.crouch = move_toward(b.crouch, float(res["crouch"][i]), 0.25)
-			b.ride = move_toward(b.ride, float(res["ride"][i]), 0.08)
-		for i in bugs.size():
-			if push[i] == Vector2.ZERO:
+			pos[i] = Vector2(b.lane_z, b.climb_y) if key < 10 else Vector2(b.ground_pos.x, b.ground_pos.z)
+			rad[i] = b.crowd_r
+			wt[i] = b.crowd_w
+		var res := BugCrowd.resolve_packed(pos, rad, wt)
+		var push: PackedVector2Array = res["push"]
+		var crouch: PackedFloat32Array = res["crouch"]
+		var ride: PackedFloat32Array = res["ride"]
+		for i in n:
+			var b: Bug = bugs[i]
+			b.crouch = move_toward(b.crouch, crouch[i], 0.25)
+			b.ride = move_toward(b.ride, ride[i], 0.08)
+			var d := push[i]
+			if d == Vector2.ZERO:
 				continue
-			var b: Bug = bugs[i]
 			if key < 10:
-				b.lane_z = clampf(b.lane_z + push[i].x, -WorldLayout.PLATEAU_WIDTH * 0.5 + 1.0, WorldLayout.PLATEAU_WIDTH * 0.5 - 1.0)
+				b.lane_z = clampf(b.lane_z + d.x, lo_z, hi_z)
 				# Shoved down or up the face, but never back below the bottom or over the lip.
-				b.climb_y = clampf(b.climb_y + push[i].y, 0.0, WorldLayout.CLIFF_HEIGHT - 0.05)
+				b.climb_y = clampf(b.climb_y + d.y, 0.0, WorldLayout.CLIFF_HEIGHT - 0.05)
 			else:
-				b.ground_pos += Vector3(push[i].x, 0.0, push[i].y)
+				b.ground_pos += Vector3(d.x, 0.0, d.y)
 
 
 # ------------------------------------------------------------------ loot
@@ -589,8 +646,8 @@ func send_states() -> void:
 		var b := c as Bug
 		if b == null or b.net_id == 0:
 			continue
-		buf.append_array(BugSync.pack_state(b.net_id, b.state, b.cliff_id, b.crouch, b.ride, b.health.hp,
-				b.climb_y, b.lane_z, b.crest_t, b.ground_pos))
+		BugSync.pack_into(buf, b.net_id, b.state, b.cliff_id, b.crouch, b.ride, b.health.hp,
+				b.climb_y, b.lane_z, b.crest_t, b.ground_pos)
 		count += 1
 		if count >= SYNC_PER_PACKET:
 			_bug_states.rpc(buf)
@@ -603,27 +660,47 @@ func send_states() -> void:
 ## Clients: apply a batch of bug states from the host (Bug smooths toward them).
 @rpc("authority", "call_remote", "unreliable")
 func _bug_states(buf: PackedByteArray) -> void:
-	var states := BugSync.unpack_states(buf)
+	var t0 := Time.get_ticks_usec()
+	var n := _apply_states(buf)
+	if CpuProf.on:
+		CpuProf.add(&"p:bm_sync_in", Time.get_ticks_usec() - t0)
 	if GameState.has_flag("--netlog"):
 		_net_packets += 1
-		_net_bugs += states.size()
+		_net_bugs += n
 		if Time.get_ticks_msec() - _net_log_t > 5000:
 			_net_log_t = Time.get_ticks_msec()
 			print("[net] bug sync: %d packets, %d bug states, %d bugs known here" % [_net_packets, _net_bugs, _by_id.size()])
-	for d: Dictionary in states:
-		var b := _by_id.get(int(d["id"])) as Bug
+
+
+## Clients: BugSync.unpack_states() written straight onto the bugs, without
+## a Dictionary per bug. Returns how many states the packet held.
+func _apply_states(buf: PackedByteArray) -> int:
+	var n := 0
+	var o := 0
+	var size := buf.size()
+	while o + 13 <= size:
+		var st := buf.decode_u8(o + 4)
+		var face := st == 0 or st == 1 or st == 3
+		if o + (19 if face else 25) > size:
+			break
+		n += 1
+		var b := _by_id.get(buf.decode_u32(o)) as Bug
 		if b == null or not is_instance_valid(b):
+			o += 19 if face else 25
 			continue
-		b.state = int(d["state"])
-		b.cliff_id = int(d["cliff"])
-		b.crouch = float(d["crouch"])
-		b.ride = float(d["ride"])
-		if d.has("climb_y"):
-			b.climb_y = float(d["climb_y"])
-			b.lane_z = float(d["lane_z"])
-			b.crest_t = float(d["crest_t"])
+		b.state = st
+		b.cliff_id = buf.decode_u8(o + 5)
+		b.crouch = float(buf.decode_u8(o + 6)) / 255.0
+		b.ride = buf.decode_half(o + 7)
+		var hp := buf.decode_float(o + 9)
+		if face:
+			b.climb_y = buf.decode_half(o + 13)
+			b.lane_z = buf.decode_half(o + 15)
+			b.crest_t = float(buf.decode_u16(o + 17)) / 65535.0
+			o += 19
 		else:
-			b.ground_pos = d["ground_pos"]
-		var hp := float(d["hp"])
+			b.ground_pos = Vector3(buf.decode_float(o + 13), buf.decode_float(o + 17), buf.decode_float(o + 21))
+			o += 25
 		if not is_equal_approx(b.health.hp, hp):
 			b.health.hp = hp
+	return n

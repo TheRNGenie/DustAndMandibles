@@ -16,24 +16,32 @@ static func on_face(st: int) -> bool:
 
 static func pack_state(id: int, st: int, cliff: int, crouch: float, ride: float, hp: float,
 		climb_y: float, lane_z: float, crest_t: float, ground_pos: Vector3) -> PackedByteArray:
-	var face := on_face(st)
 	var out := PackedByteArray()
-	out.resize(19 if face else 25)
-	out.encode_u32(0, id)
-	out.encode_u8(4, st)
-	out.encode_u8(5, cliff)
-	out.encode_u8(6, clampi(roundi(crouch * 255.0), 0, 255))
-	out.encode_half(7, ride)
-	out.encode_float(9, hp)
-	if face:
-		out.encode_half(13, climb_y)
-		out.encode_half(15, lane_z)
-		out.encode_u16(17, clampi(roundi(crest_t * 65535.0), 0, 65535))
-	else:
-		out.encode_float(13, ground_pos.x)
-		out.encode_float(17, ground_pos.y)
-		out.encode_float(21, ground_pos.z)
+	pack_into(out, id, st, cliff, crouch, ride, hp, climb_y, lane_z, crest_t, ground_pos)
 	return out
+
+
+## pack_state() appended to `out` in place (packed arrays are passed by
+## reference), so a packet of 48 bugs is one buffer, not 48.
+static func pack_into(out: PackedByteArray, id: int, st: int, cliff: int, crouch: float, ride: float, hp: float,
+		climb_y: float, lane_z: float, crest_t: float, ground_pos: Vector3) -> void:
+	var face := st == 0 or st == 1 or st == 3 # on_face(), inline
+	var o := out.size()
+	out.resize(o + (19 if face else 25))
+	out.encode_u32(o, id)
+	out.encode_u8(o + 4, st)
+	out.encode_u8(o + 5, cliff)
+	out.encode_u8(o + 6, clampi(roundi(crouch * 255.0), 0, 255))
+	out.encode_half(o + 7, ride)
+	out.encode_float(o + 9, hp)
+	if face:
+		out.encode_half(o + 13, climb_y)
+		out.encode_half(o + 15, lane_z)
+		out.encode_u16(o + 17, clampi(roundi(crest_t * 65535.0), 0, 65535))
+	else:
+		out.encode_float(o + 13, ground_pos.x)
+		out.encode_float(o + 17, ground_pos.y)
+		out.encode_float(o + 21, ground_pos.z)
 
 
 ## Every bug state in a packet, as Dictionaries; stops at a truncated entry.
@@ -58,3 +66,4 @@ static func unpack_states(buf: PackedByteArray) -> Array[Dictionary]:
 			o += 25
 		out.append(d)
 	return out
+

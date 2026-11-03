@@ -19,6 +19,9 @@ const KillMethod := preload("res://scenes/bugs/kill_method.gd")
 const SMOOTHING := 10.0
 
 static var cliffs: CliffBuilder
+## This peer runs the bugs' brains (set each tick by BugManager: cheaper than
+## asking the multiplayer API from every bug).
+static var host := true
 ## Set by BugManager: called when a Brood Mother should drop her spiderlings.
 static var brood_burst: Callable
 
@@ -81,6 +84,10 @@ static var _wing_mat: StandardMaterial3D
 var _heading := Vector3.FORWARD
 var _last_pos := Vector3.ZERO
 var _placed := false
+## spec["clearance"] / spec["scale"] and the detail-check radius, read once (hot paths).
+var _clear := 0.0
+var _scale := 1.0
+var _lod_r := 1.0
 
 
 ## Called by the spawn function on every peer, before the bug enters the tree.
@@ -94,6 +101,9 @@ func setup(d: BugDef, cid: int, lane_index: int, start_z: float, start_y: float,
 	state = start_state
 	ground_pos = start_pos
 	spec = BugBuilder.build(d)
+	_clear = float(spec["clearance"])
+	_scale = float(spec["scale"])
+	_lod_r = float(spec["body_radius"]) + float(spec["upper"]) + float(spec["lower"])
 	health = Health.new()
 	health.name = "Health"
 	health.setup(d.max_hp * hp_mult)
@@ -208,7 +218,7 @@ func _write_body() -> void:
 		_body_b.put(_body_slot, g * _body_local)
 	if _wing_slots.is_empty():
 		return
-	var s := float(spec["scale"]) * grow
+	var s := _scale * grow
 	var face := g * (_body_local.scaled_local(Vector3.ONE / s) if s > 0.0 else Transform3D())
 	var k := 0
 	for side: float in [-1.0, 1.0]:
@@ -251,7 +261,21 @@ func is_hidden() -> bool:
 ## Current movement multiplier (status effects).
 func speed() -> float:
 	var boss_k := boss.speed_mult() if boss != null else 1.0
-	return status.speed_multiplier() * (2.0 if smoker else 1.0) * Weather.bug_speed(GameState.weather) * Weather.bug_temp_speed(GameState.temperature()) * boss_k
+	return status.speed_multiplier() * (2.0 if smoker else 1.0) * _env_speed() * boss_k
+
+
+static var _env_frame := -1
+static var _env_k := 1.0
+
+
+## Weather and temperature on bug speed: the same for every bug, so worked out
+## once per physics tick (temperature() asks the day cycle).
+static func _env_speed() -> float:
+	var f := Engine.get_physics_frames()
+	if f != _env_frame:
+		_env_frame = f
+		_env_k = Weather.bug_speed(GameState.weather) * Weather.bug_temp_speed(GameState.temperature())
+	return _env_k
 
 
 func _physics_process(delta: float) -> void:
@@ -263,7 +287,9 @@ func _physics_process(delta: float) -> void:
 		return
 	due = false
 	var t0 := Time.get_ticks_usec()
-	_pp(minf(_tick_acc, 0.25))
+	# All the time since its last update (a bug that waited longer than a
+	# quarter second thinks in quarter-second steps, so it never loses ground).
+	_pp(minf(_tick_acc, 1.0))
 	_tick_acc = 0.0
 	BugManager.note_update(Time.get_ticks_usec() - t0)
 
@@ -271,13 +297,19 @@ func _physics_process(delta: float) -> void:
 func _pp(delta: float) -> void:
 	if state == State.DEAD:
 		return
-	if multiplayer.is_server():
-		status.tick(delta)
-		_think(delta)
+	if host:
+		var left := delta
+		while true:
+			var step := minf(left, 0.25)
+			status.tick(step)
+			_think(step)
+			left -= step
+			if left <= 0.0001:
+				break
 	var target := target_transform()
 	# Riding up over a small bug, or ducked flat under a big one.
-	target.origin += target.basis.y * (ride - float(spec["clearance"]) * 0.55 * crouch)
-	if not _placed or multiplayer.is_server():
+	target.origin += target.basis.y * (ride - _clear * 0.55 * crouch)
+	if not _placed or host:
 		global_transform = target
 		_placed = true
 	else:
@@ -331,7 +363,7 @@ func detail_level() -> int:
 
 ## detail_level() with the camera position and frustum worked out once for the crowd.
 func detail_from(cam_pos: Vector3, frustum: Array[Plane]) -> int:
-	var r := float(spec["body_radius"]) + float(spec["upper"]) + float(spec["lower"])
+	var r := _lod_r
 	var p := global_position
 	var dist := cam_pos.distance_to(p)
 	cam_dist = dist
@@ -349,7 +381,7 @@ var _anim_t := randf() * 10.0
 
 func _animate_body(delta: float, spd: float) -> void:
 	_anim_t += delta
-	var s := float(spec["scale"]) * grow
+	var s := _scale * grow
 	var breathe := sin(_anim_t * 2.2) * 0.03
 	var stride := clampf(spd * 0.4, 0.0, 1.0)
 	# Ducking: squashed flat and a little wider, legs splayed (the leg rig follows the body).
@@ -442,7 +474,7 @@ func knock_off(source: String, source_cliff: int) -> void:
 
 ## Where the bug should be right now, from the replicated state.
 func target_transform() -> Transform3D:
-	var clear := float(spec["clearance"])
+	var clear := _clear
 	match state:
 		State.CLIMBING, State.DEAD:
 			return _face_transform(climb_y, clear)
@@ -506,7 +538,7 @@ func _project(point: Vector3, up: Vector3) -> Vector3:
 		return Vector3(point.x, cliffs.ground_height_fast(cliff_id, point), point.z)
 	if state == State.CROSSING:
 		return Vector3(point.x, cliffs.floor_height(point.x, point.z), point.z)
-	var base := global_position - up * float(spec["clearance"])
+	var base := global_position - up * _clear
 	return point - up * (point - base).dot(up)
 
 

@@ -39,3 +39,40 @@ func test_similar_bugs_still_shove() -> void:
 	var r := BugCrowd.resolve([Vector2(0, 0), Vector2(1, 0)] as Array[Vector2], [1.0, 0.9] as Array[float], [BugCrowd.weight(1.2), BugCrowd.weight(1.0)] as Array[float])
 	assert_true(float(r["crouch"][1]) == 0.0)
 	assert_true((r["push"][1] as Vector2).length() > 0.1)
+
+
+## The gridded resolve finds every overlapping pair exactly once: a random crowd
+## (negative coordinates, cell edges) matches checking every pair by hand.
+func test_grid_matches_every_pair() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var pos := PackedVector2Array()
+	var rad := PackedFloat32Array()
+	var wt := PackedFloat32Array()
+	for i in 300:
+		pos.append(Vector2(rng.randf_range(-30.0, 30.0), rng.randf_range(-6.0, 40.0)))
+		var size := rng.randf_range(0.4, 3.0)
+		rad.append(size * 0.6)
+		wt.append(BugCrowd.weight(size))
+	var got := BugCrowd.resolve_packed(pos, rad, wt)
+	var push := PackedVector2Array()
+	push.resize(pos.size())
+	push.fill(Vector2.ZERO)
+	var crouch := PackedFloat32Array()
+	crouch.resize(pos.size())
+	crouch.fill(0.0)
+	var ride := PackedFloat32Array()
+	ride.resize(pos.size())
+	ride.fill(0.0)
+	var pairs := 0
+	for i in pos.size():
+		for j in range(i + 1, pos.size()):
+			var r := rad[i] + rad[j]
+			if pos[i].distance_squared_to(pos[j]) < r * r:
+				pairs += 1
+				BugCrowd._pair_packed(i, j, pos, rad, wt, push, crouch, ride)
+	assert_true(pairs > 50, "crowd too sparse to test (%d pairs)" % pairs)
+	for i in pos.size():
+		assert_true((got["push"] as PackedVector2Array)[i].distance_to(push[i]) < 0.0001, "push %d differs" % i)
+		assert_almost((got["crouch"] as PackedFloat32Array)[i], crouch[i])
+		assert_almost((got["ride"] as PackedFloat32Array)[i], ride[i])

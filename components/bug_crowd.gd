@@ -34,59 +34,98 @@ static func pushes(pos: Array[Vector2], radius: Array[float], wt: Array[float]) 
 ## "crouch": 0..1 how flat each small bug should duck, "ride": how high each big
 ## bug rides up as it crosses one (in the same units as the radii)}.
 static func resolve(pos: Array[Vector2], radius: Array[float], wt: Array[float]) -> Dictionary:
+	var r := resolve_packed(PackedVector2Array(pos), PackedFloat32Array(radius), PackedFloat32Array(wt))
 	var out: Array[Vector2] = []
-	out.resize(pos.size())
-	out.fill(Vector2.ZERO)
+	out.assign(Array(r["push"]))
 	var crouch: Array[float] = []
-	crouch.resize(pos.size())
-	crouch.fill(0.0)
+	crouch.assign(Array(r["crouch"]))
 	var ride: Array[float] = []
-	ride.resize(pos.size())
+	ride.assign(Array(r["ride"]))
+	return {"push": out, "crouch": crouch, "ride": ride}
+
+
+## resolve() on packed arrays (what BugManager uses: no per-bug allocations).
+## Returns {"push": PackedVector2Array, "crouch"/"ride": PackedFloat32Array}.
+static func resolve_packed(pos: PackedVector2Array, radius: PackedFloat32Array, wt: PackedFloat32Array) -> Dictionary:
+	var n := pos.size()
+	var out := PackedVector2Array()
+	out.resize(n)
+	out.fill(Vector2.ZERO)
+	var crouch := PackedFloat32Array()
+	crouch.resize(n)
+	crouch.fill(0.0)
+	var ride := PackedFloat32Array()
+	ride.resize(n)
 	ride.fill(0.0)
-	# Bucket the discs into CELL-sized cells, then visit each pair of
-	# neighbouring cells once (half the 3x3 stencil), so every close pair is
-	# checked exactly once: hundreds of bugs stay cheap.
-	var grid: Dictionary = {}
-	for i in pos.size():
-		var key := Vector2i(floori(pos[i].x / CELL), floori(pos[i].y / CELL))
-		var cell: Variant = grid.get(key)
-		if cell == null:
-			grid[key] = [i]
-		else:
-			(cell as Array).append(i)
-	for key: Vector2i in grid:
-		var here: Array = grid[key]
-		var nh := here.size()
-		for a_i in nh:
-			var i: int = here[a_i]
+	# Bucket the discs into CELL-sized cells (a native sort on cell key, so no
+	# per-disc containers), then visit each pair of neighbouring cells once
+	# (half the 3x3 stencil), so every close pair is checked exactly once:
+	# hundreds of bugs stay cheap.
+	var keyed := PackedInt64Array()
+	keyed.resize(n)
+	for i in n:
+		var p := pos[i]
+		keyed[i] = (_cell_key(p) << 16) | i
+	keyed.sort()
+	var idx := PackedInt32Array()
+	idx.resize(n)
+	var runs: Dictionary = {} # cell key -> start * 65536 + end in idx
+	var run_keys := PackedInt64Array()
+	var k := 0
+	while k < n:
+		var cell := keyed[k] >> 16
+		var s := k
+		while k < n and (keyed[k] >> 16) == cell:
+			idx[k] = keyed[k] & 0xFFFF
+			k += 1
+		runs[cell] = s * 65536 + k
+		run_keys.append(cell)
+	for cell: int in run_keys:
+		var se: int = runs[cell]
+		var s0 := se >> 16
+		var e0 := se & 0xFFFF
+		for a_i in range(s0, e0):
+			var i := idx[a_i]
 			var pi := pos[i]
 			var ri := radius[i]
-			for b_i in range(a_i + 1, nh):
-				var j: int = here[b_i]
+			for b_i in range(a_i + 1, e0):
+				var j := idx[b_i]
 				var r := ri + radius[j]
 				if pi.distance_squared_to(pos[j]) < r * r:
-					_pair(mini(i, j), maxi(i, j), pos, radius, wt, out, crouch, ride)
-		for off: Vector2i in HALF_STENCIL:
-			var other: Variant = grid.get(key + off)
+					_pair_packed(mini(i, j), maxi(i, j), pos, radius, wt, out, crouch, ride)
+		for off: int in _HALF_STENCIL_KEYS:
+			var other: Variant = runs.get(cell + off)
 			if other == null:
 				continue
-			for i: int in here:
+			var s1: int = int(other) >> 16
+			var e1: int = int(other) & 0xFFFF
+			for a_i in range(s0, e0):
+				var i := idx[a_i]
 				var pi := pos[i]
 				var ri := radius[i]
-				for j: int in (other as Array):
+				for b_i in range(s1, e1):
+					var j := idx[b_i]
 					var r := ri + radius[j]
 					if pi.distance_squared_to(pos[j]) < r * r:
-						_pair(mini(i, j), maxi(i, j), pos, radius, wt, out, crouch, ride)
+						_pair_packed(mini(i, j), maxi(i, j), pos, radius, wt, out, crouch, ride)
 	return {"push": out, "crouch": crouch, "ride": ride}
 
 
 ## The neighbouring cells visited from each cell (the other four are visited from them).
 const HALF_STENCIL: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)]
+## HALF_STENCIL as offsets of _cell_key (x is the high part, y the low).
+const _KEY_SPAN := 1 << 20
+const _HALF_STENCIL_KEYS: Array[int] = [_KEY_SPAN, -_KEY_SPAN + 1, 1, _KEY_SPAN + 1]
 
 
-## One pair (i < j): push apart by weight, or the small one ducks under the big one.
-static func _pair(i: int, j: int, pos: Array[Vector2], radius: Array[float], wt: Array[float],
-		out: Array[Vector2], crouch: Array[float], ride: Array[float]) -> void:
+## One int per CELL-sized cell (cells within +-2^19 of the origin, i.e. any map).
+static func _cell_key(p: Vector2) -> int:
+	return (floori(p.x / CELL) + (_KEY_SPAN >> 1)) * _KEY_SPAN + (floori(p.y / CELL) + (_KEY_SPAN >> 1))
+
+
+## _pair() on packed arrays (they're passed by reference, so results land in the caller's).
+static func _pair_packed(i: int, j: int, pos: PackedVector2Array, radius: PackedFloat32Array, wt: PackedFloat32Array,
+		out: PackedVector2Array, crouch: PackedFloat32Array, ride: PackedFloat32Array) -> void:
 	var d := pos[j] - pos[i]
 	var min_d := radius[i] + radius[j]
 	var dist2 := d.length_squared()

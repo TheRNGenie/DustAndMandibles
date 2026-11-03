@@ -88,9 +88,19 @@ func setup(cid: int) -> void:
 	_refresh_visual()
 
 
+## Growth ticks this often (s) with the time since: it's slow, and a farm has dozens of plots.
+const GROW_STEP := 0.25
+var _grow_acc := 0.0
+
+
 func _process(delta: float) -> void:
 	if not multiplayer.is_server():
 		return
+	_grow_acc += delta
+	if _grow_acc < GROW_STEP:
+		return
+	delta = _grow_acc
+	_grow_acc = 0.0
 	var before := growth.stage
 	var w := GameState.weather
 	var temp_rate := Weather.crop_temp_rate(GameState.temperature())
