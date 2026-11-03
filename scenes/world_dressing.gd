@@ -18,6 +18,11 @@ func _init(cliff_builder: CliffBuilder, parent_node: Node3D, seed_value: int = 9
 
 
 func build() -> void:
+	# Canyon Expeditions: keep the floor clear wherever a raid site could go.
+	var tunnels: Array = []
+	for i in cliffs.tunnel_count():
+		tunnels.append(cliffs.tunnel(i))
+	SitePlan.reserve_zones(tunnels)
 	for cid in WorldLayout.cliff_count():
 		_build_homestead_area(cid)
 		_scatter_props(cid)
@@ -57,9 +62,11 @@ func _build_webs() -> void:
 			var fp := cliffs.face_point(fc, 0.0, rng.randf_range(-m.span_v + 4.0, m.span_v - 4.0)) + m.cliff(fc).inward * rng.randf_range(2.0, 9.0)
 			x = fp.x
 			z = fp.z
-		WebBuilder.sheet(st, rng, Vector3(x, 0.0, z), rng.randf_range(1.5, 4.0), floor_h)
+		# (Expeditions: webs in a raid site's spot go to a scrap mesh, so the rest stay put.)
+		var wst := st if not SitePlan.in_site_zone(Vector3(x, 0.0, z), 2.0) else MeshKit.begin()
+		WebBuilder.sheet(wst, rng, Vector3(x, 0.0, z), rng.randf_range(1.5, 4.0), floor_h)
 		if rng.randf() < 0.35:
-			WebBuilder.egg_sacs(st, rng, Vector3(x, cliffs.floor_height(x, z), z))
+			WebBuilder.egg_sacs(wst, rng, Vector3(x, cliffs.floor_height(x, z), z))
 	# Long strands slung across the canyon, sagging in the middle.
 	for i in (30 if canyon else 0):
 		var y := rng.randf_range(3.0, 18.0)
@@ -292,11 +299,17 @@ func _scatter_props(cid: int) -> void:
 			var x := _rng.randf_range(-18.0, 18.0)
 			var z := _rng.randf_range(-85.0, 85.0)
 			var size := _rng.randf_range(0.6, 2.4)
-			add_mesh(PropBuilder.rock(_rng.randi(), size), Vector3(x, cliffs.floor_height(x, z) - 0.2, z), _rng.randf() * TAU)
+			var rseed := _rng.randi()
+			var ryaw := _rng.randf() * TAU
+			if not SitePlan.in_site_zone(Vector3(x, 0, z), size + 1.5): # Expeditions: not in a raid site
+				add_mesh(PropBuilder.rock(rseed, size), Vector3(x, cliffs.floor_height(x, z) - 0.2, z), ryaw)
 		for i in 8:
 			var x := _rng.randf_range(-16.0, 16.0)
 			var z := _rng.randf_range(-80.0, 80.0)
-			add_mesh(PropBuilder.cactus(_rng.randi()), Vector3(x, cliffs.floor_height(x, z), z), _rng.randf() * TAU)
+			var cseed := _rng.randi()
+			var cyaw := _rng.randf() * TAU
+			if not SitePlan.in_site_zone(Vector3(x, 0, z), 2.0):
+				add_mesh(PropBuilder.cactus(cseed), Vector3(x, cliffs.floor_height(x, z), z), cyaw)
 
 
 ## Fence along the playable boundary (back and sides) plus invisible walls.
