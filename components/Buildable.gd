@@ -28,7 +28,7 @@ const WINDMILL := Vector2(20.0, -13.0)
 const WATER_TOWER := Vector2(28.0, -17.0)
 ## Waterworks: the well head beside the windmill, its electric pump, and the
 ## generator, all on the same side of the yard as the water tower.
-const WELL := Vector2(20.0, -10.4)
+const WELL := Vector2(19.7, -9.3) # clear of the windmill legs
 const PUMP := Vector2(21.8, -11.4)
 const GENERATOR := Vector2(24.2, -12.2)
 ## Where the waterworks face (their lever, tap and well open toward the yard).
