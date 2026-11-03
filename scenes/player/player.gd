@@ -420,8 +420,12 @@ func _handle_weapon() -> void:
 	gun.set_aiming(Input.is_action_pressed("alt_fire") and not _sliding)
 	gun.trigger_held = Input.is_action_pressed("fire")
 	var pull := Input.is_action_pressed("fire") if gun.def != null and gun.def.automatic else Input.is_action_just_pressed("fire")
+	# Where you were aiming when you pulled: trigger() kicks the view up with the
+	# recoil at once, which should push the NEXT shot high, not this one.
+	var aim_from := camera.global_position
+	var aim_dir := -camera.global_transform.basis.z
 	if pull and gun.trigger(camera):
-		net.fire(camera.global_position, -camera.global_transform.basis.z)
+		net.fire(aim_from, aim_dir)
 		kick_back(gun.def.kickback)
 	if Input.is_action_just_pressed("reload"):
 		gun.reload()

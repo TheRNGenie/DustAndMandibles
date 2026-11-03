@@ -60,7 +60,7 @@ func _lineup() -> void:
 	var shorts: Array[StringName] = [&"derringer_pair", &"pepperbox", &"harpoon_pistol", &"flare_gun"]
 	var dist := 3.1
 	for i in 4:
-		var y := 0.78 - i * 0.4
+		var y := 1.08 - i * 0.42
 		_place(longs[i], at + fwd * dist + right * -0.42 + Vector3.UP * y, fwd, 1.0)
 		_place(shorts[i], at + fwd * dist + right * 0.62 + Vector3.UP * y, fwd, 1.6)
 	if player != null:
@@ -107,17 +107,18 @@ func _stage(id: StringName) -> void:
 			player.global_position = cliffs.plateau_point(cid, 13.0, 0.0)
 		"harpoon_pull":
 			# A beetle too heavy to reel in: the line drags YOU to it.
-			bugs.spawn_at(&"rattler_beetle", cid, 2, 0.0, 0.0, Bug.State.BREACHING, cliffs.plateau_point(cid, 5.0, 0.0))
-			player.global_position = cliffs.plateau_point(cid, 28.0, 0.0)
+			bugs.spawn_at(&"rattler_beetle", cid, 2, 12.0, 0.0, Bug.State.BREACHING, cliffs.plateau_point(cid, 5.0, 12.0))
+			player.global_position = cliffs.plateau_point(cid, 24.0, 12.0)
+			player.grapple.test_mode = true # no captured mouse in a debug launch
 		"pepperbox", "harpoon_pistol":
 			# Point blank on your own plateau (the pepperbox's job), or a spider
 			# across the yard for the harpoon to reel in.
 			var n := 5 if id == &"pepperbox" else 1
 			for i in n:
-				var z := -1.2 + i * 0.6
-				var d := 9.0 + (i % 2) * 1.0 if id == &"pepperbox" else 4.0
+				var z := -1.2 + i * 0.6 if id == &"pepperbox" else 12.0
+				var d := 9.0 + (i % 2) * 1.0 if id == &"pepperbox" else 5.0
 				bugs.spawn_at(&"dust_mite" if id == &"pepperbox" else &"wolf_spider", cid, 2, z, 0.0, Bug.State.BREACHING, cliffs.plateau_point(cid, d, z))
-			player.global_position = cliffs.plateau_point(cid, 15.0 if id == &"pepperbox" else 22.0, 0.0)
+			player.global_position = cliffs.plateau_point(cid, 15.0 if id == &"pepperbox" else 19.0, 0.0 if id == &"pepperbox" else 12.0)
 		_:
 			# Climbers near the top of the far wall, across the canyon from you.
 			for i in 5:
@@ -154,8 +155,13 @@ func _stage(id: StringName) -> void:
 		player.gun.trigger_held = true
 		player.gun.spin = 1.0
 		player.gun.set("_cooldown", 0.0)
+		var probe := player.gun.raycast(player.camera.global_position, -player.camera.global_transform.basis.z, [player.get_rid()], 600.0)
+		if not probe.is_empty():
+			print("[gunview]   aim ray hits %s at %.1f m" % [probe["collider"], player.camera.global_position.distance_to(probe["position"])])
+		var from := player.camera.global_position
+		var dir := -player.camera.global_transform.basis.z
 		if player.gun.trigger(player.camera):
-			player.net.fire(player.camera.global_position, -player.camera.global_transform.basis.z)
+			player.net.fire(from, dir)
 			player.kick_back(player.gun.def.kickback)
 			_fired += 1
 		await get_tree().create_timer(0.1 if id != &"salt_shotgun" else 0.8).timeout
@@ -183,7 +189,7 @@ func _pick_target(id: StringName) -> Bug:
 		var bug := b as Bug
 		if bug == null or not bug.is_alive():
 			continue
-		if id == &"flare_gun" and bug.def.id != &"rattler_beetle":
+		if (id == &"flare_gun" or id == &"telescope_rifle") and bug.def.id != &"rattler_beetle":
 			continue
 		if best == null or bug.global_position.distance_to(player.global_position) < best.global_position.distance_to(player.global_position):
 			best = bug
