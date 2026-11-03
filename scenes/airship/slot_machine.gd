@@ -97,8 +97,9 @@ func _act(peer_id: int, action: StringName, _choice: int, bet: int) -> void:
 		reels = BrandTable.nudge_reels(reels, SYMBOLS.size(), func(r: Array) -> int: return CasinoRules.slot_payout(r))
 	var won := CasinoRules.slot_prize(reels, bet)
 	_pay(peer_id, won)
+	var bonus := _part_bonus(peer_id) if not won.is_empty() else ""
 	_broadcast({"kind": "reels", "peer": peer_id, "reels": [SYMBOLS[reels[0]][0], SYMBOLS[reels[1]][0], SYMBOLS[reels[2]][0]],
-			"result": ("You win %s!" % CasinoRules.prize_text(won)) if not won.is_empty() else "No luck this time."})
+			"result": (("You win %s!" % CasinoRules.prize_text(won)) + bonus) if not won.is_empty() else "No luck this time."})
 
 
 func _on_view() -> void:

@@ -286,6 +286,26 @@ func _ready() -> void:
 				print("[icon] no icon for ", id)
 		print("[icon] saved")
 		get_tree().quit()
+	elif GameState.flag_value("--crafticons") != "": # --crafticons=<png>: crafted-turret and part icons on one sheet
+		for i in 20:
+			await get_tree().process_frame
+		var keys: Array = [&"craft_post_rifle_lead", &"craft_swivel_scatter_fire", &"craft_tripod_cannon_acid",
+				&"craft_post_nozzle_explosive", &"craft_swivel_cannon_lead", &"craft_tripod_rifle_explosive"]
+		keys.append_array(CraftTable.part_keys())
+		var texs: Array = []
+		for k: StringName in keys:
+			texs.append(IconStudio.craft_part(self, k) if CraftTable.is_part(k) else IconStudio.turret(self, k, Palette.TEAM_WEST))
+		for i in 10:
+			await get_tree().process_frame
+		var sheet := Image.create(128 * 6, 128 * 3, false, Image.FORMAT_RGBA8)
+		sheet.fill(Color("#3A2A22"))
+		for i in texs.size():
+			var img := (texs[i] as Texture2D).get_image()
+			img.convert(Image.FORMAT_RGBA8)
+			sheet.blend_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), Vector2i((i % 6) * 128, floori(i / 6.0) * 128))
+		sheet.save_png(GameState.flag_value("--crafticons"))
+		print("[icon] craft sheet saved: %d icons" % texs.size())
+		get_tree().quit()
 	elif GameState.flag_value("--mapview") != "":
 		for i in 40:
 			await get_tree().process_frame
@@ -1045,6 +1065,8 @@ func _take_screenshot(path: String) -> void:
 		while not bool(world.get("_started")): # every peer loaded (else the builds never reach them)
 			await get_tree().process_frame
 		_autobuild()
+	if GameState.has_flag("--craftlineup") or GameState.flag_value("--craftlineup") != "": # Crafted turret lineup (scenes/debug/craft_views.gd)
+		add_child(load("res://scenes/debug/craft_views.gd").new())
 	if GameState.flag_value("--crewview") != "": # Crewed: crewed gun views (scenes/debug/crewed_views.gd)
 		add_child(load("res://scenes/debug/crewed_views.gd").new())
 	if (GameState.has_flag("--showcase") or GameState.flag_value("--showcase") != "") and multiplayer.is_server():

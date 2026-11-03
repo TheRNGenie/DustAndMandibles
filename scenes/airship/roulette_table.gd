@@ -80,9 +80,10 @@ func _act(peer_id: int, action: StringName, choice: int, bet: int) -> void:
 	if won > 0 and CasinoRules.ROULETTE_BETS[bi][0] == "seven":
 		prize[&"upgrade_token"] = 1
 	_pay(peer_id, prize)
+	var bonus := _part_bonus(peer_id) if won > 0 else ""
 	var colour := "green" if n == 0 else ("red" if CasinoRules.RED_NUMBERS.has(n) else "black")
 	_broadcast({"kind": "number", "peer": peer_id, "number": n, "colour": colour, "spinning": true,
-			"result": "%d %s - %s %s" % [n, colour, CasinoRules.ROULETTE_BETS[bi][1], ("wins %s" % CasinoRules.prize_text(prize)) if won > 0 else "loses"]})
+			"result": "%d %s - %s %s" % [n, colour, CasinoRules.ROULETTE_BETS[bi][1], ("wins %s" % CasinoRules.prize_text(prize)) if won > 0 else "loses"] + bonus})
 
 
 func _on_view() -> void:

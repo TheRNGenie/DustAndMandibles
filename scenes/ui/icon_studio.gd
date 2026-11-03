@@ -17,6 +17,14 @@ static func turret(host: Node, id: StringName, color: Color = Color.WHITE) -> Te
 	return _cache[key]["tex"]
 
 
+## A crafting part on its own (a mount, a barrel or a load), for the Workshop's Parts list.
+static func craft_part(host: Node, key: StringName) -> Texture2D:
+	var ck := "part:%s" % key
+	if not _cache.has(ck) or not is_instance_valid(_cache[ck]["vp"]):
+		_render(host, ck, CraftBuilder.part_meshes(key), -35.0)
+	return _cache[ck]["tex"]
+
+
 static func structure(host: Node, id: StringName) -> Texture2D:
 	var key := "structure:%s" % id
 	if not _cache.has(key) or not is_instance_valid(_cache[key]["vp"]):
