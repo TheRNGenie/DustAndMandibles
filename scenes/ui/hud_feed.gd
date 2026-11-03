@@ -174,8 +174,8 @@ func add_line(text: String, color: Color = Palette.BONE) -> void:
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	# Each line sits on its own small dark plate (no loose text over the sky).
 	var plate := StyleBoxFlat.new()
-	plate.bg_color = Color(Palette.WOOD_DARK, 0.72)
-	plate.border_color = Color(Palette.OUTLINE, 0.8)
+	plate.bg_color = Color(UiStyle.c("hud_bg"), 0.82) # Theme: the set's HUD card
+	plate.border_color = UiStyle.c("hud_rim")
 	plate.border_width_left = 3
 	plate.set_corner_radius_all(3)
 	plate.content_margin_left = 8

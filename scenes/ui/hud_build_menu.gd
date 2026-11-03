@@ -7,8 +7,10 @@ extends Control
 
 const WIDTH := 580.0
 const COLS := 3
-const TILE := Vector2(168, 150)
-const ICON_SIZE := 84
+const TILE := Vector2(168, 128)
+const ICON_SIZE := 68
+## Room kept clear under the panel for the hotbar and the resources card.
+const BOTTOM_CLEAR := 130.0
 
 var build_mode: BuildMode
 var _panel: PanelContainer
@@ -20,6 +22,7 @@ var _detail_cost: Label
 var _detail_desc: Label
 var _detail_where: Label
 var _detail_id: StringName = &""
+var _scroll: ScrollContainer
 
 
 func _ready() -> void:
@@ -34,7 +37,7 @@ func _ready() -> void:
 	# Sized to its content (three rows of tiles), clear of the resources panel.
 	_panel.offset_left = 24
 	_panel.offset_right = 24 + WIDTH
-	_panel.offset_top = 100
+	_panel.offset_top = 96
 	_panel.visible = false
 	add_child(_panel)
 	var col := VBoxContainer.new()
@@ -47,20 +50,22 @@ func _ready() -> void:
 	var title := UiStyle.title("Build", 30, true) # Theme
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
-	_scrap = KeyHints.text("", 18, Palette.BONE)
+	_scrap = KeyHints.text("", 16, Palette.BONE)
 	_scrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(_scrap)
 
 	# Category tabs.
-	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 4)
+	# Category tabs: they wrap onto a second row rather than spill past the panel.
+	var tabs := HFlowContainer.new()
+	tabs.add_theme_constant_override("h_separation", 4)
+	tabs.add_theme_constant_override("v_separation", 4)
 	col.add_child(tabs)
 	for c in Defs.BUILD_CATEGORIES.size():
 		var b := Button.new()
-		b.text = str(Defs.BUILD_CATEGORIES[c]["name"])
+		b.text = UiStyle.tc(str(Defs.BUILD_CATEGORIES[c]["name"]))
 		b.focus_mode = Control.FOCUS_NONE
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.custom_minimum_size.y = 34
+		b.custom_minimum_size = Vector2(96, 32)
 		b.add_theme_font_size_override("font_size", 14)
 		b.pressed.connect(func() -> void: build_mode.show_category(c))
 		tabs.add_child(b)
@@ -72,6 +77,8 @@ func _ready() -> void:
 	scroll.custom_minimum_size.y = TILE.y * 3.0 + 20.0
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	col.add_child(scroll)
+	_scroll = scroll
+	resized.connect(_fit_height)
 	_grid = GridContainer.new()
 	_grid.columns = COLS
 	_grid.add_theme_constant_override("h_separation", 10)
@@ -82,29 +89,41 @@ func _ready() -> void:
 	col.add_child(_rule())
 	var detail := VBoxContainer.new()
 	detail.add_theme_constant_override("separation", 4)
-	detail.custom_minimum_size.y = 118
+	detail.custom_minimum_size.y = 104
 	col.add_child(detail)
 	var dhead := HBoxContainer.new()
 	detail.add_child(dhead)
-	_detail_name = KeyHints.text("", 20, Palette.BONE)
+	_detail_name = KeyHints.text("", 18, Palette.BONE)
 	_detail_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	dhead.add_child(_detail_name)
-	_detail_cost = KeyHints.text("", 17, Palette.GLOW_YELLOW)
+	_detail_cost = KeyHints.text("", 16, UiStyle.c("title"))
 	dhead.add_child(_detail_cost)
-	_detail_desc = KeyHints.text("", 14, Palette.BONE.darkened(0.12))
+	_detail_desc = KeyHints.text("", 14, UiStyle.c("hud"))
 	_detail_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_desc.custom_minimum_size.x = WIDTH - 40
 	detail.add_child(_detail_desc)
-	_detail_where = KeyHints.text("", 13, Palette.ROCK_C.lightened(0.3))
+	_detail_where = KeyHints.text("", 14, UiStyle.c("hud").darkened(0.18))
 	detail.add_child(_detail_where)
 
 	col.add_child(KeyHints.row([["LMB", "Choose"], ["1-9", "Quick pick"],
 			[KeyHints.key_for("build_menu"), "Close"], ["RMB", "Leave"]]))
 
 
+## Fits the tile list between the header and the hotbar (3 rows when there's room).
+func _fit_height() -> void:
+	if _scroll == null:
+		return
+	_scroll.custom_minimum_size.y = TILE.y * 3.0 + 20.0
+	var room := size.y - _panel.offset_top - BOTTOM_CLEAR
+	var over := _panel.get_combined_minimum_size().y - room
+	if over > 0.0:
+		_scroll.custom_minimum_size.y = maxf(TILE.y + 10.0, _scroll.custom_minimum_size.y - over)
+	_panel.reset_size()
+
+
 func _rule() -> ColorRect:
 	var r := ColorRect.new()
-	r.color = Color(Palette.OUTLINE, 0.6)
+	r.color = Color(UiStyle.c("hud_rim"), 0.45)
 	r.custom_minimum_size.y = 2
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return r
@@ -140,11 +159,12 @@ func refresh() -> void:
 	if not items.has(_detail_id):
 		_detail_id = build_mode.selected_id() if items.has(build_mode.selected_id()) else (items[0] if not items.is_empty() else &"")
 	_show_detail(_detail_id, payer)
+	_fit_height.call_deferred()
 
 
 func _style_tab(b: Button, on: bool) -> void:
 	b.theme_type_variation = "TabButtonSelected" if on else "TabButton" # Theme
-	b.custom_minimum_size.y = 34
+	b.custom_minimum_size.y = 32
 
 
 func _tile(i: int, id: StringName, payer: int) -> Button:
@@ -166,6 +186,9 @@ func _tile(i: int, id: StringName, payer: int) -> Button:
 	b.add_theme_stylebox_override("normal", normal)
 	b.add_theme_stylebox_override("hover", hover)
 	b.add_theme_stylebox_override("pressed", hover)
+	var pressed := hover.duplicate() as StyleBoxFlat
+	pressed.bg_color = normal.bg_color.darkened(0.15)
+	b.add_theme_stylebox_override("pressed", pressed)
 	b.pressed.connect(func() -> void: build_mode.choose(id))
 	b.mouse_entered.connect(func() -> void:
 		_detail_id = id
@@ -190,9 +213,15 @@ func _tile(i: int, id: StringName, payer: int) -> Button:
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_l.clip_text = true
 	col.add_child(name_l)
-	var price := KeyHints.text(UiStyle.held(Economy.amount(payer, id)) if CraftTable.is_craft(id) else UiStyle.cost(cost, "scrap"), 14, UiStyle.c("title") if affordable else Palette.TEAM_WEST.lightened(0.3))
-	price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(price)
+	# The price; one you can't afford gets a cross as well as the red.
+	var price_row := HBoxContainer.new()
+	price_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	price_row.add_theme_constant_override("separation", 4)
+	price_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(price_row)
+	if not affordable:
+		price_row.add_child(UiStyle.mark("bad", UiStyle.hud_c("bad"), 12))
+	price_row.add_child(KeyHints.text(UiStyle.held(Economy.amount(payer, id)) if CraftTable.is_craft(id) else UiStyle.cost(cost, "scrap"), 14, UiStyle.c("title") if affordable else UiStyle.hud_c("bad")))
 	# Its quick-pick number in the corner.
 	if i < 9:
 		var k := KeyHints.chip(str(i + 1))
@@ -210,7 +239,9 @@ func _show_detail(id: StringName, payer: int) -> void:
 	var affordable := GameState.is_solo() or Economy.can_afford(payer, {&"scrap": cost})
 	_detail_name.text = Defs.name_of(id)
 	_detail_cost.text = (UiStyle.held(Economy.amount(payer, id)) + "  ·  Crafted") if CraftTable.is_craft(id) else UiStyle.cost(cost, "scrap")
-	_detail_cost.add_theme_color_override("font_color", Palette.GLOW_YELLOW if affordable else Palette.TEAM_WEST.lightened(0.3))
+	_detail_cost.add_theme_color_override("font_color", UiStyle.c("title") if affordable else UiStyle.hud_c("bad"))
+	if not affordable and not CraftTable.is_craft(id):
+		_detail_cost.text += "  ·  Can't Afford"
 	_detail_desc.text = BuildMode._description(id)
 	# Turrets (Helper 3): their one job, weakness and any upkeep on a second line.
 	if Defs.is_turret(id) and Defs.turret(id).role_line() != "":
@@ -220,14 +251,14 @@ func _show_detail(id: StringName, payer: int) -> void:
 
 static func _where(id: StringName) -> String:
 	if Defs.is_house_turret(id):
-		return "Goes on the house: porch, balcony or roof deck"
+		return "Goes on the house: porch, balcony or roof deck."
 	if Defs.is_crewed(id): # Crewed
-		return "Takes 2 x 2 of bare ground, no scaffold. Sit in it to aim and fire it yourself"
+		return "Takes 2 x 2 of bare ground, no scaffold. Sit in it to aim and fire it yourself."
 	if Defs.is_turret(id):
 		if Defs.gets_scaffold(id):
-			return "Goes anywhere on your plateau, on a free scaffold"
-		return "Goes anywhere on your plateau"
-	return "Goes anywhere on your plateau"
+			return "Goes anywhere on your plateau, on a free scaffold."
+		return "Goes anywhere on your plateau."
+	return "Goes anywhere on your plateau."
 
 
 ## A small picture of the item, rendered once from its real 3D model.

@@ -32,7 +32,7 @@ func show_text(prompt: String) -> void:
 	var col := _fresh()
 	var titles: Array = parsed["title"]
 	for i in titles.size():
-		var l := KeyHints.text(str(titles[i]), 18 if i == 0 else 14, Palette.BONE if i == 0 else Palette.BONE.darkened(0.25))
+		var l := KeyHints.text(str(titles[i]), 18 if i == 0 else 14, UiStyle.c("hud") if i == 0 else UiStyle.c("hud").darkened(0.15))
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(l)
 	if not (parsed["keys"] as Array).is_empty():
@@ -71,11 +71,14 @@ func show_build(info: Dictionary) -> void:
 	name_row.add_theme_constant_override("separation", 10)
 	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.add_child(name_row)
-	name_row.add_child(KeyHints.text(str(info.get("name")), 20, Palette.BONE))
+	name_row.add_child(KeyHints.text(UiStyle.tc(str(info.get("name"))), 18, UiStyle.c("hud")))
 	name_row.add_child(_price(int(info.get("cost")), bool(info.get("afford"))))
 	var status := str(info.get("status", ""))
 	if status != "":
-		words.add_child(KeyHints.text(status, 14, Palette.TEAM_WEST.lightened(0.35) if info.get("status_bad", false) else Palette.BONE.darkened(0.25)))
+		if info.get("status_bad", false): # a cross as well as the red, so it reads without colour
+			words.add_child(UiStyle.status(status, "bad", 14, true))
+		else:
+			words.add_child(KeyHints.text(status, 14, UiStyle.c("hud").darkened(0.15)))
 	col.add_child(KeyHints.row(info.get("keys", [])))
 	_settle()
 
@@ -90,7 +93,13 @@ func _price(cost: int, afford: bool) -> PanelContainer:
 	p.add_theme_stylebox_override("panel", sb)
 	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	p.add_child(KeyHints.text(UiStyle.cost(cost, "scrap"), 14, Palette.GLOW_YELLOW if afford else Palette.TEAM_WEST.lightened(0.3)))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(row)
+	if not afford:
+		row.add_child(UiStyle.mark("bad", UiStyle.hud_c("bad"), 12))
+	row.add_child(KeyHints.text(UiStyle.cost(cost, "scrap"), 14, UiStyle.c("title") if afford else UiStyle.hud_c("bad")))
 	return p
 
 

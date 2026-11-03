@@ -63,7 +63,7 @@ static func hint(key: String, action: String, color: Color = Palette.BONE) -> HB
 	var c := chip(key)
 	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(c)
-	h.add_child(text(action, TEXT_FONT, color))
+	h.add_child(text(UiStyle.tc(action), TEXT_FONT, color))
 	return h
 
 
@@ -113,15 +113,24 @@ static func parse(prompt: String) -> Dictionary:
 			continue
 		var found := _key_re.search_all(line)
 		if found.is_empty():
-			titles.append(line)
+			titles.append(_title_head(line))
 			continue
 		var head := line.substr(0, found[0].get_start()).strip_edges().trim_suffix("-").trim_suffix(":").strip_edges()
 		if head != "":
-			titles.append(head)
+			titles.append(_title_head(head))
 		for i in found.size():
 			var m: RegExMatch = found[i]
 			var end := found[i + 1].get_start() if i + 1 < found.size() else line.length()
 			var action := line.substr(m.get_end(), end - m.get_end()).strip_edges().trim_suffix("-").strip_edges()
 			var key := m.get_string(1).replace("Left click", "LMB").replace("Right click", "RMB")
-			keys.append([key, action.capitalize() if action.length() < 3 else action.substr(0, 1).to_upper() + action.substr(1)])
+			keys.append([key, UiStyle.tc(action)])
 	return {"title": titles, "keys": keys}
+
+
+## A prompt title's name in Title Case ("Corn seeds: 3" -> "Corn Seeds: 3"); the
+## words after its colon (a count or a state) stay as written.
+static func _title_head(line: String) -> String:
+	var i := line.find(":")
+	if i <= 0 or i > 32:
+		return line
+	return UiStyle.tc(line.substr(0, i)) + line.substr(i)
