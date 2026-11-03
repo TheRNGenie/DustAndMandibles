@@ -11,6 +11,7 @@ extends CanvasLayer
 ##   menu_tabs() -> Array[String]      menu_items(tab) -> Array[Dictionary]
 ##   menu_press(id, action)            menu_build_body(parent: Control, screen)
 ##   menu_stock() -> [[resource, amount], ...]  (header chips; scrap and chitin if absent)
+##   menu_size() -> Vector2  (a bigger frame, e.g. the casino tables; fitted to the window)
 ##   signal menu_changed (or ui_changed) to redraw.
 ## Item dictionaries: {id, name, desc, icon (StringName for ItemIcon or Texture2D),
 ##   price (String), price_ok (bool), note (String), disabled (String reason),
@@ -38,6 +39,7 @@ var _scroll: ScrollContainer
 var _dirty := false
 var _hint_box: HBoxContainer
 var _hint_tabs := -1
+var _frame: PanelContainer
 
 
 func _ready() -> void:
@@ -62,6 +64,7 @@ func open(p: Object) -> void:
 		if provider.has_signal(sig) and not provider.is_connected(sig, _mark_dirty):
 			provider.connect(sig, _mark_dirty)
 	var was_open := UiStyle.shown(_root)
+	_size_frame()
 	_root.visible = true
 	GameState.menu_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -289,6 +292,7 @@ func _build() -> void:
 	add_child(_root)
 	_root.add_child(UiStyle.scrim())
 	var frame := PanelContainer.new()
+	_frame = frame
 	frame.theme_type_variation = "FramePanel"
 	frame.anchor_left = 0.5
 	frame.anchor_right = 0.5
@@ -339,6 +343,20 @@ func _build() -> void:
 	var close_b := wood_button("Close")
 	close_b.pressed.connect(close)
 	footer.add_child(close_b)
+
+
+## The frame's size: the provider's menu_size() (fitted inside the window) or the default.
+func _size_frame() -> void:
+	var want := Vector2(WIDTH, HEIGHT)
+	if provider != null and provider.has_method("menu_size"):
+		want = provider.call("menu_size")
+		var room := _root.size - Vector2(24, 24)
+		if room.x > 100.0 and room.y > 100.0:
+			want = want.min(room)
+	_frame.offset_left = -want.x * 0.5
+	_frame.offset_right = want.x * 0.5
+	_frame.offset_top = -want.y * 0.5
+	_frame.offset_bottom = want.y * 0.5
 
 
 func _row(item: Dictionary) -> Control:

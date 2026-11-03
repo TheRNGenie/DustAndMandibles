@@ -268,12 +268,13 @@ func _pick(sound: StringName) -> AudioStream:
 
 
 ## Non-positional sound (UI, the wave bell).
-func play_ui(sound: StringName, volume_db: float = 0.0) -> void:
+## `pitch` reuses a recording higher or lower (the casino's reel thunks and chip clacks).
+func play_ui(sound: StringName, volume_db: float = 0.0, pitch: float = 1.0) -> void:
 	if not _streams.has(sound):
 		return
 	var p := _players_ui[_next_ui]
 	_next_ui = (_next_ui + 1) % _players_ui.size()
 	p.stream = _pick(sound)
 	p.volume_db = volume_db
-	p.pitch_scale = 1.0
+	p.pitch_scale = pitch
 	p.play()

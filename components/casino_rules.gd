@@ -70,12 +70,17 @@ static func bj_dealer_play(dealer: Array, shoe: Array) -> void:
 		dealer.append(shoe.pop_back())
 
 
-## Total returned to the player for a finished hand (0 = lost the bet).
-static func bj_payout(player: Array, dealer: Array, bet: int) -> int:
+## Total returned to the player for a finished hand (0 = lost the bet). A hand
+## made by splitting is never a natural: 21 on two cards there pays 1:1.
+static func bj_payout(player: Array, dealer: Array, bet: int, split: bool = false) -> int:
 	var p := bj_value(player)
 	var d := bj_value(dealer)
 	if p > 21:
 		return 0
+	if split:
+		if bj_is_blackjack(dealer):
+			return 0
+		return bet * 2 if d > 21 or p > d else (bet if p == d else 0)
 	if bj_is_blackjack(player) and not bj_is_blackjack(dealer):
 		return bet + int(bet * 1.5)
 	if bj_is_blackjack(dealer) and not bj_is_blackjack(player):
@@ -85,6 +90,25 @@ static func bj_payout(player: Array, dealer: Array, bet: int) -> int:
 	if p == d:
 		return bet
 	return 0
+
+
+## Double down: only on the first two cards of a hand.
+static func bj_can_double(hand: Array) -> bool:
+	return hand.size() == 2 and bj_value(hand) < 21
+
+
+## Split: a first pair of the same rank, and only once per round.
+static func bj_can_split(hand: Array, hands_so_far: int) -> bool:
+	return hands_so_far == 1 and hand.size() == 2 and int(hand[0]) == int(hand[1])
+
+
+## Every hand of a round settled against the dealer: the total returned for each.
+static func bj_settle(hands: Array, bets: Array, dealer: Array) -> Array[int]:
+	var split := hands.size() > 1
+	var out: Array[int] = []
+	for i in hands.size():
+		out.append(bj_payout(hands[i], dealer, int(bets[i]), split))
+	return out
 
 
 # ------------------------------------------------------------------ baccarat
@@ -108,29 +132,60 @@ static func bac_deal(shoe: Array) -> Dictionary:
 		if pv <= 5:
 			third = shoe.pop_back()
 			player.append(third)
-		if third < 0:
-			if bv <= 5:
-				banker.append(shoe.pop_back())
-		else:
-			var t := 0 if third >= 10 else third
-			var draw := false
-			match bv:
-				0, 1, 2:
-					draw = true
-				3:
-					draw = t != 8
-				4:
-					draw = t >= 2 and t <= 7
-				5:
-					draw = t >= 4 and t <= 7
-				6:
-					draw = t == 6 or t == 7
-			if draw:
-				banker.append(shoe.pop_back())
+		if bac_banker_draws(bv, third):
+			banker.append(shoe.pop_back())
 	pv = bac_value(player)
 	bv = bac_value(banker)
 	var winner := "tie" if pv == bv else ("player" if pv > bv else "banker")
 	return {"player": player, "banker": banker, "winner": winner}
+
+
+## Whether the banker draws a third card on `bv` when the player drew `third` (-1 = the player stood).
+static func bac_banker_draws(bv: int, third: int) -> bool:
+	if third < 0:
+		return bv <= 5
+	var t := 0 if third >= 10 else third
+	match bv:
+		0, 1, 2:
+			return true
+		3:
+			return t != 8
+		4:
+			return t >= 2 and t <= 7
+		5:
+			return t >= 4 and t <= 7
+		6:
+			return t == 6 or t == 7
+	return false
+
+
+## The croupier's call for a dealt coup, one line per step: the naturals, the
+## player's draw or stand, the banker's (with the third-card rule it followed).
+static func bac_explain(player: Array, banker: Array) -> PackedStringArray:
+	var out := PackedStringArray()
+	var pv := bac_value(player.slice(0, 2))
+	var bv := bac_value(banker.slice(0, 2))
+	if pv >= 8 or bv >= 8:
+		out.append("Natural %d! No more cards." % maxi(pv, bv))
+		return out
+	if player.size() > 2:
+		out.append("Player on %d draws." % pv)
+	else:
+		out.append("Player stands on %d." % pv)
+	var t := -1
+	if player.size() > 2:
+		t = int(player[2])
+		t = 0 if t >= 10 else t
+	var drew := banker.size() > 2
+	if t < 0:
+		out.append(("Banker on %d draws." if drew else "Banker stands on %d.") % bv)
+	elif bv <= 2:
+		out.append("Banker on %d always draws." % bv)
+	elif bv == 7:
+		out.append("Banker stands on 7.")
+	else:
+		out.append("Banker on %d %s against a Player third card of %d." % [bv, "draws" if drew else "stands", t])
+	return out
 
 
 ## Total returned for a baccarat bet ("player", "banker", "tie").
@@ -165,6 +220,71 @@ static func roulette_wins(bet_id: String, n: int) -> bool:
 		"seven":
 			return n == 7
 	return false
+
+
+## The pockets round a single-zero wheel, clockwise from zero.
+const WHEEL_ORDER: Array[int] = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16,
+	33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26]
+## The most one spin can carry across the whole layout.
+const ROULETTE_MAX_TOTAL := 300
+
+
+static func roulette_colour(n: int) -> String:
+	return "green" if n == 0 else ("red" if RED_NUMBERS.has(n) else "black")
+
+
+## Layout spots: "n0".."n36" (straight up, 35:1), "red" "black" "odd" "even"
+## "low" "high" (1:1), "dozen1-3" and "col1-3" (2:1). Columns: col1 holds
+## 1, 4, ... 34, col3 holds 3, 6, ... 36 (the top row of the layout).
+static func roulette_spot_valid(spot: String) -> bool:
+	if spot.begins_with("n") and spot.substr(1).is_valid_int():
+		var n := spot.substr(1).to_int()
+		return n >= 0 and n <= 36
+	return spot in ["red", "black", "odd", "even", "low", "high", "dozen1", "dozen2", "dozen3", "col1", "col2", "col3"]
+
+
+## What a spot pays to 1.
+static func roulette_spot_pays(spot: String) -> int:
+	if spot.begins_with("n"):
+		return 35
+	if spot.begins_with("dozen") or spot.begins_with("col"):
+		return 2
+	return 1
+
+
+static func roulette_spot_wins(spot: String, n: int) -> bool:
+	if spot.begins_with("n"):
+		return spot.substr(1).to_int() == n
+	if n == 0:
+		return false
+	match spot:
+		"dozen1", "dozen2", "dozen3":
+			return floori((n - 1) / 12.0) + 1 == spot.substr(5).to_int()
+		"col1", "col2", "col3":
+			return (n - 1) % 3 + 1 == spot.substr(3).to_int()
+	return roulette_wins(spot, n)
+
+
+## Total returned for a whole layout of chips {spot: amount} when n comes up.
+static func roulette_settle(bets: Dictionary, n: int) -> int:
+	var back := 0
+	for spot: Variant in bets.keys():
+		if roulette_spot_wins(str(spot), n):
+			back += int(bets[spot]) * (roulette_spot_pays(str(spot)) + 1)
+	return back
+
+
+## A layout from a client, cleaned: valid spots, positive whole amounts, under the table limit.
+static func roulette_clean(bets: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	var total := 0
+	for spot: Variant in bets.keys():
+		var amount := int(bets[spot])
+		if not roulette_spot_valid(str(spot)) or amount <= 0 or total + amount > ROULETTE_MAX_TOTAL:
+			continue
+		out[str(spot)] = amount
+		total += amount
+	return out
 
 
 ## Total returned for a roulette bet on number n (single-zero wheel).
@@ -249,6 +369,35 @@ static func shell_pea(rng: RandomNumberGenerator) -> int:
 ## Total returned for picking `pick` when the pea is under `pea` (0 = lost).
 static func shell_payout(pick: int, pea: int, bet: int) -> int:
 	return floori(bet * SHELL_RETURN) if pick == pea else 0
+
+
+## The dealer's moves for a round (from a seed every peer shares): which cup
+## the pea starts under, then swaps of two slots, each [a, b, speed] where a
+## speed over 1 is one of his quick passes. The round always ends with the
+## "whirl" (all three cups bunched and spun), which is why following the pea
+## never beats the fair 1-in-3: the pea's final cup is the host's own pick.
+static func shell_moves(seed_value: int) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var start := rng.randi_range(0, SHELL_CUPS - 1)
+	var swaps: Array = []
+	for i in rng.randi_range(5, 7):
+		var a := rng.randi_range(0, 2)
+		var b := (a + rng.randi_range(1, 2)) % 3
+		var speed := 1.0 + float(i) * 0.12 + (0.6 if rng.randf() < 0.3 else 0.0)
+		swaps.append([mini(a, b), maxi(a, b), speed])
+	return {"start": start, "swaps": swaps}
+
+
+## Where the pea sits after the visible swaps (before the whirl).
+static func shell_tracked(moves: Dictionary) -> int:
+	var at := int(moves["start"])
+	for sw: Array in moves["swaps"]:
+		if at == int(sw[0]):
+			at = int(sw[1])
+		elif at == int(sw[1]):
+			at = int(sw[0])
+	return at
 
 
 ## Exact share of stakes paid back by the shell game at a stake.

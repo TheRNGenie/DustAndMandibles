@@ -1099,6 +1099,8 @@ func _take_screenshot(path: String) -> void:
 		_tonic_demo(player)
 	if GameState.has_flag("--craftlineup") or GameState.flag_value("--craftlineup") != "": # Crafted turret lineup (scenes/debug/craft_views.gd)
 		add_child(load("res://scenes/debug/craft_views.gd").new())
+	if GameState.flag_value("--casinoview") != "": # Casino: a game's screen open, optionally mid-play (scenes/debug/casino_views.gd)
+		add_child(load("res://scenes/debug/casino_views.gd").new())
 	if GameState.flag_value("--crewview") != "": # Crewed: crewed gun views (scenes/debug/crewed_views.gd)
 		add_child(load("res://scenes/debug/crewed_views.gd").new())
 	if GameState.flag_value("--specialview") != "": # Steam Cannon / Flood Gate / Twin Mortar / Bola Launcher views
