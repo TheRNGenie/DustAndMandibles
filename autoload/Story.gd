@@ -88,8 +88,8 @@ func _seat_four() -> void:
 
 
 func _on_players_changed() -> void:
-	if active() and multiplayer.is_server() and NetworkManager.is_online():
-		fit_map() # a third rider joined a canyon chapter: off to the Mesa
+	if active() and multiplayer.is_server() and NetworkManager.is_online() and not bool(NetworkManager.get("_started")):
+		fit_map() # a third rider joined a canyon chapter's lobby: off to the Mesa
 	if multiplayer.is_server() and NetworkManager.is_online() and not multiplayer.get_peers().is_empty():
 		_sync.rpc(chapter_id)
 

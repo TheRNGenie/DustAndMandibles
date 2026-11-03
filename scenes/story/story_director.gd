@@ -295,6 +295,8 @@ func _on_game_over(won: bool, _reason: String) -> void:
 	var lines: Array = []
 	if won:
 		lines.append(["Chapter %d complete" % chapter.number, "first time" if bool(res.get("first", false)) else "replay", int(res["notches"])])
+	if not won:
+		return # a lost chapter pays nothing: no Notches panel
 	Perks.run_banked.emit({"earned": int(res.get("notches", 0)), "total_run": int(res.get("notches", 0)), "lines": lines,
 			"banked": bool(res.get("banked", false)), "brands": Perks.profile.brands, "won": won})
 
