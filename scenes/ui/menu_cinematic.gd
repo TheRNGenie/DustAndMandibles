@@ -38,6 +38,12 @@ var _keys: Array = []
 
 
 func _ready() -> void:
+	# The backdrop is its own little offline world: its crop plots, turrets and
+	# the rest never send network messages to players joining the real game
+	# (they don't have these nodes, and the flood of bad packets broke joins).
+	var offline := SceneMultiplayer.new()
+	offline.multiplayer_peer = OfflineMultiplayerPeer.new()
+	get_tree().set_multiplayer(offline, get_path())
 	fade = ColorRect.new()
 	fade.color = Color.BLACK
 	fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -282,3 +288,8 @@ func _place_camera(t: float) -> void:
 	var pos := (a[1] as Vector3).lerp(b[1], k)
 	var look := (a[2] as Vector3).lerp(b[2], k)
 	_cam.global_transform = Transform3D(Basis.looking_at(look - pos, Vector3.UP), pos)
+
+
+func _exit_tree() -> void:
+	if is_inside_tree():
+		get_tree().set_multiplayer(null, get_path())
