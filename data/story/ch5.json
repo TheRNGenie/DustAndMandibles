@@ -5,7 +5,7 @@
 	"map": "mesa",
 	"first_wave": 14,
 	"last_wave": 16,
-	"blurb": "Silas Kettle has something to get off his chest, and a Burrowing Beetle is tunnelling under your scaffolds. Keep the towers standing while the old gunsmith tells the truth about 1889.",
+	"blurb": "Silas Kettle has a confession about 1889, and a Burrowing Beetle is tunnelling under your scaffolds. Keep the towers standing while he talks.",
 	"start_bonus": {"scrap": 1100, "chitin": 80},
 	"objective": {"kind": "keep", "text": "Keep 5 Scaffold Storeys Standing on Every Cliff", "thing": "storeys", "per_cliff": 5},
 	"bosses": {"15": "burrow_beetle", "16": "burrow_beetle"},

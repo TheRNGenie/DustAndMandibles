@@ -128,6 +128,11 @@ static func speaker_name(who: String) -> String:
 			"doc": "Doc Whitlow"}.get(who, who.capitalize())
 
 
+## A short name for small captions ("Capt. Stroud").
+static func speaker_short(who: String) -> String:
+	return {"stroud": "Capt. Stroud", "kettle": "Silas", "pearl": "Pearl", "doc": "Doc"}.get(who, who.capitalize())
+
+
 static func speaker_role(who: String) -> String:
 	return {"stroud": "Lucky Mandible, Bridge", "kettle": "Gunsmith, Lower Deck", "pearl": "Casino Deck",
 			"doc": "Rail Car 9, Canyon Floor"}.get(who, "")
@@ -211,6 +216,23 @@ func map_for_players(players: int) -> StringName:
 		if MapDef.players_of(m) >= players:
 			return m
 	return MapDef.IDS[MapDef.IDS.size() - 1]
+
+
+## Who speaks in this chapter, in the order they first do.
+func speakers() -> Array[String]:
+	var out: Array[String] = []
+	var all_lines: Array = []
+	var waves: Array = radio.keys()
+	waves.sort_custom(func(a: Variant, b: Variant) -> bool: return int(a) < int(b))
+	for wk: Variant in waves:
+		for when in WHENS:
+			all_lines.append_array((radio[wk] as Dictionary).get(when, []))
+	for key: String in events:
+		all_lines.append_array(events[key])
+	for l: Variant in all_lines:
+		if l is Array and (l as Array).size() == 2 and not out.has(str(l[0])):
+			out.append(str(l[0]))
+	return out
 
 
 func notches() -> int:
