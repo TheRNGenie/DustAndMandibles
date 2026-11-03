@@ -507,6 +507,15 @@
     }
   },
   "basics": {
+    "thirty_degree_law": {
+      "title": "The Thirty-Degree Law",
+      "lore": "Territorial Board of Firearms, 1871: no barrel shall dip more than thirty degrees beneath the horizon. Everybody knows why. On the 4th of July, 1871, Governor Horace Pell fired down from the rim of Dry Gulch at a rattlesnake and shot three of his own toes off. 'If a Governor cannot shoot downhill safely, no man can,' said Chairman Vane of the Western Plains & Pacific, and the law passed by spring. Settlers call it Pell's Toes.",
+      "tips": [
+        "No turret or gun can aim more than 30 degrees down, so nobody can defend their own wall.",
+        "Your guns guard your partner's wall; theirs guard yours.",
+        "Nothing on the rim can shoot down to the canyon floor either. Ride down the rope to deal with anything down there."
+      ]
+    },
     "team_scrap": {
       "title": "Scrap: The Team Pot",
       "icon": "scrap",

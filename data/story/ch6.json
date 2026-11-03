@@ -6,11 +6,46 @@
 	"first_wave": 17,
 	"last_wave": 18,
 	"blurb": "Two nights of dust storm. The Mirage Mantis hunts in the haze and the Thunder Cicada's screech shatters lantern glass. Keep the lights burning on every cliff.",
-	"start_bonus": {"scrap": 1300, "chitin": 100},
-	"objective": {"kind": "keep", "text": "Keep 4 Lantern Posts Burning on Every Cliff", "thing": "lanterns", "per_cliff": 4, "screech_breaks_lanterns": true},
-	"bosses": {"17": "mirage_mantis", "18": ["thunder_cicada", "mirage_mantis"]},
-	"extra_bugs": {"17": [["wolf_spider", 8]], "18": [["wolf_spider", 8], ["dragonfly_bandit", 6]]},
-	"weather": {"17": "dust_storm", "18": "dust_storm"},
+	"start_bonus": {
+		"scrap": 1300,
+		"chitin": 100
+	},
+	"objective": {
+		"kind": "keep",
+		"text": "Keep 4 Lantern Posts Burning on Every Cliff",
+		"thing": "lanterns",
+		"per_cliff": 4,
+		"screech_breaks_lanterns": true
+	},
+	"bosses": {
+		"17": "mirage_mantis",
+		"18": [
+			"thunder_cicada",
+			"mirage_mantis"
+		]
+	},
+	"extra_bugs": {
+		"17": [
+			[
+				"wolf_spider",
+				8
+			]
+		],
+		"18": [
+			[
+				"wolf_spider",
+				8
+			],
+			[
+				"dragonfly_bandit",
+				6
+			]
+		]
+	},
+	"weather": {
+		"17": "dust_storm",
+		"18": "dust_storm"
+	},
 	"telegram": {
 		"title": "Storm Warning",
 		"body": "DUST STORMS BOTH NIGHTS STOP MIRAGE MANTIS AND THUNDER CICADA CLIMBING STOP LANTERNS KEEP THE MANTIS IN SIGHT STOP SCREECH BREAKS LANTERN GLASS STOP FOUR LANTERNS PER CLIFF AT EVERY DAWN STOP SPREAD YOUR TURRETS STOP"
@@ -18,32 +53,99 @@
 	"radio": {
 		"17": {
 			"build": [
-				["stroud", "Dust storm rolling in. Four lanterns a cliff, burning at dawn. The Mantis hates the light."],
-				["pearl", "Can't see my own cards in this. Finally, a fair game."],
-				["doc", "The Mantis bends light like a hot road. A lantern spoils the trick."]
+				[
+					"stroud",
+					"Dust storm rolling in. Four lanterns a cliff, burning at dawn. The Mantis hates the light."
+				],
+				[
+					"pearl",
+					"Can't see my own cards in this. Finally, a fair game."
+				],
+				[
+					"doc",
+					"The Mantis bends light like a hot road. A lantern spoils the trick."
+				],
+				[
+					"crane",
+					"The Board offers fifty dollars a claim, ranchers. Sell before the storm sells for you."
+				]
 			],
-			"wave": [["stroud", "Something's shimmering on the wall. Keep shooting the ripple!"]]
+			"wave": [
+				[
+					"stroud",
+					"Something's shimmering on the wall. Keep shooting the ripple!"
+				]
+			]
 		},
 		"18": {
 			"build": [
-				["kettle", "Cicada's coming. Its screech cracks glass and rattles turrets stupid. Spread your guns out."],
-				["stroud", "And the Mantis is back for seconds. Lanterns, ranchers. Lots of lanterns."],
-				["pearl", "I'm taking bets on which one deafens us first."]
+				[
+					"kettle",
+					"Cicada's coming. Its screech cracks glass and rattles turrets stupid. Spread your guns out."
+				],
+				[
+					"crane",
+					"These storms, that screeching thing. None of it was in the plan, I assure you. The Board is most upset."
+				],
+				[
+					"stroud",
+					"In the plan, Mr. Crane? Do tell us more about the plan."
+				],
+				[
+					"pearl",
+					"He won't. But he just did."
+				]
 			],
-			"wave": [["stroud", "Hear that drumming? Here comes the thunder. Watch for the ring!"]]
+			"wave": [
+				[
+					"stroud",
+					"Hear that drumming? Here comes the thunder. Watch for the ring!"
+				]
+			]
 		}
 	},
 	"events": {
-		"short": [["stroud", "Lights are going out over there! Hang new lanterns before dawn."]],
-		"boss_down": [["pearl", "One down. Somebody owes me two bits."]],
-		"win": [["stroud", "Storm's blown out and the lamps are still lit. Fine work in the dark."], ["doc", "I heard the Queen stir below. That's... not ideal."]],
-		"lost": [["stroud", "Dawn came and the lights were out. We'll ride the storm again."]]
+		"short": [
+			[
+				"stroud",
+				"Lights are going out over there! Hang new lanterns before dawn."
+			]
+		],
+		"boss_down": [
+			[
+				"pearl",
+				"One down. Somebody owes me two bits."
+			]
+		],
+		"win": [
+			[
+				"stroud",
+				"Storm's blown out and the lamps are still lit. And nobody's selling, Mr. Crane."
+			],
+			[
+				"doc",
+				"These storm bugs came from deeper than the Board meant to dig. The Queen stirred below. Not ideal."
+			]
+		],
+		"lost": [
+			[
+				"stroud",
+				"Dawn came and the lights were out. We'll ride the storm again."
+			]
+		]
 	},
 	"journal": {
 		"title": "Specimen Notes, No. 6",
-		"body": "The storm bugs never come up in clear weather. They wait for dust the way men wait for payday.\n\nTonight the rails hummed from far below. Something very large is turning over in its sleep.\n\n- E. Whitlow, Rail Car 9"
+		"body": "The storm bugs never came up before 1889. I have checked every record the railroad forgot to burn.\n\nThe blast was meant to stir the upper galleries and frighten the settlers off. It went deeper. Mr. Crane's face says the Board knows it, and is frightened too.\n\n- E. Whitlow, Rail Car 9"
 	},
-	"rewards": {"notches": 80, "unlock": {"kind": "cosmetic", "id": "outfit:poncho", "name": "Pearl's Dust Poncho"}},
+	"rewards": {
+		"notches": 80,
+		"unlock": {
+			"kind": "cosmetic",
+			"id": "outfit:poncho",
+			"name": "Pearl's Dust Poncho"
+		}
+	},
 	"headline_win": "Buttes Stay Lit Through Twin Storms",
 	"headline_loss": "Thunder and Dust Blind the Buttes"
 }

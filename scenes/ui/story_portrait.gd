@@ -16,6 +16,18 @@ extends RefCounted
 ##   Doc Whitlow: frazzled, wild white hair, round thick spectacles, mutton
 ##     chops, worried brows, bow tie, an ink smudge, a pencil behind his ear.
 ##     Lab-green card.
+## The Board and its hangers-on (the railroad story):
+##   Cornelius Vane, Chairman: gaunt and cold, slicked silver hair, long grey
+##     sideburns, pale eyes, thin lips, a silk top hat, starched collar, black
+##     cravat with an amber pin. Oxblood card.
+##   Ashby Crane, the Board's agent: a big gold-toothed grin, pomaded centre
+##     parting, pencil moustache, a bowler and a mustard check suit. Brass card.
+##   Ezra Kettle, director: very old, Silas's bulb nose and walrus moustache gone
+##     white, deep-set eyes behind pince-nez, hollow cheeks, a fur collar and a
+##     gold watch chain. Slate card.
+##   Lucky Moreau, the amber fence: dark-skinned, a sly half-grin, a slouch hat
+##     with a hawk feather, a gold hoop, a red bandana and an amber pendant,
+##     a cigarillo. Amber card.
 
 ## speaker -> [card colour, card ray colour]
 const CAST: Dictionary = {
@@ -23,6 +35,10 @@ const CAST: Dictionary = {
 	"kettle": [Color("#B5582C"), Color("#D9803F")],
 	"pearl": [Color("#2F5E4A"), Color("#3F7A5E")],
 	"doc": [Color("#6E7F4E"), Color("#93A36A")],
+	"vane": [Color("#4E1A1E"), Color("#74282C")],
+	"crane": [Color("#7E6326"), Color("#A88838")],
+	"ezra": [Color("#3A424C"), Color("#566170")],
+	"lucky": [Color("#8A4E12"), Color("#C07A24")],
 }
 const SIZE := Vector2i(512, 512)
 
@@ -115,6 +131,14 @@ class Painter extends Node2D:
 				_pearl()
 			"doc":
 				_doc()
+			"vane":
+				_vane()
+			"crane":
+				_crane()
+			"ezra":
+				_ezra()
+			"lucky":
+				_lucky()
 		_vignette()
 
 	# ------------------------------------------------------------------ the card
@@ -582,3 +606,235 @@ class Painter extends Node2D:
 			var x := 214.0 + k * 22.0
 			taper([Vector2(x, 186), Vector2(x + 6 + sin(k * 2.1) * 10.0, 166), Vector2(x + 14 + sin(k * 1.3) * 14.0, 150)], 14.0, 1.0, white)
 			taper([Vector2(x + 2, 186), Vector2(x + 8, 170)], 3.0, 0.5, white_d)
+
+	# ------------------------------------------------------------------ shared bits for the Board
+
+	## A dark coat over the shoulders with lapels and a white shirt front.
+	func _coat(col: Color, shirt: Color = Color("#F4F0E6")) -> void:
+		shape(blob([Vector2(34, 512), Vector2(62, 420), Vector2(150, 380), Vector2(256, 374), Vector2(362, 380), Vector2(450, 420), Vector2(478, 512)]), col, col.darkened(0.35))
+		shape(blob([Vector2(206, 512), Vector2(214, 400), Vector2(256, 388), Vector2(298, 400), Vector2(306, 512)]), shirt, shirt.darkened(0.18))
+		for sd: float in [-1.0, 1.0]:
+			shape(PackedVector2Array([Vector2(256 + sd * 22, 396), Vector2(256 + sd * 84, 392), Vector2(256 + sd * 66, 470), Vector2(256 + sd * 44, 512), Vector2(256 + sd * 30, 512)]),
+					col.lightened(0.08), col.darkened(0.25), 3.0)
+
+	# ------------------------------------------------------------------ Cornelius Vane
+
+	func _vane() -> void:
+		var skin := Color("#E4BFA6")
+		var skin_d := Color("#B48C78")
+		var silver := Color("#C9CCD0")
+		var silver_d := Color("#8C9096")
+		var c := Vector2(256, 266)
+		_coat(Color("#1C1A20"))
+		# Neck, a tall starched collar and a black cravat with an amber pin.
+		shape(blob([Vector2(224, 330), Vector2(288, 330), Vector2(292, 380), Vector2(256, 390), Vector2(220, 380)]), skin_d.lightened(0.1), skin_d)
+		for sd: float in [-1.0, 1.0]:
+			shape(PackedVector2Array([Vector2(256 + sd * 4, 384), Vector2(256 + sd * 44, 350), Vector2(256 + sd * 52, 382), Vector2(256 + sd * 20, 396)]), Color("#FBF8F1"), Color("#D6D0C4"), 3.0)
+		shape(blob([Vector2(230, 392), Vector2(256, 384), Vector2(282, 392), Vector2(270, 440), Vector2(256, 448), Vector2(242, 440)]), Color("#141216"), Color("#08070A"))
+		shape(ell(Vector2(256, 412), Vector2(9, 12)), Color("#E89A2A"), Color("#A85E12"), 2.5, Vector2(3, 3))
+		draw_circle(Vector2(253, 408), 3.0, Color(1, 0.95, 0.75, 0.9))
+		# Ears.
+		shape(ell(Vector2(182, 272), Vector2(13, 24)), skin, skin_d)
+		shape(ell(Vector2(330, 272), Vector2(13, 24)), skin, skin_d)
+		# A long, gaunt face, hollow cheeks.
+		var f := face(c, 142, 206, 0.86, 0.9)
+		shape(f, skin, skin_d, 4.0, Vector2(14, 6))
+		taper([Vector2(206, 292), Vector2(214, 322), Vector2(226, 340)], 4.0, 1.0, Color(skin_d, 0.85))
+		taper([Vector2(306, 292), Vector2(298, 322), Vector2(286, 340)], 4.0, 1.0, Color(skin_d, 0.85))
+		# Long grey sideburns.
+		for sd: float in [-1.0, 1.0]:
+			shape(blob([Vector2(256 + sd * 66, 220), Vector2(256 + sd * 74, 262), Vector2(256 + sd * 70, 314), Vector2(256 + sd * 60, 318), Vector2(256 + sd * 58, 262)]), silver, silver_d, 3.0)
+		# Pale, cold eyes, heavy-lidded; straight hard brows.
+		eye(Vector2(222, 256), 36, 18, Color("#9FB6C4"), skin, Vector2(1, 1), 0.42, 0.0, 4.0, 0.14)
+		eye(Vector2(290, 256), 36, 18, Color("#9FB6C4"), skin, Vector2(1, 1), 0.42, 0.0, 4.0, 0.14)
+		taper([Vector2(196, 236), Vector2(222, 232), Vector2(246, 238)], 7.0, 4.0, silver_d)
+		taper([Vector2(266, 238), Vector2(290, 232), Vector2(316, 236)], 4.0, 7.0, silver_d)
+		taper([Vector2(250, 234), Vector2(254, 248)], 2.5, 1.0, Color(skin_d, 0.9))
+		# A long sharp nose.
+		taper([Vector2(258, 252), Vector2(264, 288), Vector2(266, 306)], 3.0, 7.0, Color(skin_d, 0.8))
+		fill(blob([Vector2(248, 308), Vector2(260, 300), Vector2(274, 306), Vector2(268, 314), Vector2(254, 314)]), skin_d.lightened(0.05))
+		# Thin, flat lips, turned down.
+		taper([Vector2(232, 340), Vector2(256, 336), Vector2(280, 340)], 3.0, 3.0, Color("#6E3A34"))
+		taper([Vector2(232, 340), Vector2(226, 348)], 2.0, 0.8, Color(skin_d, 0.9))
+		taper([Vector2(280, 340), Vector2(286, 348)], 2.0, 0.8, Color(skin_d, 0.9))
+		# Slicked silver hair under the hat.
+		shape(blob([Vector2(186, 226), Vector2(196, 196), Vector2(256, 186), Vector2(316, 196), Vector2(326, 226), Vector2(256, 206)]), silver, silver_d, 3.0)
+		# The silk top hat, tall, with a band.
+		shape(ell(Vector2(256, 196), Vector2(124, 20), -0.02), Color("#121014"), Color("#060507"))
+		shape(blob([Vector2(184, 198), Vector2(180, 70), Vector2(186, 52), Vector2(326, 52), Vector2(332, 70), Vector2(328, 198), Vector2(256, 204)], 4), Color("#1E1B22"), Color("#0C0B0E"))
+		shape(blob([Vector2(182, 196), Vector2(256, 202), Vector2(330, 196), Vector2(330, 172), Vector2(256, 178), Vector2(182, 172)], 4), Color("#3A1418"), Color("#24090C"), 3.0)
+		taper([Vector2(204, 70), Vector2(202, 180)], 6.0, 3.0, Color(1, 1, 1, 0.12))
+
+	# ------------------------------------------------------------------ Ashby Crane
+
+	func _crane() -> void:
+		var skin := Color("#EBB792")
+		var skin_d := Color("#C08262")
+		var hair := Color("#2A1E16")
+		var hair_d := Color("#120C08")
+		var c := Vector2(256, 268)
+		# Mustard check suit, a red carnation.
+		var suit := Color("#B08A3A")
+		_coat(suit)
+		for k in 9:
+			line([Vector2(70 + k * 46, 512), Vector2(110 + k * 34, 400)], 2.0, Color(suit.darkened(0.35), 0.5))
+		shape(ell(Vector2(186, 432), Vector2(14, 13)), Color("#C0283A"), Color("#7E1824"), 2.5, Vector2(3, 3))
+		# Neck, collar and a striped bow tie.
+		shape(blob([Vector2(222, 334), Vector2(290, 334), Vector2(294, 386), Vector2(256, 396), Vector2(218, 386)]), skin_d.lightened(0.1), skin_d)
+		var bt := Vector2(256, 396)
+		shape(blob([bt, bt + Vector2(-32, -14), bt + Vector2(-32, 14)]), Color("#3A6E8A"), Color("#244C60"), 3.0)
+		shape(blob([bt, bt + Vector2(32, -14), bt + Vector2(32, 14)]), Color("#3A6E8A"), Color("#244C60"), 3.0)
+		shape(ell(bt, Vector2(8, 9)), Color("#4A84A2"), Color("#2C5C74"), 3.0)
+		# Ears.
+		shape(ell(Vector2(180, 272), Vector2(14, 22)), skin, skin_d)
+		shape(ell(Vector2(332, 272), Vector2(14, 22)), skin, skin_d)
+		# A round, well-fed face.
+		var f := face(c, 158, 190, 1.06, 1.0)
+		shape(f, skin, skin_d, 4.0, Vector2(14, 6))
+		draw_circle(Vector2(208, 302), 16.0, Color(0.95, 0.45, 0.4, 0.22))
+		draw_circle(Vector2(304, 302), 16.0, Color(0.95, 0.45, 0.4, 0.22))
+		# Squinting smile-eyes and arched brows.
+		for sd: float in [-1.0, 1.0]:
+			var e := Vector2(256 + sd * 36, 260)
+			taper([e + Vector2(-16, 4), e + Vector2(0, -6), e + Vector2(16, 4)], 4.5, 4.5, INK)
+			taper([e + Vector2(sd * 18, 4), e + Vector2(sd * 28, 10)], 2.0, 0.5, Color(skin_d, 0.9))
+			taper([e + Vector2(-22, -24), e + Vector2(0, -34), e + Vector2(22, -26)], 6.0, 4.0, hair, 8.0)
+		# A button nose.
+		fill(ell(Vector2(258, 292), Vector2(14, 11)), skin_d.lightened(0.08))
+		draw_circle(Vector2(254, 287), 3.0, Color(1, 0.95, 0.9, 0.7))
+		# The big grin, with a gold tooth.
+		var grin := blob([Vector2(214, 322), Vector2(256, 330), Vector2(298, 322), Vector2(288, 348), Vector2(256, 358), Vector2(224, 348)])
+		shape(grin, Color("#5A1E1A"), Color("#3A1210"), 3.5, Vector2(2, 2))
+		clipped(blob([Vector2(214, 322), Vector2(256, 330), Vector2(298, 322), Vector2(294, 336), Vector2(256, 340), Vector2(218, 336)]), grin, Color("#F6F0E2"))
+		clipped(PackedVector2Array([Vector2(266, 326), Vector2(278, 324), Vector2(278, 340), Vector2(266, 340)]), grin, Color("#E8C04A"))
+		for k in 5:
+			line([Vector2(234 + k * 12, 330), Vector2(234 + k * 12, 338)], 1.5, Color(INK, 0.5))
+		# Pencil moustache.
+		taper([Vector2(226, 314), Vector2(256, 310), Vector2(286, 314)], 2.0, 2.0, hair_d, 4.0)
+		# Pomaded hair, centre parting, shining.
+		shape(blob([Vector2(180, 238), Vector2(186, 196), Vector2(226, 176), Vector2(256, 190), Vector2(286, 176), Vector2(326, 196), Vector2(332, 238), Vector2(306, 210), Vector2(256, 200), Vector2(206, 210)]), hair, hair_d)
+		taper([Vector2(206, 196), Vector2(232, 186)], 4.0, 1.0, Color(1, 1, 1, 0.45))
+		taper([Vector2(282, 186), Vector2(306, 196)], 1.0, 4.0, Color(1, 1, 1, 0.45))
+		# The bowler, tipped back.
+		shape(ell(Vector2(256, 182), Vector2(116, 18), 0.05), Color("#3A2A1E"), Color("#22170F"))
+		shape(blob([Vector2(184, 182), Vector2(192, 128), Vector2(226, 100), Vector2(286, 100), Vector2(320, 128), Vector2(328, 182), Vector2(256, 188)]), Color("#4A3626"), Color("#2C1F14"))
+		shape(blob([Vector2(186, 180), Vector2(256, 186), Vector2(326, 180), Vector2(326, 164), Vector2(256, 170), Vector2(186, 164)], 4), Color("#1E140C"), Color("#100A06"), 3.0)
+		taper([Vector2(214, 120), Vector2(206, 160)], 6.0, 2.0, Color(1, 1, 1, 0.15))
+
+	# ------------------------------------------------------------------ Ezra Kettle
+
+	func _ezra() -> void:
+		var skin := Color("#DDB09A")
+		var skin_d := Color("#A87C68")
+		var white := Color("#EDEAE4")
+		var white_d := Color("#ADA89F")
+		var c := Vector2(256, 262)
+		# Black frock coat with a fur collar, a gold watch chain.
+		_coat(Color("#26222A"), Color("#E8E4DA"))
+		for sd: float in [-1.0, 1.0]:
+			shape(blob([Vector2(256 + sd * 34, 388), Vector2(256 + sd * 120, 372), Vector2(256 + sd * 190, 420), Vector2(256 + sd * 150, 476), Vector2(256 + sd * 70, 444)]), Color("#6A5444"), Color("#433428"))
+			for k in 6:
+				taper([Vector2(256 + sd * (70 + k * 20), 396 + k * 9), Vector2(256 + sd * (80 + k * 20), 412 + k * 9)], 4.0, 0.5, Color("#8A7262"))
+		line([Vector2(236, 470), Vector2(270, 490), Vector2(300, 476)], 3.0, Color("#D9A83A"))
+		# A thin old neck, a high collar.
+		shape(blob([Vector2(226, 326), Vector2(286, 326), Vector2(290, 384), Vector2(256, 394), Vector2(222, 384)]), skin_d.lightened(0.08), skin_d)
+		taper([Vector2(244, 340), Vector2(248, 380)], 2.5, 1.0, Color(skin_d.darkened(0.2), 0.7))
+		taper([Vector2(268, 340), Vector2(264, 380)], 2.5, 1.0, Color(skin_d.darkened(0.2), 0.7))
+		# Big old ears.
+		shape(ell(Vector2(170, 266), Vector2(17, 30)), skin, skin_d)
+		shape(ell(Vector2(342, 266), Vector2(17, 30)), skin, skin_d)
+		# A skull-like old face: Silas's shape, gone hollow.
+		var f := face(c, 166, 204, 1.0, 1.1)
+		shape(f, skin, skin_d, 4.0, Vector2(15, 7))
+		fill(ell(Vector2(216, 304), Vector2(16, 22)), Color(skin_d, 0.45))
+		fill(ell(Vector2(300, 304), Vector2(16, 22)), Color(skin_d, 0.45))
+		# Liver spots and a thin white combover.
+		for p: Vector2 in [Vector2(226, 186), Vector2(290, 196), Vector2(310, 220), Vector2(206, 214)]:
+			draw_circle(p, 5.0, Color(skin_d, 0.55))
+		for k in 5:
+			taper([Vector2(200 + k * 6, 210 - k * 6), Vector2(256, 176 + k * 3), Vector2(320 - k * 4, 196 + k * 4)], 3.0, 1.0, white)
+		# Deep-set eyes, cruel and small, behind pince-nez.
+		for sd: float in [-1.0, 1.0]:
+			fill(ell(Vector2(256 + sd * 38, 250), Vector2(26, 18)), Color(skin_d.darkened(0.15), 0.6))
+		eye(Vector2(218, 252), 30, 16, Color("#5C6E8A"), skin, Vector2(2, 1), 0.4, 0.14, 3.5, 0.2)
+		eye(Vector2(294, 252), 30, 16, Color("#5C6E8A"), skin, Vector2(2, 1), 0.4, -0.14, 3.5, 0.2)
+		for gx: float in [218.0, 294.0]:
+			draw_arc(Vector2(gx, 252), 21.0, 0.0, TAU, 32, Color("#B98A2E"), 3.0, true)
+			draw_arc(Vector2(gx, 252), 15.0, PI * 1.05, PI * 1.4, 8, Color(1, 1, 1, 0.7), 2.5, true)
+		line([Vector2(239, 250), Vector2(256, 244), Vector2(273, 250)], 3.0, Color("#B98A2E"))
+		line([Vector2(197, 254), Vector2(186, 300), Vector2(196, 360)], 1.5, Color("#B98A2E"))
+		# White brows drawn down in a hard frown.
+		for sd: float in [-1.0, 1.0]:
+			taper([Vector2(256 + sd * 12, 232), Vector2(256 + sd * 40, 222), Vector2(256 + sd * 66, 228)], 10.0, 4.0, white_d, 11.0)
+			taper([Vector2(256 + sd * 12, 229), Vector2(256 + sd * 40, 219), Vector2(256 + sd * 64, 224)], 6.0, 2.0, white, 7.0)
+		for k in 3:
+			line([Vector2(226, 200 + k * 9), Vector2(256, 196 + k * 9), Vector2(286, 200 + k * 9)], 2.0, Color(skin_d, 0.85))
+		# The Kettle nose, sharper and bonier.
+		shape(blob([Vector2(242, 266), Vector2(256, 254), Vector2(272, 266), Vector2(278, 296), Vector2(264, 310), Vector2(246, 310), Vector2(234, 296)]), Color("#C99480"), Color("#97685A"), 3.5)
+		# The walrus moustache, white, waxed to points.
+		var stache := blob([Vector2(256, 304), Vector2(280, 302), Vector2(316, 312), Vector2(348, 300), Vector2(330, 330), Vector2(290, 332),
+				Vector2(256, 334), Vector2(222, 332), Vector2(182, 330), Vector2(164, 300), Vector2(196, 312), Vector2(232, 302)])
+		shape(stache, white, white_d, 4.0, Vector2(7, 6))
+		# A thin, downturned mouth and deep lines either side.
+		taper([Vector2(236, 348), Vector2(256, 344), Vector2(276, 348)], 3.0, 3.0, Color("#6E3A34"))
+		taper([Vector2(214, 322), Vector2(220, 352), Vector2(232, 372)], 3.0, 1.0, Color(skin_d, 0.9))
+		taper([Vector2(298, 322), Vector2(292, 352), Vector2(280, 372)], 3.0, 1.0, Color(skin_d, 0.9))
+
+	# ------------------------------------------------------------------ Lucky Moreau
+
+	func _lucky() -> void:
+		var skin := Color("#8A5A3C")
+		var skin_d := Color("#5E3B26")
+		var hair := Color("#1A1412")
+		var c := Vector2(256, 266)
+		# Long duster over a waistcoat.
+		shape(blob([Vector2(34, 512), Vector2(64, 420), Vector2(150, 382), Vector2(256, 376), Vector2(362, 382), Vector2(448, 420), Vector2(478, 512)]), Color("#6A5240"), Color("#46352A"))
+		shape(blob([Vector2(200, 512), Vector2(210, 404), Vector2(256, 394), Vector2(302, 404), Vector2(312, 512)]), Color("#2E3A44"), Color("#1C252C"))
+		# Neck, a red bandana, an amber pendant on a cord.
+		shape(blob([Vector2(224, 332), Vector2(290, 332), Vector2(294, 386), Vector2(256, 396), Vector2(218, 386)]), skin_d.lightened(0.1), skin_d)
+		shape(blob([Vector2(204, 374), Vector2(256, 366), Vector2(310, 374), Vector2(290, 420), Vector2(256, 440), Vector2(222, 420)]), Color("#B8322A"), Color("#7E1E1A"))
+		for p: Vector2 in [Vector2(236, 396), Vector2(270, 404), Vector2(254, 422)]:
+			draw_circle(p, 3.0, Color("#F2E3C2"))
+		line([Vector2(226, 378), Vector2(256, 452), Vector2(286, 378)], 2.0, INK)
+		shape(blob([Vector2(256, 444), Vector2(270, 460), Vector2(256, 484), Vector2(242, 460)]), Color("#F0A030"), Color("#B0660E"), 3.0, Vector2(3, 3))
+		fill(ell(Vector2(254, 462), Vector2(4, 6)), Color("#5A3008", 0.8))
+		draw_circle(Vector2(250, 454), 3.0, Color(1, 0.95, 0.7, 0.9))
+		# Ears, a gold hoop in the left.
+		shape(ell(Vector2(180, 270), Vector2(13, 22)), skin, skin_d)
+		shape(ell(Vector2(332, 270), Vector2(13, 22)), skin, skin_d)
+		draw_arc(Vector2(178, 300), 11.0, 0.0, TAU, 24, Color("#E8C04A"), 4.0, true)
+		# A lean, angular face with stubble.
+		var f := face(c, 150, 194, 1.0, 0.95)
+		shape(f, skin, skin_d, 4.0, Vector2(14, 6))
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 7
+		for i in 140:
+			var p := Vector2(rng.randf_range(196, 316), rng.randf_range(300, 360))
+			if Geometry2D.is_point_in_polygon(p, f):
+				draw_circle(p, 1.2, Color(hair, 0.35))
+		# One eye narrowed, one brow up: the look of a man pricing you.
+		eye(Vector2(222, 256), 38, 20, Color("#3A2416"), skin, Vector2(4, 0), 0.5, 0.1, 4.5, 0.15)
+		eye(Vector2(290, 256), 38, 22, Color("#3A2416"), skin, Vector2(4, 0), 0.26, -0.04, 4.5, 0.1)
+		taper([Vector2(198, 238), Vector2(222, 236), Vector2(246, 240)], 8.0, 5.0, hair)
+		taper([Vector2(268, 232), Vector2(292, 218), Vector2(316, 226)], 5.0, 8.0, hair, 9.0)
+		# Nose, broad.
+		taper([Vector2(262, 256), Vector2(266, 286)], 3.0, 6.0, Color(skin_d, 0.8))
+		fill(blob([Vector2(242, 300), Vector2(258, 290), Vector2(276, 300), Vector2(268, 310), Vector2(248, 310)]), skin_d.lightened(0.05))
+		# A sly half-grin, the cigarillo in the other corner, smoke curling up.
+		taper([Vector2(228, 334), Vector2(256, 338), Vector2(282, 330), Vector2(296, 318)], 3.5, 4.0, Color("#3A1E14"))
+		fill(blob([Vector2(240, 340), Vector2(260, 338), Vector2(280, 334), Vector2(262, 346)]), Color("#7A4232"))
+		taper([Vector2(222, 336), Vector2(176, 352)], 9.0, 8.0, Color("#6A3E22"))
+		draw_circle(Vector2(174, 353), 5.0, Color("#E8602A"))
+		taper([Vector2(170, 344), Vector2(160, 310), Vector2(172, 280), Vector2(158, 240)], 5.0, 1.0, Color(0.9, 0.9, 0.88, 0.35))
+		# Thin moustache and a chin tuft.
+		taper([Vector2(232, 318), Vector2(256, 314), Vector2(282, 316)], 3.0, 3.0, hair, 5.0)
+		taper([Vector2(252, 356), Vector2(256, 372)], 6.0, 1.0, hair)
+		# The slouch hat, brim pulled low on one side, a hawk feather in the band.
+		shape(blob([Vector2(102, 214), Vector2(160, 186), Vector2(256, 176), Vector2(352, 182), Vector2(410, 196), Vector2(360, 214), Vector2(256, 216), Vector2(150, 232)]), Color("#3E2C20"), Color("#24180F"))
+		shape(blob([Vector2(176, 196), Vector2(188, 136), Vector2(232, 112), Vector2(282, 112), Vector2(326, 132), Vector2(336, 192), Vector2(256, 200)]), Color("#54402E"), Color("#33251A"))
+		line([Vector2(230, 116), Vector2(256, 136), Vector2(284, 116)], 3.0)
+		shape(blob([Vector2(178, 192), Vector2(256, 198), Vector2(334, 190), Vector2(334, 174), Vector2(256, 182), Vector2(178, 176)], 4), Color("#8A2A1E"), Color("#5A1A12"), 3.0)
+		var fe := Vector2(318, 180)
+		shape(blob([fe, fe + Vector2(30, -60), fe + Vector2(46, -96), fe + Vector2(36, -58), fe + Vector2(8, -4)]), Color("#B87A42"), Color("#7A4E26"), 2.5, Vector2(3, 2))
+		for k in 5:
+			line([fe + Vector2(10 + k * 6, -14 - k * 14), fe + Vector2(22 + k * 6, -10 - k * 14)], 1.5, Color("#3A2414"))

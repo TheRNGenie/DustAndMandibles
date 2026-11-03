@@ -27,7 +27,7 @@ const DIR := "res://data/story/"
 const IDS: Array[String] = ["ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "ch7", "ch8"]
 ## The rest of the story, shown as "Coming Later" on the chapter screen ([[number, title]]).
 const PLANNED: Array = []
-const SPEAKERS: Array[String] = ["stroud", "kettle", "pearl", "doc"]
+const SPEAKERS: Array[String] = ["stroud", "kettle", "pearl", "doc", "vane", "crane", "ezra", "lucky"]
 const KINDS: Array[String] = ["hold", "fetch", "protect", "keep", "blast"]
 ## Where a fetch item turns up: the plateau stand-ins, then the canyon floor ones.
 const SPAWNS: Array[String] = ["airship_drop", "boss_drop", "floor_wagon", "boss_carcass"]
@@ -132,17 +132,20 @@ static func next_id(chapter_id: String) -> String:
 
 static func speaker_name(who: String) -> String:
 	return {"stroud": "Capt. Ada Stroud", "kettle": "Silas Kettle", "pearl": "Pearl \"Snake Eyes\" Doyle",
-			"doc": "Doc Whitlow"}.get(who, who.capitalize())
+			"doc": "Doc Whitlow", "vane": "Cornelius Vane", "crane": "Ashby Crane", "ezra": "Ezra Kettle",
+			"lucky": "Lucky Moreau"}.get(who, who.capitalize())
 
 
 ## A short name for small captions ("Capt. Stroud").
 static func speaker_short(who: String) -> String:
-	return {"stroud": "Capt. Stroud", "kettle": "Silas", "pearl": "Pearl", "doc": "Doc"}.get(who, who.capitalize())
+	return {"stroud": "Capt. Stroud", "kettle": "Silas", "pearl": "Pearl", "doc": "Doc", "vane": "Vane",
+			"crane": "Crane", "ezra": "Ezra", "lucky": "Lucky"}.get(who, who.capitalize())
 
 
 static func speaker_role(who: String) -> String:
 	return {"stroud": "Lucky Mandible, Bridge", "kettle": "Gunsmith, Lower Deck", "pearl": "Casino Deck",
-			"doc": "Rail Car 9, Canyon Floor"}.get(who, "")
+			"doc": "Rail Car 9, Canyon Floor", "vane": "Chairman of the Board, W.P.&P.", "crane": "Agent of the Board",
+			"ezra": "Director, W.P.&P.", "lucky": "Amber Fence, Airship Hold"}.get(who, "")
 
 
 # ------------------------------------------------------------------ reading it

@@ -5,57 +5,155 @@
 	"map": "canyon",
 	"first_wave": 1,
 	"last_wave": 5,
-	"blurb": "The railroad's bounty is posted and the bugs are climbing. Learn the cross-cliff deal: your guns guard your partner's wall, theirs guard yours.",
+	"blurb": "You've come to Dry Gulch on the railroad's Reclamation Charter: free title and a bounty on every bug. Learn the cross-cliff deal: your guns guard your partner's wall, theirs guard yours.",
 	"start_bonus": {},
-	"objective": {"kind": "hold", "text": "Hold Every Homestead Through Wave 5"},
-	"bosses": {"5": "hive_wagon"},
+	"objective": {
+		"kind": "hold",
+		"text": "Hold Every Homestead Through Wave 5"
+	},
+	"bosses": {
+		"5": "hive_wagon"
+	},
 	"extra_bugs": {},
 	"weather": {},
 	"telegram": {
-		"title": "Five Nights in Dry Gulch",
-		"body": "TO THE RANCHERS OF DRY GULCH STOP RAILROAD BOUNTY STANDS ON THE HIVE QUEEN AND A DEED TO THE GULCH STOP FIRST HOLD THE CLIFFS FIVE NIGHTS STOP GUARD YOUR PARTNERS WALL NOT YOUR OWN STOP THE LAW INSISTS STOP"
+		"title": "Dry Gulch Reclamation Charter",
+		"body": "WESTERN PLAINS AND PACIFIC TO THE RANCHERS OF DRY GULCH STOP FOLLOWING THE REGRETTABLE MINING ACCIDENT OF 1889 FREE TITLE TO ANY SETTLER WHO HOLDS THE RIMS STOP BOUNTY PAID ON EVERY PEST STOP CANYON FLOOR TO BE LEFT UNDISTURBED FOR PUBLIC SAFETY STOP GUARD YOUR PARTNERS WALL NOT YOUR OWN STOP THE LAW INSISTS STOP C VANE CHAIRMAN"
 	},
 	"radio": {
 		"1": {
 			"build": [
-				["stroud", "Morning, ranchers. Captain Ada Stroud, airship Lucky Mandible. The railroad's paying, and the bugs are coming."],
-				["stroud", "Your guns can't dip at your own wall. Thirty degrees, by law. So you cover your partner's."],
-				["kettle", "Territorial Board of Firearms, 1871. A congressman shot his own boots off. Now we all suffer."],
-				["stroud", "Telegram's pinned on your house board. Read it, then throw your lever."]
+				[
+					"stroud",
+					"Morning, ranchers. Captain Ada Stroud, airship Lucky Mandible. The railroad's paying, and the bugs are coming."
+				],
+				[
+					"stroud",
+					"Your guns can't dip at your own wall. Thirty degrees, by law. So you cover your partner's."
+				],
+				[
+					"kettle",
+					"Pell's Toes. Governor Pell shot three off firing down at a rattler in '71. Now we all suffer."
+				],
+				[
+					"stroud",
+					"The railroad's charter is on your house board. Free land, a bounty, kind regards. Read it, then throw the lever."
+				]
 			],
-			"wave": [["stroud", "Here they come. Watch the far wall, not your feet."]],
-			"held": [["stroud", "First night held. Patch up, plant something, and keep your partner's wall clean."]]
+			"wave": [
+				[
+					"stroud",
+					"Here they come. Watch the far wall, not your feet."
+				]
+			],
+			"held": [
+				[
+					"stroud",
+					"First night held. Patch up, plant something, and keep your partner's wall clean."
+				]
+			]
 		},
 		"2": {
-			"build": [["kettle", "Silas Kettle, gunsmith, aboard the ship. Bring me chitin and I'll bring you calibre."]],
-			"wave": [["stroud", "Bigger batch tonight. Mind the lanes on your partner's side."]]
+			"build": [
+				[
+					"kettle",
+					"Silas Kettle, gunsmith, aboard the ship. Bring me chitin and I'll bring you calibre."
+				]
+			],
+			"wave": [
+				[
+					"stroud",
+					"Bigger batch tonight. Mind the lanes on your partner's side."
+				]
+			]
 		},
 		"3": {
-			"build": [["pearl", "Pearl Doyle, casino deck. Lose a little scrap with me sometime. I hear things worth knowing."]],
-			"wave": [["stroud", "My spyglass shows dust in every tunnel. Steady now."]]
+			"build": [
+				[
+					"pearl",
+					"Pearl Doyle, casino deck. Lose a little scrap with me sometime. I hear things worth knowing."
+				]
+			],
+			"wave": [
+				[
+					"stroud",
+					"My spyglass shows dust in every tunnel. Steady now."
+				]
+			]
 		},
 		"4": {
-			"build": [["kettle", "I rode with the survey crew in '89. That tunnel didn't hit rock. It hit something hollow."]],
-			"wave": [["stroud", "One more night after this. Don't get comfortable."]]
+			"build": [
+				[
+					"kettle",
+					"I rigged blasting for the railroad crew in '89. That tunnel didn't hit rock. It hit something hollow."
+				],
+				[
+					"stroud",
+					"The charter calls it a mining accident. Funny sort of accident that pays bounties for twelve years."
+				]
+			],
+			"wave": [
+				[
+					"stroud",
+					"One more night after this. Don't get comfortable."
+				]
+			]
 		},
 		"5": {
 			"build": [
-				["stroud", "Bad news on the wire. Something big is coming up the tunnel. They call it the Hive Wagon."],
-				["kettle", "A beetle the size of a stagecoach. Aim for the soft parts. Assuming it has any."]
+				[
+					"stroud",
+					"Bad news on the wire. Something big is coming up the tunnel. They call it the Hive Wagon."
+				],
+				[
+					"kettle",
+					"A beetle the size of a stagecoach. Aim for the soft parts. Assuming it has any."
+				]
 			],
-			"wave": [["stroud", "There's the Wagon. Every gun on it, ranchers!"]]
+			"wave": [
+				[
+					"stroud",
+					"There's the Wagon. Every gun on it, ranchers!"
+				]
+			]
 		}
 	},
 	"events": {
-		"boss_down": [["stroud", "The Wagon's down! The railroad will want a photograph."]],
-		"win": [["stroud", "Five nights held. You've earned your keep, and a hat. Captain's orders."]],
-		"lost": [["stroud", "We lost a house. Regroup. We'll fly it again from the top."]]
+		"boss_down": [
+			[
+				"stroud",
+				"The Wagon's down! The railroad will want a photograph."
+			]
+		],
+		"win": [
+			[
+				"stroud",
+				"Five nights held. You've earned your keep, and a hat. Captain's orders."
+			],
+			[
+				"stroud",
+				"The railroad wired its congratulations. First time I've seen them pay early. Makes me itch."
+			]
+		],
+		"lost": [
+			[
+				"stroud",
+				"We lost a house. Regroup. We'll fly it again from the top."
+			]
+		]
 	},
 	"journal": {
 		"title": "Specimen Notes, No. 1",
 		"body": "The Hive Wagon's plating is grown, not shed. It wears its armour like a coat. Something down here does the tailoring.\n\nI have asked the Captain to stop calling me 'the Mole'. She has not stopped.\n\n- E. Whitlow, Rail Car 9"
 	},
-	"rewards": {"notches": 30, "unlock": {"kind": "cosmetic", "id": "hat:ten_gallon", "name": "Captain Stroud's Spare Ten-Gallon"}},
+	"rewards": {
+		"notches": 30,
+		"unlock": {
+			"kind": "cosmetic",
+			"id": "hat:ten_gallon",
+			"name": "Captain Stroud's Spare Ten-Gallon"
+		}
+	},
 	"headline_win": "Ranchers Hold Dry Gulch; Hive Wagon Derailed",
 	"headline_loss": "Dry Gulch Homestead Falls; Captain 'Disappointed'"
 }

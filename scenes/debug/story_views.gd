@@ -8,11 +8,13 @@ func _ready() -> void:
 	bg.color = Color("#2A1A0F")
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 24)
-	row.position = Vector2(40, 200)
+	# Four to a row (the crew, then the Board and its hangers-on).
+	var row := GridContainer.new()
+	row.columns = 4
+	row.add_theme_constant_override("h_separation", 24)
+	row.add_theme_constant_override("v_separation", 12)
 	add_child(row)
-	row.position = Vector2(40, 60)
+	row.position = Vector2(40, 20)
 	for who in StoryChapter.SPEAKERS:
 		var col := VBoxContainer.new()
 		col.add_theme_constant_override("separation", 10)
@@ -21,7 +23,7 @@ func _ready() -> void:
 		var pic := TextureRect.new()
 		pic.texture = StoryPortrait.texture(self, who)
 		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		pic.custom_minimum_size = Vector2(340, 340)
+		pic.custom_minimum_size = Vector2(300, 300)
 		col.add_child(pic)
 		var l := UiStyle.label(StoryChapter.speaker_name(who), 22, UiStyle.c("title"))
 		col.add_child(l)

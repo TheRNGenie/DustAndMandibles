@@ -436,6 +436,19 @@ func _process(delta: float) -> void:
 			_detonate()
 			return
 	_hunt(delta)
+	_check_strongroom()
+
+
+## Host: the first rider to walk up to the Board's strongroom sets off its radio beat.
+func _check_strongroom() -> void:
+	if tunnel == null or director._said.has("ch7_strongroom"):
+		return
+	var at := tunnel.to_global(tunnel.strongroom_point())
+	for peer: int in Expedition.down:
+		var pl := Expedition.player_node(peer)
+		if pl != null and is_inside(pl) and pl.global_position.distance_to(at) < 5.5:
+			_say_once("strongroom")
+			return
 
 
 func _underground_light(delta: float) -> void:
@@ -738,6 +751,10 @@ func _debug_view() -> void:
 				for i in mini(2, needed):
 					charges[i] = true
 				_broadcast()
+		"strongroom":
+			Expedition.report_trip(true)
+			_place(p, tunnel.to_global(MineTunnel.local_at(MineTunnel.STRONGROOM_D - 2.6, 0.6, 0.1)),
+					tunnel.to_global(tunnel.strongroom_point() + Vector3(0, 1.0, 0)))
 		"chamber":
 			_place(p, tunnel.to_global(MineTunnel.local_at(27.0, 0.6, 0.1)), tunnel.to_global(MineTunnel.local_at(41.0, 0.0, 1.0)))
 			if multiplayer.is_server():

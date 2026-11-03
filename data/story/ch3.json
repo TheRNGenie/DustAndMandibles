@@ -6,10 +6,43 @@
 	"first_wave": 9,
 	"last_wave": 11,
 	"blurb": "Doc Whitlow needs a Queen Spider gland, and he pays in maps. Hold the webbing waves, bring her down, ride down to her carcass on the canyon floor for the gland, and mail it from your noticeboard.",
-	"start_bonus": {"scrap": 650, "chitin": 40},
-	"objective": {"kind": "fetch", "text": "Fell the Queen Spider, Cut Out Her Gland and Mail It", "item": "gland", "item_name": "Queen Spider Gland", "pack_item": "queen_gland", "spawn": "boss_carcass", "boss": "queen_spider", "deliver_to": "board"},
-	"bosses": {"11": "queen_spider"},
-	"extra_bugs": {"9": [["wolf_spider", 6]], "10": [["wolf_spider", 8]], "11": [["wolf_spider", 6]]},
+	"start_bonus": {
+		"scrap": 650,
+		"chitin": 40
+	},
+	"objective": {
+		"kind": "fetch",
+		"text": "Fell the Queen Spider, Cut Out Her Gland and Mail It",
+		"item": "gland",
+		"item_name": "Queen Spider Gland",
+		"pack_item": "queen_gland",
+		"spawn": "boss_carcass",
+		"boss": "queen_spider",
+		"deliver_to": "board"
+	},
+	"bosses": {
+		"11": "queen_spider"
+	},
+	"extra_bugs": {
+		"9": [
+			[
+				"wolf_spider",
+				6
+			]
+		],
+		"10": [
+			[
+				"wolf_spider",
+				8
+			]
+		],
+		"11": [
+			[
+				"wolf_spider",
+				6
+			]
+		]
+	},
 	"weather": {},
 	"telegram": {
 		"title": "Wanted: One Gland",
@@ -18,35 +51,125 @@
 	"radio": {
 		"9": {
 			"build": [
-				["doc", "Whitlow here, from the rail car. I need a fresh Queen Spider gland. Fresh means quickly."],
-				["stroud", "Doc pays in maps. The survey map. The one the railroad swears doesn't exist."]
+				[
+					"doc",
+					"Whitlow here, from the rail car. I need a fresh Queen Spider gland. Fresh means quickly."
+				],
+				[
+					"stroud",
+					"Doc pays in maps. The survey map. The one the railroad swears doesn't exist."
+				]
 			],
-			"wave": [["stroud", "Webs on the walls tonight. Shoot through them, or burn them."]]
+			"wave": [
+				[
+					"stroud",
+					"Webs on the walls tonight. Shoot through them, or burn them."
+				]
+			]
 		},
 		"10": {
-			"build": [["kettle", "That survey map got three men fired and one man eaten. I was one of the fired."]],
-			"wave": [["doc", "Spiders before a queen. She sends scouts. Fascinating. Terrible, but fascinating."]]
+			"build": [
+				[
+					"kettle",
+					"That survey map got three men fired and one man eaten. I was one of the fired."
+				],
+				[
+					"doc",
+					"Curious thing. Governor Pell's injury report was signed by a railroad company surgeon. Not a territorial doctor."
+				]
+			],
+			"wave": [
+				[
+					"doc",
+					"Spiders before a queen. She sends scouts. Fascinating. Terrible, but fascinating."
+				]
+			]
 		},
 		"11": {
-			"build": [["pearl", "Word at the tables: the Queen Spider moves tonight. I'd bet on you. Small stakes."]],
-			"wave": [["stroud", "Big one in the tunnel. That's her. Bring her down and grab that gland."]]
+			"build": [
+				[
+					"pearl",
+					"Word at the tables: the Queen Spider moves tonight. I'd bet on you. Small stakes."
+				]
+			],
+			"wave": [
+				[
+					"stroud",
+					"Big one in the tunnel. That's her. Bring her down and grab that gland."
+				]
+			]
 		}
 	},
 	"events": {
-		"drop": [["doc", "She's on the canyon floor. Ride down and cut out the gland. Gently, please."]],
-		"dumped": [["stroud", "She died on the plateau. The crew tipped her over the edge. You're welcome."]],
-		"up": [["doc", "The gland's out of the canyon! Carry it to a noticeboard. My mail hook will find it."]],
-		"pickup": [["doc", "Hold it upright, please. It is, regrettably, still thinking."]],
-		"delivered": [["doc", "Received. Still warm. Splendid. You'll have your map, ranchers."]],
-		"hold": [["stroud", "Walls are quiet. Now fetch that gland before it stops thinking."]],
-		"win": [["kettle", "That map says the tunnel runs deeper than the railroad let on. Much deeper."]],
-		"lost": [["doc", "A pity. Spiders keep. Houses, it seems, do not. Again, please."]]
+		"drop": [
+			[
+				"doc",
+				"She's on the canyon floor. Ride down and cut out the gland. Gently, please."
+			]
+		],
+		"dumped": [
+			[
+				"stroud",
+				"She died on the plateau. The crew tipped her over the edge. You're welcome."
+			]
+		],
+		"up": [
+			[
+				"doc",
+				"The gland's out of the canyon! Carry it to a noticeboard. My mail hook will find it."
+			]
+		],
+		"pickup": [
+			[
+				"doc",
+				"Hold it upright, please. It is, regrettably, still thinking."
+			]
+		],
+		"delivered": [
+			[
+				"doc",
+				"Received. Still warm. Splendid. You'll have your map, ranchers. It's signed J. Kettle, 1868."
+			]
+		],
+		"hold": [
+			[
+				"stroud",
+				"Walls are quiet. Now fetch that gland before it stops thinking."
+			]
+		],
+		"win": [
+			[
+				"doc",
+				"Josiah Kettle's survey. A spot marked 'the lid', and below it, 'upper galleries: amber'."
+			],
+			[
+				"kettle",
+				"Josiah was my granddad. He never talked about Dry Gulch. Not once."
+			],
+			[
+				"stroud",
+				"Silas? ...Silas has gone quiet. First time I've ever known it."
+			]
+		],
+		"lost": [
+			[
+				"doc",
+				"A pity. Spiders keep. Houses, it seems, do not. Again, please."
+			]
+		]
 	},
 	"journal": {
 		"title": "The Survey Map",
-		"body": "Survey tunnel, mile three: a hollow chamber, warm air, and a sound like breathing. The crew refused to go on. So did I.\n\nThe railroad drew a wall across the map and called it rock. It is not rock.\n\n- E. Whitlow, Rail Car 9"
+		"body": "J. Kettle, Survey of Dry Gulch, 1868. Mile three: a hollow chamber, warm air, and a sound like breathing. Marked 'the lid'. Below it, in a smaller hand: 'upper galleries: amber. Sell to the Board only.'\n\nThe railroad drew a wall across the map and called it rock. It is not rock. And Josiah Kettle knew it.\n\n- E. Whitlow, Rail Car 9"
 	},
-	"rewards": {"notches": 50, "unlock": {"kind": "cosmetic", "id": "outfit:duster", "name": "Doc's Survey Duster"}},
+	"rewards": {
+		"notches": 50,
+		"unlock": {
+			"kind": "cosmetic",
+			"id": "outfit:duster",
+			"name": "Doc's Survey Duster"
+		}
+	},
 	"headline_win": "Queen Spider Felled; Gland 'Still Thinking', Says Doc",
 	"headline_loss": "Buttes Overrun; Spider Gland Unmailed"
 }

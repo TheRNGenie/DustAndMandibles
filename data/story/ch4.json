@@ -6,10 +6,32 @@
 	"first_wave": 12,
 	"last_wave": 13,
 	"blurb": "The railroad's payroll sits in strongboxes by your houses, and dragonfly bandits can smell silver. Shoot them down before they clear the rim.",
-	"start_bonus": {"scrap": 900, "chitin": 60},
-	"objective": {"kind": "protect", "text": "Keep the Railroad Payroll From the Bandits", "thing": "strongbox", "thing_name": "Payroll Strongbox", "loot_each": 10},
+	"start_bonus": {
+		"scrap": 900,
+		"chitin": 60
+	},
+	"objective": {
+		"kind": "protect",
+		"text": "Keep the Railroad Payroll From the Bandits",
+		"thing": "strongbox",
+		"thing_name": "Payroll Strongbox",
+		"loot_each": 10
+	},
 	"bosses": {},
-	"extra_bugs": {"12": [["dragonfly_bandit", 6]], "13": [["dragonfly_bandit", 10]]},
+	"extra_bugs": {
+		"12": [
+			[
+				"dragonfly_bandit",
+				6
+			]
+		],
+		"13": [
+			[
+				"dragonfly_bandit",
+				10
+			]
+		]
+	},
 	"weather": {},
 	"telegram": {
 		"title": "Payroll on the Cliffs",
@@ -18,29 +40,101 @@
 	"radio": {
 		"12": {
 			"build": [
-				["stroud", "The railroad's payroll is in those strongboxes by your houses. Bandits can smell silver."],
-				["pearl", "Dragonflies. They steal, they flutter, they never tip. Shoot them before they reach the boxes."],
-				["kettle", "Cliff turrets can't aim up, remember. Rifles and anti-air guns against the sky tonight."]
+				[
+					"stroud",
+					"The railroad's payroll is in those strongboxes by your houses. Bandits can smell silver."
+				],
+				[
+					"pearl",
+					"Dragonflies. They steal, they flutter, they never tip. Shoot them before they reach the boxes."
+				],
+				[
+					"kettle",
+					"Cliff turrets can't aim up, remember. Rifles and anti-air guns against the sky tonight."
+				]
 			],
-			"wave": [["stroud", "Wings over the canyon! Guard those boxes!"]]
+			"wave": [
+				[
+					"stroud",
+					"Wings over the canyon! Guard those boxes!"
+				]
+			]
 		},
 		"13": {
-			"build": [["stroud", "Last night of the payroll. Then the railroad comes to collect. Hopefully just the silver."]],
-			"wave": [["stroud", "Here comes the whole flight. Every gun skyward!"]]
+			"build": [
+				[
+					"stroud",
+					"Last night of the payroll. Then the railroad comes to collect. Hopefully just the silver."
+				],
+				[
+					"crane",
+					"Ashby Crane, for the Board. Lovely work, ranchers. I'll be collecting the boxes personally. All of them."
+				]
+			],
+			"wave": [
+				[
+					"stroud",
+					"Here comes the whole flight. Every gun skyward!"
+				]
+			]
 		}
 	},
 	"events": {
-		"steal": [["stroud", "A bandit's got a sack of silver. Drop it before it clears the rim!"]],
-		"recovered": [["pearl", "Silver's back in the box. I counted. Twice."]],
-		"escaped": [["stroud", "One got away with a sack. The railroad will hear about that."]],
-		"win": [["stroud", "Payroll's safe and the bounty's paid. Mostly. Rest up, ranchers."], ["pearl", "I'd have taken a cut. For safekeeping."]],
-		"lost": [["stroud", "They cleaned out the boxes. The railroad's furious. We fly it again."]]
+		"steal": [
+			[
+				"stroud",
+				"A bandit's got a sack of silver. Drop it before it clears the rim!"
+			]
+		],
+		"recovered": [
+			[
+				"pearl",
+				"Silver's back in the box. I counted. Twice."
+			]
+		],
+		"escaped": [
+			[
+				"stroud",
+				"One got away with a sack. The railroad will hear about that."
+			]
+		],
+		"win": [
+			[
+				"stroud",
+				"Payroll's safe and the bounty's paid. Mostly. Rest up, ranchers."
+			],
+			[
+				"pearl",
+				"One box wasn't silver. A telegram: 'Settlers holding. Raise bounty. Amber crews by spring. Vane.'"
+			],
+			[
+				"crane",
+				"That box is railroad property, madam. I'll thank you to forget what's in it."
+			],
+			[
+				"pearl",
+				"I never forget a hand, Mr. Crane."
+			]
+		],
+		"lost": [
+			[
+				"stroud",
+				"They cleaned out the boxes. The railroad's furious. We fly it again."
+			]
+		]
 	},
 	"journal": {
 		"title": "Specimen Notes, No. 4",
-		"body": "The dragonflies carry silver back down the hole. They do not eat it. Something below is collecting it.\n\nSomething below is saving up. For what, I would rather not guess in writing.\n\n- E. Whitlow, Rail Car 9"
+		"body": "The dragonflies carry silver back down the hole. They do not eat it. Something below is collecting it.\n\nPearl showed me the telegram from the strongbox. Amber again. Mr. Crane smiled the whole time he took it back. Men only smile like that when they're lying or selling.\n\n- E. Whitlow, Rail Car 9"
 	},
-	"rewards": {"notches": 60, "unlock": {"kind": "blueprint", "id": "craft_swivel_rifle_explosive", "name": "Silas's Blueprint: Swivel Dynamite Long Tom"}},
+	"rewards": {
+		"notches": 60,
+		"unlock": {
+			"kind": "blueprint",
+			"id": "craft_swivel_rifle_explosive",
+			"name": "Silas's Blueprint: Swivel Dynamite Long Tom"
+		}
+	},
 	"headline_win": "Payroll Safe; Dragonfly Gang Grounded",
 	"headline_loss": "Bandits Clean Out Railroad Payroll"
 }

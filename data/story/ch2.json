@@ -6,11 +6,34 @@
 	"first_wave": 6,
 	"last_wave": 8,
 	"blurb": "The wells have failed and a heat wave is rolling in. The supply wagon with the spare pump valve went over the edge: ride down, fetch the valve from the wreck, fit it to a well, and hold three hot nights.",
-	"start_bonus": {"scrap": 450, "chitin": 25},
-	"objective": {"kind": "fetch", "text": "Fetch the Pump Valve from the Canyon Floor and Fit It to a Well", "item": "valve", "item_name": "Pump Valve", "pack_item": "pump_valve", "spawn": "floor_wagon", "drop_wave": 6, "deliver_to": "well", "breaks_wells": true},
+	"start_bonus": {
+		"scrap": 450,
+		"chitin": 25
+	},
+	"objective": {
+		"kind": "fetch",
+		"text": "Fetch the Pump Valve from the Canyon Floor and Fit It to a Well",
+		"item": "valve",
+		"item_name": "Pump Valve",
+		"pack_item": "pump_valve",
+		"spawn": "floor_wagon",
+		"drop_wave": 6,
+		"deliver_to": "well",
+		"breaks_wells": true
+	},
 	"bosses": {},
-	"extra_bugs": {"7": [["wolf_spider", 4]]},
-	"weather": {"7": "heat_wave", "8": "heat_wave"},
+	"extra_bugs": {
+		"7": [
+			[
+				"wolf_spider",
+				4
+			]
+		]
+	},
+	"weather": {
+		"7": "heat_wave",
+		"8": "heat_wave"
+	},
 	"telegram": {
 		"title": "The Wells Have Failed",
 		"body": "WELLS FAILING ACROSS THE GULCH STOP HEAT WAVE INBOUND STOP SUPPLY WAGON WITH THE SPARE PUMP VALVE WENT OVER THE EDGE STOP IT LIES ON THE FLOOR BY A TUNNEL STOP RIDE DOWN FETCH IT FIT IT TO A WELL STOP HOLD THREE NIGHTS STOP"
@@ -18,35 +41,125 @@
 	"radio": {
 		"6": {
 			"build": [
-				["stroud", "Your pump valves cracked in the heat. Every well's bone dry till you fit a new one."],
-				["stroud", "Spare valve was on the supply wagon. The wagon went over the edge. Take the rope down."]
+				[
+					"stroud",
+					"Your pump valves cracked in the heat. Every well's bone dry till you fit a new one."
+				],
+				[
+					"stroud",
+					"Spare valve was on the supply wagon. The wagon went over the edge. Take the rope down."
+				]
 			],
-			"wave": [["stroud", "Hold them off. No water, no crops. No crops, no supper."]]
+			"wave": [
+				[
+					"stroud",
+					"Hold them off. No water, no crops. No crops, no supper."
+				]
+			]
 		},
 		"7": {
-			"build": [["pearl", "Heat wave's coming. I'm selling ice at the casino. It's mostly water. Mostly."]],
-			"wave": [["stroud", "Hundred and ten in the shade. Turrets run hot. Pace your shots."]]
+			"build": [
+				[
+					"pearl",
+					"Heat wave's coming. I'm selling ice at the casino. It's mostly water. Mostly."
+				],
+				[
+					"kettle",
+					"Those wells didn't crack in the heat. I looked at mine. Somebody fitted a railroad seal on the pipe."
+				]
+			],
+			"wave": [
+				[
+					"stroud",
+					"Hundred and ten in the shade. Turrets run hot. Pace your shots."
+				]
+			]
 		},
 		"8": {
-			"build": [["kettle", "Barrels warp in this heat. The Board approves, so long as they warp upward."]],
-			"wave": [["stroud", "Last night of the heat. Keep that water flowing."]]
+			"build": [
+				[
+					"kettle",
+					"Barrels warp in this heat. The Board approves, so long as they warp upward."
+				],
+				[
+					"stroud",
+					"That supply wagon was stencilled 'Amber Survey Stores'. Whatever amber is, the railroad's surveying for it."
+				]
+			],
+			"wave": [
+				[
+					"stroud",
+					"Last night of the heat. Keep that water flowing."
+				]
+			]
 		}
 	},
 	"events": {
-		"drop": [["kettle", "Wagon's wrecked by a tunnel mouth. Valve's in the back. Mind what lives in tunnels."]],
-		"pickup": [["kettle", "Careful with that. It's the last good valve this side of Tucson."]],
-		"delivered": [["stroud", "Valve's fitted. The pumps are drinking again. Fine plumbing, ranchers."]],
-		"reminder": [["stroud", "That valve's still down in the canyon. The wells won't wait forever."]],
-		"up": [["stroud", "Valve's out of the canyon. Now get it to a well."]],
-		"hold": [["stroud", "Wave's done, but nobody's fitted that valve. Down the rope and get it!"]],
-		"win": [["stroud", "Three dry nights held and the wells are flowing. Drinks are on Pearl."], ["pearl", "They are not."]],
-		"lost": [["stroud", "The heat took a house. Dust yourselves off. We'll try it again."]]
+		"drop": [
+			[
+				"kettle",
+				"Wagon's wrecked by a tunnel mouth. Valve's in the back. Mind what lives in tunnels."
+			]
+		],
+		"pickup": [
+			[
+				"kettle",
+				"Careful with that. It's the last good valve this side of Tucson. Railroad stencil on that wagon, too."
+			]
+		],
+		"delivered": [
+			[
+				"stroud",
+				"Valve's fitted. The pumps are drinking again. Fine plumbing, ranchers."
+			]
+		],
+		"reminder": [
+			[
+				"stroud",
+				"That valve's still down in the canyon. The wells won't wait forever."
+			]
+		],
+		"up": [
+			[
+				"stroud",
+				"Valve's out of the canyon. Now get it to a well."
+			]
+		],
+		"hold": [
+			[
+				"stroud",
+				"Wave's done, but nobody's fitted that valve. Down the rope and get it!"
+			]
+		],
+		"win": [
+			[
+				"stroud",
+				"Three dry nights held and the wells are flowing. Drinks are on Pearl."
+			],
+			[
+				"pearl",
+				"They are not."
+			]
+		],
+		"lost": [
+			[
+				"stroud",
+				"The heat took a house. Dust yourselves off. We'll try it again."
+			]
+		]
 	},
 	"journal": {
 		"title": "Specimen Notes, No. 2",
-		"body": "The bugs climb harder when the wells run low. They follow water up the rock like roots grown backwards.\n\nWhatever sleeps below is thirsty. I find that a very unwelcome thought.\n\n- E. Whitlow, Rail Car 9"
+		"body": "The bugs climb harder when the wells run low. They follow water up the rock like roots grown backwards.\n\nThe ranchers' wagon came from a railroad survey party: tents, picks, and crates marked AMBER SURVEY STORES. Nobody surveys a canyon they mean to leave alone.\n\n- E. Whitlow, Rail Car 9"
 	},
-	"rewards": {"notches": 40, "unlock": {"kind": "blueprint", "id": "craft_tripod_nozzle_lead", "name": "Silas's Blueprint: Tripod Hose"}},
+	"rewards": {
+		"notches": 40,
+		"unlock": {
+			"kind": "blueprint",
+			"id": "craft_tripod_nozzle_lead",
+			"name": "Silas's Blueprint: Tripod Hose"
+		}
+	},
 	"headline_win": "Wells Flow Again; Mesa Ranchers Beat the Heat",
 	"headline_loss": "Mesa Goes Dry; Valve Still in Canyon Wreck"
 }

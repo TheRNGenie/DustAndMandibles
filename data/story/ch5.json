@@ -6,10 +6,44 @@
 	"first_wave": 14,
 	"last_wave": 16,
 	"blurb": "Silas Kettle has a confession about 1889, and a Burrowing Beetle is tunnelling under your scaffolds. Keep the towers standing while he talks.",
-	"start_bonus": {"scrap": 1100, "chitin": 80},
-	"objective": {"kind": "keep", "text": "Keep 5 Scaffold Storeys Standing on Every Cliff", "thing": "storeys", "per_cliff": 5},
-	"bosses": {"15": "burrow_beetle", "16": "burrow_beetle"},
-	"extra_bugs": {"14": [["rattler_beetle", 6]], "15": [["rattler_beetle", 6]], "16": [["rattler_beetle", 8], ["spitter_scorpion", 6]]},
+	"start_bonus": {
+		"scrap": 1100,
+		"chitin": 80
+	},
+	"objective": {
+		"kind": "keep",
+		"text": "Keep 5 Scaffold Storeys Standing on Every Cliff",
+		"thing": "storeys",
+		"per_cliff": 5
+	},
+	"bosses": {
+		"15": "burrow_beetle",
+		"16": "burrow_beetle"
+	},
+	"extra_bugs": {
+		"14": [
+			[
+				"rattler_beetle",
+				6
+			]
+		],
+		"15": [
+			[
+				"rattler_beetle",
+				6
+			]
+		],
+		"16": [
+			[
+				"rattler_beetle",
+				8
+			],
+			[
+				"spitter_scorpion",
+				6
+			]
+		]
+	},
 	"weather": {},
 	"telegram": {
 		"title": "Raise the Towers",
@@ -18,40 +52,117 @@
 	"radio": {
 		"14": {
 			"build": [
-				["stroud", "Something's digging under the mesa. Get your scaffolds up: five storeys a cliff, standing at every dawn."],
-				["kettle", "Captain. Ranchers. I've kept something quiet for eleven years. It's about the tunnel."],
-				["stroud", "Silas, they're busy. Confess between waves like a gentleman."]
+				[
+					"stroud",
+					"Something's digging under the mesa. Get your scaffolds up: five storeys a cliff, standing at every dawn."
+				],
+				[
+					"kettle",
+					"Captain. Ranchers. I've kept something quiet for eleven years. It's about the tunnel."
+				],
+				[
+					"stroud",
+					"Silas, they're busy. Confess between waves like a gentleman."
+				]
 			],
-			"wave": [["stroud", "Beetles at the walls. Keep those towers standing!"]]
+			"wave": [
+				[
+					"stroud",
+					"Beetles at the walls. Keep those towers standing!"
+				]
+			]
 		},
 		"15": {
 			"build": [
-				["kettle", "The 1889 blast wasn't an accident. The railroad packed that tunnel on purpose."],
-				["kettle", "They wanted the canyon cleared of homesteaders. Cheaper than buying you out."],
-				["pearl", "Silas. You knew? I've been cheating honest people at cards for less."]
+				[
+					"kettle",
+					"The 1889 blast wasn't an accident. The railroad packed that tunnel on purpose."
+				],
+				[
+					"kettle",
+					"They wanted the canyon cleared of homesteaders. Cheaper than buying them out."
+				],
+				[
+					"pearl",
+					"Silas. You knew? I've been cheating honest people at cards for less."
+				]
 			],
-			"wave": [["stroud", "Ground's shaking. That beetle's coming up under a tower. Lanterns flush it out!"]]
+			"wave": [
+				[
+					"stroud",
+					"Ground's shaking. That beetle's coming up under a tower. Lanterns flush it out!"
+				]
+			]
 		},
 		"16": {
 			"build": [
-				["kettle", "I rigged the charges. They told me it was a mine. Nobody said what was below it."],
-				["doc", "The Hive was always there, Silas. You just rang the dinner bell."],
-				["stroud", "One more night. Then we decide what to do with the truth. And with Silas."]
+				[
+					"kettle",
+					"I rigged the charges. They told me it was a mine. They never said what was below it."
+				],
+				[
+					"kettle",
+					"But Granddad's survey did. Josiah knew. He sold them the canyon, and they sold me the dynamite."
+				],
+				[
+					"kettle",
+					"And Pell's Toes? Pell danced a jig at the railhead ball in '72. On both feet. I was there."
+				],
+				[
+					"stroud",
+					"One more night. Then we decide what to do with the truth. And with Silas."
+				]
 			],
-			"wave": [["kettle", "Shoot straight tonight. I owe this canyon that much."]]
+			"wave": [
+				[
+					"kettle",
+					"Shoot straight tonight. I owe this canyon that much."
+				]
+			]
 		}
 	},
 	"events": {
-		"short": [["stroud", "Towers are coming down! Rebuild before dawn or the survey's lost."]],
-		"boss_down": [["kettle", "That beetle had my old shovel marks on its back. Good riddance."]],
-		"win": [["stroud", "Towers stood, the beetle's buried, and the railroad's secret is out."], ["kettle", "Feels lighter. Like dropping an anvil off a cliff."]],
-		"lost": [["stroud", "Not enough timber standing at dawn. Back to the mesa, ranchers."]]
+		"short": [
+			[
+				"stroud",
+				"Towers are coming down! Rebuild before dawn or the survey's lost."
+			]
+		],
+		"boss_down": [
+			[
+				"kettle",
+				"That beetle had my old shovel marks on its back. Good riddance."
+			]
+		],
+		"win": [
+			[
+				"stroud",
+				"Towers stood, the beetle's buried, and the railroad's secret is out. Some of it."
+			],
+			[
+				"kettle",
+				"Feels lighter. Like dropping an anvil off a cliff. Doesn't make it right."
+			]
+		],
+		"lost": [
+			[
+				"stroud",
+				"Not enough timber standing at dawn. Back to the mesa, ranchers."
+			]
+		]
 	},
 	"journal": {
 		"title": "Specimen Notes, No. 5",
-		"body": "Silas told me everything tonight. The railroad paid him to blast the tunnel and clear the canyon.\n\nThe beetles dig toward old dynamite. They remember the smell. So, it seems, does Silas.\n\n- E. Whitlow, Rail Car 9"
+		"body": "Silas told me everything tonight. The railroad paid him to blast the tunnel and clear the canyon of homesteaders, and his grandfather's survey told them exactly where.\n\nThe thirty-degree law was never about Governor Pell's toes. A law that keeps every barrel off the canyon floor protects only one thing down there: whatever the Board is mining.\n\n- E. Whitlow, Rail Car 9"
 	},
-	"rewards": {"notches": 70, "unlock": {"kind": "blueprint", "id": "craft_tripod_cannon_acid", "name": "Silas's Blueprint: Tripod Etching Thumper"}},
+	"rewards": {
+		"notches": 70,
+		"unlock": {
+			"kind": "blueprint",
+			"id": "craft_tripod_cannon_acid",
+			"name": "Silas's Blueprint: Tripod Etching Thumper"
+		}
+	},
 	"headline_win": "Gunsmith Confesses: 1889 Blast 'Was No Accident'",
 	"headline_loss": "Mesa Scaffolds Collapse; Beetle Undermines Ranch"
 }

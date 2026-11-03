@@ -284,12 +284,119 @@ func _build_props() -> void:
 	for k in 5:
 		var p := local_at(erng.randf_range(31.0, 40.0), erng.randf_range(-2.5, 2.5), 0.08)
 		MeshKit.add_limb(st, p, p + Vector3(erng.randf_range(-0.7, 0.7), 0.05, erng.randf_range(-0.7, 0.7)), 0.06, Palette.BONE, 5)
+	_build_strongroom(st, rng)
 	var mi := MeshInstance3D.new()
 	mi.name = "Props"
 	mi.layers = LAYER
 	mi.mesh = MeshKit.finish(st)
 	mi.material_override = Materials.toon(0.02)
 	add_child(mi)
+	_build_boot_case()
+
+
+## Metres in where the railroad's strongroom sits (against the chamber's left wall).
+const STRONGROOM_D := 35.0
+const STRONGROOM_X := -3.3
+
+
+## Where the strongroom is (local), for the "you found it" radio beat.
+func strongroom_point() -> Vector3:
+	return local_at(STRONGROOM_D, STRONGROOM_X, 0.0)
+
+
+## The Board's secret: an iron cage of a strongroom built into the hive wall,
+## its door wrenched open, amber stacked in crates, ledger tins and a glass case.
+func _build_strongroom(st: SurfaceTool, rng: RandomNumberGenerator) -> void:
+	var iron := Palette.METAL.darkened(0.45)
+	var wood := Palette.WOOD.darkened(0.05)
+	var front_x := STRONGROOM_X + 1.0
+	var d0 := STRONGROOM_D - 2.0
+	var d1 := STRONGROOM_D + 2.0
+	var h := 2.7
+	# Back plate, roof and floor plates, riveted.
+	MeshKit.add_box(st, Transform3D(Basis(), local_at(STRONGROOM_D, STRONGROOM_X - 1.0, h * 0.5)), Vector3(0.12, h, d1 - d0), iron.darkened(0.2))
+	MeshKit.add_box(st, Transform3D(Basis(), local_at(STRONGROOM_D, STRONGROOM_X, h)), Vector3(2.1, 0.12, d1 - d0 + 0.1), iron)
+	MeshKit.add_box(st, Transform3D(Basis(), local_at(STRONGROOM_D, STRONGROOM_X, 0.04)), Vector3(2.1, 0.08, d1 - d0), iron.darkened(0.1))
+	for sd: float in [d0, d1]:
+		MeshKit.add_box(st, Transform3D(Basis(), local_at(sd, STRONGROOM_X, h * 0.5)), Vector3(2.1, h, 0.12), iron)
+	# Front bars, with a gap where the door was torn open.
+	var dd := d0 + 0.15
+	while dd < d1:
+		if absf(dd - STRONGROOM_D) > 0.6:
+			MeshKit.add_cylinder(st, Transform3D(Basis(), local_at(dd, front_x, h * 0.5)), 0.035, 0.035, h, 6, iron.lightened(0.1))
+		dd += 0.28
+	MeshKit.add_box(st, Transform3D(Basis(), local_at(STRONGROOM_D, front_x, h - 0.1)), Vector3(0.14, 0.18, d1 - d0), iron.lightened(0.05))
+	MeshKit.add_box(st, Transform3D(Basis(), local_at(STRONGROOM_D, front_x, 0.12)), Vector3(0.14, 0.14, d1 - d0), iron.lightened(0.05))
+	# The door: a barred panel bent outward on one hinge.
+	var door := Transform3D(Basis(Vector3.UP, 1.15) * Basis(Vector3.FORWARD, -0.1), local_at(STRONGROOM_D + 1.05, front_x + 0.5, h * 0.45))
+	MeshKit.add_box(st, door, Vector3(0.08, h * 0.85, 1.15), iron.lightened(0.1), 0.02, rng)
+	# Crates of amber, lids off, the resin glowing.
+	for k in 5:
+		var cd := d0 + 0.6 + k * 0.62
+		if absf(cd - (STRONGROOM_D - 0.3)) < 0.35:
+			continue
+		var stack := 1 + (k % 2)
+		for s in stack:
+			var at := local_at(cd, STRONGROOM_X - 0.4, 0.3 + s * 0.56)
+			MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, rng.randf_range(-0.1, 0.1)), at), Vector3(0.9, 0.52, 0.55), wood, 0.03, rng)
+			if s == stack - 1:
+				for c in 4:
+					var p := at + Vector3(rng.randf_range(-0.3, 0.3), 0.28, rng.randf_range(-0.16, 0.16))
+					MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), p), Vector3(0.12, 0.1, 0.1), 3, 6, Color("#F0A030"), 0.25, rng, 0.9)
+	# Ledger tins on a shelf.
+	MeshKit.add_box(st, Transform3D(Basis(), local_at(d1 - 0.5, STRONGROOM_X - 0.75, 1.5)), Vector3(0.4, 0.06, 0.8), wood.darkened(0.2))
+	for k in 3:
+		MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, rng.randf_range(-0.2, 0.2)), local_at(d1 - 0.75 + k * 0.24, STRONGROOM_X - 0.75, 1.62)), Vector3(0.3, 0.18, 0.2), Color("#5A6E62"), 0.02, rng)
+	# The glass case's pedestal (the case and the boot are their own mesh).
+	MeshKit.add_box(st, Transform3D(Basis(), local_at(STRONGROOM_D + 0.2, STRONGROOM_X + 0.2, 0.45)), Vector3(0.6, 0.9, 0.6), Color("#4A2A1A"), 0.02, rng)
+
+
+## Governor Pell's "shot" boot under glass: the hole through the leather only.
+func _build_boot_case() -> void:
+	var st := MeshKit.begin()
+	var base := local_at(STRONGROOM_D + 0.2, STRONGROOM_X + 0.2, 0.9)
+	var leather := Color("#3A2216")
+	MeshKit.add_box(st, Transform3D(Basis(), base + Vector3(0, 0.22, 0.02)), Vector3(0.14, 0.42, 0.16), leather)
+	MeshKit.add_box(st, Transform3D(Basis(), base + Vector3(0, 0.04, -0.1)), Vector3(0.15, 0.08, 0.36), leather)
+	MeshKit.add_box(st, Transform3D(Basis(), base + Vector3(0, 0.01, -0.06)), Vector3(0.16, 0.03, 0.44), Color("#1E120C"))
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), base + Vector3(0.0, 0.09, -0.2)), Vector3(0.03, 0.03, 0.03), 3, 6, Color("#0A0604"))
+	MeshKit.add_box(st, Transform3D(Basis(), base + Vector3(0.06, 0.4, 0.02)), Vector3(0.02, 0.1, 0.12), Color("#E8DCC0"))
+	var mi := MeshInstance3D.new()
+	mi.name = "PellsBoot"
+	mi.layers = LAYER
+	mi.mesh = MeshKit.finish(st)
+	mi.material_override = Materials.toon(0.01)
+	add_child(mi)
+	var glass := MeshInstance3D.new()
+	glass.name = "Case"
+	glass.layers = LAYER
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.5, 0.6, 0.6)
+	glass.mesh = bm
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.75, 0.9, 1.0, 0.18)
+	mat.roughness = 0.05
+	mat.metallic_specular = 1.0
+	glass.material_override = mat
+	glass.position = base + Vector3(0, 0.3, 0)
+	add_child(glass)
+	var sign := Label3D.new()
+	sign.text = "W.P.&P. — PROPERTY OF THE BOARD"
+	sign.font_size = 40
+	sign.pixel_size = 0.004
+	sign.modulate = Color("#E8C27A")
+	sign.outline_size = 8
+	sign.layers = LAYER
+	sign.position = local_at(STRONGROOM_D, STRONGROOM_X + 1.1, 2.95)
+	sign.rotation.y = PI * 0.5
+	add_child(sign)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color("#FFA640")
+	glow.light_energy = 1.6
+	glow.omni_range = 5.0
+	glow.position = local_at(STRONGROOM_D, STRONGROOM_X, 1.8)
+	add_child(glow)
 
 
 func _lantern_depths() -> Array[float]:
