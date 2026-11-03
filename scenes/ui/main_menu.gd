@@ -290,6 +290,9 @@ func _test_launch() -> bool:
 
 func _on_host() -> void:
 	NetworkManager.local_name = _player_name()
+	if NetworkManager.online_signing_in(): # a moment after launch: let online play finish signing in
+		_status.text = "Signing in to online play..."
+		await NetworkManager.wait_for_online()
 	var err := NetworkManager.host(int(_port_edit.text))
 	if err != OK:
 		_show_connect("Could not host on port %s (error %d)." % [_port_edit.text, err])
@@ -308,7 +311,7 @@ func _on_continue() -> void:
 	if saved.is_empty():
 		_show_connect("The saved run couldn't be read.")
 		return
-	_on_host()
+	await _on_host()
 	if not NetworkManager.is_online():
 		return
 	RunSave.pending = saved
@@ -321,6 +324,13 @@ func _on_continue() -> void:
 
 func _on_join() -> void:
 	NetworkManager.local_name = _player_name()
+	# Online invite (DUST-XXXXXX): found through the online backend's lobbies.
+	if InviteCode.is_lobby_code(_ip_edit.text):
+		if NetworkManager.join_code(_ip_edit.text) != OK:
+			_show_connect(NetworkManager.last_error)
+			return
+		_show_connect("Finding %s..." % InviteCode.normalize_lobby_code(_ip_edit.text))
+		return
 	# The IP field also accepts a pasted invite ("IP:port").
 	var parsed := NetworkManager.parse_invite(_ip_edit.text)
 	if parsed.is_empty():

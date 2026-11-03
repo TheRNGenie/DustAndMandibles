@@ -1,7 +1,13 @@
 # Builds the Windows game and publishes it as a GitHub Release.
 # Runs when a version tag (v1.2.3) is pushed, or by hand from the Actions tab.
-# The release carries the game (one self-contained .exe) and the small setup
-# program that downloads, installs, updates and launches it.
+# The release carries the game (one .exe plus the three Epic Online Services
+# DLLs that sit next to it), a zip of those four, and the small setup program
+# that downloads, installs, updates and launches it.
+#
+# Online play (Epic lobbies + relay): add these repository secrets (Settings >
+# Secrets and variables > Actions): EOS_PRODUCT_ID, EOS_SANDBOX_ID,
+# EOS_DEPLOYMENT_ID, EOS_CLIENT_ID, EOS_CLIENT_SECRET. Without them the build
+# still works, with direct (IP) invites only.
 name: Release
 
 on:
@@ -53,6 +59,37 @@ jobs:
           Expand-Archive godot-dl/templates.zip -DestinationPath tpl -Force
           Copy-Item tpl/templates/* $dest -Recurse -Force
 
+      - name: Stamp the version
+        # Online lobbies only match players on the same version (NetworkManager.game_version()).
+        shell: pwsh
+        run: |
+          $tag = "${{ github.event.inputs.tag || github.ref_name }}"
+          $lines = [System.Collections.Generic.List[string]](Get-Content project.godot)
+          $lines.Insert($lines.IndexOf("[application]") + 1, "config/version=`"$tag`"")
+          Set-Content project.godot $lines
+
+      - name: Write the Epic credentials
+        # Epic: remove this step (and the *.dll lines below) to drop Epic Online Services.
+        # The file is gitignored and only exists inside this build's .pck.
+        shell: pwsh
+        env:
+          EOS_PRODUCT_ID: ${{ secrets.EOS_PRODUCT_ID }}
+          EOS_SANDBOX_ID: ${{ secrets.EOS_SANDBOX_ID }}
+          EOS_DEPLOYMENT_ID: ${{ secrets.EOS_DEPLOYMENT_ID }}
+          EOS_CLIENT_ID: ${{ secrets.EOS_CLIENT_ID }}
+          EOS_CLIENT_SECRET: ${{ secrets.EOS_CLIENT_SECRET }}
+        run: |
+          $keys = "PRODUCT_ID", "SANDBOX_ID", "DEPLOYMENT_ID", "CLIENT_ID", "CLIENT_SECRET"
+          $missing = $keys | Where-Object { -not [Environment]::GetEnvironmentVariable("EOS_$_") }
+          if ($missing) {
+            Write-Host "::warning::No Epic credentials (missing: $($missing -join ', ')). This build has direct invites only."
+            exit 0
+          }
+          $cfg = "[eos]`n"
+          foreach ($k in $keys) { $cfg += '{0}="{1}"' -f $k.ToLower(), [Environment]::GetEnvironmentVariable("EOS_$k") ; $cfg += "`n" }
+          [System.IO.File]::WriteAllText((Join-Path $PWD "eos_release.cfg"), $cfg)
+          Write-Host "Epic credentials written (online lobbies on)."
+
       - name: Export the game
         shell: pwsh
         run: |
@@ -61,7 +98,8 @@ jobs:
           & $godot --headless --path . --import | Out-Null
           & $godot --headless --path . --export-release "Windows Desktop" builds/windows/DustAndMandibles.exe
           if (-not (Test-Path builds/windows/DustAndMandibles.exe)) { throw "export failed" }
-          Get-Item builds/windows/DustAndMandibles.exe | Select-Object Name, Length
+          Get-ChildItem builds/windows | Select-Object Name, Length
+          Compress-Archive -Path builds/windows/* -DestinationPath builds/DustAndMandibles-windows.zip -Force
 
       - name: Add the setup program
         # Prebuilt from tools/installer/Setup.cs (see the build line at the top of that file).
@@ -76,9 +114,11 @@ jobs:
           body: |
             **Easiest:** download **DustAndMandiblesSetup.exe** and run it. It downloads the game, adds Desktop and Start Menu shortcuts, and starts it. The shortcut checks for updates every time you play.
 
-            **Or** download **DustAndMandibles.exe** and run it directly. It is the whole game in one file; nothing else needs installing.
+            **Or** download **DustAndMandibles-windows.zip**, unzip it anywhere and run DustAndMandibles.exe. (DustAndMandibles.exe on its own also runs, but online invites need the three .dll files next to it; without them it offers direct IP invites only.)
 
             Windows may show a "Windows protected your PC" screen because the files are not code-signed. Click **More info**, then **Run anyway**.
           files: |
             builds/windows/DustAndMandibles.exe
+            builds/windows/*.dll
+            builds/DustAndMandibles-windows.zip
             builds/DustAndMandiblesSetup.exe

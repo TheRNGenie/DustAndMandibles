@@ -2,3 +2,5 @@
 *.docx binary
 *.png binary
 *.wav binary
+*.dll binary
+*.so binary

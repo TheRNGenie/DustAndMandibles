@@ -53,3 +53,39 @@ static func decode(text: String) -> Dictionary:
 ## Does this look like a code (rather than an IP:port)?
 static func looks_like_code(text: String) -> bool:
 	return not decode(text).is_empty()
+
+
+# ------------------------------------------------------------------ lobby codes
+## Short lobby codes for the online backends (EpicBackend, a future SteamBackend):
+## six random Crockford letters stored on the lobby, shown as DUST-XXXXXX. They
+## are a lookup key, not an address, so they're shorter than the direct codes
+## above (DUST-XXXXX-XXXXX) and the two can never be mistaken for each other.
+const LOBBY_LENGTH := 6
+
+
+## A fresh random lobby code, e.g. "DUST-7K2MQX".
+static func make_lobby_code() -> String:
+	var out := ""
+	for i in LOBBY_LENGTH:
+		out += ALPHABET[randi() % ALPHABET.length()]
+	return "%s-%s" % [PREFIX, out]
+
+
+## The canonical "DUST-XXXXXX" for anything a player typed (any case, dashes
+## and spaces optional, with or without DUST, I/L/O/U typos fixed), or "".
+static func normalize_lobby_code(text: String) -> String:
+	var t := text.strip_edges().to_upper().replace("-", "").replace(" ", "")
+	if t.begins_with(PREFIX):
+		t = t.substr(PREFIX.length())
+	if t.length() != LOBBY_LENGTH:
+		return ""
+	t = t.replace("O", "0").replace("I", "1").replace("L", "1").replace("U", "V")
+	for ch in t:
+		if ALPHABET.find(ch) < 0:
+			return ""
+	return "%s-%s" % [PREFIX, t]
+
+
+## Is this a lobby code (DUST-XXXXXX) rather than a direct code or an IP?
+static func is_lobby_code(text: String) -> bool:
+	return normalize_lobby_code(text) != ""
