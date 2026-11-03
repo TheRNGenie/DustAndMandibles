@@ -6,8 +6,8 @@ extends WaterSource
 ## turns, the beam rocks, the horsehead heaves the rod and water gushes from the
 ## spout into the trough on every up-stroke; when the levers drop it coasts to a
 ## stop. Its trough is a WaterSource: E fills your bucket from it any time. It
-## seeps full slowly on its own (IDLE_RATE) and fills fast while pumping
-## (PUMP_RATE). The same pump fills the water tower (WaterTower).
+## only fills while pumping (PUMP_RATE); once the trough is full the same pump
+## fills the water tower instead (WaterTower).
 
 ## Seconds per unit of water in the trough: standing, and while the generator pumps.
 const IDLE_RATE := 8.0
@@ -130,9 +130,9 @@ func _part(n: String, mesh: Mesh, mat: Material) -> Node3D:
 
 func _process(delta: float) -> void:
 	var on := GameState.pumps_on() or force_run
-	var rate := PUMP_RATE if on else IDLE_RATE
-	rates = Vector2(rate, rate)
-	super(delta)
+	rates = Vector2(PUMP_RATE, PUMP_RATE)
+	if on:
+		super(delta) # water only comes while the pump runs (Logan: pump and rain are the only sources)
 	_speed = move_toward(_speed, RUN_SPEED if on else 0.0, delta * (1.2 if on else 0.9))
 	if _speed > 0.0:
 		_phi = fmod(_phi + _speed * delta, TAU)
@@ -186,4 +186,4 @@ func interact_prompt() -> String:
 Trough's full: the pump's sending water up to the tower"
 	if GameState.pumps_on():
 		return line + "\nThe generator's pumping it"
-	return line + "\nFills fast while the generator runs"
+	return line + "\nOnly fills while the generator runs"

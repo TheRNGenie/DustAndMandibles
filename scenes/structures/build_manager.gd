@@ -319,6 +319,7 @@ func _make_rain_catcher(cid: int, cell: Vector2i, pos: Vector3) -> WaterSource:
 	w.display_name = "Rain Catcher"
 	w.rates = Vector2(20.0, 3.0)
 	w.capacity = 8
+	w.rain_only = true # the only water besides the pump: rain
 	w.position = pos
 	w.collision_layer = WorldLayout.LAYER_STRUCTURE
 	var mi := MeshInstance3D.new()

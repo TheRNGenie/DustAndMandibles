@@ -13,6 +13,8 @@ var radius: float = 1.2
 ## Seconds per unit of water: [normal, storm].
 var rates: Vector2 = Vector2(8.0, 8.0)
 var capacity: int = 10
+## Only collects while it's raining (rain catchers).
+var rain_only := false
 ## The pump jack well: the pump fills its trough first; once that's full the
 ## same flow goes on to the yard's water tower (WaterTower checks trough_full).
 var overflows_to_tower := false
@@ -32,6 +34,8 @@ func _process(delta: float) -> void:
 		return
 	if stored >= capacity:
 		return
+	if rain_only and not (Weather.is_rain(GameState.weather) or GameState.storm):
+		return # rain catchers only collect when it rains
 	var rate := rates.y if GameState.storm else rates.x
 	_t += delta * GameState.growth_scale() * Weather.water_temp_rate(GameState.temperature())
 	if _t >= rate:
@@ -47,6 +51,10 @@ func trough_full() -> bool:
 
 func interact_prompt() -> String:
 	if stored <= 0:
+		if rain_only:
+			return "%s: empty, fills when it rains" % display_name
+		if overflows_to_tower and not GameState.pumps_on():
+			return "%s: empty, fills while the generator runs" % display_name
 		return "%s: empty, filling up..." % display_name
 	return "%s: %d water - E: fill your bucket (up to %d)" % [display_name, stored, BUCKET]
 
