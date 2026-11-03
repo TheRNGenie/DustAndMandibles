@@ -5,7 +5,7 @@
 	"map": "canyon",
 	"first_wave": 1,
 	"last_wave": 5,
-	"blurb": "You've come to Dry Gulch on the railroad's Reclamation Charter: free title and a bounty on every bug. Learn the cross-cliff deal: your guns guard your partner's wall, theirs guard yours.",
+	"blurb": "You've come to Dry Gulch on the railroad's Reclamation Charter: free title and a bounty on every bug. Hold the cliffs five nights.",
 	"start_bonus": {},
 	"objective": {
 		"kind": "hold",
@@ -18,7 +18,7 @@
 	"weather": {},
 	"telegram": {
 		"title": "Dry Gulch Reclamation Charter",
-		"body": "WESTERN PLAINS AND PACIFIC TO THE RANCHERS OF DRY GULCH STOP FOLLOWING THE REGRETTABLE MINING ACCIDENT OF 1889 FREE TITLE TO ANY SETTLER WHO HOLDS THE RIMS STOP BOUNTY PAID ON EVERY PEST STOP CANYON FLOOR TO BE LEFT UNDISTURBED FOR PUBLIC SAFETY STOP GUARD YOUR PARTNERS WALL NOT YOUR OWN STOP THE LAW INSISTS STOP C VANE CHAIRMAN"
+		"body": "WESTERN PLAINS AND PACIFIC TO THE RANCHERS OF DRY GULCH STOP FOLLOWING THE REGRETTABLE MINING ACCIDENT OF 1889 FREE TITLE TO ANY SETTLER WHO HOLDS THE RIMS STOP BOUNTY PAID ON EVERY PEST STOP CANYON FLOOR TO BE LEFT UNDISTURBED FOR PUBLIC SAFETY STOP BARRELS NOT TO DIP BELOW THIRTY DEGREES STOP THE LAW INSISTS STOP C VANE CHAIRMAN"
 	},
 	"radio": {
 		"1": {

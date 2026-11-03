@@ -285,7 +285,7 @@
     "gatling_post": {
       "lore": "A hand-cranked gatling on a post. Shreds swarms, scratches armour.",
       "tips": [
-        "Build it for your partner's cliff: it can't shoot your own."
+        "It can't dip below thirty degrees, so build it where it can see across the canyon."
       ]
     },
     "buffalo_rifle": {
@@ -486,7 +486,7 @@
       ]
     },
     "queens_bell": {
-      "lore": "A great bell of cast hive amber in a gilded frame, struck by a steam hammer. The hive hears its queen in the note: every toll sets the ordinary bugs on your partner's wall upon each other and shakes fliers out of the sky.",
+      "lore": "A great bell of cast hive amber in a gilded frame, struck by a steam hammer. The hive hears its queen in the note: every toll sets the ordinary bugs on the far wall upon each other and shakes fliers out of the sky.",
       "tips": [
         "Tolls every 9 s whenever anything's in reach: bugs in range bite their neighbours for 6 s instead of climbing.",
         "Fliers in range drop: the fall hurts, and any that live lie stunned. Bosses are only stunned for 2 s a toll.",
@@ -495,7 +495,7 @@
       ]
     },
     "mandible_lance": {
-      "lore": "A heat lance on a rail carriage. Its emitter is a queen's mandible cut from the Iron Mandible wreck, and it burns amber from a glass tank: one continuous beam that reaches the whole of your partner's wall and cuts through everything in its way.",
+      "lore": "A heat lance on a rail carriage. Its emitter is a queen's mandible cut from the Iron Mandible wreck, and it burns amber from a glass tank: one continuous beam that reaches the whole of the far wall and cuts through everything in its way.",
       "tips": [
         "Everything in the beam's spot or along its line burns, armour or not. Where the beam drags from bug to bug it leaves a burning trail.",
         "8 s of fire overheats it; it vents steam for 10 s. Idle, it cools off.",
@@ -547,8 +547,7 @@
       "title": "The Thirty-Degree Law",
       "lore": "Territorial Board of Firearms, 1871: no barrel shall dip more than thirty degrees beneath the horizon. Everybody knows why. On the 4th of July, 1871, Governor Horace Pell fired down from the rim of Dry Gulch at a rattlesnake and shot three of his own toes off. 'If a Governor cannot shoot downhill safely, no man can,' said Chairman Vane of the Western Plains & Pacific, and the law passed by spring. Settlers call it Pell's Toes.",
       "tips": [
-        "No turret or gun can aim more than 30 degrees down, so nobody can defend their own wall.",
-        "Your guns guard your partner's wall; theirs guard yours.",
+        "No turret or gun can aim more than 30 degrees down.",
         "Nothing on the rim can shoot down to the canyon floor either. Ride down the rope to deal with anything down there."
       ]
     },
@@ -575,7 +574,7 @@
     "grow_for_partner": {
       "title": "Grow for Your Partner",
       "icon": "sarsaparilla",
-      "lore": "Your turrets guard your partner's wall and theirs guard yours. Sarsaparilla Root works the same way: you grow it, and it makes THEIR turrets fire faster.",
+      "lore": "Sarsaparilla Root grows for the other cliff: you grow it, and it makes THEIR turrets fire faster.",
       "tips": [
         "Left click with a root out to send a tonic.",
         "A green line under your health shows a tonic on your turrets, or yours on theirs."

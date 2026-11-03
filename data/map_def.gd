@@ -109,7 +109,7 @@ static func canyon() -> MapDef:
 	var m := MapDef.new()
 	m.id = CANYON
 	m.display_name = "Canyon"
-	m.blurb = "Two cliffs, one canyon. Your turrets cover your partner's wall."
+	m.blurb = "Two cliffs, one canyon. And the canyon is not the bottom."
 	m.span_v = WorldLayout.WORLD_HALF_Z
 	var w := Cliff.new()
 	w.name = "West Cliff"

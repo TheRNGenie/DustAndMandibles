@@ -7,7 +7,7 @@ extends PanelContainer
 ## Settings.tutorial_done). --tutorial forces it on; other --debug runs skip it.
 
 const STEPS := [
-	{"title": "Build a turret for your partner", "body": "Your turrets only shoot bugs climbing your partner's cliff.",
+	{"title": "Build a turret", "body": "Turrets on your lip shoot across the canyon.",
 		"keys": [["build_menu", "Build menu"]]},
 	{"title": "Place it on your plateau", "body": "Near the edge, facing the canyon. Green means it fits.",
 		"keys": [["fire", "Place"], ["alt_fire", "Cancel"]]},

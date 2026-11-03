@@ -334,10 +334,10 @@ func show_finish() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
 	paper.add_child(col)
-	col.add_child(UiStyle.note("That's the loop. Each day: build for your partner, farm, throw your lever. Each night: hold the wave together.", 16))
+	col.add_child(UiStyle.note("That's the loop. Each day: build, farm, throw your lever. Each night: hold the wave together.", 16))
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 4)
-	for line: String in ["Your Turrets Guard Your Partner's Wall", "Your Lever Starts the Pumps and the Wave",
+	for line: String in ["Your Turrets Fire Across the Canyon", "Your Lever Starts the Pumps and the Wave",
 			"Water From the Well and Tower Grows Food", "Guns and Seeds Up on the Airship", "Crafted Turrets From the Workshop"]:
 		list.add_child(UiStyle.status(line, "good", 15))
 	col.add_child(list)

@@ -127,6 +127,9 @@ func _build_ui() -> void:
 	wanted.add_theme_color_override("font_color", UiStyle.c("hud"))
 	hcol.add_child(wanted)
 	hcol.add_child(UiStyle.title("Dust & Mandibles", 46, true))
+	var motto := UiStyle.title("The canyon is not the bottom.", 16, true)
+	motto.add_theme_color_override("font_color", UiStyle.c("hud"))
+	hcol.add_child(motto)
 	var card := PanelContainer.new()
 	card.theme_type_variation = "PaperPanel"
 	card.size_flags_vertical = Control.SIZE_EXPAND_FILL

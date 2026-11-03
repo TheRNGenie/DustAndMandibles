@@ -353,7 +353,7 @@ func build_info(icon: Texture2D) -> Dictionary:
 		if not unlocked(id): # Tiers
 			status = Defs.lock_reason(id, GameState.tier_wave())
 		elif not BuildManager.instance.may_build(multiplayer.get_unique_id(), _cliff):
-			status = "Build on your own plateau: your turrets cover your partner"
+			status = "Build on your own plateau"
 		elif not BuildManager.instance.is_free_for(id, _cliff, _cell):
 			status = "That spot is taken"
 		else:
