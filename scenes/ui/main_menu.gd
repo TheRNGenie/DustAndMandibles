@@ -229,6 +229,13 @@ func _build_ui() -> void:
 	_invite_note.theme_type_variation = "SoftInkLabel"
 	_invite_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_invite_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# A long note (a lobby error, the port-forward advice) stops at three lines
+	# with an ellipsis; the whole note is in its tooltip.
+	_invite_note.max_lines_visible = 3
+	_invite_note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_invite_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_invite_note.custom_minimum_size.x = 1 # wraps to the card, never widens it
+	_invite_note.mouse_filter = Control.MOUSE_FILTER_PASS
 	inv_col.add_child(_invite_note)
 	_lobby_box.add_child(_invite_card)
 	NetworkManager.invite_changed.connect(_refresh_invite)
@@ -443,6 +450,7 @@ func _refresh_invite() -> void:
 	if _copy_btn != null:
 		_copy_btn.disabled = pending
 	_invite_note.text = NetworkManager.invite_note()
+	_invite_note.tooltip_text = _invite_note.text
 
 
 func _refresh() -> void:

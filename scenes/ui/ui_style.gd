@@ -104,6 +104,10 @@ static func install() -> void:
 	if _installed:
 		return
 	_installed = true
+	var tree := Engine.get_main_loop() as SceneTree
+	var settings: Node = tree.root.get_node_or_null("Settings") if tree != null and tree.root != null else null
+	if settings != null and settings.get("ui_text_scale") != null:
+		text_scale = clampf(float(settings.get("ui_text_scale")), 0.9, 1.3)
 	apply(&"base")
 
 
@@ -486,13 +490,80 @@ static func bar_fill(color: Color) -> StyleBoxFlat:
 const TYPE_SCALE: Array[int] = [12, 14, 16, 18, 22, 30, 40, 54, 64]
 
 
-## The nearest step of the type scale (ties go up).
+## The player's UI text size (Settings > Accessibility, 0.9 - 1.3), applied by ts().
+static var text_scale := 1.0
+
+
+## The nearest step of the type scale (ties go up), times the player's text size.
 static func ts(size: int) -> int:
 	var best := TYPE_SCALE[0]
 	for s in TYPE_SCALE:
 		if absi(s - size) <= absi(best - size):
 			best = s
-	return best
+	return best if is_equal_approx(text_scale, 1.0) else roundi(best * text_scale)
+
+
+## Sets the UI text size (0.9 - 1.3) and redraws the screens that follow the set.
+static func set_text_scale(v: float) -> void:
+	v = clampf(v, 0.9, 1.3)
+	if is_equal_approx(v, text_scale):
+		return
+	text_scale = v
+	notifier.changed.emit()
+
+
+const NBSP := "\u00A0"
+
+
+## A stat line ("Damage 12  ·  x1.5 vs Heavy  ·  Range 18 m") that only wraps
+## between its chunks: spaces inside a chunk become non-breaking.
+static func keep_together(stats: String, sep: String = "  ·  ") -> String:
+	var chunks := stats.split(sep)
+	for i in chunks.size():
+		chunks[i] = chunks[i].strip_edges().replace(" ", NBSP)
+	return (NBSP + NBSP + "·  ").join(chunks)
+
+
+## Keyboard / controller tab paging: -1 for PageUp or the left shoulder, +1 for
+## PageDown or the right shoulder, else 0.
+static func page_step(event: InputEvent) -> int:
+	if event is InputEventJoypadButton and event.pressed:
+		match (event as InputEventJoypadButton).button_index:
+			JOY_BUTTON_LEFT_SHOULDER: return -1
+			JOY_BUTTON_RIGHT_SHOULDER: return 1
+	if event.is_action_pressed("ui_page_up"):
+		return -1
+	if event.is_action_pressed("ui_page_down"):
+		return 1
+	return 0
+
+
+## An arrow / d-pad press.
+static func nav_pressed(event: InputEvent) -> bool:
+	for a: String in ["ui_up", "ui_down", "ui_left", "ui_right"]:
+		if event.is_action_pressed(a):
+			return true
+	return false
+
+
+## The visible controls under `n` that take keyboard focus, in tree order.
+static func focusables(n: Node, out: Array[Control] = []) -> Array[Control]:
+	for c: Node in n.get_children():
+		if c.is_queued_for_deletion() or (c is CanvasItem and not (c as CanvasItem).visible):
+			continue
+		if c is Control and (c as Control).focus_mode != Control.FOCUS_NONE 				and not (c is BaseButton and (c as BaseButton).disabled):
+			out.append(c as Control)
+		focusables(c, out)
+	return out
+
+
+## Focuses the first focusable control under `n`; false if there is none.
+static func focus_first(n: Node) -> bool:
+	var list := focusables(n)
+	if list.is_empty():
+		return false
+	list[0].grab_focus()
+	return true
 
 
 ## A label; by default in the set's ink (follows live swaps). Pass a colour to pin it.

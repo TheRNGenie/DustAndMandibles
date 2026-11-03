@@ -119,7 +119,7 @@ func _item(id: StringName, title: String, icon: Variant, lore: String, stats: St
 	var lines: PackedStringArray = []
 	if lore != "":
 		lines.append(lore)
-	lines.append(stats)
+	lines.append(UiStyle.keep_together(stats)) # wraps only between stat chunks
 	for t: Variant in tips:
 		lines.append("•  " + str(t))
 	return {"id": id, "name": title, "icon": icon, "desc": "\n".join(lines), "price": price, "price_ok": true}

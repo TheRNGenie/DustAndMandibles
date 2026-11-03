@@ -248,7 +248,7 @@ func _show_detail(id: StringName, payer: int) -> void:
 	_detail_cost.add_theme_color_override("font_color", UiStyle.c("title") if affordable else UiStyle.hud_c("bad"))
 	if not affordable and not CraftTable.is_craft(id):
 		_detail_cost.text += "  ·  Can't Afford"
-	_detail_stats.text = Defs.turret(id).stat_line() if Defs.is_turret(id) else _structure_stats(id)
+	_detail_stats.text = UiStyle.keep_together(Defs.turret(id).stat_line() if Defs.is_turret(id) else _structure_stats(id))
 	_detail_stats.visible = _detail_stats.text != ""
 	_detail_desc.text = BuildMode._description(id)
 	# Turrets (Helper 3): their one job, weakness and any upkeep on a second line.
