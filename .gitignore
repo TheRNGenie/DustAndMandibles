@@ -21,3 +21,6 @@ trailer/*.png
 trailer/dust_and_mandibles_trailer.mp4
 .env
 assets/meshy/
+
+# Epic Online Services credentials (local only)
+eos_credentials.txt
