@@ -1,7 +1,7 @@
 class_name GraphicsTab
 extends VBoxContainer
-## Graphics tab: display options (brightness, FPS cap, V-Sync, fullscreen, FOV,
-## colour-blind shapes), then a Quality preset (Low / Medium / High / Custom)
+## Graphics tab: display options (brightness, FPS cap, V-Sync, fullscreen, FOV),
+## accessibility (larger status shapes, UI text size), then a Quality preset (Low / Medium / High / Custom)
 ## and the settings it drives. Changing one of those by hand makes it Custom.
 
 const LEVELS: Array[String] = ["Low", "Medium", "High"]
@@ -35,8 +35,17 @@ func _build() -> void:
 			func(on: bool) -> void: Settings.set_value("fullscreen", on))))
 	add_child(UiStyle.row("Field of View", UiStyle.slider(70.0, 110.0, 1.0, Settings.fov, "%.0f",
 			func(v: float) -> void: Settings.set_value("fov", v))))
-	add_child(UiStyle.row("Colour-Blind Shapes", UiStyle.check(Settings.colorblind,
-			func(on: bool) -> void: Settings.set_value("colorblind", on))))
+
+	add_child(UiStyle.section("Accessibility"))
+	var shapes := UiStyle.row("Larger Status Shapes", UiStyle.check(Settings.colorblind,
+			func(on: bool) -> void: Settings.set_value("colorblind", on)))
+	shapes.tooltip_text = "Draws the shapes on alerts and team colours bigger, so they read without colour."
+	add_child(shapes)
+	add_child(UiStyle.row("Text Size", UiStyle.slider(0.9, 1.3, 0.1, Settings.ui_text_scale, "pct",
+			func(v: float) -> void:
+				Settings.set_value("ui_text_scale", v)
+				UiStyle.set_text_scale(v))))
+	add_child(UiStyle.note("Text Size reaches every screen as it next opens; a restart applies it everywhere."))
 
 	add_child(UiStyle.section("Quality"))
 

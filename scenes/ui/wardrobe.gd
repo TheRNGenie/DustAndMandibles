@@ -41,7 +41,7 @@ func menu_build_body(body: Control, _screen: MenuScreen) -> void:
 	# Turning preview.
 	var frame := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Palette.SKY_TOP.darkened(0.55) # a dusk sky behind the dummy
+	sb.bg_color = UiStyle.c("bg").lightened(0.06) # Theme: the set's backdrop colour behind the dummy
 	sb.border_color = UiStyle.c("hud_rim")
 	sb.set_border_width_all(3)
 	sb.set_corner_radius_all(int(UiStyle.SETS.get(UiStyle.current, UiStyle.SETS[&"base"])["radius"]))
@@ -100,7 +100,7 @@ static func _preview_texture(host: Node) -> Texture2D:
 		var env := Environment.new()
 		env.background_mode = Environment.BG_CLEAR_COLOR
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-		env.ambient_light_color = Color("#C8B0D0")
+		env.ambient_light_color = Color("#D6C8B4") # neutral, so the set's backdrop shows true
 		env.ambient_light_energy = 0.8
 		cam.environment = env
 		var sun := DirectionalLight3D.new()

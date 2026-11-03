@@ -64,6 +64,8 @@ var sfx_volume: float = 1.0
 var music_volume: float = 0.6
 # Accessibility: shape glyphs on team colours and alerts, not colour alone.
 var colorblind: bool = false
+## UI text size, 0.9 - 1.3 (UiStyle.ts applies it).
+var ui_text_scale: float = 1.0
 ## The first-wave hint cards have been seen (never shown again).
 var tutorial_done: bool = false
 ## Debug cheats (F6-F10, god mode) without the --debug launch flag.
@@ -285,7 +287,7 @@ func _deserialize(data: String) -> InputEvent:
 const SAVED_KEYS: Array[String] = ["mouse_sensitivity", "invert_y", "fov", "brightness", "fps_cap",
 	"vsync", "fullscreen", "shadows", "msaa", "render_scale", "quality", "shadow_detail", "effects",
 	"view_distance", "particles", "bug_detail", "master_volume", "sfx_volume", "music_volume", "debug_mode",
-	"colorblind", "tutorial_done", "host_online"]
+	"colorblind", "ui_text_scale", "tutorial_done", "host_online"]
 
 
 func save_settings() -> void:

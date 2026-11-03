@@ -6,6 +6,7 @@ extends Control
 
 var cliff_id: int = 0
 var _hp_bar: ProgressBar
+var _hp_text: Label
 var _smoke: Label
 var _scrap: Label
 var _chitin: Label
@@ -36,6 +37,15 @@ func _ready() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 6)
 	panel.add_child(col)
+	# "Health  85 / 100" over the bar, like the Homestead captions.
+	var hp_row := HBoxContainer.new()
+	col.add_child(hp_row)
+	var hp_caption := _hud_text("Health", 14)
+	hp_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hp_row.add_child(hp_caption)
+	_hp_text = _hud_text("100 / 100", 14)
+	_hp_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	hp_row.add_child(_hp_text)
 	_hp_bar = _bar(Palette.TEAM_WEST, 100.0)
 	col.add_child(_hp_bar)
 	var row := HBoxContainer.new()
@@ -106,7 +116,8 @@ func bind_player(player: Player) -> void:
 	_hp_bar.add_theme_stylebox_override("fill", _fill(Palette.team_color(cliff_id)))
 	player.vitals.health_changed.connect(func(hp: float, mx: float) -> void:
 		_hp_bar.max_value = mx
-		_hp_bar.value = hp)
+		_hp_bar.value = hp
+		_hp_text.text = "%d / %d" % [ceili(maxf(hp, 0.0)), roundi(mx)])
 	if player.cigarette != null:
 		player.cigarette.changed.connect(func(left: float) -> void:
 			_smoke.text = ("Smoking  ·  %s  ·  Faster, Sharper Eyes" % UiStyle.clock(left)) if left > 0.0 else "")
@@ -117,6 +128,16 @@ func bind_player(player: Player) -> void:
 		_downed.text = "Downed  ·  Back on Your Feet in %s" % UiStyle.clock(secs) if is_down else "")
 	_refresh_homes()
 	_refresh_resources()
+
+
+## A small left-aligned HUD caption in the set's light ink, outlined.
+func _hud_text(text: String, size: int) -> Label:
+	var l := UiStyle.label(text, size, UiStyle.c("hud"))
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	l.add_theme_color_override("font_outline_color", Palette.OUTLINE)
+	l.add_theme_constant_override("outline_size", 4)
+	return l
 
 
 ## Top-left bar = your Homestead, the others top-right (labelled by cliff,

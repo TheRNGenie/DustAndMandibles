@@ -20,6 +20,11 @@ var _size := Vector2.ZERO
 var _panel: PanelContainer
 var _canvas: Control
 var _t := 0.0
+## How far the panel is shrunk to fit the screen; text is drawn larger by its
+## inverse so it never reads smaller than 12 px on screen.
+var _k := 1.0
+## [Label, base size] pairs that keep their on-screen size when the panel shrinks.
+var _texts: Array = []
 
 
 func _ready() -> void:
@@ -43,6 +48,7 @@ func _ready() -> void:
 	title.add_theme_font_override("font", UiStyle.display_font())
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
+	_texts.append([title, 24])
 	_canvas = Control.new()
 	_canvas.custom_minimum_size = _map_size()
 	_canvas.draw.connect(_draw_map)
@@ -78,7 +84,18 @@ func _process(delta: float) -> void:
 			var vp := get_viewport_rect().size
 			var k := minf(1.0, minf((vp.y - 150.0) / s.y, (vp.x - 60.0) / s.x))
 			_panel.pivot_offset = s * 0.5
-			_panel.scale = Vector2(k, k)).call()
+			_panel.scale = Vector2(k, k)
+			if absf(k - _k) > 0.02:
+				_k = k
+				for pair: Array in _texts:
+					(pair[0] as Label).add_theme_font_size_override("font_size", _px(int(pair[1])))).call()
+
+
+## A font size that shows at least 12 px on screen however far the panel is
+## shrunk (the plot initials inside cells are drawn apart, at their own size).
+func _px(size: int) -> int:
+	var want := maxf(size * _k, 12.0)
+	return roundi(want / maxf(_k, 0.05))
 
 
 ## Plateau depth shown (grid rows plus a margin) and the canyon gap.
@@ -354,21 +371,25 @@ static func _initials(n: String) -> String:
 
 
 func _center_text(c: Control, font: Font, s: String, at: Vector2, size: int, col: Color) -> void:
+	size = _px(size)
 	var w := font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	var p := at + Vector2(-w * 0.5, size * 0.35)
 	c.draw_string_outline(font, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 3, Palette.OUTLINE)
 	c.draw_string(font, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
 
 
-func _legend() -> HBoxContainer:
-	var h := HBoxContainer.new()
-	h.alignment = BoxContainer.ALIGNMENT_CENTER
-	h.add_theme_constant_override("separation", 16)
+func _legend() -> HFlowContainer:
+	var h := HFlowContainer.new() # wraps under the map instead of widening the panel
+	h.alignment = FlowContainer.ALIGNMENT_CENTER
+	h.add_theme_constant_override("h_separation", 16)
+	h.add_theme_constant_override("v_separation", 4)
 	for item: Array in [[Color("#F2C14E"), "Cliff Turret"], [Color("#6FA8DC"), "Air Defence"], [Color("#E0533A"), "Last Resort"],
 			[Color("#7BC96F"), "Crops"], [Palette.TEAM_WEST, "Bugs (Ticks = Climbing)"], [Palette.GLOW_YELLOW, "You"]]:
 		var cell := HBoxContainer.new()
 		cell.add_theme_constant_override("separation", 6)
 		cell.add_child(UiStyle.swatch(item[0], 14))
-		cell.add_child(KeyHints.text(str(item[1]), 14, UiStyle.c("hud")))
+		var l := KeyHints.text(str(item[1]), 14, UiStyle.c("hud"))
+		_texts.append([l, 14])
+		cell.add_child(l)
 		h.add_child(cell)
 	return h

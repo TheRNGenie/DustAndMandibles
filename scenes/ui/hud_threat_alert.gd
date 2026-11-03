@@ -7,7 +7,7 @@ extends Control
 ## ("3 at North Butte"), yours first. Rings once each time it starts.
 ## Every alert also has a shape, so it never relies on colour alone: your cliff
 ## is a square marked "!!", a cliff you cover a diamond marked "!", the rest a
-## small circle; the Colour-Blind Shapes setting draws them larger.
+## small circle; the Larger Status Shapes setting draws them larger.
 
 const TOP_SHARE := 0.65 # how far up the face counts as "near the top"
 const SCAN := 0.4

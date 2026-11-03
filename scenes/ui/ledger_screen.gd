@@ -51,9 +51,39 @@ func is_open() -> bool:
 
 
 func _input(event: InputEvent) -> void:
-	if UiStyle.shown(_root) and event.is_action_pressed("pause_menu"):
+	if not UiStyle.shown(_root):
+		return
+	if event.is_action_pressed("pause_menu"):
 		close()
 		get_viewport().set_input_as_handled()
+	elif _nav(event):
+		get_viewport().set_input_as_handled()
+
+
+## Keyboard and controller, like the shops: arrows / d-pad move between perk rows,
+## buttons and tabs (the first press lands on the first row), PageUp/PageDown or
+## the shoulder buttons switch tabs.
+func _nav(event: InputEvent) -> bool:
+	var step := UiStyle.page_step(event)
+	if step != 0:
+		tab = wrapi(tab + step, 0, 2)
+		refresh()
+		_focus_first.call_deferred()
+		return true
+	if UiStyle.nav_pressed(event):
+		var f := get_viewport().gui_get_focus_owner()
+		if f == null or not _root.is_ancestor_of(f):
+			_focus_first()
+			return true
+	return false
+
+
+## The first live button in the body, else the selected tab.
+func _focus_first() -> void:
+	if not UiStyle.focus_first(_body):
+		var tabs := UiStyle.focusables(_tabs)
+		if tab < tabs.size():
+			tabs[tab].grab_focus()
 
 
 func _process(_delta: float) -> void:
@@ -117,7 +147,7 @@ func _build() -> void:
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	footer.add_child(hint)
-	var keys := UiStyle.paper_hints([["Esc", "Close"]])
+	var keys := UiStyle.paper_hints([["Esc", "Close"], ["Arrows", "Move"], ["PgUp/PgDn", "Switch Tab"]])
 	keys.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	footer.add_child(keys)
 	_clear = MenuScreen.wood_button("Clear Loadout")
@@ -176,6 +206,14 @@ func _chip_loadout() -> Control:
 # ------------------------------------------------------------------ content
 
 func refresh() -> void:
+	# Keyboard focus survives the rebuild: same area, same place in the list.
+	var f := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+	var focus_area: Control = null
+	var focus_at := -1
+	for area: Control in [_tabs, _body]:
+		if f != null and area.is_ancestor_of(f):
+			focus_area = area
+			focus_at = UiStyle.focusables(area).find(f)
 	var prof := Perks.profile
 	_brands.text = str(prof.brands)
 	var n := prof.loadout.size()
@@ -189,6 +227,7 @@ func refresh() -> void:
 		else "Bought looks stay yours for good.")
 	_clear.disabled = n == 0 or not Perks.loadout_editable()
 	for c in _tabs.get_children():
+		_tabs.remove_child(c)
 		c.queue_free()
 	for i in 2:
 		var b := MenuScreen.tab_button(["Perks", "Wardrobe"][i], i == tab)
@@ -211,6 +250,12 @@ func refresh() -> void:
 		_build_trees(keep)
 	else:
 		_build_wardrobe(keep)
+	if focus_area != null:
+		var list := UiStyle.focusables(focus_area)
+		if not list.is_empty():
+			list[clampi(focus_at, 0, list.size() - 1)].grab_focus()
+		elif focus_area == _body:
+			_focus_first()
 
 
 func _build_trees(keep: Dictionary) -> void:
@@ -237,6 +282,7 @@ func _scroll(key: Variant, keep: Dictionary) -> ScrollContainer:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true # arrows keep the focused row in view
 	_scrolls[key] = scroll
 	if keep.has(key):
 		scroll.set_deferred("scroll_vertical", int(keep[key]))

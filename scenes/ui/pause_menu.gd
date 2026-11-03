@@ -55,6 +55,30 @@ func close() -> void:
 	closed.emit()
 
 
+## Keyboard and controller, like the shops: arrows / d-pad move between rows,
+## sliders (left / right change them), checkboxes and buttons (the first press
+## lands on the tab's first row), PageUp/PageDown or the shoulders switch tabs.
+func _input(event: InputEvent) -> void:
+	if not UiStyle.shown(_root):
+		return
+	var step := UiStyle.page_step(event)
+	if step != 0:
+		select_tab(wrapi(_tabs.current_tab + step, 0, _tabs.get_tab_count()))
+		_focus_first.call_deferred()
+		get_viewport().set_input_as_handled()
+	elif UiStyle.nav_pressed(event):
+		var f := get_viewport().gui_get_focus_owner()
+		if f == null or not _root.is_ancestor_of(f):
+			_focus_first()
+			get_viewport().set_input_as_handled()
+
+
+func _focus_first() -> void:
+	var page := _tabs.get_current_tab_control()
+	if page == null or not UiStyle.focus_first(page):
+		_tabs.grab_focus()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if in_main_menu:
 		return
@@ -116,7 +140,7 @@ func _build() -> void:
 		footer.alignment = BoxContainer.ALIGNMENT_END
 		footer.add_theme_constant_override("separation", UiStyle.GAP_ROW)
 		col.add_child(footer)
-		var keys := UiStyle.paper_hints([["Esc", "Resume"]])
+		var keys := UiStyle.paper_hints([["Esc", "Resume"], ["PgUp/PgDn", "Switch Tab"]])
 		keys.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		footer.add_child(keys)
 		var vote_btn := UiStyle.button("Vote to Pause")
@@ -152,6 +176,7 @@ func _add_tab(tab_name: String, content: Control) -> void:
 	var scroll := ScrollContainer.new()
 	scroll.name = tab_name
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true # arrows keep the focused row in view
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(content)
 	_tabs.add_child(scroll)
