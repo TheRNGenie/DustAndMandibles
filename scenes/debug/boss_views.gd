@@ -10,6 +10,8 @@ extends Node
 ## --bosshud      keep the HUD (boss bar) in the shot
 ## --bosshits     logs turret shots, boss HP and aim errors every second
 ## --bossfast     shortens its ability timers so the telegraph shows in the first seconds
+## --bossground   stands it on the east plateau instead of the wall (model close-ups)
+## --bosscam=front  a three-quarter view of its face (with --bossground: a portrait)
 
 var world: Node
 var _cam: Camera3D
@@ -58,6 +60,8 @@ func _ready() -> void:
 			bm.spawn_at(_id, WorldLayout.EAST, 2, 0.0, 0.0, Bug.State.FLYING, p)
 		&"burrow_beetle":
 			bm.spawn_at(_id, WorldLayout.EAST, 2, 0.0, 0.0, Bug.State.BREACHING, cl.plateau_point(WorldLayout.EAST, 6.0, 0.0))
+		_ when GameState.has_flag("--bossground"):
+			bm.spawn_at(_id, WorldLayout.EAST, 2, 0.0, 0.0, Bug.State.BREACHING, cl.plateau_point(WorldLayout.EAST, 9.0, 0.0))
 		_:
 			bm.spawn_at(_id, WorldLayout.EAST, 2, 0.0, y, Bug.State.CLIMBING, Vector3.ZERO)
 	await get_tree().process_frame
@@ -156,6 +160,13 @@ func _frame() -> void:
 		"top":
 			var eye := Bug.cliffs.plateau_point(_bug.cliff_id, 0.5, p.z + 3.0) + Vector3.UP * 1.7
 			_look(eye, p)
+		"front":
+			var fwd := -_bug.global_basis.z.normalized()
+			var side := _bug.global_basis.x.normalized()
+			var up := _bug.global_basis.y.normalized()
+			var k := float(GameState.flag_value("--bossdist")) if GameState.flag_value("--bossdist") != "" else 1.0
+			var aim := p + fwd * r * 0.35 + up * r * 0.35
+			_look(aim + (fwd * r * 2.6 + side * r * 1.7 + up * r * 1.1) * k, aim)
 		_:
 			if _bug.state == Bug.State.FLYING:
 				_look(p + Vector3(-11.0, 2.5, 0.0), p)

@@ -63,10 +63,10 @@ func menu_items(tab: int) -> Array:
 			for id: StringName in bugs:
 				var b := Defs.bug(id)
 				var e := FieldGuide.entry("bugs", id)
-				var stats := "%s  ·  %d HP  ·  Climbs %.1f m/s  ·  %sFrom Wave %d  ·  Drops %s%s" % [
+				var stats := "%s  ·  %d HP  ·  Climbs %.1f m/s  ·  %s%s  ·  Drops %s%s" % [
 						UiStyle.tc(str(BEHAVIORS[b.behavior])), int(b.max_hp), b.climb_speed,
 						("Front Armour %d%%  ·  " % int(b.front_armor * 100.0)) if b.front_armor > 0.0 else "",
-						b.first_wave, UiStyle.cost(b.scrap_drop, "scrap"), (", " + UiStyle.cost(b.chitin_drop, "chitin")) if b.chitin_drop > 0 else ""]
+						"Story Only" if b.story_only else "From Wave %d" % b.first_wave, UiStyle.cost(b.scrap_drop, "scrap"), (", " + UiStyle.cost(b.chitin_drop, "chitin")) if b.chitin_drop > 0 else ""]
 				var icon: Variant = IconStudio.bug(MenuScreen.instance, id) if MenuScreen.instance != null else null
 				# (Bugs helper) The counter, and the variants overusing one method brings.
 				var tips: Array = []

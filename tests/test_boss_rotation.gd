@@ -10,10 +10,11 @@ func _defs() -> Array[BugDef]:
 	return out
 
 
-func _bosses() -> Array[StringName]:
+## The bosses a run's rotation brings (story-only ones never come).
+func _bosses(story_too: bool = false) -> Array[StringName]:
 	var out: Array[StringName] = []
 	for d in _defs():
-		if d.behavior == BugDef.Behavior.BOSS:
+		if d.behavior == BugDef.Behavior.BOSS and (story_too or not d.story_only):
 			out.append(d.id)
 	return out
 
@@ -104,7 +105,7 @@ func test_planner_puts_one_boss_per_cliff_in_the_finale() -> void:
 
 
 func test_every_boss_has_its_words_and_body() -> void:
-	for id in _bosses():
+	for id in _bosses(true):
 		var d := Defs.bug(id)
 		assert_true(d.counter.length() > 20, "%s counter" % id)
 		assert_true(d.boss_tip != "", "%s boss tip" % id)

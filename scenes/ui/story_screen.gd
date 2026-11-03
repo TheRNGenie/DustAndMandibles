@@ -106,10 +106,15 @@ func _fill() -> void:
 	for c in _page.get_children():
 		c.queue_free()
 	_journal_btn.text = "Back to Chapters" if _journal else "Doc Whitlow's Journal"
+	# Chapters by number, the ones still to come in their place among them.
+	var rows: Array = []
 	for ch in StoryChapter.all():
-		_list.add_child(_chapter_row(ch.id, ch.number, ch.title, _state_of(ch.id)))
+		rows.append([ch.number, ch.id, ch.title])
 	for p: Array in StoryChapter.PLANNED:
-		_list.add_child(_chapter_row("", int(p[0]), str(p[1]), "later"))
+		rows.append([int(p[0]), "", str(p[1])])
+	rows.sort_custom(func(a: Array, b: Array) -> bool: return int(a[0]) < int(b[0]))
+	for r: Array in rows:
+		_list.add_child(_chapter_row(str(r[1]), int(r[0]), str(r[2]), _state_of(str(r[1])) if str(r[1]) != "" else "later"))
 	if _journal:
 		_fill_journal()
 	else:
@@ -186,7 +191,8 @@ func _fill_page(ch: StoryChapter) -> void:
 	go_row.add_theme_constant_override("separation", 10)
 	_page.add_child(go_row)
 	if state == "locked":
-		var why := UiStyle.status("Win Chapter %d first." % (ch.number - 1), "lock", 15)
+		var need := StoryChapter.load_id(ch.required())
+		var why := UiStyle.status("Win Chapter %d first." % (need.number if need != null else ch.number - 1), "lock", 15)
 		why.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		go_row.add_child(why)
 	var go := MenuScreen.wood_button("Ride Out" if state != "done" else "Ride It Again")

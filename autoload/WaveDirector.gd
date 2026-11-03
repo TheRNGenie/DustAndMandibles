@@ -132,6 +132,10 @@ func _weather_bosses() -> void:
 	var bosses := _plan_bosses()
 	if bosses.is_empty():
 		return
+	# Story: a chapter that names its bosses keeps them whatever the weather.
+	var ch := Story.chapter()
+	if ch != null and not ch.bosses.is_empty():
+		return
 	var swapped := BossRotation.apply_weather(_planner._seed, GameState.wave, _planner.bug_defs, boss_seen, bosses,
 			GameState.weather == Weather.Kind.DUST_STORM)
 	if swapped == bosses:

@@ -4,7 +4,7 @@ extends RefCounted
 ## each picks a boss this run hasn't seen yet, preferring the ones that unlock
 ## that wave (so wave 5, 10 and 15 each bring a boss of their tier), and only
 ## repeats once every unlocked boss has been seen. The last wave of the run is a
-## double-boss finale. The Mirage Mantis only hunts in dust storms: when she is
+## double-boss finale. Story-only bosses (the Hive Queen) are never picked. The Mirage Mantis only hunts in dust storms: when she is
 ## picked and the wave's weather isn't a dust storm, another boss stands in for
 ## her (substitute()), and a boss wave that does roll a dust storm brings her.
 ## Pure logic (seeded), unit-tested.
@@ -36,7 +36,7 @@ static func pick(seed_value: int, w: int, defs: Array[BugDef], seen: Array, ever
 static func _one(rng: RandomNumberGenerator, w: int, defs: Array[BugDef], seen: Array, this_wave: Array[StringName]) -> StringName:
 	var eligible: Array[StringName] = []
 	for d in defs:
-		if d.behavior == BugDef.Behavior.BOSS and d.first_wave <= w and not d.is_variant() and not this_wave.has(d.id):
+		if d.behavior == BugDef.Behavior.BOSS and d.first_wave <= w and not d.is_variant() and not d.story_only and not this_wave.has(d.id):
 			eligible.append(d.id)
 	if eligible.is_empty():
 		return &""

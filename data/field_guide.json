@@ -259,6 +259,16 @@
         "It stops to feed on the corpse pile at the cliff foot: shoot the pile apart, or burn it with blasts and fire, before it gets there.",
         "Bugs killed right beside it are a meal too: kill it before the swarm around it."
       ]
+    },
+    "hive_queen": {
+      "lore": "The mother of the Hive, woken by the railroad's blast in 1889 and climbing out at last. A plated abdomen the size of a boxcar, a crest like a crown, and every bug in the canyon at her call.",
+      "tips": [
+        "Her crown glows: it's her soft spot. Rifles and your own gun on the crown.",
+        "Her belly pulses before she calls a brood: splash and fire on the wall around her.",
+        "Amber resin gums a turret shut: shoot the cocoon free.",
+        "Hurt, she shrieks: every turret inside the ring is stunned. Spread them out.",
+        "Below a third she sheds her plates and climbs fast: everything you have, now."
+      ]
     }
   },
   "turrets": {
