@@ -23,6 +23,12 @@ extends Node
 ##   up. The plateau stand-ins still work from the data (spawn airship_drop /
 ##   boss_drop).
 ## - blast: Down the Hole's dynamite job (DownTheHole).
+## - salvage: The Dry Gulch Families' floor job (DryGulchFamilies): the four
+##   families' papers from their ruined homesteads and the board's harvest
+##   ledger from the amber crew's camp, all brought up out of the canyon.
+## - reckoning: The Reckoning's set piece (IronMandible): the board's train and
+##   its amber furnace, the second blast, the Hive Mother and Silas's charge.
+##   Won with an epilogue (EpilogueView: typed decree cards, then the last word).
 ## - protect: payroll strongboxes by every house that Dragonfly Bandits rob;
 ##   shoot a bandit with a sack and the silver goes back. All of it gone loses.
 ## - keep: so many scaffold storeys (The Railroad's Secret, against the
@@ -61,6 +67,9 @@ var cargo: StoryCargo
 var cargo_dressing: Node3D
 ## Down the Hole's set piece (blast chapters), on every peer.
 var blast: DownTheHole
+## Chapters 9 and 10's set piece (DryGulchFamilies / IronMandible), on every
+## peer: status() -> [text, kind], done() -> bool.
+var piece: Node
 # Protect: one strongbox per cliff; loot per box (every peer).
 var boxes: Array[StoryStrongbox] = []
 var in_flight := 0
@@ -95,6 +104,9 @@ func _exit_tree() -> void:
 	BossBrain.screech_breaks_lanterns = false
 	Expedition.story_items.clear()
 	SitePlan.skip_tunnels = []
+	SitePlan.story_zones.clear()
+	Bug.frenzy_lit = false
+	BugManager.boss_tunnel = -1
 	if Expedition.story_item_up.is_connected(_on_item_up):
 		Expedition.story_item_up.disconnect(_on_item_up)
 		Expedition.story_item_dropped.disconnect(_on_item_dropped)
@@ -143,6 +155,20 @@ func _ready() -> void:
 		add_child(blast)
 	elif chapter.sealed_tunnel:
 		DownTheHole.seal_main(world)
+	if chapter.kind() == "salvage":
+		var fam := DryGulchFamilies.new()
+		fam.name = "DryGulchFamilies"
+		fam.director = self
+		fam.world = world
+		piece = fam
+		add_child(fam)
+	elif chapter.kind() == "reckoning":
+		var train := IronMandible.new()
+		train.name = "IronMandible"
+		train.director = self
+		train.world = world
+		piece = train
+		add_child(train)
 	if not multiplayer.is_server():
 		_tell_blueprints.rpc_id(1, Story.progress.blueprints)
 	_debug_flags()
@@ -206,6 +232,12 @@ func _debug_flags() -> void:
 			print("[story] floor view at %s, cargo %s" % [str(stand.snapped(Vector3.ONE * 0.1)), str(at.snapped(Vector3.ONE * 0.1))]))
 	if GameState.has_flag("--telegram"):
 		get_tree().create_timer(2.5).timeout.connect(func() -> void: telegram.open())
+	if GameState.has_flag("--epilogue") and not chapter.epilogue.is_empty(): # the epilogue cards now (screenshots)
+		var ep := EpilogueView.new()
+		ep.name = "EpilogueView"
+		ep.chapter = chapter
+		ep.delay = 3.0
+		add_child(ep)
 
 
 ## The wave the run starts on (Debug: --storywave=W inside the chapter).
@@ -347,6 +379,8 @@ func objective_done() -> bool:
 			return chapter.keep_ok(count_keep() if is_inside_tree() else keep_have, held_count())
 		"blast":
 			return blast != null and blast.blown
+		"salvage", "reckoning":
+			return piece != null and bool(piece.call("done"))
 	return true
 
 
@@ -354,6 +388,18 @@ func objective_done() -> bool:
 func blast_done() -> void:
 	if holding and not finished:
 		get_tree().create_timer(6.0).timeout.connect(_win)
+
+
+## Host (a chapter 9/10 set piece): the job's done. Waiting on it after the last
+## wave? Then that's the chapter, `delay` seconds on (the radio has its say first).
+func piece_done(delay: float) -> void:
+	if holding and not finished:
+		get_tree().create_timer(maxf(delay, 1.0)).timeout.connect(_win)
+
+
+## Seconds of radio still queued on this peer (to let a beat finish before the end).
+func radio_left() -> float:
+	return radio.queued_seconds() if radio != null else 0.0
 
 
 ## Tunnels the canyon-floor raid sites must leave alone in the chapter about to
@@ -365,6 +411,29 @@ static func reserved_tunnels(cliffs: CliffBuilder) -> Array[int]:
 	if ch != null and cliffs != null and (ch.kind() == "blast" or ch.sealed_tunnel):
 		out.append(cliffs.main_tunnel())
 	return out
+
+
+## Floor the canyon dressing (rocks, cacti, webs) and the raid sites must keep
+## clear of in the chapter about to be played: The Dry Gulch Families'
+## homesteads and camp, The Reckoning's railroad. Called by the world before it
+## dresses the canyon.
+static func reserve_story_ground(cliffs: CliffBuilder) -> void:
+	SitePlan.story_zones.clear()
+	var ch := Story.chapter()
+	if ch == null or cliffs == null:
+		return
+	match ch.kind():
+		"salvage":
+			SitePlan.story_zones.append_array(DryGulchFamilies.spots(cliffs))
+		"reckoning":
+			var route := IronMandible.route_for(cliffs)
+			var s := 0.0
+			var total := ReckoningRules.length_of(route)
+			while s < total:
+				var p := ReckoningRules.point_at(route, s)
+				if cliffs.wildness(p.z) <= 0.0:
+					SitePlan.story_zones.append(p)
+				s += 5.0
 
 
 func _win() -> void:
@@ -394,6 +463,13 @@ func _on_game_over(won: bool, _reason: String) -> void:
 		tracker.visible = false
 	if radio != null:
 		radio.visible = false # the closing line goes on the front page instead
+	if won and not chapter.epilogue.is_empty():
+		# The Reckoning: the decree cards over the front page, then the last word.
+		var ep := EpilogueView.new()
+		ep.name = "EpilogueView"
+		ep.chapter = chapter
+		add_child(ep)
+		StoryAmber.after_reckoning() # WIRE TO AMBER AT MERGE (StoryAmber)
 	# Debug: --storyrestart rides on (or retries) by itself a few seconds later.
 	if GameState.has_flag("--storyrestart") and GameState.debug_enabled() and multiplayer.is_server():
 		var next := StoryChapter.next_id(chapter.id) if won else chapter.id

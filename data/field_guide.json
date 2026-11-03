@@ -269,6 +269,16 @@
         "Hurt, she shrieks: every turret inside the ring is stunned. Spread them out.",
         "Below a third she sheds her plates and climbs fast: everything you have, now."
       ]
+    },
+    "hive_mother": {
+      "lore": "The Queen's mother, sealed in the lower hive since long before the railroad came, until the board blasted it open again. Blind, scarred, crusted with the amber the board would kill for, and bigger than anything that has climbed out of the canyon.",
+      "tips": [
+        "Her old plates turn shots from the front: the amber geode on her brow is the soft spot.",
+        "Rings on your cliff mark where her amber hail lands: every turret near one is gummed shut. Spread out and shoot the cocoons free.",
+        "When she hums, her brood climbs faster: splash the wall around her.",
+        "Below a third her crust falls off and hatches hive drones: keep a sky gun ready.",
+        "She can't be buried by guns alone. Keep her on the wall."
+      ]
     }
   },
   "turrets": {

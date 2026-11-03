@@ -36,6 +36,8 @@ func _ready() -> void:
 	Bug.brood_burst = _on_brood_burst
 
 
+## Story (The Reckoning): the tunnel every boss comes out of (-1: the usual pick).
+static var boss_tunnel := -1
 ## Host only: spawns `count` bugs of a type at the bottom of a lane.
 var _tunnel_spin := 0
 ## Big bugs (brutes, the boss) announced at a tunnel mouth but not out yet.
@@ -53,6 +55,9 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 	# Out of a tunnel down the canyon (a group's lane picks which).
 	# Maps: [mouth, way out] from the map's tunnels (the canyon's are in either wall).
 	var ti := Bug.cliffs.open_tunnel_index(lane * 3 + cliff * 5 + _tunnel_spin) if Bug.cliffs != null else 0
+	# Story (The Reckoning): the boss comes out of the gallery the second blast opened.
+	if boss_tunnel >= 0 and Bug.cliffs != null and Defs.bug(bug_id) != null and Defs.bug(bug_id).behavior == BugDef.Behavior.BOSS:
+		ti = boss_tunnel
 	var tunnel: Array = Bug.cliffs.tunnel(ti) if Bug.cliffs != null else [Vector3.ZERO, Vector3.RIGHT]
 	# Canyon Expeditions: smashed eggs at a nest by this tunnel thin its next wave.
 	count = SitePlan.cut_count(ti, GameState.wave, count)

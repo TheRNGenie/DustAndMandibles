@@ -23,6 +23,19 @@ const CAST: Dictionary = {
 	"kettle": [Color("#B5582C"), Color("#D9803F")],
 	"pearl": [Color("#2F5E4A"), Color("#3F7A5E")],
 	"doc": [Color("#6E7F4E"), Color("#93A36A")],
+	# Chapters 9-10's men (fallback busts, see Painter._stranger; the painted
+	# portraits come with the main branch's merge).
+	"vane": [Color("#4A2A30"), Color("#6E3E44")],
+	"crane": [Color("#3E4A5E"), Color("#5A6A82")],
+	"ezra": [Color("#3A3A34"), Color("#5A5A4E")],
+	"lucky": [Color("#5E4A26"), Color("#86683A")],
+}
+## Who gets the fallback bust (no painted face yet): speaker -> [hat, coat, tie].
+const STRANGERS: Dictionary = {
+	"vane": ["top", Color("#1E1A1C"), Color("#8C1E24")],
+	"crane": ["bowler", Color("#2A3140"), Color("#C9A04A")],
+	"ezra": ["stovepipe", Color("#24221E"), Color("#E8E2D0")],
+	"lucky": ["flat", Color("#3A2A1C"), Color("#2E7A4A")],
 }
 const SIZE := Vector2i(512, 512)
 
@@ -39,7 +52,7 @@ static func texture(host: Node, who: String) -> Texture2D:
 	vp.disable_3d = true
 	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	var p := Painter.new()
-	p.who = who if CAST.has(who) else "stroud"
+	p.who = who if CAST.has(who) else "stroud" # (unknown speakers: the Captain)
 	vp.add_child(p)
 	host.add_child(vp)
 	_cache[who] = {"vp": vp, "tex": vp.get_texture()}
@@ -115,6 +128,8 @@ class Painter extends Node2D:
 				_pearl()
 			"doc":
 				_doc()
+			_:
+				_stranger()
 		_vignette()
 
 	# ------------------------------------------------------------------ the card
@@ -271,6 +286,45 @@ class Painter extends Node2D:
 		taper([c + Vector2(-hw * 1.02, lid_y * 0.25 - tilt * hw * 0.5 + h * 0.05), c + Vector2(-hw * 0.4, lid_y - tilt * hw * 0.3),
 				c + Vector2(hw * 0.35, lid_y + tilt * hw * 0.3), c + Vector2(hw * 1.08, lid_y * 0.2 + tilt * hw + h * 0.02)], lash * 0.6, lash * 1.2, INK)
 		ink(al, 2.0, Color(INK, 0.7))
+
+	# ------------------------------------------------------------------ fallback bust
+
+	## A man the crew only knows by his wire and his hat: a bust in shadow, the
+	## brim's shade over his eyes, a lit jaw and collar, his coat and tie. Stands
+	## in for the board's men until their painted portraits are merged.
+	func _stranger() -> void:
+		var spec: Array = STRANGERS.get(who, ["top", Color("#222222"), Color("#888888")])
+		var coat: Color = spec[1]
+		var tie: Color = spec[2]
+		var skin := Color("#C99478")
+		# Shoulders and coat, a white collar and the tie.
+		shape(blob([Vector2(60, 512), Vector2(80, 420), Vector2(170, 360), Vector2(256, 350), Vector2(342, 360),
+				Vector2(432, 420), Vector2(452, 512)]), coat.lightened(0.12), coat)
+		shape(PackedVector2Array([Vector2(206, 352), Vector2(256, 430), Vector2(306, 352), Vector2(290, 340), Vector2(222, 340)]), Color("#EEE8DA"), Color("#C9C2B0"), 3.0)
+		shape(PackedVector2Array([Vector2(240, 372), Vector2(272, 372), Vector2(262, 470), Vector2(250, 470)]), tie, tie.darkened(0.3), 3.0)
+		# Neck and head, the face mostly in shadow under the brim.
+		shape(PackedVector2Array([Vector2(226, 300), Vector2(286, 300), Vector2(292, 352), Vector2(220, 352)]), skin.darkened(0.25), skin.darkened(0.45), 3.0)
+		var head := face(Vector2(256, 236), 150, 196, 1.05, 1.0)
+		shape(head, skin, skin.darkened(0.3))
+		clipped(PackedVector2Array([Vector2(150, 120), Vector2(362, 120), Vector2(362, 262), Vector2(150, 250)]), head, Color(0.08, 0.05, 0.05, 0.62))
+		# Two pale points where the eyes catch the light, a hard mouth.
+		draw_circle(Vector2(226, 232), 5.0, Color(1.0, 0.95, 0.85, 0.85))
+		draw_circle(Vector2(286, 232), 5.0, Color(1.0, 0.95, 0.85, 0.85))
+		line([Vector2(232, 300), Vector2(256, 304), Vector2(282, 298)], 4.0)
+		# The hat.
+		var dark := Color("#141012")
+		match str(spec[0]):
+			"top", "stovepipe":
+				var tall := 120.0 if str(spec[0]) == "top" else 150.0
+				shape(PackedVector2Array([Vector2(190, 168), Vector2(200, 168 - tall), Vector2(312, 168 - tall), Vector2(322, 168)]), dark.lightened(0.15), dark)
+				fill(PackedVector2Array([Vector2(192, 150), Vector2(320, 150), Vector2(321, 166), Vector2(191, 166)]), tie.darkened(0.2))
+				shape(ell(Vector2(256, 172), Vector2(122, 18)), dark.lightened(0.12), dark)
+			"bowler":
+				shape(blob([Vector2(176, 172), Vector2(190, 110), Vector2(256, 82), Vector2(322, 110), Vector2(336, 172)]), dark.lightened(0.15), dark)
+				shape(ell(Vector2(256, 174), Vector2(112, 16)), dark.lightened(0.12), dark)
+			_:
+				shape(PackedVector2Array([Vector2(186, 170), Vector2(196, 118), Vector2(316, 118), Vector2(326, 170)]), dark.lightened(0.15), dark)
+				shape(ell(Vector2(256, 172), Vector2(150, 18)), dark.lightened(0.12), dark)
 
 	# ------------------------------------------------------------------ Captain Ada Stroud
 

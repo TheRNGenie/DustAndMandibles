@@ -31,6 +31,8 @@ const WEIGHTS: Dictionary = {
 	&"dynamite": 35,
 	&"pump_valve": 10,
 	&"queen_gland": 8,
+	&"family_papers": 6, # The Dry Gulch Families: a homestead's deed and letters in a tin box
+	&"harvest_ledger": 10, # ...and the board's harvest ledger from the amber crew's camp
 }
 ## Walking speed at a full pack (straight line from 1.0 at empty).
 const FULL_SPEED := 0.62

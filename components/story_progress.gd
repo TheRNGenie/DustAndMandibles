@@ -55,7 +55,8 @@ func win(ch: StoryChapter) -> Dictionary:
 		journal.append(ch.id)
 		got_page = true
 	var unlock: Dictionary = ch.unlock() if first else {}
-	if str(unlock.get("kind", "")) == "blueprint" and not blueprints.has(str(unlock["id"])):
+	# (Amber blueprints are kept here too; StoryAmber hands them to the amber system.)
+	if str(unlock.get("kind", "")) in ["blueprint", "amber_blueprint"] and not blueprints.has(str(unlock["id"])):
 		blueprints.append(str(unlock["id"]))
 	return {"first": first, "notches": ch.notches() if first else replay_tip(ch), "unlock": unlock, "journal": got_page}
 
