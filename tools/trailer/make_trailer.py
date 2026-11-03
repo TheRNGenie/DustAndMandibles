@@ -134,7 +134,7 @@ def main():
         achain += f"{prev_a}[{k}:a]acrossfade=d={XF}[a{k}];"
         prev_v, prev_a = f"[v{k}]", f"[a{k}]"
     total = sum(d for _, d in segs) - XF * (len(segs) - 1)
-    music = os.path.join(ROOT, "audio", "music", "wave_loop.wav")
+    music = os.path.join(ROOT, "audio", "music", "wave_theme_2.ogg")
     inputs += ["-stream_loop", "-1", "-i", music]
     m = len(segs)
     mix = (f"{prev_a}volume=0.85[game];[{m}:a]atrim=0:{total:.3f},volume=0.5,afade=t=in:d=1.0,"
