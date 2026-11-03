@@ -34,7 +34,7 @@ func _ready() -> void:
 				var p := n as Player
 				if p == null or not p.is_node_ready() or p.vitals == null or p.net == null:
 					continue
-				parts.append("%s%s downed %s over %.2f" % [p.name, "(me)" if p.is_multiplayer_authority() else "", p.is_downed(), float(p.get("_down_k"))])
+				parts.append("%s%s downed %s over %.2f at %s floor %s" % [p.name, "(me)" if p.is_multiplayer_authority() else "", p.is_downed(), float(p.get("_down_k")), str(p.global_position.snapped(Vector3.ONE * 0.1)), p.is_on_floor()])
 			print("[down] t=%d %s" % [Time.get_ticks_msec() / 1000, "  ".join(parts)]))
 	if GameState.flag_value("--act") != "":
 		_act_shot(GameState.flag_value("--act"))
