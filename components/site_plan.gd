@@ -92,7 +92,9 @@ static func generate(tunnels: Array, run_seed: int) -> Array[Site]:
 		var way: Vector3 = t[1]
 		way.y = 0.0
 		way = way.normalized() if way.length() > 0.01 else Vector3.BACK
-		var c := mouth + way * OUT_FROM_MOUTH
+		var kind := kinds[out.size() % kinds.size()]
+		# The tunnel mouth site sits right in the mouth; the rest out on the floor.
+		var c := mouth + way * (4.5 if kind == Kind.MOUTH else OUT_FROM_MOUTH)
 		var clear := true
 		for s in out:
 			if Vector2(s.pos.x - c.x, s.pos.z - c.z).length() < MIN_SEPARATION:
@@ -102,12 +104,11 @@ static func generate(tunnels: Array, run_seed: int) -> Array[Site]:
 			continue
 		var site := Site.new()
 		site.index = out.size()
-		site.kind = kinds[out.size() % kinds.size()]
+		site.kind = kind
 		site.tunnel = ti
 		site.out = way
 		site.seed = hash([run_seed, ti, site.kind])
-		# The tunnel mouth site sits right in the mouth; the rest out on the floor.
-		site.pos = mouth + way * (4.5 if site.kind == Kind.MOUTH else OUT_FROM_MOUTH)
+		site.pos = c
 		out.append(site)
 	return out
 

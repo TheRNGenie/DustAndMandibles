@@ -5,8 +5,9 @@ extends StaticBody3D
 ## hold E to repeat. Vegetable prices drop as you sell (down to -50%) and climb
 ## back while you don't (up to +50%); the sign shows today's prices.
 
-const ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili", &"herbs"]
-const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Prickly Pear", &"chili": "Firecracker Chili", &"herbs": "Sage Herbs"}
+const ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili", &"herbs", &"nest_egg", &"specimen"]
+const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Prickly Pear", &"chili": "Firecracker Chili", &"herbs": "Sage Herbs",
+	&"nest_egg": "Nest Egg", &"specimen": "Specimen Jar"}
 const SYNC_INTERVAL := 1.5
 ## Seeds for sale: seed resource -> [name, crop id]. Price = MarketPrices.seed_price.
 const SEEDS: Dictionary = {&"seed_corn": ["Corn Seeds", &"corn"], &"seed_prickly_pear": ["Prickly Pear Seeds", &"prickly_pear"],
@@ -122,7 +123,7 @@ func menu_title() -> String:
 
 
 func menu_tagline() -> String:
-	return "Chilies sell for chitin, other produce for scrap (prices drop as you sell and recover over time). Seeds cost scrap."
+	return "Chilies and specimen jars sell for chitin, other produce and nest eggs for scrap (prices drop as you sell and recover over time). Seeds cost scrap."
 
 
 static func _price_text(item: StringName, p: float) -> String:
@@ -145,7 +146,10 @@ func menu_items(tab: int) -> Array:
 			var base := float(MarketPrices.BASE[k])
 			var trend := " Paying well right now." if p > base * 1.15 else (" Flooded: the price is low." if p < base * 0.85 else "")
 			# Selling isn't about affording: the price never gets the "can't afford" cross.
-			out.append({"id": k, "name": NAMES[k], "icon": k, "desc": "You have %d.%s" % [have, trend],
+			var icon: Variant = k
+			if SitePlan.NEW_ITEMS.has(k) and MenuScreen.instance != null:
+				icon = IconStudio.site_loot(MenuScreen.instance, &"egg" if k == SitePlan.NEST_EGG else &"specimen")
+			out.append({"id": k, "name": NAMES[k], "icon": icon, "desc": "You have %d.%s" % [have, trend],
 					"price": _price_text(k, p) + " Each", "price_ok": true,
 					"disabled": "" if have > 0 else "Nothing to sell yet.", "disabled_kind": "info",
 					"buttons": [[&"sell1", "Sell 1"], [&"sellall", "Sell all"]]})
@@ -205,7 +209,8 @@ func _sell(peer_id: int, item: StringName) -> bool:
 	if not ITEMS.has(item):
 		return false
 	if not Economy.spend(payer, {item: 1}):
-		Economy.notify(peer_id, "You have no %s to sell. Grow some on a farm plot." % String(NAMES[item]).to_lower())
+		var where := "Bring some up from the canyon floor." if SitePlan.NEW_ITEMS.has(item) else "Grow some on a farm plot."
+		Economy.notify(peer_id, "You have no %s to sell. %s" % [String(NAMES[item]).to_lower(), where])
 		return false
 	var cur := MarketPrices.currency(item)
 	var key := "%d:%s" % [payer, cur]

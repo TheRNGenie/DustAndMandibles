@@ -5,9 +5,11 @@ extends RefCounted
 ## 0.5 to 1.5: selling pushes it down, and it drifts back up (to +50%) while you
 ## don't sell that vegetable. Pure logic so it can be unit-tested.
 
-const BASE: Dictionary = {&"corn": 10.0, &"prickly_pear": 16.0, &"chili": 5.0, &"herbs": 22.0}
+## (Canyon Expeditions: nest eggs and Doc's specimen jars, brought up from the floor, sell here too.)
+const BASE: Dictionary = {&"corn": 10.0, &"prickly_pear": 16.0, &"chili": 5.0, &"herbs": 22.0, &"nest_egg": 18.0, &"specimen": 14.0}
 ## What each vegetable is paid in.
-const CURRENCY: Dictionary = {&"corn": &"scrap", &"prickly_pear": &"scrap", &"chili": &"chitin", &"herbs": &"scrap"}
+const CURRENCY: Dictionary = {&"corn": &"scrap", &"prickly_pear": &"scrap", &"chili": &"chitin", &"herbs": &"scrap",
+	&"nest_egg": &"scrap", &"specimen": &"chitin"}
 ## Fixed seed prices (scrap) that override the one-third rule.
 ## Corn is the cheap, quick crop: its seeds are a bargain.
 ## Sarsaparilla isn't sold at the market (it's grown for your partner), so it has a set price.

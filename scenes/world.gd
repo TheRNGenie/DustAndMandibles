@@ -68,6 +68,10 @@ func _ready() -> void:
 	ambience.bugs = bugs
 	ambience.airship = airship
 	add_child(ambience)
+	# Canyon Expeditions: the raid sites on the canyon floor.
+	var sites := SiteManager.new()
+	sites.name = "Sites"
+	add_child(sites)
 	var pickups := PickupManager.new()
 	pickups.name = "Pickups"
 	add_child(pickups)
