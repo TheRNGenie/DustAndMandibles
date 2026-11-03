@@ -127,9 +127,9 @@ func _rumble(mouth: Vector3, way_out: Vector3, size: float) -> void: # Maps: dir
 
 
 ## Host: spawns one bug in any state (used for spiderlings and special bugs).
-func spawn_at(bug_id: StringName, cliff: int, lane: int, z: float, y: float, st: int, pos: Vector3) -> void:
+func spawn_at(bug_id: StringName, cliff: int, lane: int, z: float, y: float, st: int, pos: Vector3) -> Node:
 	_next_id += 1
-	_spawner.spawn({"id": _next_id, "bug": bug_id, "cliff": cliff, "lane": lane,
+	return _spawner.spawn({"id": _next_id, "bug": bug_id, "cliff": cliff, "lane": lane,
 			"z": z, "y": y, "hp": Defs.WAVE_CONFIG.hp_scale(GameState.wave), "state": st, "pos": pos,
 			"smoke": (randf() < SMOKER_CHANCE or GameState.has_flag("--smokers")) if smoke_override < 0 else smoke_override == 1})
 

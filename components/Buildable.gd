@@ -34,6 +34,8 @@ const GENERATOR := Vector2(24.2, -12.2)
 const WATERWORKS_FACE := Vector2(21.0, -3.0)
 ## The big scrap heap beside the house (east of it, past the end of the field).
 const SALVAGE := Vector2(25.0, 11.0)
+## Canyon Expeditions: the rope winch's post on the lip (plateau z; cell (0, 0) stays clear for it).
+const ROPE_ANCHOR_Z := -19.0
 ## The campfire in front of the house, beside the path to the bridge (3 x 3 cells kept clear).
 const CAMPFIRE := Vector2(14.0, -9.0)
 ## Starter farm field: 3 x 4 farm plots (2 x 2 cells each) beside the house.
@@ -82,6 +84,8 @@ static func zone(cell: Vector2i) -> Zone:
 		return Zone.HOUSE
 	if h.grow(1).has_point(cell):
 		return Zone.PATH
+	if cell == cell_of(LIP_MARGIN + 0.5, ROPE_ANCHOR_Z): # Canyon Expeditions: the rope winch
+		return Zone.LANDMARK
 	var door := door_cell()
 	if cell.x == door.x and cell.y <= door.y:
 		return Zone.PATH # along the door's row toward the bridge side

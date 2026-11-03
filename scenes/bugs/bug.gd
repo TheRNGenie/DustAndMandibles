@@ -46,6 +46,22 @@ var crowd_r := 0.0
 var crowd_w := 1.0
 ## Network id (BugManager's batched state sync finds bugs by it).
 var net_id := 0
+## Canyon Expeditions (host): the player this floor hunter is after (peer id),
+## -1 once it's been called home, 0 for every other bug (see FloorHunt).
+var hunt_peer := 0
+## Where a hunter goes back into the ground (its tunnel mouth).
+var hunt_home := Vector3.ZERO
+## A bug out on the canyon floor in the build phase (hunters, and the floor
+## sites' sleepers): turrets may shoot it within their pitch and range.
+var floor_bug := false:
+	set(v):
+		floor_bug = v
+		if v and not floor_bugs.has(self):
+			floor_bugs.append(self)
+		elif not v:
+			floor_bugs.erase(self)
+## Every floor_bug alive (host; turrets look here instead of at every bug).
+static var floor_bugs: Array[Bug] = []
 var _face: BugFace
 ## Bosses: the mechanic (scenes/bugs/bosses/<id>.gd), on every peer. Null for other bugs.
 var boss: BossBrain
@@ -166,6 +182,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	floor_bugs.erase(self)
 	if _body_slot >= 0:
 		_body_b.give_back(_body_slot)
 		_body_slot = -1
@@ -525,6 +542,9 @@ func _think(delta: float) -> void:
 		return
 	match state:
 		State.CROSSING:
+			if hunt_peer != 0: # Canyon Expeditions: hunting a player on the floor
+				FloorHunt.think(self, delta)
+				return
 			# Out of the tunnel in the far wall and across the canyon floor to the
 			# foot of the cliff it will climb.
 			var goal := cliffs.tunnel_mouth(cliff_id, lane_z)

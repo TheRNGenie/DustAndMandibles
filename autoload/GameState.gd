@@ -129,6 +129,9 @@ func _process(delta: float) -> void:
 	if phase == Phase.LOBBY or phase == Phase.GAME_OVER or phase == Phase.WAVE:
 		return
 	if phase == Phase.BUILD and ready_countdown >= 0.0:
+		if Expedition.anyone_down() and multiplayer.is_server():
+			_cancel_countdown() # Canyon Expeditions: someone's in the canyon
+			return
 		ready_countdown = maxf(ready_countdown - delta, 0.0)
 		if multiplayer.is_server() and ready_countdown <= 0.0:
 			ready_countdown = -1.0
@@ -138,6 +141,8 @@ func _process(delta: float) -> void:
 	# Automated runs (--fast) keep a timer so they can play themselves.
 	if phase == Phase.BUILD and not has_flag("--fast"):
 		return
+	if phase == Phase.BUILD and Expedition.anyone_down():
+		return # Canyon Expeditions: the clock waits for whoever's down in the canyon
 	time_left = maxf(time_left - delta, 0.0)
 	if multiplayer.is_server() and time_left <= 0.0:
 		_advance()
@@ -345,7 +350,7 @@ func _set_endless() -> void:
 
 ## Any player: vote to skip the rest of the build phase ("Ready").
 func vote_skip() -> void:
-	if phase != Phase.BUILD:
+	if phase != Phase.BUILD or Expedition.is_down(multiplayer.get_unique_id()):
 		return
 	if multiplayer.is_server():
 		_add_vote(1)
@@ -357,6 +362,9 @@ func vote_skip() -> void:
 ## The ready key (G): ready up, or take it back (also cancels a running countdown).
 func toggle_ready() -> void:
 	if phase != Phase.BUILD:
+		return
+	if Expedition.is_down(multiplayer.get_unique_id()) and not is_ready_local():
+		Economy.notice.emit(LEVER_LOCKED_SELF)
 		return
 	if multiplayer.is_server():
 		_toggle_vote(1)
@@ -425,14 +433,51 @@ func _add_vote(id: int) -> void:
 		return
 	if _voters.has(id):
 		return
+	if not ExpeditionRules.can_throw_lever(id, Expedition.down): # Canyon Expeditions
+		Economy.notify(id, LEVER_LOCKED_SELF)
+		return
 	_voters[id] = true
 	_sync_votes.rpc(_voters.size())
-	if _voters.size() >= _needed_votes() and ready_countdown < 0.0:
+	if _voters.size() >= _needed_votes() and ready_countdown < 0.0 and ExpeditionRules.countdown_allowed(Expedition.down):
 		# Everyone's ready: a short countdown anyone can call off with the ready key
 		# (Waterworks: by pulling their lever back). CPU teammates throw theirs now.
 		for cid: int in (NetworkManager.cpu_cliffs() if NetworkManager.has_cpu() else []):
 			cpu_levers[cid] = true
 		_sync_countdown.rpc(READY_COUNTDOWN * _time_scale())
+	_push_levers()
+
+
+# ------------------------------------------------------------------ Canyon Expeditions
+
+const LEVER_LOCKED_SELF := "You're down in the canyon. Get back up before you throw your lever."
+
+
+## Host: a player went down into the canyon. Their lever drops (if thrown) and
+## a running countdown is called off: nobody rides the wave in on them.
+func on_player_down(peer_id: int) -> void:
+	if not multiplayer.is_server() or phase != Phase.BUILD:
+		return
+	var changed := _voters.erase(peer_id)
+	if changed:
+		_sync_votes.rpc(_voters.size())
+		if peer_id != multiplayer.get_unique_id():
+			_lever_dropped.rpc_id(peer_id)
+		else:
+			_local_ready = false
+	if ready_countdown >= 0.0:
+		_cancel_countdown()
+	elif changed:
+		_push_levers()
+
+
+@rpc("authority", "reliable")
+func _lever_dropped() -> void:
+	_local_ready = false
+
+
+func _cancel_countdown() -> void:
+	_sync_countdown.rpc(-1.0)
+	cpu_levers.clear()
 	_push_levers()
 
 

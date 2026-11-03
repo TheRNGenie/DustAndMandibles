@@ -267,6 +267,8 @@ func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, see
 				bug.status.slow(def.suppress_slow, def.suppress_time)
 	for b in salted:
 		GunRules.salt_hit(b) # once per shot, however many grains hit
+	# Canyon Expeditions: gunshots carry (sleeping floor bugs hear them; the whip is quiet).
+	Expedition.make_noise(origin, ExpeditionRules.gun_noise(def.special, def.kickback, Gun.shot_dirs(id, dir.normalized(), seed_value, level).size()))
 	_fire_fx.rpc(origin, dir, id, seed_value, level)
 
 

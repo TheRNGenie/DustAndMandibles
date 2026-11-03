@@ -57,6 +57,8 @@ func _process(delta: float) -> void:
 		if _downed_left <= 0.0:
 			downed = false
 			hp = MAX_HP
+			if player.on_trip(): # Canyon Expeditions: downed on the floor
+				Economy.notice.emit("The airship crew hauled you up out of the canyon. Your sack's still down there.")
 			player.respawn()
 			downed_changed.emit(false, 0.0)
 			health_changed.emit(hp, MAX_HP)
@@ -170,6 +172,9 @@ func apply_damage(amount: float) -> void:
 		downed = true
 		_downed_left = DOWNED_TIME * Perks.local_less(&"back_in_saddle") # Perk: Back in the Saddle
 		downed_changed.emit(true, _downed_left)
+		# Canyon Expeditions: down on the canyon floor, your backpack drops where you fell.
+		if player.on_trip():
+			Expedition.report_downed(player.global_position)
 
 
 func _update_interact(delta: float) -> void:

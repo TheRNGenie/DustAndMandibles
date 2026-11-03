@@ -231,6 +231,12 @@ func _pick_target() -> Bug:
 				continue
 			cands.append(b)
 			scores.append(Targeting.marked_priority(Targeting.priority(b.climb_y, b.global_position.distance_to(global_position)), b.status.is_marked())) # Signal Flare
+		# Canyon Expeditions: bugs out on the floor hunting a partner who's down.
+		for b: Bug in Bug.floor_bugs:
+			if not is_instance_valid(b) or not _valid_cheap(b, muzzle, seen, pitch, max_range):
+				continue
+			cands.append(b)
+			scores.append(Targeting.floor_priority(b.global_position.distance_to(global_position)))
 	while not cands.is_empty():
 		# The first best score (as a plain scan would keep it).
 		var top := 0
@@ -267,7 +273,7 @@ func _valid_cheap(b: Bug, muzzle: Vector3, seen: float, pitch: float, max_range:
 			var home := Homestead.of(cliff_id)
 			if home == null or b.global_position.distance_to(home.global_position) > Homestead.GUARD_RADIUS:
 				return false
-	elif not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing(), covers):
+	elif not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing(), covers) 			and not Targeting.floor_allows(b.floor_bug, b.state == Bug.State.CROSSING or b.state == Bug.State.BURROWED): # Canyon Expeditions
 		return false
 	if seen < 1.0 and _lit_near(b.global_position):
 		seen = 1.0 # a lantern or a lit lighter shows this bug through the murk

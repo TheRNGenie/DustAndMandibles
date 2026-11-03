@@ -329,6 +329,13 @@ func _physics_process(delta: float) -> void:
 	if _zip_line != null:
 		_ride_zip(delta)
 		return
+	if _rope != null: # Canyon Expeditions: on the rope winch's chair
+		_ride_rope(delta)
+		return
+	if _haul_t >= 0.0: # Canyon Expeditions: the airship's hook
+		_ride_haul(delta)
+		return
+	_update_trip()
 	_update_fall(delta)
 	var blocked := GameState.menu_open or vitals.downed
 	var input_dir := Vector2.ZERO if blocked else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
@@ -394,6 +401,7 @@ func _physics_process(delta: float) -> void:
 		target_speed += SLIDE_HOP_SPEED * hop_stacks
 		if cigarette != null:
 			target_speed *= cigarette.speed_multiplier()
+		target_speed *= Expedition.local_speed_mult() # Canyon Expeditions: a heavy backpack slows you
 		if gun.aiming:
 			target_speed *= 0.6
 		var accel := ACCEL_GROUND if on_floor else ACCEL_AIR
@@ -575,7 +583,8 @@ func _update_fall(delta: float) -> void:
 		return
 	if not _falling:
 		# Swinging or reeling on the grapple dips below the lip: that's not a fall.
-		if global_position.y < WorldLayout.CANYON_FALL_Y and not (grapple != null and grapple.is_active()):
+		# Nor is anything on a canyon expedition (you went down on purpose).
+		if global_position.y < WorldLayout.CANYON_FALL_Y and not (grapple != null and grapple.is_active()) and not _trip:
 			_falling = true
 			_fall_t = 0.0
 			fell_into_canyon.emit(0.0)
@@ -690,13 +699,158 @@ func cancel_fall() -> void:
 
 
 func respawn() -> void:
+	_rope = null
+	_haul_t = -1.0
 	_falling = false
 	fall_intensity = 0.0
 	global_transform = _porch_transform()
 	head.rotation = Vector3.ZERO
 	velocity = Vector3.ZERO
 	_end_slide()
+	if _trip:
+		_trip = false
+		_report_trip()
 	respawned.emit()
+
+
+# ------------------------------------------------------------------ Canyon Expeditions
+
+## Owner: on a canyon expedition: went below the lip on purpose (the rope, or
+## the grapple in the build phase), so the canyon fall doesn't haul you home.
+var _trip := false
+var _reported_down := false
+var _rope: RopeAnchor
+var _rope_down := true
+var _rope_from := Vector3.ZERO
+var _haul_t := -1.0
+var _haul_from := Vector3.ZERO
+
+
+func on_trip() -> bool:
+	return _trip
+
+
+func on_rope() -> bool:
+	return _rope != null
+
+
+func _update_trip() -> void:
+	var below := global_position.y < WorldLayout.CANYON_FALL_Y
+	if not _trip and below and not _falling and grapple != null and grapple.is_active() 			and GameState.phase == GameState.Phase.BUILD:
+		_trip = true # grappled down the wall between waves
+	elif _trip and not below and _rope == null and _haul_t < 0.0:
+		_trip = false
+	_report_trip()
+
+
+func _report_trip() -> void:
+	var down_now := _trip and global_position.y < WorldLayout.CANYON_FALL_Y
+	if down_now != _reported_down:
+		_reported_down = down_now
+		Expedition.report_trip(down_now)
+
+
+## Owner: take the chair down (from the top) or up (from the floor).
+func start_rope(anchor: RopeAnchor, down: bool) -> void:
+	if _rope != null or vitals.downed or is_plummeting() or not anchor.begin_ride(down):
+		return
+	_rope = anchor
+	_rope_down = down
+	_rope_from = global_position
+	if down:
+		_trip = true
+	_end_slide()
+	velocity = Vector3.ZERO
+	# Face the wall (going down you watch the rock slide past; up, the lip coming).
+	rotation.y = atan2(anchor.inward.x, anchor.inward.z)
+	head.rotation.x = -0.35 if down else 0.25
+	Audio.play_ui(&"zip_grab", -6.0)
+
+
+func _ride_rope(delta: float) -> void:
+	velocity = Vector3.ZERO
+	var p := _rope.progress()
+	if p < 0.0:
+		# The empty chair's still on its way to you.
+		global_position = _rope_from
+		_update_camera(delta, false)
+		return
+	var land := _rope.foot_stand if _rope_down else _rope.top_stand
+	var at := _rope.rider_point(_rope.seat_s())
+	at = _rope_from.lerp(at, ExpeditionRules.ride_ease(p / 0.08))
+	at = at.lerp(land, ExpeditionRules.ride_ease((p - 0.92) / 0.08))
+	global_position = at
+	if p >= 1.0 or not _rope.busy():
+		global_position = land
+		_rope = null
+		Audio.play_at(&"land_dirt", global_position, -6.0)
+	_report_trip()
+	_update_camera(delta, false)
+	_handle_weapon()
+
+
+## Owner: hail the airship from the floor (the ready key while you're down).
+func hail_airship() -> void:
+	if not _trip or _rope != null or _haul_t >= 0.0 or vitals.downed:
+		return
+	if not Expedition.is_down(get_multiplayer_authority()):
+		return
+	Economy.notice.emit("You fire a flare at the airship (%d chitin for the haul)..." % ExpeditionRules.AIRSHIP_FARE)
+	Expedition.request_hail()
+
+
+## Owner: the host took the fare: the hook drops, then hauls you up and home.
+func start_airship_haul() -> void:
+	if _haul_t >= 0.0 or not _trip:
+		return
+	_haul_t = 0.0
+	_haul_from = global_position
+	_rope = null
+	_haul_fx.rpc(_haul_from)
+	Economy.notice.emit("The Lucky Mandible lowers its hook. Hold on!")
+
+
+func _ride_haul(delta: float) -> void:
+	_haul_t += delta
+	velocity = Vector3.ZERO
+	var lift := maxf(_haul_t - ExpeditionRules.HAIL_WAIT, 0.0) / ExpeditionRules.HAUL_TIME
+	global_position = _haul_from + Vector3.UP * 80.0 * lift * lift
+	_report_trip()
+	_update_camera(delta, false)
+	if lift >= 1.0:
+		respawn()
+
+
+## Every peer: the airship's hook line coming down to this player and lifting them.
+@rpc("authority", "call_local", "reliable")
+func _haul_fx(from: Vector3) -> void:
+	var line := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.03
+	cyl.bottom_radius = 0.03
+	cyl.height = 1.0
+	cyl.radial_segments = 6
+	cyl.rings = 1
+	line.mesh = cyl
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color("#C9A66B")
+	line.material_override = mat
+	line.top_level = true
+	line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(line)
+	var sky := from + Vector3.UP * 140.0
+	var total := ExpeditionRules.HAIL_WAIT + ExpeditionRules.HAUL_TIME
+	var tw := line.create_tween()
+	tw.tween_method(func(t: float) -> void:
+		if not is_instance_valid(line):
+			return
+		# The hook drops for HAIL_WAIT seconds, then rides up with the player.
+		var drop := clampf(t / ExpeditionRules.HAIL_WAIT, 0.0, 1.0)
+		var hook := sky.lerp(global_position + Vector3.UP * 2.1, drop * drop) if t < ExpeditionRules.HAIL_WAIT else global_position + Vector3.UP * 2.1
+		var len := maxf(sky.distance_to(hook), 0.1)
+		line.global_transform = Transform3D(Basis.IDENTITY.scaled(Vector3(1, len, 1)), (sky + hook) * 0.5), 0.0, total, total)
+	tw.tween_callback(line.queue_free)
+	Audio.play_at(&"airship_creak", from + Vector3.UP * 6.0, 0.0)
 
 
 # ------------------------------------------------------------------ camera feel

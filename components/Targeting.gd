@@ -14,6 +14,20 @@ static func cliff_allows(turret_cliff: int, bug_cliff: int, bug_is_climbing: boo
 	return bug_is_climbing and bug_cliff != turret_cliff
 
 
+## Canyon Expeditions: a cliff turret may also shoot a bug out on the canyon
+## floor (a hunter after a player who's down, or a site's waking sleeper) when
+## it's in the build phase, covering a partner. The pitch limit (the 30 degree
+## Downward Discharge law, plus scaffolds) still applies, so in practice only
+## the far floor out past the opposite cliff's foot is in reach.
+static func floor_allows(is_floor_bug: bool, on_ground: bool) -> bool:
+	return is_floor_bug and on_ground
+
+
+## Score for a floor bug: above every climber (a partner's life is on it), nearest first.
+static func floor_priority(distance: float) -> float:
+	return 100000.0 - distance
+
+
 ## Last-line (plateau guard) turrets: only bugs on the turret owner's OWN plateau,
 ## never a climber on either cliff face.
 static func guard_allows(turret_cliff: int, bug_cliff: int, bug_on_plateau: bool) -> bool:

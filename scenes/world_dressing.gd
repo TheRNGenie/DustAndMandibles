@@ -26,6 +26,7 @@ func build() -> void:
 	_build_webs()
 	if WorldLayout.map().is_canyon():
 		CanyonDressing.build(parent, cliffs, 5151)
+		_build_floor_ends()
 
 
 ## A heavy spider infestation: orb webs all over both canyon walls (thicker low
@@ -122,6 +123,7 @@ func _build_homestead_area(cid: int) -> void:
 	parent.add_child(home)
 
 	_build_waterworks(cid)
+	_build_rope_anchor(cid)
 
 	# Starter farm field beside the house: 3 x 4 plots on the grid (2 x 2 cells each),
 	# the 3-plot side along the house front, rows running toward the canyon.
@@ -205,6 +207,21 @@ func _build_waterworks(cid: int) -> void:
 		mi.material_override = Materials.toon(0.0)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		parent.add_child(mi)
+
+
+## Canyon Expeditions: the rope winch at the yard's south corner on the lip.
+func _build_rope_anchor(cid: int) -> void:
+	var a := RopeAnchor.new()
+	a.name = "RopeAnchor%d" % cid
+	a.setup(cliffs, cid, Buildable.ROPE_ANCHOR_Z)
+	parent.add_child(a)
+
+
+## Canyon Expeditions: invisible walls across the canyon floor past the
+## tunnels, so nobody on an expedition walks off the end of the world.
+func _build_floor_ends() -> void:
+	for sgn: float in [-1.0, 1.0]:
+		_add_wall(Vector3(0, 10.0, sgn * (WorldLayout.WORLD_HALF_Z - 3.0)), Vector3(80.0, 24.0, 1.0))
 
 
 ## Yaw that turns a node's +Z from plateau spot `from` toward `to` (d, z).

@@ -316,6 +316,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if GameState.menu_open:
 		return
 	if event.is_action_pressed("ready_up"):
+		# Canyon Expeditions: down on the floor, the ready key hails the airship instead.
+		var me := local_player()
+		if me != null and me.on_trip():
+			me.hail_airship()
+			return
 		GameState.toggle_ready()
 
 

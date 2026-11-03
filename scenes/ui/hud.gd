@@ -47,6 +47,7 @@ func _ready() -> void:
 	build_menu = HudBuildMenu.new()
 	add_child(build_menu)
 	add_child(HudWavePreview.new())
+	add_child(HudExpedition.new()) # Canyon Expeditions: backpack card, partners in the canyon
 	threat = HudThreatAlert.new()
 	add_child(threat)
 	title_card = HudTitleCard.new()

@@ -216,6 +216,9 @@ func interact_prompt() -> String:
 		return "%s  -  running, the pumps are on" % title if GameState.pumps_on() else title
 	if not is_mine():
 		var who := Hud.owner_name(cliff_id)
+		for peer: int in Expedition.down: # Canyon Expeditions
+			if NetworkManager.cliff_of(peer) == cliff_id:
+				return "%s's generator  -  %s is in the canyon, the lever waits" % [who, who]
 		return "%s's generator  -  lever %s" % [who, "thrown" if thrown else "up"]
 	if GameState.ready_countdown >= 0.0:
 		return "%s  -  cranking up, the wave's coming\nE: pull your lever back (not yet)" % title
