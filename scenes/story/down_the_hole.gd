@@ -58,6 +58,10 @@ var _inside_hunters: Array[Bug] = []
 var _ask_t := 0.0
 var _have_state := false
 var _fade: ColorRect
+# Local: underground the sky's ambient light fades down (the lanterns light the way).
+var _env: Environment
+var _ambient0 := -1.0
+var _dark := 0.0
 
 
 func _ready() -> void:
@@ -115,6 +119,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if _env != null and _ambient0 >= 0.0:
+		_env.ambient_light_energy = _ambient0
 	Expedition.risk_enabled = true
 	Expedition.drop_point_hook = Callable()
 	if Expedition.backpack_changed.is_connected(_on_pack_changed):
@@ -414,6 +420,7 @@ func is_inside(p: Node3D) -> bool:
 # ------------------------------------------------------------------ host tick
 
 func _process(delta: float) -> void:
+	_underground_light(delta)
 	if not multiplayer.is_server():
 		if not _have_state:
 			_ask_t -= delta
@@ -429,6 +436,19 @@ func _process(delta: float) -> void:
 			_detonate()
 			return
 	_hunt(delta)
+
+
+func _underground_light(delta: float) -> void:
+	if _env == null:
+		_env = world.get("_env") as Environment
+		if _env == null:
+			return
+		_ambient0 = _env.ambient_light_energy
+	var want := 1.0 if is_inside(_me()) else 0.0
+	if is_equal_approx(want, _dark):
+		return
+	_dark = move_toward(_dark, want, delta * 4.0)
+	_env.ambient_light_energy = lerpf(_ambient0, 0.22, _dark)
 
 
 # ------------------------------------------------------------------ hunters (host)
@@ -782,7 +802,7 @@ class MinePortal extends StaticBody3D:
 		label.modulate = Color("#F2E3C2")
 		label.outline_size = 10
 		label.outline_modulate = Color("#2B1B17")
-		label.position = Vector3(0, 4.62, 1.02)
+		label.position = Vector3(0, 4.62, 1.04)
 		add_child(label)
 		var col := CollisionShape3D.new()
 		var bs := BoxShape3D.new()
@@ -813,7 +833,7 @@ class MinePortal extends StaticBody3D:
 		bm.albedo_color = Color(Color("#E0483C"), 0.18)
 		_beacon.material_override = bm
 		_beacon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_beacon.position = Vector3(0, 20.0, 2.0)
+		_beacon.position = Vector3(-3.4, 20.0, 3.0)
 		add_child(_beacon)
 		fuse_box = FuseBox.new()
 		fuse_box.name = "FuseBox"

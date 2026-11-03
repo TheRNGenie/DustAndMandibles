@@ -22,6 +22,9 @@ const CHAMBER_H := 6.2
 ## The first charge spot (metres in) and the last.
 const FIRST_SPOT := 9.0
 const LAST_SPOT := 39.0
+## The set's meshes draw on this visual layer only, which the sun doesn't light
+## (it's underground: only the lanterns, the resin and the daylight do).
+const LAYER := 1 << 19
 
 var director: DownTheHole
 var spots: Array[ChargeSpot] = []
@@ -43,6 +46,8 @@ static func local_at(d: float, x: float, y: float) -> Vector3:
 
 
 func _ready() -> void:
+	if DayCycle.instance != null and DayCycle.instance.sun != null:
+		DayCycle.instance.sun.light_cull_mask &= ~LAYER
 	_build_rock()
 	_build_props()
 	_build_collision()
@@ -133,7 +138,7 @@ func _build_rock() -> void:
 			var x := signf(c) * pow(absf(c), 0.55) * w * 0.5
 			var y := pow(s, 0.5) * h
 			var p := Vector3(x, y, -d)
-			var push := noise.get_noise_3d(x, y, d) * 0.35
+			var push := noise.get_noise_3d(x, y, d) * 0.6
 			if k > 0 and k < segs:
 				var n2 := Vector3(x, y - h * 0.35, 0).normalized()
 				p += n2 * push
@@ -142,9 +147,9 @@ func _build_rock() -> void:
 			ring.append(p)
 		rings.append(ring)
 		d += step
-	var rock_a := Color("#5A3428")
-	var rock_b := Color("#6E4030")
-	var resin := Color("#E39A2C")
+	var rock_a := Color("#3A2C28")
+	var rock_b := Color("#5E4A40")
+	var resin := Color("#D8862A")
 	for r in rings.size() - 1:
 		var ra: Array[Vector3] = rings[r]
 		var rb: Array[Vector3] = rings[r + 1]
@@ -160,9 +165,9 @@ func _build_rock() -> void:
 			var glow := 0.0
 			# Hive resin: none at the timbered mouth, more and more toward the chamber.
 			var want := smoothstep(10.0, 34.0, depth)
-			if resin_n.get_noise_3d(mid.x, mid.y, mid.z) * 0.5 + 0.5 < want * 0.75:
-				col = resin.darkened(0.25 + 0.2 * (resin_n.get_noise_3d(mid.z, mid.x, mid.y) * 0.5 + 0.5))
-				glow = 0.55
+			if resin_n.get_noise_3d(mid.x, mid.y, mid.z) * 0.5 + 0.5 < want * 0.4:
+				col = resin.darkened(0.05 + 0.25 * (resin_n.get_noise_3d(mid.z, mid.x, mid.y) * 0.5 + 0.5))
+				glow = 0.28
 			var cc := MeshKit.vcol(col, glow)
 			MeshKit.tri(st, p0, p1, p2, inward, inward, inward, cc, inward)
 			MeshKit.tri(st, p0, p2, p3, inward, inward, inward, cc, inward)
@@ -185,7 +190,7 @@ func _build_rock() -> void:
 				3, 16, Color("#0C0606").lightened(0.03 * (2 - k)))
 	for k in 14: # resin lip round the hole
 		var a := TAU * float(k) / 14.0
-		MeshKit.add_ellipsoid(st, Transform3D(Basis(), hole + Vector3(cos(a) * 1.75, sin(a) * 1.45, 0.15)), Vector3(0.38, 0.32, 0.2), 3, 6, resin, 0.0, null, 0.6)
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(), hole + Vector3(cos(a) * 1.75, sin(a) * 1.45, 0.15)), Vector3(0.38, 0.32, 0.2), 3, 6, resin.darkened(0.2), 0.0, null, 0.3)
 	# The daylight at the entrance: the canyon floor in the sun, blown out.
 	var first: Array[Vector3] = rings[0]
 	var dc := Vector3(0, TUNNEL_H * 0.4, 0.35)
@@ -197,6 +202,7 @@ func _build_rock() -> void:
 			MeshKit.vcol(Color("#FFE7B8"), 1.0), Vector3.FORWARD)
 	var mi := MeshInstance3D.new()
 	mi.name = "Rock"
+	mi.layers = LAYER
 	mi.mesh = MeshKit.finish(st)
 	mi.material_override = Materials.toon(0.0)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
@@ -268,18 +274,19 @@ func _build_props() -> void:
 		for e in erng.randi_range(4, 8):
 			var p := base + Vector3(erng.randf_range(-0.8, 0.8), erng.randf_range(0.3, 1.4), erng.randf_range(-0.9, 0.9))
 			var rr := erng.randf_range(0.22, 0.4)
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.UP, erng.randf() * TAU), p), Vector3(rr, rr * 1.35, rr), 4, 8, egg.darkened(erng.randf() * 0.15), 0.05, erng, 0.35)
-		MeshKit.add_ellipsoid(st, Transform3D(Basis(), base + Vector3(0, 0.05, 0)), Vector3(1.3, 0.12, 1.2), 3, 10, Color("#C27E22"), 0.0, null, 0.45)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.UP, erng.randf() * TAU), p), Vector3(rr, rr * 1.35, rr), 4, 8, egg.darkened(0.08 + erng.randf() * 0.15), 0.05, erng, 0.18)
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(), base + Vector3(0, 0.05, 0)), Vector3(1.3, 0.12, 1.2), 3, 10, Color("#9A5E1A"), 0.0, null, 0.2)
 	for k in 14:
 		var dd := erng.randf_range(16.0, CHAMBER_END - 1.0)
 		var top := height_at(dd) - 0.4
 		var p := local_at(dd, erng.randf_range(-width_at(dd) * 0.3, width_at(dd) * 0.3), top)
-		MeshKit.add_cylinder(st, Transform3D(Basis(), p - Vector3(0, 0.35, 0)), 0.02, 0.12, 0.7, 6, Color("#E39A2C"), true, 0.5)
+		MeshKit.add_cylinder(st, Transform3D(Basis(), p - Vector3(0, 0.35, 0)), 0.02, 0.12, 0.7, 6, Color("#C27A26"), true, 0.3)
 	for k in 5:
 		var p := local_at(erng.randf_range(31.0, 40.0), erng.randf_range(-2.5, 2.5), 0.08)
 		MeshKit.add_limb(st, p, p + Vector3(erng.randf_range(-0.7, 0.7), 0.05, erng.randf_range(-0.7, 0.7)), 0.06, Palette.BONE, 5)
 	var mi := MeshInstance3D.new()
 	mi.name = "Props"
+	mi.layers = LAYER
 	mi.mesh = MeshKit.finish(st)
 	mi.material_override = Materials.toon(0.02)
 	add_child(mi)
@@ -293,8 +300,8 @@ func _build_lights() -> void:
 	for ld in _lantern_depths():
 		var l := OmniLight3D.new()
 		l.light_color = Color("#FFC27A")
-		l.light_energy = 2.2
-		l.omni_range = 8.0
+		l.light_energy = 1.3
+		l.omni_range = 7.0
 		l.omni_attenuation = 1.2
 		l.position = local_at(ld, 0.0, 2.3)
 		add_child(l)
@@ -392,15 +399,18 @@ class ChargeSpot extends StaticBody3D:
 		_mark = MeshInstance3D.new()
 		_mark.mesh = DownTheHole.chalk_mark_mesh()
 		_mark.material_override = Materials.toon(0.0)
+		_mark.layers = MineTunnel.LAYER
 		add_child(_mark)
 		_bundle = MeshInstance3D.new()
 		_bundle.mesh = DownTheHole.charge_mesh()
 		_bundle.material_override = Materials.toon(0.015)
+		_bundle.layers = MineTunnel.LAYER
 		_bundle.visible = false
 		add_child(_bundle)
 		_cord = MeshInstance3D.new()
 		_cord.mesh = _cord_mesh()
 		_cord.material_override = Materials.toon(0.0)
+		_cord.layers = MineTunnel.LAYER
 		_cord.visible = false
 		add_child(_cord)
 

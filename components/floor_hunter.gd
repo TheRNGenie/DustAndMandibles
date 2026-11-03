@@ -109,6 +109,8 @@ static func _huntable(pl: Node3D) -> bool:
 		return false
 	if pl.has_method("is_downed") and bool(pl.call("is_downed")):
 		return false
+	if pl.global_position.y < Bug.UNDERGROUND_Y:
+		return false # Story: inside Down the Hole's tunnel set, far under the floor
 	return ExpeditionApi.is_down(pl.get_multiplayer_authority())
 
 
