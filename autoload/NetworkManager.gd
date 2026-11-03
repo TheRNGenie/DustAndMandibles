@@ -277,7 +277,11 @@ func leave() -> void:
 		online.leave()
 	_backend = null
 	if _peer != null:
-		_peer.close()
+		# Closed a frame later: leave() often runs inside the peer's own signal
+		# (server_disconnected, connection_failed...), and freeing an Epic P2P peer
+		# while it is still polling crashed the game. The lambda keeps it alive.
+		var old := _peer
+		(func() -> void: old.close()).call_deferred()
 	_peer = null
 	_started = false
 	_rtt.clear()
@@ -467,11 +471,18 @@ func all_ready() -> bool:
 
 # ------------------------------------------------------------------ host side
 
-func _on_peer_connected(_id: int) -> void:
-	pass # The client registers itself with its name.
+func _on_peer_connected(id: int) -> void:
+	_netlog("peer %d connected (I am %d)" % [id, multiplayer.get_unique_id()]) # the client registers itself with its name
+
+
+## --netlog: one line about the connection's life.
+func _netlog(text: String) -> void:
+	if GameState.has_flag("--netlog"):
+		print("[net] %s" % text)
 
 
 func _on_peer_disconnected(id: int) -> void:
+	_netlog("peer %d disconnected (was %s)" % [id, "a player" if players.has(id) else "not registered"])
 	_rtt.erase(id)
 	if multiplayer.is_server() and players.has(id):
 		players.erase(id)
@@ -548,11 +559,13 @@ func _start_game(id: String = "canyon") -> void:
 # ------------------------------------------------------------------ client side
 
 func _on_connected_to_server() -> void:
+	_netlog("connected to the host as peer %d" % multiplayer.get_unique_id())
 	_register.rpc_id(1, local_name)
 	connected_to_host.emit()
 
 
 func _on_connection_failed() -> void:
+	_netlog("connection to the host failed")
 	leave()
 	connection_failed.emit("Could not reach the host.")
 

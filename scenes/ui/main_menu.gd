@@ -23,6 +23,9 @@ var _invite_note: Label
 var _copy_btn: Button
 var _solo_btn: Button
 var _auto_ready := false
+## The --host / --join test flags act on the first menu; back on the menu
+## because the host left, it shows why instead of joining the gone game again.
+static var _launched := false
 var _settings: PauseMenu
 var _ledger: LedgerScreen # Perk: Rancher's Ledger screen
 var _brands: BrandScreen # Brand: the branding-iron pick screen
@@ -53,12 +56,17 @@ func _ready() -> void:
 		_name_edit.text = flag_name
 	if GameState.flag_value("--port") != "": # Perk (test aid): pick the port for --host / --join
 		_port_edit.text = GameState.flag_value("--port")
+	var first := not _launched
+	_launched = true
 	if not NetworkManager.pending_join.is_empty():
 		var pj := NetworkManager.pending_join
 		NetworkManager.pending_join = {}
 		_ip_edit.text = str(pj["address"])
 		_port_edit.text = str(pj["port"])
 		_on_join()
+	elif not first and NetworkManager.menu_message != "":
+		_show_connect(NetworkManager.menu_message)
+		NetworkManager.menu_message = ""
 	elif GameState.has_flag("--host") or _test_launch():
 		_auto_ready = true
 		_on_host()
