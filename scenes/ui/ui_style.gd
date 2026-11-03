@@ -433,6 +433,41 @@ static func panel(variation: String = "PaperPanel") -> PanelContainer:
 	return p
 
 
+## The one bar style for health, boss, water and progress bars: a dark inked
+## trough with an outline, and a fill with a lighter lip along its top edge.
+static func bar(color: Color, min_size: Vector2 = Vector2(240, 18), max_value: float = 100.0) -> ProgressBar:
+	var b := ProgressBar.new()
+	b.custom_minimum_size = min_size
+	b.max_value = max_value
+	b.value = max_value
+	b.show_percentage = false
+	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(Palette.OUTLINE, 0.85)
+	bg.border_color = Palette.OUTLINE
+	bg.set_border_width_all(2)
+	bg.set_corner_radius_all(4)
+	bg.shadow_color = Color(0, 0, 0, 0.25)
+	bg.shadow_size = 2
+	b.add_theme_stylebox_override("background", bg)
+	b.add_theme_stylebox_override("fill", bar_fill(color))
+	return b
+
+
+## The fill of a bar(): the colour with a lighter lip on top (call again to recolour).
+static func bar_fill(color: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = color
+	sb.border_color = color.lightened(0.35)
+	sb.border_width_top = 3
+	sb.set_corner_radius_all(3)
+	sb.expand_margin_left = -2
+	sb.expand_margin_right = -2
+	sb.expand_margin_top = -2
+	sb.expand_margin_bottom = -2
+	return sb
+
+
 ## The type scale: every UI font size snaps to one of these steps (fine print,
 ## small, body, emphasis, header, title, and three display sizes), so text
 ## sizes line up across every screen.

@@ -83,15 +83,8 @@ func _ready() -> void:
 	for k in 2:
 		var label := _outlined("", 20, Palette.TEAM_WEST.lightened(0.2))
 		_boss_box.add_child(label)
-		var bar := ProgressBar.new()
-		bar.custom_minimum_size = Vector2(640, 22 if k == 0 else 18)
-		bar.show_percentage = false
-		var bg := StyleBoxFlat.new()
-		bg.bg_color = Palette.OUTLINE
-		var fill := StyleBoxFlat.new()
-		fill.bg_color = Palette.TEAM_WEST if k == 0 else Palette.TEAM_WEST.lerp(Palette.GLOW_YELLOW, 0.35)
-		bar.add_theme_stylebox_override("background", bg)
-		bar.add_theme_stylebox_override("fill", fill)
+		var bar := UiStyle.bar(Palette.TEAM_WEST if k == 0 else Palette.TEAM_WEST.lerp(Palette.GLOW_YELLOW, 0.35),
+				Vector2(640, 22 if k == 0 else 18)) # one bar style everywhere
 		_boss_box.add_child(bar)
 		_boss_labels.append(label)
 		_boss_bars.append(bar)
