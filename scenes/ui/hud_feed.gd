@@ -172,6 +172,19 @@ func add_line(text: String, color: Color = Palette.BONE) -> void:
 	var l := _outlined(text, 16, color)
 	l.set_meta("base", text)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# Each line sits on its own small dark plate (no loose text over the sky).
+	var plate := StyleBoxFlat.new()
+	plate.bg_color = Color(Palette.WOOD_DARK, 0.72)
+	plate.border_color = Color(Palette.OUTLINE, 0.8)
+	plate.border_width_left = 3
+	plate.set_corner_radius_all(3)
+	plate.content_margin_left = 8
+	plate.content_margin_right = 8
+	plate.content_margin_top = 1
+	plate.content_margin_bottom = 1
+	l.add_theme_stylebox_override("normal", plate)
+	l.size_flags_horizontal = Control.SIZE_SHRINK_END
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF # one line, hugging its text
 	_feed.add_child(l)
 	while _feed.get_child_count() > FEED_LINES:
 		_feed.get_child(0).queue_free()
