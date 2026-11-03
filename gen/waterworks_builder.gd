@@ -1,22 +1,19 @@
 class_name WaterworksBuilder
 extends RefCounted
-## Meshes for the homestead waterworks (Waterworks): a water tower and a well
-## head in four designs (one per cliff, so every yard looks like its own), the
-## generator with its circuit-breaker lever, the electric well pump, and the
-## cables between them. Local space: +Z is the front (it faces the yard),
-## y = 0 is the ground.
+## Meshes for the homestead waterworks (Waterworks): a water tower in four
+## designs (one per cliff, so every yard looks like its own), the generator with
+## its circuit-breaker lever, and the pipe and cable runs between them. The well
+## is a pump jack the generator drives (WellJackBuilder). Local space: +Z is the
+## front (it faces the yard), y = 0 is the ground.
 ##
 ## The four designs:
-##   timber   a stave barrel on four timber legs under a round shingled cone;
-##            a stone ring well with a gabled roof and a windlass
+##   timber   a stave barrel on four timber legs under a round shingled cone
 ##   steel    a riveted "tin man" tank (domed top, bowl bottom, painted name band)
-##            on a steel lattice with a railed balcony; a cast-iron pitcher pump
-##            over a plank trough
+##            on a steel lattice with a railed balcony
 ##   adobe    a square, battered adobe tower carrying a wooden tank under a
-##            terracotta hip roof on posts; a tiled adobe cistern with an A-frame
-##            hoist
+##            terracotta hip roof on posts
 ##   trestle  a railroad tank lying on two timber bents with a swing spout and a
-##            catwalk; a galvanised stock tank fed by a standpipe
+##            catwalk
 
 ## Where the tap (spigot) sits on every tower, and how far out it reaches.
 const TAP_POS := Vector3(0.0, 1.15, 2.05)
@@ -318,132 +315,6 @@ static func tap() -> ArrayMesh:
 	return MeshKit.finish(st)
 
 
-## A well head in one of the designs (the windmill pumps into it).
-static func well(style: StringName, seed_value: int) -> ArrayMesh:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	var st := MeshKit.begin()
-	match style:
-		&"steel":
-			_well_steel(st, rng)
-		&"adobe":
-			_well_adobe(st, rng)
-		&"trestle":
-			_well_trestle(st, rng)
-		_:
-			_well_timber(st, rng)
-	return MeshKit.finish(st)
-
-
-## A stone ring well under a gabled shingle roof, with a windlass, rope and bucket.
-static func _well_timber(st: SurfaceTool, rng: RandomNumberGenerator) -> void:
-	for course in 2:
-		for i in 11:
-			var a := TAU * (float(i) + course * 0.5) / 11.0
-			var c := STONE.lerp(Color("#B39C82"), rng.randf()).darkened(rng.randf() * 0.15)
-			MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, -a + PI * 0.5), Vector3(cos(a) * 0.74, 0.2 + course * 0.38, sin(a) * 0.74)), Vector3(0.44, 0.36, 0.3), c, 0.04, rng)
-	# Flat cap stones round the rim, dark water down the shaft.
-	for i in 11:
-		var a := TAU * (float(i) + 0.25) / 11.0
-		MeshKit.add_box(st, Transform3D(Basis(Vector3.UP, -a + PI * 0.5), Vector3(cos(a) * 0.76, 0.83, sin(a) * 0.76)), Vector3(0.46, 0.1, 0.4), STONE.lightened(0.1), 0.02, rng)
-	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.5, 0)), 0.6, 0.6, 0.04, 12, WATER.darkened(0.45))
-	# Posts, windlass drum with rope wound on, crank.
-	for sx: float in [-1.0, 1.0]:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(sx * 0.88, 1.2, 0)), Vector3(0.15, 2.4, 0.15), Palette.WOOD, 0.01, rng)
-	MeshKit.add_limb(st, Vector3(-0.95, 1.5, 0), Vector3(0.95, 1.5, 0), 0.05, IRON, 6)
-	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0, 1.5, 0)), 0.14, 0.14, 1.3, 10, Palette.WOOD_DARK)
-	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(-0.1, 1.5, 0)), 0.17, 0.17, 0.5, 10, ROPE)
-	MeshKit.add_limb(st, Vector3(1.0, 1.5, 0), Vector3(1.0, 1.25, 0.18), 0.03, IRON, 4)
-	MeshKit.add_limb(st, Vector3(1.0, 1.25, 0.18), Vector3(1.15, 1.25, 0.18), 0.04, Palette.WOOD_DARK, 4)
-	MeshKit.add_limb(st, Vector3(0.1, 1.36, 0.08), Vector3(0.1, 1.15, 0.08), 0.015, ROPE, 4)
-	_bucket(st, Vector3(0.1, 1.15, 0.08))
-	# Gabled roof: shingle courses, a ridge board, gable boards.
-	for sz: float in [-1.0, 1.0]:
-		var b := Basis(Vector3.RIGHT, sz * 0.6)
-		MeshKit.add_box(st, Transform3D(b, Vector3(0, 2.47, sz * 0.43)), Vector3(2.2, 0.08, 1.12), SHINGLE, 0.02, rng)
-		for k in 3:
-			MeshKit.add_box(st, Transform3D(b, Vector3(0, 2.47, sz * 0.43) + b * Vector3(0, 0.05, -0.4 + k * 0.38)), Vector3(2.24, 0.05, 0.12), SHINGLE.darkened(0.12 + rng.randf() * 0.1))
-	MeshKit.add_limb(st, Vector3(-1.12, 2.82, 0), Vector3(1.12, 2.82, 0), 0.06, Palette.WOOD_DARK, 6)
-	for sx: float in [-1.0, 1.0]:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(sx * 0.88, 2.45, 0)), Vector3(0.1, 0.1, 1.5), Palette.WOOD_DARK)
-
-
-## A cast-iron pitcher pump on a stone pad at the end of a plank trough.
-static func _well_steel(st: SurfaceTool, rng: RandomNumberGenerator) -> void:
-	# The trough: planks, iron corner straps, water, little feet.
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.35, 0.15)), Vector3(1.0, 0.5, 2.1), Palette.WOOD_DARK, 0.02, rng)
-	for k in 3:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.17 + k * 0.16, 1.21)), Vector3(1.02, 0.12, 0.04), Palette.WOOD.darkened(rng.randf() * 0.15))
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.57, 0.15)), Vector3(0.84, 0.04, 1.94), WATER)
-	for cz: float in [-0.88, 1.18]:
-		for cx: float in [-0.5, 0.5]:
-			MeshKit.add_box(st, Transform3D(Basis(), Vector3(cx, 0.35, cz)), Vector3(0.05, 0.54, 0.08), IRON)
-	for fz: float in [-0.75, 1.05]:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.05, fz)), Vector3(1.15, 0.1, 0.18), Palette.WOOD)
-	# Stone pad and the pump: a turned cast-iron barrel on a flange.
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.12, -1.3)), Vector3(0.7, 0.24, 0.7), STONE, 0.03, rng)
-	var px := Transform3D(Basis(), Vector3(0, 0.24, -1.35))
-	MeshKit.lathe(st, px, [Vector2(0.2, 0.0), Vector2(0.2, 0.06), Vector2(0.11, 0.1), Vector2(0.1, 0.5),
-			Vector2(0.14, 0.58), Vector2(0.15, 0.95), Vector2(0.18, 1.0), Vector2(0.17, 1.08), Vector2(0.0, 1.12)], 10, STEEL)
-	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 1.31, -1.35)), 0.19, 0.19, 0.04, 10, IRON, false)
-	# Spout over the trough.
-	MeshKit.tube(st, [Vector3(0, 1.0, -1.3), Vector3(0, 1.0, -1.05), Vector3(0, 0.88, -0.9)], [0.07, 0.06, 0.05], 8, STEEL.darkened(0.1))
-	# Handle: a pivot ear on top and a long curved lever out the back.
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 1.45, -1.48)), Vector3(0.06, 0.25, 0.08), IRON)
-	MeshKit.tube(st, [Vector3(0, 1.52, -1.48), Vector3(0, 1.7, -1.8), Vector3(0, 1.72, -2.05), Vector3(0, 1.62, -2.25)], [0.04, 0.035, 0.035, 0.04], 6, IRON)
-	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 1.61, -2.27)), Vector3.ONE * 0.06, 3, 6, IRON)
-	MeshKit.add_limb(st, Vector3(0, 1.55, -1.38), Vector3(0, 1.32, -1.35), 0.02, IRON, 4)
-	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0, 1.39, -1.35)), Vector3(0.12, 0.06, 0.12), 3, 8, Palette.TEAM_WEST)
-
-
-## A square adobe cistern with a blue-tiled band under an A-frame hoist (pulley, rope, bucket).
-static func _well_adobe(st: SurfaceTool, rng: RandomNumberGenerator) -> void:
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.4, 0)), Vector3(1.6, 0.8, 1.6), ADOBE, 0.04, rng)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.06, 0)), Vector3(1.7, 0.12, 1.7), ADOBE.darkened(0.2))
-	# Plastered rim round a dark water hole.
-	for face in 4:
-		var b := Basis(Vector3.UP, face * PI * 0.5)
-		MeshKit.add_box(st, Transform3D(b, b * Vector3(0, 0.86, 0.68)), Vector3(1.7, 0.14, 0.34), PLASTER, 0.02, rng)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.8, 0)), Vector3(1.05, 0.04, 1.05), WATER.darkened(0.4))
-	# Talavera tiles: a blue and white band on every face.
-	for face in 4:
-		var b := Basis(Vector3.UP, face * PI * 0.5)
-		for k in 5:
-			var c := TILE_BLUE if k % 2 == 0 else Palette.BONE
-			MeshKit.add_box(st, Transform3D(b, b * Vector3(-0.56 + k * 0.28, 0.6, 0.805)), Vector3(0.22, 0.2, 0.02), c)
-	# A-frame of poles with a cross beam, a pulley wheel, rope and bucket.
-	for sz: float in [-1.0, 1.0]:
-		MeshKit.add_limb(st, Vector3(-0.9, 0.0, sz * 0.78), Vector3(0, 2.45, sz * 0.78), 0.07, Palette.WOOD, 6)
-		MeshKit.add_limb(st, Vector3(0.9, 0.0, sz * 0.78), Vector3(0, 2.45, sz * 0.78), 0.07, Palette.WOOD, 6)
-		MeshKit.add_limb(st, Vector3(-0.5, 1.1, sz * 0.78), Vector3(0.5, 1.1, sz * 0.78), 0.04, Palette.WOOD_DARK, 4)
-	MeshKit.add_limb(st, Vector3(0, 2.4, -0.95), Vector3(0, 2.4, 0.95), 0.06, Palette.WOOD_DARK, 6)
-	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 2.25, 0)), 0.17, 0.17, 0.06, 12, IRON)
-	MeshKit.add_limb(st, Vector3(0, 2.4, 0), Vector3(0, 2.25, 0), 0.02, IRON, 4)
-	MeshKit.add_limb(st, Vector3(0.17, 2.25, 0), Vector3(0.17, 1.5, 0), 0.015, ROPE, 4)
-	MeshKit.add_limb(st, Vector3(-0.17, 2.25, 0), Vector3(-0.51, 1.05, 0.74), 0.015, ROPE, 4)
-	_bucket(st, Vector3(0.17, 1.33, 0))
-
-
-## A round galvanised stock tank fed by a standpipe, with a float valve.
-static func _well_trestle(st: SurfaceTool, rng: RandomNumberGenerator) -> void:
-	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.36, 0)), 1.05, 1.05, 0.72, 18, GALV)
-	for y: float in [0.14, 0.32, 0.5]:
-		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, y, 0)), 1.075, 1.075, 0.05, 18, GALV.darkened(0.22), false)
-	_ring(st, 0.72, 1.05, 0.05, GALV.lightened(0.1), 18)
-	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.66, 0)), 1.0, 1.0, 0.04, 18, WATER)
-	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0.6, 0.12, 0.86)), 0.07, 0.07, 0.08, 6, BRASS)
-	# The standpipe: a well casing on a plank with a tee, a valve wheel and an arm over the tank.
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.05, -1.3)), Vector3(0.5, 0.1, 0.5), Palette.WOOD_DARK, 0.02, rng)
-	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.12, -1.3)), 0.16, 0.16, 0.12, 8, IRON)
-	MeshKit.tube(st, [Vector3(0, 0.1, -1.3), Vector3(0, 1.15, -1.3), Vector3(0, 1.3, -1.15), Vector3(0, 1.3, -0.55), Vector3(0, 1.12, -0.45)], [0.08], 6, IRON)
-	MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, 0.75, -1.3)), 0.12, 0.12, 0.12, 8, IRON.lightened(0.12))
-	MeshKit.add_limb(st, Vector3(0, 0.75, -1.3), Vector3(0.22, 0.75, -1.3), 0.02, IRON, 4)
-	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0.24, 0.75, -1.3)), 0.11, 0.11, 0.03, 10, Palette.TEAM_WEST)
-	# Float valve: an arm and a red ball on the water.
-	MeshKit.add_limb(st, Vector3(0, 1.0, -0.6), Vector3(0.3, 0.7, -0.35), 0.015, IRON, 4)
-	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.3, 0.7, -0.35)), Vector3.ONE * 0.12, 4, 8, Palette.TEAM_WEST)
-
-
 ## The generator: a hit-and-miss farm engine on a timber skid (crankcase, a
 ## horizontal cylinder with its water hopper, fuel tank, exhaust stack with a
 ## muffler) belted to a dynamo. The flywheel is separate (it spins), on the
@@ -586,46 +457,6 @@ static func lever_handle() -> ArrayMesh:
 	return MeshKit.finish(st)
 
 
-## The electric pump beside the well: a concrete pad, a pump body with its
-## suction pipe into the ground and the delivery pipe out to the tower (it leaves
-## at (0.18, 0.1, 0.5)). The motor part is separate (it shakes when running).
-static func pump_base(style: StringName) -> ArrayMesh:
-	var st := MeshKit.begin()
-	var pad := STONE if style != &"adobe" else ADOBE
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.1, 0)), Vector3(0.8, 0.2, 0.55), pad)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(-0.12, 0.23, 0)), Vector3(0.42, 0.06, 0.34), IRON)
-	# Pump body (a round volute) with the suction pipe going down into the well's water.
-	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0.18, 0.42, 0)), 0.16, 0.16, 0.16, 10, IRON)
-	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0.27, 0.42, 0)), 0.09, 0.09, 0.04, 8, IRON.lightened(0.15))
-	MeshKit.add_limb(st, Vector3(0.1, 0.42, 0), Vector3(0.05, 0.42, 0), 0.04, Palette.METAL, 6)
-	MeshKit.tube(st, [Vector3(0.18, 0.3, -0.05), Vector3(0.18, 0.22, -0.3), Vector3(0.18, -0.1, -0.32)], [0.05], 6, IRON)
-	# Delivery: up, a gauge, along and back down to the pipe run.
-	MeshKit.tube(st, [Vector3(0.18, 0.5, 0.05), Vector3(0.18, 0.62, 0.12), Vector3(0.18, 0.62, 0.38), Vector3(0.18, 0.5, 0.5), Vector3(0.18, 0.1, 0.5)], [0.05], 6, IRON)
-	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0.18, 0.72, 0.25)), 0.06, 0.06, 0.03, 8, BRASS)
-	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0.18, 0.72, 0.267)), 0.045, 0.045, 0.01, 8, Palette.BONE)
-	MeshKit.add_limb(st, Vector3(0.18, 0.62, 0.25), Vector3(0.18, 0.68, 0.25), 0.015, BRASS, 4)
-	return MeshKit.finish(st)
-
-
-static func pump_motor(style: StringName) -> ArrayMesh:
-	var st := MeshKit.begin()
-	var paint: Color = {&"timber": ENGINE, &"steel": STEEL, &"adobe": Color("#3F6E8C"), &"trestle": GALV.darkened(0.2)}.get(style, ENGINE)
-	var c := Vector3(-0.12, 0.42, 0)
-	var axis := Basis(Vector3.BACK, PI * 0.5)
-	MeshKit.add_cylinder(st, Transform3D(axis, c), 0.16, 0.16, 0.3, 12, paint)
-	for k in 5:
-		MeshKit.add_cylinder(st, Transform3D(axis, c + Vector3(-0.12 + k * 0.06, 0, 0)), 0.18, 0.18, 0.02, 12, paint.darkened(0.25), false)
-	# End bells and feet, a terminal box with the lead in.
-	for ex: float in [-0.17, 0.17]:
-		MeshKit.add_cylinder(st, Transform3D(axis, c + Vector3(ex, 0, 0)), 0.15, 0.12, 0.05, 12, paint.darkened(0.12))
-	for fx: float in [-0.2, 0.0]:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(fx, 0.29, 0)), Vector3(0.06, 0.06, 0.3), paint.darkened(0.3))
-	MeshKit.add_box(st, Transform3D(Basis(), c + Vector3(0.0, 0.18, 0)), Vector3(0.12, 0.08, 0.12), IRON)
-	MeshKit.add_ellipsoid(st, Transform3D(Basis(), c + Vector3(-0.22, 0, 0)), Vector3(0.03, 0.06, 0.06), 2, 6, IRON)
-	MeshKit.add_box(st, Transform3D(Basis(), c + Vector3(0, 0.0, 0.165)), Vector3(0.12, 0.06, 0.01), BRASS)
-	return MeshKit.finish(st)
-
-
 ## A sagging run of cable from a to b (local), staked down along the way.
 static func cable(a: Vector3, b: Vector3, ground: Callable, radius: float = 0.03, color: Color = IRON, stakes: bool = true) -> ArrayMesh:
 	var st := MeshKit.begin()
@@ -647,14 +478,6 @@ static func cable(a: Vector3, b: Vector3, ground: Callable, radius: float = 0.03
 			MeshKit.add_ellipsoid(st, Transform3D(Basis(), p), Vector3.ONE * radius * 1.35, 3, 6, color.darkened(0.15))
 	MeshKit.tube(st, pts, [radius], 5 if radius < 0.05 else 6, color)
 	return MeshKit.finish(st)
-
-
-## A wooden bucket with an iron band and a bail, hanging from `at` (top of the bail).
-static func _bucket(st: SurfaceTool, at: Vector3) -> void:
-	MeshKit.add_cylinder(st, Transform3D(Basis(), at + Vector3(0, -0.28, 0)), 0.14, 0.18, 0.28, 8, Palette.WOOD)
-	MeshKit.add_cylinder(st, Transform3D(Basis(), at + Vector3(0, -0.2, 0)), 0.175, 0.175, 0.04, 8, IRON, false)
-	MeshKit.add_limb(st, at + Vector3(-0.17, -0.15, 0), at, 0.012, IRON, 3)
-	MeshKit.add_limb(st, at + Vector3(0.17, -0.15, 0), at, 0.012, IRON, 3)
 
 
 ## A thin round rail (a closed tube) at height y.

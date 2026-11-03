@@ -121,17 +121,6 @@ func _build_homestead_area(cid: int) -> void:
 	home.rotation.y = yaw
 	parent.add_child(home)
 
-	var tower_pos := ground(cid, Buildable.WINDMILL.x, Buildable.WINDMILL.y)
-	add_mesh(BuildingBuilder.windmill_tower(300 + cid, false), tower_pos, yaw, "Windmill%d" % cid, true)
-	var fan := Spinner.new()
-	fan.mesh = BuildingBuilder.windmill_fan()
-	fan.material_override = Materials.toon()
-	fan.speed = 1.2 + 0.3 * float(cid)
-	# The fan faces the canyon, in front of the tower head.
-	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
-	fan.position = tower_pos + Vector3(0, 8.3, 0) - forward * 0.6
-	fan.rotation.y = yaw
-	parent.add_child(fan)
 	_build_waterworks(cid)
 
 	# Starter farm field beside the house: 3 x 4 plots on the grid (2 x 2 cells each),
@@ -157,60 +146,42 @@ func _build_homestead_area(cid: int) -> void:
 	_build_paths(cid)
 
 
-## Waterworks: the windmill's well, its electric pump, the generator with its
-## breaker lever and the water tower, grouped on one side of the yard and facing
-## it. Each cliff's well and tower are their own design (Waterworks.style_of).
+## Waterworks: the well (a pump jack the generator drives through a belt and a
+## tumbling rod), the generator with its breaker lever and the water tower,
+## grouped on one side of the yard. Each cliff's well and tower are their own
+## design (Waterworks.style_of). The well works from the start.
 func _build_waterworks(cid: int) -> void:
 	var style := Waterworks.style_of(cid)
 	var face := Buildable.WATERWORKS_FACE
-	# The well: broken until someone pays to fix it.
-	var well := WaterSource.new()
-	well.name = "Well%d" % cid
-	well.cliff_id = cid
-	well.display_name = "Windmill well"
-	well.fix_cost = 80
-	well.working = false
-	well.rates = Vector2(8.0, 8.0)
-	well.capacity = 10
-	well.collision_layer = WorldLayout.LAYER_WORLD
-	var trough_col := CollisionShape3D.new()
-	var trough_shape := BoxShape3D.new()
-	trough_shape.size = Vector3(1.7, 1.0, 1.7) if style != &"steel" else Vector3(1.1, 1.0, 2.5)
-	trough_col.shape = trough_shape
-	trough_col.position.y = 0.5
-	well.add_child(trough_col)
-	var well_mi := MeshInstance3D.new()
-	well_mi.name = "WellHead"
-	well_mi.mesh = WaterworksBuilder.well(style, 400 + cid)
-	well_mi.material_override = Materials.toon()
-	well.add_child(well_mi)
-	well.position = ground(cid, Buildable.WELL.x, Buildable.WELL.y)
-	well.rotation.y = _yaw_toward(cid, Buildable.WELL, face)
-	parent.add_child(well)
-	# The electric pump beside it (its motor shudders while the generator runs).
-	var pump := Node3D.new()
-	pump.name = "WellPump%d" % cid
-	pump.position = ground(cid, Buildable.PUMP.x, Buildable.PUMP.y)
-	pump.rotation.y = _yaw_toward(cid, Buildable.PUMP, Buildable.GENERATOR) + PI * 0.5
-	parent.add_child(pump)
-	var pump_base := MeshInstance3D.new()
-	pump_base.mesh = WaterworksBuilder.pump_base(style)
-	pump_base.material_override = Materials.toon()
-	pump.add_child(pump_base)
-	var motor := MeshInstance3D.new()
-	motor.name = "Motor"
-	motor.mesh = WaterworksBuilder.pump_motor(style)
-	motor.material_override = Materials.toon()
-	pump.add_child(motor)
 	# The generator and its lever.
 	var gen := Generator.new()
 	gen.name = "Generator%d" % cid
 	gen.cliff_id = cid
 	gen.style = style
-	gen.pump_motor = motor
 	gen.position = ground(cid, Buildable.GENERATOR.x, Buildable.GENERATOR.y)
 	gen.rotation.y = _yaw_toward(cid, Buildable.GENERATOR, face)
 	parent.add_child(gen)
+	# The well: its beam points at the generator (crank end toward the engine).
+	var well := MechWell.new()
+	well.name = "Well%d" % cid # saves find it by this path
+	well.cliff_id = cid
+	well.style = style
+	well.position = ground(cid, Buildable.WELL.x, Buildable.WELL.y)
+	well.rotation.y = _yaw_toward(cid, Buildable.WELL, Buildable.GENERATOR)
+	var to_local := Transform3D(Basis(Vector3.UP, well.rotation.y), well.position).affine_inverse()
+	var gen_local := to_local * gen.position
+	var drive := Vector3(WellJackBuilder.BULL_X, 0.75, gen_local.z - 1.3)
+	well.drive_at = drive
+	var drive_pc := cliffs.plateau_coords(cid, Basis(Vector3.UP, well.rotation.y) * drive + well.position)
+	well.drive_ground = (to_local * ground(cid, drive_pc.x, drive_pc.y)).y
+	# The tumbling rod reaches whichever end of the engine's crankshaft is nearer.
+	var best := Vector3.ZERO
+	for ex: float in [0.7, -0.62]:
+		var p := to_local * (gen.transform * Vector3(ex, 0.55, 0.25))
+		if best == Vector3.ZERO or p.distance_to(drive) < best.distance_to(drive):
+			best = p
+	well.engine_at = best
+	parent.add_child(well)
 	# The water tower (its tap faces the yard).
 	var tower := WaterTower.new()
 	tower.name = "WaterTower%d" % cid
@@ -219,19 +190,18 @@ func _build_waterworks(cid: int) -> void:
 	tower.position = ground(cid, Buildable.WATER_TOWER.x, Buildable.WATER_TOWER.y)
 	tower.rotation.y = _yaw_toward(cid, Buildable.WATER_TOWER, face)
 	parent.add_child(tower)
-	# Cables from the generator to the pump and the tower, the pipe from the pump up to the tower.
+	# The pipe from the well casing out to the side and over to the tower.
 	var on_ground := func(p: Vector3) -> float: return cliffs.plateau_point(cid, cliffs.plateau_coords(cid, p).x, cliffs.plateau_coords(cid, p).y).y
-	var g_out := gen.position + Basis(Vector3.UP, gen.rotation.y) * Vector3(0.62, 0.1, -0.5)
-	var runs: Array = [
-		[g_out, pump.position + Vector3(0, 0.1, 0), 0.03, WaterworksBuilder.IRON, true],
-		[g_out, tower.position + Vector3(0, 0.1, 0), 0.03, WaterworksBuilder.IRON, true],
-		[pump.position + Basis(Vector3.UP, pump.rotation.y) * Vector3(0.18, 0.1, 0.5), tower.position + Vector3(0, 0.1, 0), 0.06, Palette.METAL, false],
-	]
+	var wb := Basis(Vector3.UP, well.rotation.y)
+	var side := 1.0 if (to_local * tower.position).x >= 0.0 else -1.0
+	var out0 := well.position + wb * Vector3(0.28 * side, 0.2, -WellJackBuilder.ARM)
+	var out1 := well.position + wb * Vector3(1.05 * side, 0.1, -WellJackBuilder.ARM)
+	var runs: Array = [[out0, out1], [out1, tower.position + Vector3(0, 0.1, 0)]]
 	for i in runs.size():
 		var r: Array = runs[i]
 		var mi := MeshInstance3D.new()
 		mi.name = "WaterworksLine%d_%d" % [cid, i]
-		mi.mesh = WaterworksBuilder.cable(r[0], r[1], on_ground, r[2], r[3], r[4])
+		mi.mesh = WaterworksBuilder.cable(r[0], r[1], on_ground, 0.06, Palette.METAL, false)
 		mi.material_override = Materials.toon(0.0)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		parent.add_child(mi)
@@ -393,10 +363,3 @@ func _build_nests() -> void:
 		var x := 6.0 * sin(z * 0.035) + _rng.randf_range(-2.0, 2.0)
 		add_mesh(PropBuilder.nest_mound(700 + i), Vector3(x, cliffs.floor_height(x, z) - 0.4, z), _rng.randf() * TAU, "Nest%d" % i)
 
-
-## A mesh that spins around its local Z axis (windmill fan).
-class Spinner extends MeshInstance3D:
-	var speed: float = 1.0
-
-	func _process(delta: float) -> void:
-		rotate_object_local(Vector3.FORWARD, speed * delta)

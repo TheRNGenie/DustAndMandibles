@@ -9,7 +9,7 @@ extends RefCounted
 ##   rows 2..13  PLOT      anything that isn't a cliff turret (farm plots are 2x2)
 ## Kept clear: the house and a 1-cell PATH around it, a 1-cell path from the front
 ## door to the bridge (along the door's row, then down the south edge to the
-## lip walkway), and LANDMARK spots (windmill and well, water tower, starter field).
+## lip walkway), and LANDMARK spots (the well, generator, water tower, starter field).
 
 enum Zone { OFF, TURRET, TACTICAL, PLOT, HOUSE, PATH, LANDMARK }
 
@@ -24,12 +24,11 @@ const HOUSE_Z := 1.0 # the door sits on a cell centre (col 10)
 const HOUSE_HALF_W := 4.7 # along z, including the flagpole
 const HOUSE_FRONT := 5.2 # porch front, metres in front of the house centre
 const HOUSE_BACK := 3.0
-const WINDMILL := Vector2(20.0, -13.0)
 const WATER_TOWER := Vector2(28.0, -17.0)
-## Waterworks: the well head beside the windmill, its electric pump, and the
-## generator, all on the same side of the yard as the water tower.
-const WELL := Vector2(19.7, -9.3) # clear of the windmill legs
-const PUMP := Vector2(21.8, -11.4)
+## Waterworks: the well (a pump jack, MechWell, its beam pointing at the
+## generator that drives it: trough toward the lip, crank end toward the engine)
+## and the generator, on the same side of the yard as the water tower.
+const WELL := Vector2(20.4, -12.0)
 const GENERATOR := Vector2(24.2, -12.2)
 ## Where the waterworks face (their lever, tap and well open toward the yard).
 const WATERWORKS_FACE := Vector2(21.0, -3.0)
@@ -98,8 +97,9 @@ static func zone(cell: Vector2i) -> Zone:
 
 
 static func _landmark(cell: Vector2i) -> bool:
-	var wm := cell_of(WINDMILL.x, WINDMILL.y)
-	if Rect2i(wm - Vector2i(1, 1), Vector2i(3, 4)).has_point(cell):
+	# The well: 2 cells wide, from the trough (row 8) to the crank (row 10).
+	var wl := cell_of(WELL.x, WELL.y)
+	if Rect2i(wl - Vector2i(1, 1), Vector2i(3, 2)).has_point(cell):
 		return true
 	var wt := cell_of(WATER_TOWER.x, WATER_TOWER.y)
 	if Rect2i(wt - Vector2i(1, 1), Vector2i(3, 3)).has_point(cell):
@@ -138,7 +138,7 @@ static func footprint_center(cliffs: CliffBuilder, cliff_id: int, id: StringName
 
 ## Is this one cell the right kind of ground for the item?
 ## Anything can go on any open grid cell (Logan's call): only the house, the
-## landmarks (windmill, water tower, scrap heap, starter fields) and off-grid are out.
+## landmarks (well, generator, water tower, scrap heap, starter fields) and off-grid are out.
 static func zone_ok(_id: StringName, cell: Vector2i) -> bool:
 	var z := zone(cell)
 	return z == Zone.TURRET or z == Zone.TACTICAL or z == Zone.PLOT or z == Zone.PATH

@@ -99,7 +99,7 @@ func capture() -> Dictionary:
 	for n: Node in world.find_children("*", "WaterSource", true, false):
 		var w := n as WaterSource
 		if w.build_id == &"" and not w.is_queued_for_deletion():
-			wells.append({"path": str(world.get_path_to(w)), "stored": w.stored, "working": w.working})
+			wells.append({"path": str(world.get_path_to(w)), "stored": w.stored})
 	data["wells"] = wells
 	data["economy"] = {"stock": Economy.ledger.stock, "shared": Economy.shared, "gained": Economy.gained,
 			"cpu_spent": Economy.cpu_spent, "cpu_share": Economy.cpu_share}
@@ -207,7 +207,7 @@ func resume(data: Dictionary) -> bool:
 	for w: Dictionary in data["wells"]:
 		var well := world.get_node_or_null(NodePath(str(w["path"]))) as WaterSource
 		if well != null:
-			well._sync.rpc(int(w["stored"]), bool(w["working"]))
+			well._sync.rpc(int(w["stored"])) # older saves also kept "working" (the windmill well started broken): ignored, the well always works now
 	var eco: Dictionary = data["economy"]
 	Economy.ledger.stock = RunSave.fit_stock(eco["stock"], bool(eco["shared"]), Economy.shared)
 	if Economy.shared and bool(eco["shared"]):
@@ -285,4 +285,4 @@ func _restore_builds(builds: Array) -> void:
 				(n as CropPlot)._sync.rpc(crop["id"], int(crop["stage"]), float(crop["progress"]), bool(crop["watered"]))
 		elif n is WaterSource:
 			var ws := n as WaterSource
-			ws._sync.rpc(int(b["stored"]), ws.working)
+			ws._sync.rpc(int(b["stored"]))

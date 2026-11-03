@@ -13,8 +13,8 @@ const STEPS := [
 		"keys": [["fire", "Place"], ["alt_fire", "Cancel"]]},
 	{"title": "Ping your partner", "body": "Tap to mark a spot, hold for the ping wheel.",
 		"keys": [["ping", "Ping"]]},
-	{"title": "Throw your lever", "body": "Your generator's breaker lever is your ready-up (E at it, or G anywhere). Every lever thrown: the pumps start and the wave comes.",
-		"keys": [["ready_up", "Throw lever"]]},
+	{"title": "Throw your lever", "body": "The big breaker lever at your generator is your ready-up. Every lever thrown: the pumps start and the wave comes.",
+		"keys": [["interact", "Throw lever"]]},
 ]
 
 var player: Player
@@ -62,7 +62,7 @@ func _process(_delta: float) -> void:
 		_done[1] = true
 	if Input.is_action_just_pressed("ping"):
 		_done[2] = true
-	if Input.is_action_just_pressed("ready_up"):
+	if GameState.is_ready_local():
 		_done[3] = true
 	var step := _done.find(false)
 	if step < 0:

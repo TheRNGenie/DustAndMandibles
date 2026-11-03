@@ -238,17 +238,14 @@ func _flash_phase() -> void:
 func _update_hint() -> void:
 	match GameState.phase:
 		GameState.Phase.BUILD:
-			# Waterworks: ready-up is your generator's breaker lever (G throws it from anywhere).
+			# Waterworks: ready-up is the breaker lever at your generator (it's a
+			# thing in the yard now, so no "press G" line; the banner keeps the count).
 			if GameState.ready_countdown >= 0.0:
 				_hint_label.text = "Every lever's thrown. The generators are cranking, the bugs are coming"
-			elif GameState.is_ready_local():
-				_hint_label.text = "Your lever's thrown  ·  %s to pull it back" % KeyHints.key_for("ready_up")
 			else:
-				_hint_label.text = "Build for your partner  ·  Throw your lever (%s)" % KeyHints.key_for("ready_up")
+				_hint_label.text = ""
 		GameState.Phase.WARNING:
 			_hint_label.text = "A wave is coming. Get back to your cliff"
-		GameState.Phase.WAVE:
-			_hint_label.text = "Cover your partner's cliff"
 		_:
 			_hint_label.text = ""
 	_hint_label.visible = _hint_label.text != ""

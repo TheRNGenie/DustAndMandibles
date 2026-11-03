@@ -1,9 +1,9 @@
 class_name Generator
 extends StaticBody3D
 ## A homestead's generator (Waterworks): a little engine on a skid with a big
-## circuit-breaker lever. Throwing your lever (E here, or G from anywhere) is how
-## you ready up; once every human's is thrown the engines crank up during the
-## countdown, the well pumps run and the wave comes. The levers drop back and the
+## circuit-breaker lever. Throwing your lever (E here) is how you ready up; once
+## every human's is thrown the engines crank up during the countdown, the pump
+## jack at the well (MechWell, belted to this engine) runs and the wave comes. The levers drop back and the
 ## engines sputter out when the wave is over. Sound: a recorded engine (CC0, see
 ## audio/CREDITS.txt): a coughing start, a chugging loop, a sputter off.
 
@@ -16,8 +16,6 @@ const LEVER_ON := 2.35
 
 var cliff_id := 0
 var style: StringName = &"timber"
-## The electric pump at the well (shakes while running), set by the dressing.
-var pump_motor: Node3D
 
 var _body: Node3D
 var _flywheel: Node3D
@@ -31,7 +29,6 @@ var _running := false
 var _first := true
 var _spin := 0.0
 var _clock := 0.0
-var _pump_rest := Vector3.ZERO
 
 
 static func of(cid: int) -> Generator:
@@ -44,8 +41,6 @@ func _ready() -> void:
 	_by_cliff[cliff_id] = self
 	collision_layer = WorldLayout.LAYER_WORLD
 	_build()
-	if pump_motor != null:
-		_pump_rest = pump_motor.position
 	_lever.rotation.x = LEVER_OFF
 
 
@@ -156,13 +151,11 @@ func _process(delta: float) -> void:
 	_lamp_mat.albedo_color = Color("#5BE05B") if running else (Color("#FFB23C") if thrown else Color("#E0483C"))
 	_lamp_mat.emission = _lamp_mat.albedo_color
 	_lamp_mat.emission_energy_multiplier = 1.6 if running else 0.8
-	# Running: the flywheel spins, the engine and the well pump shudder, smoke puffs.
+	# Running: the flywheel spins, the engine shudders, smoke puffs.
 	_spin = move_toward(_spin, 14.0 if running else 0.0, delta * (6.0 if running else 4.0))
 	_flywheel.rotation.x += _spin * delta
 	var shake := 0.012 * (_spin / 14.0)
 	_body.position = Vector3(sin(_clock * 61.0) * shake, absf(sin(_clock * 47.0)) * shake, cos(_clock * 53.0) * shake * 0.5)
-	if pump_motor != null:
-		pump_motor.position = _pump_rest + Vector3(sin(_clock * 70.0), 0, cos(_clock * 64.0)) * shake * 0.8
 	for i in _puffs.size():
 		var p := _puffs[i]
 		if _spin < 1.0:
@@ -221,7 +214,6 @@ func interact_prompt() -> String:
 	var title := "Generator"
 	if GameState.phase != GameState.Phase.BUILD:
 		return "%s  -  running, the pumps are on" % title if GameState.pumps_on() else title
-	var key := KeyHints.key_for("ready_up")
 	if not is_mine():
 		var who := Hud.owner_name(cliff_id)
 		return "%s's generator  -  lever %s" % [who, "thrown" if thrown else "up"]
@@ -229,7 +221,7 @@ func interact_prompt() -> String:
 		return "%s  -  cranking up, the wave's coming\nE: pull your lever back (not yet)" % title
 	if thrown:
 		return "%s  -  your lever's thrown, waiting on the others\nE: pull your lever back" % title
-	return "%s  -  throw your lever when you're ready for the wave (or %s anywhere)\nE: throw your lever" % [title, key]
+	return "%s  -  throw your lever when you're ready for the wave\nE: throw your lever" % title
 
 
 func local_interact(holding: bool) -> void:

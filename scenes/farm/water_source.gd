@@ -1,9 +1,9 @@
 class_name WaterSource
 extends StaticBody3D
 ## A well or rain catcher: fills a trough over time; E empties up to a bucket's
-## worth (5) into your stockpile. The Homestead's well starts broken and costs
-## 80 scrap to fix. Rain catchers fill fast during storms and slowly from dew.
-## Dragonfly Bandits steal from here.
+## worth (5) into your stockpile. The Homestead's well is MechWell (a pump jack
+## the generator drives); rain catchers fill fast during storms and slowly from
+## dew. Dragonfly Bandits steal from here.
 
 const BUCKET := 5
 
@@ -13,11 +13,9 @@ var radius: float = 1.2
 ## Seconds per unit of water: [normal, storm].
 var rates: Vector2 = Vector2(8.0, 8.0)
 var capacity: int = 10
-var fix_cost: int = 0
 ## Set when built by a player (rain catcher): its grid cell and build id.
 var cell: Vector2i = Vector2i(-1, -1)
 var build_id: StringName = &""
-var working := true
 var stored: int = 0
 var _t := 0.0
 
@@ -27,19 +25,17 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if not multiplayer.is_server() or not working or stored >= capacity:
+	if not multiplayer.is_server() or stored >= capacity:
 		return
 	var rate := rates.y if GameState.storm else rates.x
 	_t += delta * GameState.growth_scale() * Weather.water_temp_rate(GameState.temperature())
 	if _t >= rate:
 		_t = 0.0
 		stored += 1
-		_sync.rpc(stored, working)
+		_sync.rpc(stored)
 
 
 func interact_prompt() -> String:
-	if not working:
-		return "%s is broken - E: fix it (%d scrap)" % [display_name, fix_cost]
 	if stored <= 0:
 		return "%s: empty, filling up..." % display_name
 	return "%s: %d water - E: fill your bucket (up to %d)" % [display_name, stored, BUCKET]
@@ -60,20 +56,25 @@ func _request_use() -> void:
 
 func _use(peer_id: int) -> void:
 	var payer := Economy.payer_cliff(peer_id, cliff_id)
-	if not working:
-		if Economy.spend(payer, {&"scrap": fix_cost}):
-			working = true
-			_sync.rpc(stored, working)
-		else:
-			Economy.notify(peer_id, "Not enough scrap to fix the %s." % display_name.to_lower())
-		return
 	var take := mini(stored, BUCKET)
 	if take <= 0:
 		return
 	stored -= take
 	Economy.earn(payer, {&"water": take + roundi(Perks.amount(peer_id, &"deep_well")) + Brand.water_bonus(peer_id, take)}) # Perk: Deep Well; Brand: The Sheaf
-	_sync.rpc(stored, working)
+	_sync.rpc(stored)
 	_fx.rpc()
+
+
+## Host: a CPU teammate fills up here for its cliff. Returns what it got.
+func draw_for_cpu() -> int:
+	var take := mini(stored, BUCKET)
+	if take <= 0:
+		return 0
+	stored -= take
+	Economy.earn(cliff_id, {&"water": take})
+	_sync.rpc(stored)
+	_fx.rpc()
+	return take
 
 
 ## Host: a Dragonfly Bandit drinks from it. Returns what it got.
@@ -81,14 +82,13 @@ func steal(amount: int) -> int:
 	var take := mini(stored, amount)
 	if take > 0:
 		stored -= take
-		_sync.rpc(stored, working)
+		_sync.rpc(stored)
 	return take
 
 
 @rpc("authority", "call_local", "reliable")
-func _sync(value: int, is_working: bool) -> void:
+func _sync(value: int) -> void:
 	stored = value
-	working = is_working
 
 
 @rpc("authority", "call_local", "unreliable")

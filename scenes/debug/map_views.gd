@@ -4,6 +4,7 @@ extends Node
 ##   --mapcam=overhead          high over the middle of the map, looking down
 ##   --mapcam=orbit:deg,dist,height   round the middle at a compass bearing
 ##   --mapcam=waterworks:N      cliff N's waterworks (well, generator, water tower)
+##   --mapcam=well:N[:run][:side]  close on cliff N's pump jack (run: shown pumping)
 ##   --mapshot=<png> [--seconds=N] [--keephud] [--turrets]  save and quit
 ##   --rangecheck               print, per cliff and grid column, whether each
 ##                              cross-cliff turret can reach the cliff it covers
@@ -43,6 +44,20 @@ func _shoot() -> void:
 			var side := out.cross(Vector3.UP).normalized()
 			target = mid + Vector3(0, 2.6, 0)
 			eye = mid + out * 12.5 + side * 3.0 + Vector3(0, 4.5, 0)
+	elif spec.begins_with("well:"):
+		# --mapcam=well:<cliff>[:run][:side]: close on a cliff's pump jack (run: pumping).
+		var parts := spec.split(":")
+		var cid := int(parts[1])
+		MechWell.force_run = parts.has("run")
+		for n: Node in get_tree().get_nodes_in_group("water_sources"):
+			if n is MechWell and (n as MechWell).cliff_id == cid:
+				var w := n as MechWell
+				var b := w.global_transform.basis
+				var side := b.x.normalized() * (-1.0 if parts.has("side") else 1.0)
+				target = w.global_position + b * Vector3(0, 1.2, 0.0)
+				eye = target + side * 5.5 + b.z.normalized() * -2.5 + Vector3(0, 1.6, 0)
+		for i in 90:
+			await get_tree().process_frame
 	elif spec != "overhead" and spec != "":
 		var p := spec.split(",")
 		eye = Vector3(p[0].to_float(), p[1].to_float(), p[2].to_float())

@@ -11,7 +11,7 @@ extends RefCounted
 ##   homesteads: [{hp, max, floors, boarded, reinforced, tower}] (west, east)
 ##   builds: [{type, cliff, row, col, level, owner, hp, tier, levels, armed,
 ##             perk: [range, rate, hp], stored, crop: {id, stage, progress, watered}}]
-##   wells: [{path, stored, working}]
+##   wells: [{path, stored}]  (the homestead wells; older saves also have "working", ignored)
 ##   economy: {stock: {cliff: {res: n}}, shared, gained, cpu_spent: {name: {res: n}}, cpu_share}
 ##   players: {cliff: {food, water}}
 ##   perks: {cliff: {loadout: {perk: rank}, free_used}}  (the locked loadout; Barn Raising spent)
@@ -88,7 +88,7 @@ static func normalize(raw: Dictionary) -> Dictionary:
 	var wells: Array = []
 	for w: Variant in (raw.get("wells", []) if raw.get("wells") is Array else []):
 		if w is Dictionary and str((w as Dictionary).get("path", "")) != "":
-			wells.append({"path": str(w["path"]), "stored": _i(w, "stored", 0), "working": _b(w, "working", true)})
+			wells.append({"path": str(w["path"]), "stored": _i(w, "stored", 0)})
 	out["wells"] = wells
 	var eco: Dictionary = raw.get("economy", {}) if raw.get("economy") is Dictionary else {}
 	var stock := {}
