@@ -112,7 +112,23 @@ func _ready() -> void:
 	if multiplayer.is_server():
 		_on_peer_loaded(1)
 	else:
+		# Clients build the CPU teammates as puppets of the host's (same node paths,
+		# so their pose / shot / action RPCs land, and the HUD knows their names).
+		if NetworkManager.has_cpu():
+			_spawn_cpus()
 		_client_loaded.rpc_id(1)
+		# If the host was still loading, that word is lost (no World there yet):
+		# keep saying it until our own player has arrived.
+		var again := Timer.new()
+		again.name = "LoadedAgain"
+		again.wait_time = 1.5
+		again.autostart = true
+		add_child(again)
+		again.timeout.connect(func() -> void:
+			if local_player() != null or not NetworkManager.is_online():
+				again.queue_free()
+			else:
+				_client_loaded.rpc_id(1))
 
 	var tools := DebugTools.new()
 	tools.name = "DebugTools"
@@ -147,6 +163,11 @@ func _client_loaded() -> void:
 func _on_peer_loaded(id: int) -> void:
 	_loaded_peers[id] = true
 	if _started:
+		# A client still without its player (its first word got lost): spawn it now.
+		var roster_now := _roster()
+		if roster_now.has(id) and players_root.get_node_or_null(str(id)) == null:
+			print("[net] late spawn for peer %d" % id)
+			spawner.spawn({"peer": id, "cliff": int((roster_now[id] as Dictionary)["cliff"])})
 		return
 	var roster := _roster()
 	for peer_id: int in roster:
@@ -166,8 +187,9 @@ func _on_peer_loaded(id: int) -> void:
 		GameState.start_run()
 
 
-## Host: CPU teammates take every empty cliff and the team shares one pool
-## (each CPU may spend 1 / team size of it, see CpuBudget).
+## CPU teammates take every empty cliff and the team shares one pool
+## (each CPU may spend 1 / team size of it, see CpuBudget). Host: the real ones;
+## clients: puppets that follow the host's.
 func _spawn_cpus() -> void:
 	var free := NetworkManager.cpu_cliffs()
 	for i in free.size():
@@ -176,6 +198,8 @@ func _spawn_cpus() -> void:
 		cpu.setup(NetworkManager.cpu_quality, free[i], cliffs, vfx, i)
 		add_child(cpu)
 		print("[cpu] %s teammate %s on cliff %d (%s)" % [NetworkManager.CPU_QUALITY_NAMES[NetworkManager.cpu_quality], cpu.display_name, cpu.cliff_id, WorldLayout.map().name_of(cpu.cliff_id)])
+	if not multiplayer.is_server():
+		return
 	Economy.enable_shared_pool(NetworkManager.players.size() + free.size(), free.size())
 
 
@@ -232,6 +256,8 @@ func _on_player_left(id: int) -> void:
 		var p := players_root.get_node_or_null(str(id))
 		if p != null:
 			p.queue_free()
+		if not _started and not _loaded_peers.is_empty():
+			_on_peer_loaded(1) # someone left while loading: start with everyone else
 
 
 func _return_to_menu() -> void:

@@ -933,6 +933,11 @@ func _take_screenshot(path: String) -> void:
 	for i in 20:
 		await get_tree().process_frame
 	var player := world.call("local_player") as Player
+	# Clients: our player arrives from the host a moment later (wait up to 20 s).
+	var wait_until := Time.get_ticks_msec() + 20000
+	while player == null and not multiplayer.is_server() and Time.get_ticks_msec() < wait_until:
+		await get_tree().process_frame
+		player = world.call("local_player") as Player
 	var cliffs := world.get("cliffs") as CliffBuilder
 	var pos := GameState.flag_value("--pos")
 	if player != null and pos != "":
@@ -1143,9 +1148,31 @@ func _apply_freecam(player: Player) -> void:
 	var cam := GameState.flag_value("--cam")
 	if player == null or cam == "":
 		return
-	var v := cam.split(",")
-	var from := Vector3(v[0].to_float(), v[1].to_float(), v[2].to_float())
-	var to := Vector3(v[3].to_float(), v[4].to_float(), v[5].to_float())
+	var from := Vector3.ZERO
+	var to := Vector3.FORWARD
+	if cam.begins_with("cpu"):
+		# --cam=cpu[:N]: over the shoulder of CPU teammate N (clients see the puppet).
+		var cpus := get_tree().get_nodes_in_group("cpu_teammates")
+		var idx := int(cam.substr(4)) if cam.length() > 4 else 0
+		if idx >= cpus.size():
+			return
+		var c := cpus[idx] as Node3D
+		to = c.global_position + Vector3(0, 1.2, 0)
+		from = to + c.global_basis.z * 5.0 + c.global_basis.x * 2.0 + Vector3(0, 2.0, 0)
+	elif cam.begins_with("ww:"):
+		# --cam=ww:N: cliff N's waterworks (well, generator, water tower) from the yard.
+		var g := Generator.of(int(cam.substr(3)))
+		var t := WaterTower.of(int(cam.substr(3)))
+		if g == null or t == null:
+			return
+		var mid := (g.global_position + t.global_position) * 0.5
+		var out := g.global_transform.basis.z.normalized()
+		to = mid + Vector3(0, 2.6, 0)
+		from = mid + out * 12.5 + out.cross(Vector3.UP).normalized() * 3.0 + Vector3(0, 4.5, 0)
+	else:
+		var v := cam.split(",")
+		from = Vector3(v[0].to_float(), v[1].to_float(), v[2].to_float())
+		to = Vector3(v[3].to_float(), v[4].to_float(), v[5].to_float())
 	player.camera.global_transform = Transform3D(Basis.looking_at(to - from, Vector3.UP), from)
 
 

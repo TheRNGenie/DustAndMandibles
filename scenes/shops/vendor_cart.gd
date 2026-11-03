@@ -72,7 +72,8 @@ func _process(delta: float) -> void:
 		return
 	market.tick(delta)
 	_sync_t -= delta
-	if _sync_t <= 0.0:
+	# Not before the run starts: clients still loading have no Vendor to hear it.
+	if _sync_t <= 0.0 and GameState.phase != GameState.Phase.LOBBY:
 		_sync_t = SYNC_INTERVAL
 		var p: Dictionary = {}
 		for k: StringName in ITEMS:
