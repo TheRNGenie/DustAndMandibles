@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"elephant_battery"
+display_name = "Elephant Battery"
+description = "A double rifle of enormous bore. Each round pierces armour and punches on through two more bugs in its line."
+role = "big and armoured bugs (+50%), in a line"
+weakness = "slow: swarms slip past"
+cost_scrap = 120
+max_hp = 160.0
+range = 112.0
+fire_interval = 1.8
+damage = 85.0
+armor_pierce = true
+heavy_mult = 1.5
+pitch_limit_deg = 40.0
+turn_speed = 80.0
+spread_deg = 0.3
+hit_chance = 0.95
+sound = &"buffalo"
+tier = 1
+special = &"pierce"
+special_count = 2
+special_radius = 1.5
+special_falloff = 0.75

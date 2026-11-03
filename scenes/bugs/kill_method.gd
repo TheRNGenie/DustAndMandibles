@@ -37,6 +37,10 @@ static func classify(source: String) -> StringName:
 	for id: StringName in Defs.TURRETS:
 		var t := Defs.turret(id)
 		if source.ends_with(t.display_name):
+			if t.special != &"":
+				# Tiers: ricocheting shot (Hornet's Nest), piercing rounds (Elephant
+				# Battery) and rail spikes are all bullets, whatever else they do.
+				return BULLET
 			match t.effect:
 				TurretDef.Effect.HITSCAN:
 					return BULLET

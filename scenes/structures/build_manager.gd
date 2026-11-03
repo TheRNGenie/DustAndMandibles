@@ -169,6 +169,8 @@ func build(id: StringName, cid: int, cell: Vector2i) -> void:
 func cpu_build(cpu_name: String, id: StringName, cid: int, cell: Vector2i) -> bool:
 	if not multiplayer.is_server() or not is_free_for(id, cid, cell) or GameState.phase == GameState.Phase.GAME_OVER:
 		return false
+	if not Defs.is_unlocked(id, GameState.tier_wave()): # Tiers: not before its wave
+		return false
 	if not Economy.cpu_spend(cpu_name, {&"scrap": Defs.cost_of(id)}):
 		return false
 	# Already paid out of its share; _do_build skips charging while _cpu_builder is set.
@@ -229,6 +231,11 @@ func _do_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> void:
 	if not (Defs.is_turret(id) or Defs.STRUCTURES.has(id)):
 		return
 	if (_cpu_builder == "" and not may_build(peer_id, cid)) or not is_free_for(id, cid, cell) or GameState.phase == GameState.Phase.GAME_OVER:
+		return
+	# Tiers: Mid and Late turrets can't go up before their wave (the menu greys them out too).
+	if not Defs.is_unlocked(id, GameState.tier_wave()):
+		if _cpu_builder == "":
+			Economy.notify(peer_id, "The %s %s." % [Defs.name_of(id), Defs.lock_reason(id, GameState.tier_wave()).to_lower()])
 		return
 	# Crafted turrets: placing one uses up the item made at the Workshop (no scrap).
 	if CraftTable.is_craft(id):

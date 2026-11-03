@@ -908,6 +908,41 @@ static func swatch(color: Color, px: float = 16.0) -> Panel:
 	return chip
 
 
+## Tiers: the accent colour of a turret's tech tier (Early sage, Mid brass, Late rust).
+static func tier_color(tier: int) -> Color:
+	match tier:
+		1: return Color(c("gold"))
+		2: return Color("#E0704A")
+	return Color(hud_c("good"))
+
+
+## Tiers: a small tag chip naming a turret's tech tier ("Early", "Mid", "Late"),
+## rimmed in the tier's colour; `locked` adds a padlock and dims it.
+static func tier_chip(tier: int, locked: bool = false, size: int = 12) -> PanelContainer:
+	var p := PanelContainer.new()
+	var sb := chip_flat()
+	var col := tier_color(tier)
+	sb.border_color = col.darkened(0.25) if locked else col
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(4)
+	sb.content_margin_left = 6
+	sb.content_margin_right = 6
+	sb.content_margin_top = 0
+	sb.content_margin_bottom = 1
+	p.add_theme_stylebox_override("panel", sb)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 3)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(h)
+	if locked:
+		h.add_child(mark("lock", col, ts(size) - 2))
+	var l := strap_text(tc(TurretDef.ERA_NAMES[clampi(tier, 0, TurretDef.ERA_NAMES.size() - 1)]), size)
+	l.add_theme_color_override("font_color", col.darkened(0.15) if locked else col)
+	h.add_child(l)
+	return p
+
+
 ## A small dark chip for a stock count on a header strap ("[swatch] 370 Scrap").
 static func stock_chip(resource: StringName, amount: int) -> PanelContainer:
 	var p := PanelContainer.new()

@@ -97,6 +97,8 @@ func _ready() -> void:
 			print("[lever] t=%d phase %d countdown %.1f levers %s cpu %s" % [Time.get_ticks_msec() / 1000, GameState.phase, GameState.ready_countdown, str(GameState.levers), str(GameState.cpu_levers)]))
 	if GameState.flag_value("--act") != "":
 		_act_shot(GameState.flag_value("--act"))
+	if GameState.has_flag("--tiertest"): # Tiers: unlocks and the new turrets' specials, live (scenes/debug/tier_views.gd)
+		add_child(load("res://scenes/debug/tier_views.gd").new())
 	var shot := GameState.flag_value("--shot")
 	if GameState.flag_value("--mapshot") != "" or GameState.has_flag("--rangecheck"):
 		# Maps: free-camera map screenshots and the turret range check.
@@ -1233,6 +1235,8 @@ func _take_screenshot(path: String) -> void:
 	if GameState.flag_value("--buildmenu") != "" and player != null:
 		player.build_mode.toggle()
 		player.build_mode.show_category(int(GameState.flag_value("--buildmenu")))
+		if GameState.flag_value("--buildpick") != "": # Tiers: --buildpick=<id> highlights (and scrolls to) that tile
+			player.build_mode._select(Defs.BUILD_ORDER.find(StringName(GameState.flag_value("--buildpick"))))
 		player.build_mode.open_menu()
 	if GameState.flag_value("--gameover") != "": # the end-of-run screen in a shot (win / lose)
 		GameState._finish(GameState.flag_value("--gameover") == "win", "Debug view of the end of the run.")

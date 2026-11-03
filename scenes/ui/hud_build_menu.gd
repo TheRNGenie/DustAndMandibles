@@ -160,8 +160,18 @@ func refresh() -> void:
 		_grid.remove_child(n)
 		n.queue_free()
 	var items: Array = build_mode.category_items(build_mode.category)
+	var picked: Control = null
 	for i in items.size():
-		_grid.add_child(_tile(i, items[i], payer))
+		var tile := _tile(i, items[i], payer)
+		_grid.add_child(tile)
+		if items[i] == build_mode.selected_id():
+			picked = tile
+	if picked != null: # the picked item stays in view (the Late ones sit at the bottom)
+		var ref: WeakRef = weakref(picked) # the grid may be rebuilt before this runs
+		(func() -> void:
+			var c := ref.get_ref() as Control
+			if c != null and _scroll.is_ancestor_of(c):
+				_scroll.ensure_control_visible(c)).call_deferred()
 	if not items.has(_detail_id):
 		_detail_id = build_mode.selected_id() if items.has(build_mode.selected_id()) else (items[0] if not items.is_empty() else &"")
 	_show_detail(_detail_id, payer)
@@ -176,6 +186,7 @@ func _style_tab(b: Button, on: bool) -> void:
 func _tile(i: int, id: StringName, payer: int) -> Button:
 	var cost := Perks.build_cost(multiplayer.get_unique_id(), id) # Perk: build discounts
 	var affordable := GameState.is_solo() or Economy.can_afford(payer, {&"scrap": cost})
+	var locked := not BuildMode.unlocked(id) # Tiers: Mid / Late before their wave
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = TILE
@@ -186,6 +197,8 @@ func _tile(i: int, id: StringName, payer: int) -> Button:
 	normal.shadow_size = 0
 	normal.border_color = UiStyle.c("gold") if id == build_mode.selected_id() else normal.border_color.darkened(0.35)
 	normal.set_border_width_all(3 if id == build_mode.selected_id() else 2)
+	if locked:
+		normal.bg_color = normal.bg_color.darkened(0.3)
 	var hover := normal.duplicate() as StyleBoxFlat
 	hover.bg_color = normal.bg_color.lightened(0.15)
 	hover.border_color = UiStyle.c("hud")
@@ -212,10 +225,12 @@ func _tile(i: int, id: StringName, payer: int) -> Button:
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if not affordable:
+	if locked:
+		icon.modulate = Color(0.35, 0.35, 0.35, 0.55)
+	elif not affordable:
 		icon.modulate = Color(1, 1, 1, 0.45)
 	col.add_child(icon)
-	var name_l := KeyHints.text(Defs.name_of(id), 14, UiStyle.c("hud"))
+	var name_l := KeyHints.text(Defs.name_of(id), 14, UiStyle.c("hud").darkened(0.35) if locked else UiStyle.c("hud"))
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_l.clip_text = true
 	col.add_child(name_l)
@@ -225,14 +240,30 @@ func _tile(i: int, id: StringName, payer: int) -> Button:
 	price_row.add_theme_constant_override("separation", 4)
 	price_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(price_row)
-	if not affordable:
+	if locked:
+		price_row.add_child(UiStyle.mark("lock", UiStyle.hud_c("warn"), 12))
+		price_row.add_child(KeyHints.text("Wave %d" % Defs.unlock_wave(id), 14, UiStyle.hud_c("warn")))
+	elif not affordable:
 		price_row.add_child(UiStyle.mark("bad", UiStyle.hud_c("bad"), 12))
-	price_row.add_child(KeyHints.text(UiStyle.held(Economy.amount(payer, id)) if CraftTable.is_craft(id) else UiStyle.cost(cost, "scrap"), 14, UiStyle.c("title") if affordable else UiStyle.hud_c("bad")))
+	if not locked:
+		price_row.add_child(KeyHints.text(UiStyle.held(Economy.amount(payer, id)) if CraftTable.is_craft(id) else UiStyle.cost(cost, "scrap"), 14, UiStyle.c("title") if affordable else UiStyle.hud_c("bad")))
 	# Its quick-pick number in the corner.
 	if i < 9:
 		var k := KeyHints.chip(str(i + 1))
 		k.position = Vector2(6, 6)
 		b.add_child(k)
+	# Tiers: an Early / Mid / Late tag in the other corner.
+	if Defs.TURRETS.has(id):
+		var tag := UiStyle.tier_chip(Defs.tier_of(id), locked)
+		tag.anchor_left = 1.0
+		tag.anchor_right = 1.0
+		tag.offset_left = -6.0
+		tag.offset_right = -6.0
+		tag.offset_top = 6.0
+		tag.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		b.add_child(tag)
+	if locked:
+		b.tooltip_text = Defs.lock_reason(id, GameState.tier_wave())
 	return b
 
 
@@ -248,6 +279,9 @@ func _show_detail(id: StringName, payer: int) -> void:
 	_detail_cost.add_theme_color_override("font_color", UiStyle.c("title") if affordable else UiStyle.hud_c("bad"))
 	if not affordable and not CraftTable.is_craft(id):
 		_detail_cost.text += "  ·  Can't Afford"
+	if not BuildMode.unlocked(id): # Tiers
+		_detail_cost.text += "  ·  " + Defs.lock_reason(id, GameState.tier_wave())
+		_detail_cost.add_theme_color_override("font_color", UiStyle.hud_c("warn"))
 	_detail_stats.text = UiStyle.keep_together(Defs.turret(id).stat_line() if Defs.is_turret(id) else _structure_stats(id))
 	_detail_stats.visible = _detail_stats.text != ""
 	_detail_desc.text = BuildMode._description(id)
@@ -255,6 +289,9 @@ func _show_detail(id: StringName, payer: int) -> void:
 	if Defs.is_turret(id) and Defs.turret(id).role_line() != "":
 		_detail_desc.text += "\n" + Defs.turret(id).role_line()
 	_detail_where.text = _where(id)
+	if Defs.TURRETS.has(id): # Tiers: which tier, and when it opens
+		var d := Defs.turret(id)
+		_detail_where.text = "%s Tier%s.  %s" % [d.era_name(), "" if d.tier == 0 else " (from Wave %d)" % d.unlock_wave(), _detail_where.text]
 
 
 ## Walls, traps and the like: their toughness (and reach, for traps and lights).

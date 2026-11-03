@@ -25,6 +25,9 @@ static func _slip_for(target: Bug) -> float:
 static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 	var source := "%s's %s" % [t.owner_name, t.def.display_name]
 	var dir := (aim - t.muzzle_position()).normalized()
+	if t.def.special != &"": # Tiers: ricochet, pierce and rail spike
+		_special(t, target, aim, dir, damage, source)
+		return
 	match t.def.effect:
 		TurretDef.Effect.HITSCAN:
 			target.receive_hit(damage, aim, dir, t.def.armor_pierce, 1.0, source, t.cliff_id)
@@ -92,6 +95,82 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 					bugs.splash(cliff, aim, radius, damage, source, owner_cliff)
 				else:
 					bugs.add_fire(cliff, aim, radius, damage, 5.0, source, owner_cliff))
+
+
+# ------------------------------------------------------------------ tiers: specials
+
+## Bugs a ricochet, a pierce or a spike can also hit (alive, seen, targetable).
+static func _others(t: Turret) -> Array[Bug]:
+	var out: Array[Bug] = []
+	if Turret.bug_manager == null:
+		return out
+	for n: Node in Turret.bug_manager.get_children():
+		var b := n as Bug
+		if b != null and b.is_alive() and not b.is_hidden() and not b.untargetable():
+			out.append(b)
+	return out
+
+
+## One extra hit at a fraction of the turret's shot, scaled for heavy bugs.
+static func _hit(t: Turret, b: Bug, frac: float, dir: Vector3, source: String) -> void:
+	b.receive_hit(t.def.damage_at(t.tier, TurretDef.is_heavy(b.def)) * frac, b.global_position, dir, t.def.armor_pierce, 1.0, source, t.cliff_id)
+
+
+## Debug (--tiertest): per special, hits landed and extra bugs reached by them.
+static var special_stats: Dictionary = {}
+
+
+static func _tally(kind: StringName, extra: int) -> void:
+	special_stats[kind] = int(special_stats.get(kind, 0)) + 1
+	var key := StringName("%s_extra" % kind)
+	special_stats[key] = int(special_stats.get(key, 0)) + extra
+
+
+static func _special(t: Turret, target: Bug, aim: Vector3, dir: Vector3, damage: float, source: String) -> void:
+	var d := t.def
+	target.receive_hit(damage, aim, dir, d.armor_pierce, 1.0, source, t.cliff_id)
+	var others := _others(t)
+	others.erase(target)
+	match d.special:
+		TurretDef.SPECIAL_CHAIN:
+			var pts := PackedVector3Array([aim])
+			var hops := TierRules.chain_path(target.global_position, _positions(others), d.special_count, d.special_radius)
+			for i in hops.size():
+				var b := others[hops[i]]
+				_hit(t, b, pow(d.special_falloff, i + 1), (b.global_position - pts[pts.size() - 1]).normalized(), source)
+				pts.append(b.global_position)
+			_tally(d.special, hops.size())
+			if pts.size() > 1:
+				t.special_fx.rpc(d.special, pts, 0.0)
+		TurretDef.SPECIAL_PIERCE:
+			var line := TierRules.pierce_line(t.muzzle_position(), aim, _positions(others), d.special_count, d.special_radius)
+			for i in line.size():
+				_hit(t, others[line[i]], pow(d.special_falloff, i + 1), dir, source)
+			_tally(d.special, line.size())
+			if not line.is_empty():
+				t.special_fx.rpc(d.special, PackedVector3Array([aim, others[line[line.size() - 1]].global_position]), 0.0)
+		TurretDef.SPECIAL_SPIKE:
+			var wall := target.global_basis.y if target.is_climbing() else -dir
+			var climbers: Array[Bug] = []
+			for b in others:
+				if b.is_climbing() and b.cliff_id == target.cliff_id:
+					climbers.append(b)
+			var line := TierRules.spike_line(aim, dir, wall, _positions(climbers), d.special_radius)
+			for i in line.size():
+				_hit(t, climbers[line[i]], pow(d.special_falloff, i + 1), dir, source)
+			_tally(d.special, line.size())
+			# The spike ends in the last bug it went through and nails it to the rock.
+			var last: Bug = climbers[line[line.size() - 1]] if not line.is_empty() else target
+			if last.is_alive():
+				last.status.root(d.special_pin)
+			t.special_fx.rpc(d.special, PackedVector3Array([aim, last.global_position]), d.special_pin)
+
+
+static func _positions(bugs: Array[Bug]) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for b in bugs:
+		out.append(b.global_position)
+	return out
 
 
 ## Colour of the shot's streak or lob.

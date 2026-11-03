@@ -50,6 +50,9 @@ var _cooldown := 0.0
 var _seen_shots := 0
 var _gun_mi: MeshInstance3D
 var _spin: MeshInstance3D
+## Tiers: a second barrel cluster (Twin Gatling) and a second muzzle that shots alternate with.
+var _spin_b: MeshInstance3D
+var _muzzle_b: Node3D
 var _spin_speed := 0.0
 var _recoil := 0.0
 var _recoil_len := 0.06
@@ -105,6 +108,12 @@ func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: Strin
 		_spin.material_override = Materials.toon(0.012)
 		_spin.position = parts["spin_at"]
 		_gun_mi.add_child(_spin)
+	if parts.has("spin_b"): # Tiers: twin barrel clusters spin about their own axes
+		_spin_b = MeshInstance3D.new()
+		_spin_b.mesh = parts["spin_b"]
+		_spin_b.material_override = Materials.toon(0.012)
+		_spin_b.position = parts["spin_b_at"]
+		_gun_mi.add_child(_spin_b)
 	# Brass stars on the head show the upgrade tier.
 	_stars = Node3D.new()
 	_stars.position = Vector3(0, 0.05, 0.28)
@@ -112,6 +121,10 @@ func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: Strin
 	_muzzle = Node3D.new()
 	_muzzle.position = parts["muzzle"]
 	_gun.add_child(_muzzle)
+	if parts.has("muzzle_b"): # Tiers: twin barrels fire in turn
+		_muzzle_b = Node3D.new()
+		_muzzle_b.position = parts["muzzle_b"]
+		_gun.add_child(_muzzle_b)
 	if d.has_upkeep():
 		_empty_sign = _make_empty_sign(float(parts["head_y"]) + 1.3)
 		add_child(_empty_sign)
@@ -250,7 +263,7 @@ func _valid_cheap(b: Bug, muzzle: Vector3, seen: float, pitch: float, max_range:
 		var on_plateau := b.state == Bug.State.BREACHING or b.state == Bug.State.CRESTING or b.state == Bug.State.FLYING
 		if not Targeting.guard_allows(cliff_id, b.cliff_id, on_plateau):
 			return false
-		if def.guards_house:
+		if def.guards_house and not def.yard_wide: # Tiers: the Gatling Porch Turret sweeps the whole yard
 			var home := Homestead.of(cliff_id)
 			if home == null or b.global_position.distance_to(home.global_position) > Homestead.GUARD_RADIUS:
 				return false
@@ -363,6 +376,8 @@ func _aim_visual(delta: float) -> void:
 	_spin_speed = move_toward(_spin_speed, 0.0, delta * 12.0)
 	if _spin != null:
 		_spin.rotate_z(_spin_speed * delta)
+	if _spin_b != null:
+		_spin_b.rotate_z(-_spin_speed * delta)
 	if tier != _shown_tier:
 		_shown_tier = tier
 		_show_tier()
@@ -376,6 +391,8 @@ func _draw_shot() -> void:
 	_spin_speed = 28.0
 	_idle_t = 0.0
 	var from := _muzzle.global_position
+	if _muzzle_b != null and shots % 2 == 1:
+		from = _muzzle_b.global_position
 	var spread := deg_to_rad(def.spread_deg)
 	var to := aim_point + Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * from.distance_to(aim_point) * spread
 	if vfx != null:
@@ -388,6 +405,39 @@ func _draw_shot() -> void:
 	if sound == &"gatling" or not Audio.has_sound(sound):
 		sound = StringName("gatling_%d" % (randi() % 3 + 1))
 	Audio.play_at(sound, from, -4.0 if def.id == &"gatling_post" else 0.0)
+
+
+## Tiers: every peer draws a special shot's extra path: a ricochet zig-zagging
+## from bug to bug, a round punching on through, or a rail spike driven down the
+## wall (left sticking out of the last bug for `pin` seconds).
+@rpc("authority", "call_local", "unreliable")
+func special_fx(kind: StringName, pts: PackedVector3Array, pin: float) -> void:
+	if vfx == null or pts.size() < 2:
+		return
+	match kind:
+		TurretDef.SPECIAL_CHAIN:
+			for i in pts.size() - 1:
+				vfx.tracer(pts[i], pts[i + 1], Color("#FFB23F"), 0.06)
+				vfx.spark(pts[i + 1], (pts[i] - pts[i + 1]).normalized(), Color("#FFB23F"))
+		TurretDef.SPECIAL_PIERCE:
+			vfx.tracer(pts[0], pts[1], Palette.GLOW_YELLOW, 0.09)
+			vfx.spark(pts[1], (pts[0] - pts[1]).normalized())
+		TurretDef.SPECIAL_SPIKE:
+			vfx.tracer(pts[0], pts[1], Color("#C9CED6"), 0.16)
+			vfx.spark(pts[1], (pts[0] - pts[1]).normalized(), Color("#FFE2A0"))
+			var along := (pts[1] - pts[0]).normalized() if pts[0].distance_to(pts[1]) > 0.1 else -_gun.global_basis.z
+			_leave_spike(pts[1], along, pin)
+
+
+## A railroad spike stuck in the rock where the last skewered bug is pinned.
+func _leave_spike(at: Vector3, along: Vector3, seconds: float) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = TierBuilder.loose_spike()
+	mi.material_override = Materials.toon(0.01)
+	get_tree().current_scene.add_child(mi)
+	var up := Vector3.UP if absf(along.dot(Vector3.UP)) < 0.95 else Vector3.RIGHT
+	mi.global_transform = Transform3D(Basis.looking_at(along, up), at - along * 0.4)
+	get_tree().create_timer(maxf(seconds, 0.6) + 0.6).timeout.connect(mi.queue_free)
 
 
 ## Host: damage from spitter acid or breachers.
@@ -414,7 +464,7 @@ func interact_prompt() -> String:
 	if level > 0:
 		text += "\nScaffold level %d: +%d deg look-down, +%d%% range" % [level, int(LOOK_DOWN_PER_LEVEL * level),
 				roundi(TurretDef.RANGE_PER_LEVEL * 100.0 * level)]
-	if def.guards_plateau and not def.guards_house:
+	if def.guards_plateau and (not def.guards_house or def.yard_wide):
 		text += "\nStands by until bugs reach your plateau"
 	if def.has_upkeep():
 		text += ("\nUpkeep: %s a shot" if has_ammo else "\nEMPTY: needs %s a shot") % def.upkeep_text()

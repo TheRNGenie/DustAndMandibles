@@ -325,13 +325,14 @@ func _deposit_task() -> bool:
 ## Turrets worth building, cheapest-first within each kind.
 func _turret_choice() -> StringName:
 	# Crewed: categories by name (a "Crewed Guns" tab now sits after Cliff Turrets).
-	var cliff_turrets: Array = Defs.category_items("Cliff Turrets").filter(func(id: StringName) -> bool: return id != &"scaffold")
-	var air: Array = Defs.category_items("Air Defense")
+	var cliff_turrets: Array = best_first(Defs.category_items("Cliff Turrets").filter(func(id: StringName) -> bool: return id != &"scaffold"))
+	var air: Array = best_first(Defs.category_items("Air Defense"))
 	var options: Array = []
 	match quality:
 		0:
 			options = cliff_turrets.slice(0, 4)
 			options.shuffle()
+			options.append_array(cliff_turrets.slice(4)) # Tiers: can't afford the new ones yet? an older one
 		1:
 			var built := _my_turrets().size()
 			options = [cliff_turrets[built % cliff_turrets.size()]]
@@ -354,7 +355,7 @@ func _turret_choice() -> StringName:
 			if total > 0 and float(fliers) / total > 0.15 and air_built < 2:
 				options.append_array(air)
 			if big > 0:
-				options.append(&"buffalo_rifle")
+				options.append_array(best_first([&"buffalo_rifle", &"elephant_battery", &"rail_spike_driver"]))
 			# Crewed: High builds a crewed gun or two once the line is up (it never
 			# sits in one: they fire on their own at half power for it).
 			var crewed_built := _my_turrets().filter(func(t: Node) -> bool: return t is CrewedTurret).size()
@@ -369,9 +370,15 @@ func _turret_choice() -> StringName:
 				options.push_front(pick)
 			options.append_array(cliff_turrets)
 	for id: StringName in options:
-		if Defs.is_turret(id) and Economy.cpu_can_spend(display_name, {&"scrap": Defs.cost_of(id)}):
+		if Defs.is_turret(id) and Defs.is_unlocked(id, GameState.tier_wave()) and Economy.cpu_can_spend(display_name, {&"scrap": Defs.cost_of(id)}):
 			return id
 	return &""
+
+
+## Tiers: the unlocked ones of `ids`, newest tier first (Late, Mid, Early), so a
+## CPU moves on to Mid and Late turrets once their wave comes (TierRules.best_first).
+static func best_first(ids: Array) -> Array:
+	return TierRules.best_first(ids, GameState.tier_wave())
 
 
 func _my_turrets() -> Array:
