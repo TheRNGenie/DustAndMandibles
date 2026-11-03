@@ -56,6 +56,9 @@ func _ready() -> void:
 	elif GameState.has_flag("--host") or _test_launch():
 		_auto_ready = true
 		_on_host()
+		# --startafter=S: start the hosted game after S seconds on the menu (crash repro of a normal start).
+		if GameState.flag_value("--startafter") != "":
+			get_tree().create_timer(GameState.flag_value("--startafter").to_float()).timeout.connect(NetworkManager.start_game)
 		# --cpu=low|medium|high: start with a CPU partner (tests).
 		var cq := ["low", "medium", "high"].find(GameState.flag_value("--cpu").to_lower())
 		if cq >= 0:

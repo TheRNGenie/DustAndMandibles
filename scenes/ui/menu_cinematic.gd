@@ -57,7 +57,11 @@ func _ready() -> void:
 	_cam.current = true
 	# The canyon takes a moment to build: let the menu draw first.
 	await get_tree().process_frame
+	if not is_inside_tree():
+		return # the menu closed already (a game started at once): build nothing
 	await get_tree().process_frame
+	if not is_inside_tree():
+		return
 	_build_world()
 	_shots = _make_shots()
 	ready_to_film = true
