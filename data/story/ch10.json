@@ -5,6 +5,7 @@
 	"map": "canyon",
 	"requires": "ch9",
 	"sealed_tunnel": true,
+	"max_bugs": 4000,
 	"first_wave": 24,
 	"last_wave": 25,
 	"blurb": "Cornelius Vane is coming in person, with Ezra Kettle beside him, aboard the Iron Mandible: the board's armoured harvest train. He means to blast the lower hive again, seal the canyon and bury the evidence with the settlers. Something under the lower hive has been waiting longer than he has.",
@@ -75,7 +76,7 @@
 		"title": "Specimen Notes, No. 10",
 		"body": "The gallery is sealed. Silas sealed it, and stayed with it.\n\nThe bounty board is gone from the rim. Nobody pays for dead bugs any more, and the amber is ours, if we want it.\n\nI have stopped writing specimen notes. There is nothing left down there I wish to name.\n\n- E. Whitlow, Rail Car 9"
 	},
-	"rewards": {"notches": 200, "unlock": {"kind": "amber_blueprint", "id": "amber_mandible_lance", "name": "The Iron Mandible's Wreck: Mandible Lance Blueprint (Amber)"}},
+	"rewards": {"notches": 200, "unlock": {"kind": "amber_blueprint", "id": "mandible_lance", "name": "The Iron Mandible's Wreck: Mandible Lance Blueprint (Amber)"}},
 	"job_note": "No railroad left to pay.",
 	"headline_win": "IRON MANDIBLE WRECKED; Railroad Chairman Dead in Dry Gulch",
 	"headline_loss": "Board's Train Seals Dry Gulch; Settlers Buried With the Evidence"

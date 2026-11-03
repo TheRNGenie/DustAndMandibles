@@ -95,7 +95,7 @@ func _spawn_from(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 	var cfg := Defs.WAVE_CONFIG
 	var def := Defs.bug(bug_id)
 	for i in count:
-		if alive_count() >= cfg.max_active_bugs:
+		if alive_count() >= cfg.max_active_bugs and def.behavior != BugDef.Behavior.BOSS: # (a boss is never crowded out)
 			return
 		# Out of the tunnel, each bug makes for its own spot at the foot of the
 		# wall and picks its own way up from there.

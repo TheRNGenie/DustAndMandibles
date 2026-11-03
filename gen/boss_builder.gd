@@ -779,8 +779,8 @@ static func _hive_mother(shell: Color) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1868
 	var st := MeshKit.begin()
-	var plate := shell.darkened(0.12)
-	var old := shell.darkened(0.32)
+	var plate := shell.darkened(0.1)
+	var old := shell.darkened(0.24)
 	var scar := Color("#3A2E26")
 	var membrane := Color("#C9BFA2")
 	var amber := Color("#FFA62B")
@@ -856,10 +856,10 @@ static func _hive_mother(shell: Color) -> Dictionary:
 	MeshKit.add_box(st, Transform3D(Basis(Vector3.BACK, 0.4), hd + Vector3(0.15, 0.28, -0.1)), Vector3(0.3, 0.035, 0.04), scar)
 	for sd: float in [-1.0, 1.0]:
 		# Big, pale, pupil-less eyes with a faint cold sheen.
-		var ep := hd + Vector3(sd * 0.3, 0.06, -0.2)
-		_e(st, ep + Vector3(0, 0.02, 0.03), Vector3(0.19, 0.17, 0.12), old.darkened(0.2), 4, 10)
-		_e(st, ep, Vector3(0.17, 0.15, 0.14), milk, 5, 12, 0.18)
-		_e(st, ep + Vector3(sd * 0.03, 0.05, -0.08), Vector3(0.06, 0.04, 0.03), Color.WHITE, 3, 6, 0.4)
+		var ep := hd + Vector3(sd * 0.3, 0.06, -0.22)
+		_e(st, ep + Vector3(0, 0.02, 0.04), Vector3(0.24, 0.21, 0.14), old.darkened(0.35), 4, 10)
+		_e(st, ep, Vector3(0.22, 0.19, 0.17), milk, 5, 12, 0.35)
+		_e(st, ep + Vector3(sd * 0.04, 0.06, -0.12), Vector3(0.07, 0.05, 0.03), Color.WHITE, 3, 6, 0.6)
 	_e(st, hd + Vector3(0, -0.14, -0.3), Vector3(0.22, 0.11, 0.12), old, 4, 10)
 	# Mandibles: huge sickles, chipped (the left one snapped short).
 	for sd: float in [-1.0, 1.0]:
@@ -894,11 +894,11 @@ static func _hive_mother(shell: Color) -> Dictionary:
 		if k % 3 == 1:
 			_e(st, base + dir * tall * 0.4, Vector3(0.045, 0.06, 0.045), amber, 3, 6, 0.5)
 	var geode := cr + Vector3(0, 0.08, -0.36)
-	_e(st, geode + Vector3(0, 0, 0.03), Vector3(0.16, 0.15, 0.06), old.darkened(0.15), 4, 10)
+	_e(st, geode + Vector3(0, 0, 0.03), Vector3(0.19, 0.18, 0.07), old.darkened(0.3), 4, 10)
 	for k in 5:
 		var a := TAU * float(k) / 5.0
 		_spike(st, geode + Vector3(cos(a) * 0.06, sin(a) * 0.06, -0.02), Vector3(cos(a) * 0.6, sin(a) * 0.6, -1.0), 0.12, 0.035, amber.lightened(0.15), 5)
-	BugBuilder._weak(st, geode, Vector3(0.1, 0.11, 0.07), amber)
+	BugBuilder._weak(st, geode, Vector3(0.13, 0.14, 0.08), amber)
 
 	# Legs: long and gnarled, set wide for her weight.
 	var legs := BugBuilder._legs(3, -0.7, -0.1, 0.46, 0.4, 1.15, -0.6)

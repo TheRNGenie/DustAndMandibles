@@ -6,25 +6,25 @@ extends RefCounted
 ##
 ## >>> WIRE TO AMBER AT MERGE <<<
 ## Every function here is a guarded stub so this branch compiles and plays
-## without amber: available() is false until the amber item exists, so the
-## chapters simply skip their amber bits; grant_blueprint() only remembers the
-## id (StoryProgress.blueprints) and reports it. At merge, point these at the
-## amber helper's real calls (its blueprint unlock, its pack / stockpile item).
+## without amber. It already calls main's real API by name, looked up at run
+## time: Story.unlock_amber_blueprint(id) (ids queens_bell, mandible_lance) and
+## Amber.grant(peer_id, units, why) (host). Without them (this branch) the
+## blueprint is only kept in StoryProgress.blueprints and no amber is packed.
+## At merge: if main's Story.record already unlocks "amber_blueprint" rewards
+## itself, drop the grant_blueprint call in Story.record.
 
 ## The amber blueprints the story grants (id -> where it comes from).
 const BLUEPRINTS: Dictionary = {
-	"amber_queens_bell": "ch9, the board's harvest ledger",
-	"amber_mandible_lance": "ch10, the Iron Mandible's wreck",
+	"queens_bell": "ch9, the board's harvest ledger",
+	"mandible_lance": "ch10, the Iron Mandible's wreck",
 }
 ## The amber item's backpack / stockpile key (the amber branch's id).
 const ITEM := &"amber"
 
 
-## Is hive amber in this build? (False on the story branch: the amber item and
-## its weight live on the amber branch.)
+## Is hive amber in this build? (The Amber autoload, from the amber branch.)
 static func available() -> bool:
-	# WIRE TO AMBER AT MERGE: true once Backpack.WEIGHTS / Economy know &"amber".
-	return Backpack.WEIGHTS.has(ITEM)
+	return _autoload("Amber") != null
 
 
 ## Is `id` one of the story's amber blueprints (for the chapter data checks)?
@@ -38,10 +38,11 @@ static func is_blueprint(id: String) -> bool:
 static func grant_blueprint(id: String) -> bool:
 	if not is_blueprint(id):
 		return false
-	# WIRE TO AMBER AT MERGE: e.g. Amber.unlock_blueprint(id) / Perks.profile.amber_blueprints.
-	var amber := _autoload("Amber")
-	if amber != null and amber.has_method("unlock_blueprint"):
-		amber.call("unlock_blueprint", id)
+	# WIRE TO AMBER AT MERGE: main's real call is Story.unlock_amber_blueprint(id).
+	# (If main's Story.record already handles "amber_blueprint" unlocks itself, drop this call.)
+	var story := _autoload("Story")
+	if story != null and story.has_method("unlock_amber_blueprint"):
+		story.call("unlock_amber_blueprint", id)
 		return true
 	print("[story] amber blueprint %s booked (amber system not in this build)" % id)
 	return false
@@ -50,12 +51,15 @@ static func grant_blueprint(id: String) -> bool:
 ## Host: `units` of hive amber into `peer`'s backpack (the board's crates in the
 ## amber crew's camp, the Iron Mandible's wreck). Returns the units packed (0
 ## when amber isn't in this build).
-static func pack(peer: int, units: int) -> int:
-	if not available() or units <= 0:
+static func pack(peer: int, units: int, why: String = "") -> int:
+	if units <= 0:
 		return 0
-	# WIRE TO AMBER AT MERGE: amber is a normal (unpacked) item, so it goes in like loot.
-	var xp := _autoload("Expedition")
-	return int(xp.call("add_to_backpack", peer, {ITEM: units})) if xp != null else 0
+	# WIRE TO AMBER AT MERGE: main's real call is Amber.grant(peer_id, units, why) (host only).
+	var amber := _autoload("Amber")
+	if amber != null and amber.has_method("grant"):
+		amber.call("grant", peer, units, why)
+		return units
+	return 0
 
 
 ## An autoload by name (looked up at run time, so the unit tests can load this file).

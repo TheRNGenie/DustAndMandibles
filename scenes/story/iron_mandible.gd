@@ -159,7 +159,7 @@ func _ready() -> void:
 	_smoke_mat = StandardMaterial3D.new()
 	_smoke_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_smoke_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_smoke_mat.albedo_color = Color(0.16, 0.13, 0.12, 0.55)
+	_smoke_mat.albedo_color = Color(0.3, 0.2, 0.13, 0.55)
 	_smoke_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	GameState.phase_changed.connect(_on_phase)
 	if multiplayer.is_server():
@@ -191,7 +191,19 @@ func _exit_tree() -> void:
 # ------------------------------------------------------------------ state
 
 func done() -> bool:
-	return blown and sealed
+	# (Once Silas's fuse is lit the gallery is as good as sealed: the wave may clear first.)
+	return blown and (sealed or _seal_started)
+
+
+## Host: seconds to hold the win for the last beat (Silas's charge and the
+## silence after it).
+func win_delay() -> float:
+	var left := director.radio_left()
+	if not director._said.has("ch10_sealed"):
+		left += 7.0
+		for l: Array in director.chapter.event_lines("sealed"):
+			left += RadioCard.line_seconds(str(l[1]))
+	return minf(left + 1.0, 45.0)
 
 
 func _state() -> Dictionary:
@@ -387,7 +399,7 @@ func _wreck_look() -> void:
 
 
 ## Host: the swarm turns on the wreck: bugs out of the nearest open tunnel run
-## for Vane's car and over it; a few stay lying on the wreck.
+## for Vane's car and in over it (gone into the wreck, off-screen-ish).
 func _wreck_swarm() -> void:
 	var bm := BugManager.instance
 	if bm == null or not is_instance_valid(bm) or director.finished:
@@ -418,10 +430,6 @@ func _wreck_swarm() -> void:
 		if b != null:
 			b.hunt_peer = -1
 			b.hunt_home = at + target.global_transform.basis.z * randf_range(-4.0, 4.0)
-	for k in 5:
-		var lie := target.to_global(Vector3(randf_range(-2.4, 2.4), 0.0, randf_range(-4.5, 4.5)))
-		lie.y = cliffs.floor_height(lie.x, lie.z)
-		bm.spawn_site_bug(kinds[k % 2], 0, lie, 60, randf() * TAU)
 
 
 func _car(kind: String) -> Car:
@@ -476,11 +484,13 @@ func _host_mother(delta: float) -> void:
 		if _mother == null:
 			return
 		_mother_frac = 1.0
+		print("[ch10] the Hive Mother is out (cliff %d, %.0f hp)" % [_mother.cliff_id, _mother.health.max_hp])
 		_mother.died.connect(func(_b: Bug, _src: String, _c: int) -> void: _on_mother_died(), CONNECT_ONE_SHOT)
-		if GameState.debug_enabled() and GameState.has_flag("--ch10seal"):
-			_mother.health.hp = _mother.health.max_hp * 0.12
 	if not _mother.is_alive():
 		return
+	# Debug: --ch10seal drops her to a near-kill once she's up the wall (Silas's charge at once).
+	if GameState.debug_enabled() and GameState.has_flag("--ch10seal") and not _seal_started and _mother.is_climbing() and _mother.climb_y > 12.0:
+		_mother.health.hp = _mother.health.max_hp * 0.09
 	var frac := _mother.health.hp / maxf(_mother.health.max_hp, 1.0)
 	var beat := ReckoningRules.mother_beat(_mother_frac, frac)
 	_mother_frac = frac
@@ -491,9 +501,13 @@ func _host_mother(delta: float) -> void:
 		var brain := _mother.boss
 		if brain != null and brain.has_method("set_pinned"):
 			brain.call("set_pinned", true)
-		_say_once("mother_set")
+		director._said["ch10_mother_set"] = true # (no time for that one now)
 		_say_once("mother_seal")
-		get_tree().create_timer(ReckoningRules.SEAL_FUSE).timeout.connect(_seal)
+		# The charge goes off just after his last line is on the wire (however much
+		# radio is queued ahead of it), never sooner than his fuse.
+		var line := RadioCard.line_seconds(str(director.chapter.event_lines("mother_seal")[0][1]))
+		var wait := clampf(director.radio_left() - line + 1.5, ReckoningRules.SEAL_FUSE, 14.0)
+		get_tree().create_timer(wait).timeout.connect(_seal)
 
 
 func _find_mother() -> Bug:
@@ -510,17 +524,20 @@ func _find_mother() -> Bug:
 
 ## Host: she died before the fuse ran out (one big shot): the charge goes as she falls.
 func _on_mother_died() -> void:
-	if sealed:
+	if sealed or _seal_started:
 		return
+	_seal_started = true
 	_say_once("mother_seal")
-	_seal()
+	var line := RadioCard.line_seconds(str(director.chapter.event_lines("mother_seal")[0][1]))
+	get_tree().create_timer(clampf(director.radio_left() - line + 1.5, 0.5, 14.0)).timeout.connect(_seal)
 
 
 ## Host: Silas's charge goes off under her gallery: sealed, and she's dead.
 func _seal() -> void:
-	if sealed or director.finished:
+	if sealed:
 		return
 	sealed = true
+	print("[ch10] Silas's charge: the gallery is sealed")
 	BugManager.boss_tunnel = -1
 	_seal_fx.rpc()
 	if _mother != null and is_instance_valid(_mother) and _mother.is_alive():
@@ -529,7 +546,8 @@ func _seal() -> void:
 			brain.call("set_pinned", false)
 		_mother.receive_hit(9999999.0, _mother.global_position, Vector3.UP, true, 1.0, "Silas Kettle's last charge", -1)
 	_broadcast()
-	get_tree().create_timer(5.0).timeout.connect(func() -> void: _say_once("sealed"))
+	if not director.finished:
+		get_tree().create_timer(5.0).timeout.connect(func() -> void: _say_once("sealed"))
 	if director.holding and done():
 		director.piece_done(director.radio_left() + 6.0)
 
@@ -633,6 +651,7 @@ func _debug() -> void:
 	var view := GameState.flag_value("--ch10view")
 	if view == "":
 		return
+	GameState.god_mode = true # (screenshots: nothing on the floor ends the view early)
 	var p: Player = null
 	var until := Time.get_ticks_msec() + 20000
 	while p == null and Time.get_ticks_msec() < until:
@@ -642,11 +661,15 @@ func _debug() -> void:
 		return
 	for i in 40:
 		await get_tree().process_frame
-	if view in ["furnace", "wreck"] and multiplayer.is_server():
+	if view == "train" and multiplayer.is_server():
+		s = hold_s # waiting for dark at the end of the play area
+		_broadcast()
+		_place_cars()
+	if view in ["furnace", "wreck", "lip"] and multiplayer.is_server():
 		# Somewhere in the play area so it can be seen from the floor and the rim.
 		s = clampf(hold_s + (stop_s - hold_s) * 0.45, 0.0, stop_s)
 		crawling = false
-		if view == "furnace":
+		if view == "furnace" or view == "lip":
 			lit = true
 		_broadcast()
 		_place_cars()
@@ -654,8 +677,8 @@ func _debug() -> void:
 	var loco := _car("loco")
 	match view:
 		"train":
-			var at := loco.to_global(Vector3(9.0, 0.0, 14.0))
-			_place(p, at, loco.to_global(Vector3(0, 2.5, -14.0)))
+			var at := loco.to_global(Vector3(8.0, 0.0, 15.0))
+			_place(p, at, loco.to_global(Vector3(0, 3.0, -10.0)))
 		"furnace":
 			_place(p, fc.to_global(Vector3(9.5, 0.0, 6.0)), fc.to_global(Vector3(0, 3.5, 0)))
 		"wreck":
@@ -663,7 +686,7 @@ func _debug() -> void:
 				lit = true
 				furnace_hit(hp + 1.0, fc.global_position, "Debug")
 			await get_tree().create_timer(0.2).timeout
-			_place(p, fc.to_global(Vector3(14.0, 0.0, -10.0)), fc.to_global(Vector3(0, 2.5, -4.0)))
+			_place(p, fc.to_global(Vector3(-13.0, 0.0, 9.0)), fc.to_global(Vector3(0, 2.0, -3.0)))
 		"tunnel":
 			var at := mouth + out * 16.0 + out.cross(Vector3.UP) * 6.0
 			_place(p, at, mouth + Vector3.UP * 3.0)
@@ -674,13 +697,31 @@ func _debug() -> void:
 			for c in WorldLayout.cliff_count():
 				if (cliffs.plateau_point(c, 0.0, 0.0) - mouth).length() > (cliffs.plateau_point(cid, 0.0, 0.0) - mouth).length():
 					cid = c
-			var lip := cliffs.plateau_point(cid, 1.0, clampf(mouth.z * 0.3, -17.0, 17.0))
 			var look := fc.global_position + Vector3.UP * 3.0 if view == "lip" else mouth + Vector3.UP * 12.0
+			var lip := cliffs.plateau_point(cid, 0.6, clampf(look.z * 0.6, -17.0, 17.0))
 			p.global_position = lip + Vector3.UP * 0.2
 			p.velocity = Vector3.ZERO
 			var dd := look - (p.global_position + Vector3.UP * 1.6)
 			p.rotation.y = atan2(-dd.x, -dd.z)
 			p.head.rotation.x = atan2(dd.y, Vector2(dd.x, dd.z).length())
+	if view == "mother":
+		# Follow her: once she's up the wall, stand on the lip across from her.
+		var until2 := Time.get_ticks_msec() + 90000
+		var m: Bug = null
+		while Time.get_ticks_msec() < until2:
+			await get_tree().create_timer(0.5).timeout
+			m = _find_mother()
+			if m != null and m.is_climbing() and m.climb_y > float(GameState.flag_value("--ch10mothery") if GameState.flag_value("--ch10mothery") != "" else "18"):
+				break
+		if m != null:
+			var across := WorldLayout.map().defenders_of(m.cliff_id)
+			var cid: int = across[0] if not across.is_empty() else WorldLayout.other_cliff(m.cliff_id)
+			var lip := cliffs.plateau_point(cid, 0.3, clampf(m.global_position.z, -17.0, 17.0))
+			p.global_position = lip + Vector3.UP * 0.2
+			p.velocity = Vector3.ZERO
+			var dm := m.global_position - (p.global_position + Vector3.UP * 1.6)
+			p.rotation.y = atan2(-dm.x, -dm.z)
+			p.head.rotation.x = atan2(dm.y, Vector2(dm.x, dm.z).length())
 	print("[ch10] view %s at %s (train nose s %.1f)" % [view, str(p.global_position.snapped(Vector3.ONE * 0.1)), s])
 
 
@@ -728,7 +769,7 @@ class Car extends AnimatableBody3D:
 			for side: float in [-1.0, 1.0]:
 				var l3 := label.duplicate() as Label3D
 				l3.rotation.y = side * PI * 0.5
-				l3.position = Vector3(side * 1.46, 2.4 if kind == "loco" else 3.62, 0.4 if kind == "loco" else -0.4)
+				l3.position = Vector3(side * 1.47, 2.4 if kind == "loco" else 2.05, 0.4 if kind == "loco" else -0.4)
 				add_child(l3)
 			label.free()
 		if kind == "loco":
@@ -757,6 +798,7 @@ class Furnace extends StaticBody3D:
 	var _glow: MeshInstance3D
 	var _shutters: MeshInstance3D
 	var _light: OmniLight3D
+	var _beam: MeshInstance3D
 
 	func _ready() -> void:
 		collision_layer = WorldLayout.LAYER_STRUCTURE
@@ -783,9 +825,31 @@ class Furnace extends StaticBody3D:
 		_light.omni_range = 18.0
 		_light.position = Vector3(0, 3.0, 0)
 		add_child(_light)
+		# A column of lit amber smoke over the stack while it burns: it reads from the rims.
+		_beam = MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 2.2
+		cyl.bottom_radius = 0.5
+		cyl.height = 46.0
+		cyl.radial_segments = 12
+		cyl.cap_top = false
+		cyl.cap_bottom = false
+		_beam.mesh = cyl
+		var bm := StandardMaterial3D.new()
+		bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		bm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		bm.cull_mode = BaseMaterial3D.CULL_DISABLED
+		bm.albedo_color = Color(Color("#FFA62B"), 0.16)
+		_beam.material_override = bm
+		_beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_beam.position = TrainMeshes.STACK_TOP + Vector3(0, 23.0, 0)
+		_beam.visible = false
+		add_child(_beam)
 
 	func show_lit(on: bool) -> void:
 		_glow.visible = on
+		_beam.visible = on
 		_shutters.visible = not on and not (director != null and director.blown)
 		_light.light_energy = 3.5 if on else 0.0
 

@@ -26,7 +26,7 @@ func test_the_last_two_chapters_follow_the_queen() -> void:
 	assert_false(p.is_unlocked("ch10"))
 	p.win(ch9)
 	assert_true(p.is_unlocked("ch10"))
-	assert_eq(p.blueprints.has("amber_queens_bell"), true, "the ledger's amber blueprint is booked")
+	assert_eq(p.blueprints.has("queens_bell"), true, "the ledger's amber blueprint is booked")
 
 
 func test_the_board_speaks() -> void:
@@ -224,9 +224,20 @@ func test_her_rules() -> void:
 # ------------------------------------------------------------------ amber, wired at merge
 
 func test_amber_hooks() -> void:
-	assert_true(StoryAmber.is_blueprint("amber_queens_bell"))
-	assert_true(StoryAmber.is_blueprint("amber_mandible_lance"))
+	assert_true(StoryAmber.is_blueprint("queens_bell"))
+	assert_true(StoryAmber.is_blueprint("mandible_lance"))
 	assert_false(StoryAmber.is_blueprint("craft_post_cannon_explosive"))
-	assert_eq(StoryAmber.available(), Backpack.WEIGHTS.has(StoryAmber.ITEM), "amber shows up once its item does")
-	assert_eq(StoryChapter.load_id("ch9").unlock()["id"], "amber_queens_bell")
-	assert_eq(StoryChapter.load_id("ch10").unlock()["id"], "amber_mandible_lance")
+	assert_eq(StoryChapter.load_id("ch9").unlock()["id"], "queens_bell")
+	assert_eq(StoryChapter.load_id("ch10").unlock()["id"], "mandible_lance")
+
+
+func test_late_waves_are_thinned_not_tripled() -> void:
+	var g := [{"bug": &"dust_mite", "count": 600, "cliff": 0, "lane": 0, "pulse": 0}, {"bug": &"wolf_spider", "count": 400, "cliff": 1, "lane": 1, "pulse": 0},
+		{"bug": &"hive_mother", "count": 1, "cliff": 0, "lane": 2, "pulse": 0}]
+	var t := StoryChapter.thin(g, 500)
+	assert_eq(int(t[0]["count"]), 300)
+	assert_eq(int(t[1]["count"]), 200)
+	assert_eq(int(t[2]["count"]), 1, "the boss stays")
+	assert_eq(int(g[0]["count"]), 600, "the plan itself untouched")
+	assert_eq(StoryChapter.thin(g, 5000), g)
+	assert_eq(StoryChapter.load_id("ch10").max_bugs, 4000)

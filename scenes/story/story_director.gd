@@ -79,6 +79,7 @@ var holding := false
 var finished := false
 
 var _started := false
+var _ending := false
 var _boards_made := false
 var _said: Dictionary = {}
 var _steal_line_t := -999.0
@@ -349,9 +350,17 @@ func _event(key: String) -> void:
 
 ## Host: GameState calls this when the chapter's last wave is cleared.
 func _on_last_wave_cleared() -> void:
+	if _ending:
+		return # (already waiting on a beat; GameState asks again while the wave sits empty)
 	print("[story] last wave %d cleared, objective done: %s" % [GameState.wave, objective_done()])
 	if objective_done():
-		_win()
+		# (Chapters 9-10: a beat still on the wire gets its say before the end.)
+		var wait := float(piece.call("win_delay")) if piece != null and piece.has_method("win_delay") else 0.0
+		if wait > 0.5:
+			_ending = true
+			get_tree().create_timer(wait).timeout.connect(_win)
+		else:
+			_win()
 	elif chapter.kind() == "keep":
 		_lose(_keep_lost_reason())
 	else:

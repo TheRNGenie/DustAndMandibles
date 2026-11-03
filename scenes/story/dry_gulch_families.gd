@@ -108,6 +108,7 @@ func _ready() -> void:
 		if to.length() < 1.0:
 			to = Vector3.BACK
 		r.rotation.y = atan2(to.x, to.z) + (i - 1.5) * 0.35
+		r.scale = Vector3.ONE * 1.15
 		ruins.append(r)
 	Expedition.story_items.append(HomesteadRules.PAPERS)
 	Expedition.story_items.append(HomesteadRules.LEDGER)
@@ -140,6 +141,11 @@ func _exit_tree() -> void:
 
 func done() -> bool:
 	return HomesteadRules.done(states, ledger)
+
+
+## Host: seconds to hold the win while the ledger beat finishes on the wire.
+func win_delay() -> float:
+	return minf(director.radio_left() + 1.0, 60.0)
 
 
 func _state() -> Dictionary:
@@ -278,7 +284,7 @@ func _take(peer: int, i: int) -> void:
 ## WIRE TO AMBER AT MERGE (StoryAmber): the crew's crates of amber go in the
 ## pack of whoever opened the strongbox (nothing on the story branch).
 func _amber_crates(peer: int) -> void:
-	var n := StoryAmber.pack(peer, 6)
+	var n := StoryAmber.pack(peer, 6, "the board's amber crates")
 	if n > 0:
 		Economy.notify(peer, "And %d chunks of the board's hive amber from the crew's crates. Theirs no longer." % n)
 
@@ -351,6 +357,8 @@ func _lay_sleepers() -> void:
 	var bm := BugManager.instance
 	if bm == null or not is_instance_valid(bm) or GameState.phase != GameState.Phase.BUILD or director.finished:
 		return
+	if GameState.debug_enabled() and (GameState.flag_value("--ch9view") != "" or GameState.has_flag("--ch9nosleep")):
+		return # (screenshots: nobody bites the camera)
 	var kinds: Array[StringName] = [&"dust_mite", &"wolf_spider", &"dust_mite", &"rattler_beetle"]
 	for i in ruins.size():
 		if int(states[i]) == P.UP:
@@ -420,6 +428,7 @@ func _debug_view() -> void:
 	var view := GameState.flag_value("--ch9view")
 	if view == "":
 		return
+	GameState.god_mode = true # (screenshots: nothing on the floor ends the view early)
 	var p: Player = null
 	var until := Time.get_ticks_msec() + 20000
 	while p == null and Time.get_ticks_msec() < until:
@@ -602,6 +611,12 @@ class Camp extends StaticBody3D:
 		mi.mesh = HomesteadProps.camp_mesh(91, boxes)
 		mi.material_override = Materials.toon(0.03)
 		add_child(mi)
+		for e: Array in HomesteadProps.camp_extras(91):
+			var ex := MeshInstance3D.new()
+			ex.mesh = e[0]
+			ex.transform = e[1]
+			ex.material_override = Materials.toon(0.03)
+			add_child(ex)
 		for b: Array in boxes:
 			var col := CollisionShape3D.new()
 			var bs := BoxShape3D.new()
@@ -626,6 +641,7 @@ class Camp extends StaticBody3D:
 		strongbox.director = director
 		add_child(strongbox)
 		strongbox.position = BOX_AT
+		strongbox.rotation.y = PI # lock plate toward the homesteads
 
 	func show_ledger(in_box: bool) -> void:
 		strongbox.set_full(in_box)
@@ -650,7 +666,7 @@ class LedgerBox extends StaticBody3D:
 		_book = MeshInstance3D.new()
 		_book.mesh = HomesteadProps.ledger_mesh()
 		_book.material_override = Materials.toon(0.015)
-		_book.position = Vector3(0.0, 0.62, 0.0)
+		_book.position = Vector3(0.0, 0.78, -0.05)
 		_book.rotation.y = 0.3
 		add_child(_book)
 		var col := CollisionShape3D.new()

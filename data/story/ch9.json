@@ -5,6 +5,7 @@
 	"map": "canyon",
 	"requires": "ch8",
 	"sealed_tunnel": true,
+	"max_bugs": 4000,
 	"first_wave": 22,
 	"last_wave": 23,
 	"blurb": "The Queen is dead, and the board has voided your charter for it. Amber crews and hired guns are riding in to strip the canyon. Down on the far floor stand the four homesteads the 1889 blast emptied, and nobody has opened their doors since. Bring up what the families left behind.",
@@ -62,7 +63,7 @@
 		"title": "Specimen Notes, No. 9",
 		"body": "No specimens tonight. Letters. Four families, one ledger, and two signatures at the bottom of it.\n\nI had thought the hive the worst thing in this canyon.\n\nSilas has not spoken since. I have stopped asking him to.\n\n- E. Whitlow, Rail Car 9"
 	},
-	"rewards": {"notches": 140, "unlock": {"kind": "amber_blueprint", "id": "amber_queens_bell", "name": "The Board's Ledger: Queen's Bell Blueprint (Amber)"}},
+	"rewards": {"notches": 140, "unlock": {"kind": "amber_blueprint", "id": "queens_bell", "name": "The Board's Ledger: Queen's Bell Blueprint (Amber)"}},
 	"job_note": "Nobody paid for this one.",
 	"headline_win": "BOARD'S LEDGER FOUND: Dry Gulch Families 'Priced by the Pound'",
 	"headline_loss": "Amber Crews Overrun Dry Gulch; Settlers' Papers Lost to the Hive"

@@ -10,9 +10,9 @@ extends RefCounted
 ## downed carrier dropped it. Local space: origin on the ground, +Z out the
 ## front door. One vertex-coloured mesh per prop (vertex alpha < 1 glows).
 
-const LOG := Color("#7A5236")
-const LOG_DARK := Color("#563826")
-const STONE := Color("#9A8A78")
+const LOG := Color("#8E7C68")
+const LOG_DARK := Color("#5E5042")
+const STONE := Color("#B4A894")
 const STONE_DARK := Color("#6E6052")
 const CHAR := Color("#2E2420")
 const TIN := Color("#3E5A44")
@@ -114,6 +114,15 @@ static func ruin_mesh(seed_value: int, boxes: Array) -> ArrayMesh:
 			if rng.randf() < 0.3:
 				continue
 			_log(st, top, top + Vector3(rng.randf_range(-0.3, 0.3), -top.y + 0.35, sz * d * 0.55), 0.08, LOG_DARK.darkened(0.15))
+	# Half the roof still up over the far end: a slope of grey shakes on its
+	# rafters and the gable end boarded under it.
+	for sz: float in [-1.0, 1.0]:
+		var rb := Basis(Vector3.RIGHT, sz * 0.55)
+		var rc := Vector3(-w * 0.27, 3.15, sz * d * 0.26)
+		MeshKit.add_box(st, Transform3D(rb, rc), Vector3(w * 0.5, 0.1, d * 0.6), Color("#6E6458"), 0.04, rng)
+		for k in 5:
+			MeshKit.add_box(st, Transform3D(rb, rc + rb * Vector3(0, 0.07, -d * 0.25 + k * d * 0.125)), Vector3(w * 0.52, 0.035, 0.07), Color("#5A5046"))
+	MeshKit.add_box(st, _xf(Vector3(-w * 0.52, 2.9, 0)), Vector3(0.1, 0.9, d * 0.7), LOG_DARK)
 	var slump := Basis(Vector3.RIGHT, -0.75) * Basis(Vector3.FORWARD, 0.25)
 	MeshKit.add_box(st, Transform3D(slump, Vector3(-0.8, 1.6, -1.2)), Vector3(3.8, 0.08, 2.4), Color("#5C4A3A"), 0.05, rng)
 	for k in 6:
@@ -258,13 +267,10 @@ static func camp_mesh(seed_value: int, boxes: Array) -> ArrayMesh:
 	SiteBuilder._wheel(st, eng + Vector3(0.6, 1.0, 0.6), Vector3(1, 0, 0), 0.7, iron, 6, false)
 	MeshKit.add_limb(st, eng + Vector3(0.6, 1.7, 0.6), pit + Vector3(1.0, 1.6, 0.4), 0.04, Color("#3A2A1E"), 4)
 	boxes.append([Transform3D(Basis(), eng + Vector3(0, 1.0, -0.3)), Vector3(1.8, 2.0, 2.4)])
-	# Two tents and a cold fire.
-	var tent := SiteBuilder.tent(seed_value + 3)
+	# (The two tents and the cold fire are their own meshes: CAMP_EXTRAS.)
 	for k in 2:
 		var tp := Vector3(-5.0 + k * 1.0, 0, 1.5 + k * 4.0)
-		_merge(st, tent, _xf(tp, 0.4 - k * 0.7))
 		boxes.append([_xf(tp + Vector3(0, 1.0, 0), 0.4 - k * 0.7), Vector3(2.4, 2.0, 3.0)])
-	_merge(st, SiteBuilder.cold_fire(seed_value + 5), _xf(Vector3(-1.6, 0, 3.6)))
 	# Crates of amber: lids off, glowing chunks heaped inside, "W.P.&P." stencils.
 	for k in 4:
 		var cp := Vector3(2.4 + (k % 2) * 1.1, 0, 2.2 + (k / 2) * 1.0)
@@ -275,8 +281,11 @@ static func camp_mesh(seed_value: int, boxes: Array) -> ArrayMesh:
 	return MeshKit.finish(st)
 
 
-## Copies `mesh`'s first surface into `st` through `xf` (vertex colours kept).
-static func _merge(st: SurfaceTool, mesh: ArrayMesh, xf: Transform3D) -> void:
-	if mesh == null or mesh.get_surface_count() == 0:
-		return
-	st.append_from(mesh, 0, xf)
+## The camp's tents and cold fire: [mesh, transform] (the raid sites' own props).
+static func camp_extras(seed_value: int) -> Array:
+	var out: Array = []
+	var tent := SiteBuilder.tent(seed_value + 3)
+	for k in 2:
+		out.append([tent, _xf(Vector3(-5.0 + k * 1.0, 0, 1.5 + k * 4.0), 0.4 - k * 0.7)])
+	out.append([SiteBuilder.cold_fire(seed_value + 5), _xf(Vector3(-1.6, 0, 3.6))])
+	return out

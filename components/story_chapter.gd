@@ -67,6 +67,9 @@ var headline_loss := ""
 var requires := ""
 var sealed_tunnel := false
 var job_note := ""
+## Waves past the run's last one grow fast: the plan's own bugs are thinned to
+## at most this many (0 = as planned), before the chapter's boss and extras.
+var max_bugs := 0
 ## Typed decree cards after a win ([{title, body}]) and the last word after them.
 var epilogue: Array = []
 var closing: Array = []
@@ -114,6 +117,7 @@ static func from_dict(d: Dictionary) -> StoryChapter:
 	ch.requires = str(d.get("requires", ""))
 	ch.sealed_tunnel = bool(d.get("sealed_tunnel", false))
 	ch.job_note = str(d.get("job_note", ""))
+	ch.max_bugs = int(d.get("max_bugs", 0))
 	ch.epilogue = d.get("epilogue", [])
 	ch.closing = d.get("closing", [])
 	return ch
@@ -331,6 +335,8 @@ func apply_to_plan(plan: Dictionary, w: int) -> Dictionary:
 			var cliff: int = cliffs[(i0 + k0) % cliffs.size()] if cliffs.has(at) else at
 			groups.append({"bug": boss, "count": 1, "cliff": cliff, "lane": 2, "pulse": 0})
 			k0 += 1
+	if max_bugs > 0:
+		groups = thin(groups, max_bugs)
 	var extras: Array = extra_bugs.get(str(w), [])
 	var k := 0
 	for e: Array in extras:
@@ -347,6 +353,25 @@ func apply_to_plan(plan: Dictionary, w: int) -> Dictionary:
 			k += 1
 	var out := plan.duplicate()
 	out["groups"] = groups
+	return out
+
+
+## `groups` with every non-boss group's count scaled down so the whole is about
+## `cap` bugs (each group keeps at least one). Pure.
+static func thin(groups: Array, cap: int) -> Array:
+	var total := 0
+	for g: Dictionary in groups:
+		total += int(g["count"])
+	if total <= cap:
+		return groups
+	var k := float(cap) / float(total)
+	var out: Array = []
+	for g: Dictionary in groups:
+		var d := Defs.bug(StringName(str(g["bug"])))
+		var h := g.duplicate()
+		if d == null or d.behavior != BugDef.Behavior.BOSS:
+			h["count"] = maxi(int(round(float(g["count"]) * k)), 1)
+		out.append(h)
 	return out
 
 
