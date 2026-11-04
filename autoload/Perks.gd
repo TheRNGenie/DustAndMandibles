@@ -158,6 +158,23 @@ func owns_look(slot: String, option: String) -> bool:
 	return profile.owns_cosmetic(slot, option)
 
 
+## Settings > Controls > Reset Progress: wipes the Notches, every perk rank and the
+## loadout, the wardrobe items bought with Notches and every secret code entered.
+## Lifetime tallies (runs, wins, best wave) and story progress stay. Anything you're
+## wearing that you no longer own goes back to the default look. Menu only.
+func reset_progress(fix_look: bool = true) -> bool:
+	if _run_active:
+		return false
+	profile.reset_progress()
+	var def := DummyLook.default_look() if fix_look else {}
+	for slot: Variant in (Settings.look.keys() if fix_look else []):
+		var opt := str(Settings.look[slot])
+		if not owns_look(str(slot), opt) and def.has(slot):
+			Settings.set_look(str(slot), str(def[slot]))
+	_changed()
+	return true
+
+
 ## Loadouts can change in the menu and lobby, not once a run is under way.
 func loadout_editable() -> bool:
 	return not _run_active

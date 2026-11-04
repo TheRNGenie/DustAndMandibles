@@ -34,6 +34,17 @@ func in_loadout(id: StringName) -> bool:
 	return loadout.has(id)
 
 
+## Settings > Reset Progress: no Notches, no perks or loadout, no bought wardrobe
+## items, no secret codes. Lifetime run records (runs, wins, best wave) stay.
+func reset_progress() -> void:
+	brands = 0
+	lifetime_brands = 0
+	ranks = {}
+	loadout = [] as Array[StringName]
+	cosmetics = [] as Array[String]
+	secrets = [] as Array[String]
+
+
 ## Brands for this perk's next rank, or -1 when it's maxed (or unknown).
 func next_cost(id: StringName) -> int:
 	return PerkTable.cost_of_rank(id, rank(id) + 1)

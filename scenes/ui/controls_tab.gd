@@ -43,7 +43,39 @@ func _ready() -> void:
 		Settings.reset_bindings()
 		_refresh())
 	add_child(reset)
+	_add_progress_reset()
 	_refresh()
+
+
+## The very bottom: wipe the Rancher's Ledger (Notches, perks, bought wardrobe items)
+## and every secret code entered (Perks.reset_progress). Two clicks, menu only.
+func _add_progress_reset() -> void:
+	add_child(UiStyle.section("Progress"))
+	add_child(UiStyle.note("Reset Progress clears your Notches, every perk and wardrobe item bought with them, and every secret code you've entered. Story chapters and run records stay. It can't be undone."))
+	var status := UiStyle.note("", 14)
+	var wipe := UiStyle.button("Reset Progress")
+	wipe.size_flags_horizontal = Control.SIZE_SHRINK_END
+	var armed := [false]
+	wipe.pressed.connect(func() -> void:
+		if not Perks.loadout_editable():
+			status.text = "Finish or leave the run first: progress can only be reset from the main menu."
+			return
+		if not armed[0]:
+			armed[0] = true
+			wipe.text = "Click Again to Reset Everything"
+			status.text = "Are you sure? This wipes your Notches, perks, bought wardrobe items and codes."
+			get_tree().create_timer(5.0).timeout.connect(func() -> void:
+				if is_instance_valid(wipe) and armed[0]:
+					armed[0] = false
+					wipe.text = "Reset Progress"
+					status.text = "")
+			return
+		armed[0] = false
+		wipe.text = "Reset Progress"
+		status.text = "Progress reset: 0 Notches, no perks, no codes." if Perks.reset_progress() else "Couldn't reset during a run."
+	)
+	add_child(wipe)
+	add_child(status)
 
 
 func _start_rebind(action: String) -> void:
