@@ -113,6 +113,9 @@ static func generate(tunnels: Array, run_seed: int) -> Array[Site]:
 				if Vector2(s.pos.x - p.x, s.pos.z - p.z).length() < MIN_SEPARATION:
 					clear = false
 					break
+			for q in site_keep_out: # Story: The Dry Gulch Families' ruins and camp
+				if Vector2(q.x - p.x, q.z - p.z).length() < RADIUS + KEEP_OUT:
+					clear = false
 			if clear:
 				c = p
 				break
@@ -149,6 +152,11 @@ static func reserve_zones(tunnels: Array) -> void:
 ## Story ground the dressing keeps clear too (chapters 9-10: the homesteads,
 ## the camp, the railroad; StoryDirector.reserve_story_ground).
 static var story_zones: Array[Vector3] = []
+## Story ground no raid site may take (chapter 9's homesteads and camp: on a
+## crowded ring map they can't always keep off every site zone, so the sites
+## keep off them instead), and how far.
+static var site_keep_out: Array[Vector3] = []
+const KEEP_OUT := 7.0
 
 
 static func in_site_zone(pos: Vector3, pad: float = 1.0, story_too: bool = true) -> bool:
