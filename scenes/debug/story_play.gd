@@ -9,7 +9,8 @@ extends Node
 ## lip so the pack is unpacked), two bundles a trip, then the ledger once the
 ## camp turns up. --playdrop: the carrier is downed on the floor once with a
 ## bundle in the pack (it must drop, then be repacked). --playlate: leave the
-## ledger until the story hold build after the last wave.
+## ledger until the story hold build after the last wave (chapter 10: the
+## furnace).
 ## Chapter 10: --playfurnace=S S seconds into the train night, the player
 ## stands on the rim (--playfloor: on the canyon floor beside it) and shoots
 ## the Iron Mandible's furnace with their own gun (--playgun=<id>, default the
@@ -326,6 +327,8 @@ func _train_night() -> void:
 		if GameState.has_flag("--playmother") and GameState.wave == director.chapter.last_wave:
 			_shoot_mother()
 		return
+	if GameState.has_flag("--playlate"):
+		return # (the furnace waits for the hold after the last wave)
 	var wait := GameState.flag_value("--playfurnace").to_float() if GameState.flag_value("--playfurnace") != "" else 20.0
 	await get_tree().create_timer(wait).timeout
 	await _shoot_furnace()
