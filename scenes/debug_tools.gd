@@ -119,6 +119,8 @@ func _ready() -> void:
 		_ladder_test()
 	elif GameState.has_flag("--scaffoldtest"):
 		_scaffold_test()
+	elif GameState.has_flag("--scaffoldclimb"):
+		_scaffold_climb()
 	elif GameState.has_flag("--crewtest"):
 		_crew_test()
 	elif GameState.has_flag("--stacktest"):
@@ -688,6 +690,66 @@ func _scaffold_test() -> void:
 		bm.cell_taken(0, Vector2i(4, 5)), not bm.cell_taken(0, Vector2i(5, 6)),
 		bm.is_free_for(&"bear_trap", 0, Vector2i(1, 6)), bm.is_free_for(&"gatling_post", 0, Vector2i(2, 6))])
 	get_tree().quit()
+
+
+## --scaffoldclimb [--shot=<png>]: builds a 3-storey scaffold (a turret on its
+## bottom deck), stands you at its ladder and walks forward: you should climb the
+## ladder and step off onto the top deck, then stand there without falling through.
+func _scaffold_climb() -> void:
+	for i in 30:
+		await get_tree().process_frame
+	var bm := BuildManager.instance
+	var player := world.call("local_player") as Player
+	var cid := player.cliff_id
+	Economy.earn(cid, {&"scrap": 3000})
+	var cell := Vector2i(2, 4)
+	for k in 3:
+		bm.build(&"scaffold", cid, cell)
+		await get_tree().create_timer(0.2).timeout
+	bm.build(&"gatling_post", cid, cell)
+	await get_tree().create_timer(0.5).timeout
+	var node: ScaffoldNode = null
+	for n in get_tree().get_nodes_in_group("scaffolds"):
+		node = n as ScaffoldNode
+	if node == null:
+		for n in world.find_children("*", "ScaffoldNode", true, false):
+			node = n as ScaffoldNode
+	print("[climb] scaffold levels %d" % (node.levels if node != null else -1))
+	# Behind the ladder, facing into the frame.
+	var back := node.to_global(Vector3(0, 0.2, ScaffoldNode.POST_INSET + 1.2))
+	player.global_position = back
+	player.velocity = Vector3.ZERO
+	player.look_at(node.to_global(Vector3(0, 0.2, 0)) * Vector3(1, 0, 1) + Vector3(0, back.y, 0), Vector3.UP)
+	player.rotation.x = 0.0
+	player.rotation.z = 0.0
+	await get_tree().physics_frame
+	Input.action_press("move_forward")
+	var t := 0.0
+	var peak := 0
+	while t < 9.0:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		peak = maxi(peak, player.ladder_count)
+		if player.ladder_count == 0 and player.is_on_floor() and node.to_local(player.global_position).y > 3.0:
+			break # stepped off onto a deck: a player would stop here
+		if Engine.get_physics_frames() % 30 == 0:
+			print("[climb]   t=%.1f local %s ladder %d vel %s" % [t, str(node.to_local(player.global_position).snapped(Vector3.ONE * 0.05)), player.ladder_count, str(player.velocity.snapped(Vector3.ONE * 0.1))])
+	Input.action_release("move_forward")
+	await get_tree().create_timer(1.5).timeout
+	var local := node.to_local(player.global_position)
+	print("[climb] on ladder at some point: %s; now local %s, on floor %s, ladder %d, top deck at %.2f" % [peak > 0,
+			str(local.snapped(Vector3.ONE * 0.05)), player.is_on_floor(), player.ladder_count, ScaffoldNode.ladder_top(node.levels)])
+	# From the middle of the top deck, walk sideways into the rail: still up there?
+	player.global_position = node.to_global(Vector3(0, ScaffoldNode.ladder_top(node.levels) + 0.1, 0))
+	player.velocity = Vector3.ZERO
+	await get_tree().create_timer(0.5).timeout
+	Input.action_press("move_left")
+	await get_tree().create_timer(1.2).timeout
+	Input.action_release("move_left")
+	await get_tree().create_timer(1.0).timeout
+	print("[climb] after a side step: local y %.2f, on floor %s" % [node.to_local(player.global_position).y, player.is_on_floor()])
+	if GameState.flag_value("--shot") == "":
+		get_tree().quit()
 
 
 ## --stacktest: turrets placed on a full scaffold add a free level on top (up to

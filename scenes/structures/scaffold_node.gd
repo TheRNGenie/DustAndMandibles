@@ -45,6 +45,7 @@ var levels: int = 1:
 var paid_levels: int = 0
 
 var _mi: MeshInstance3D
+var _ladder: Area3D
 
 
 func setup(cid: int, c: Vector2i, pos: Vector3) -> void:
@@ -73,6 +74,7 @@ func _ready() -> void:
 
 ## Taken down for good (not the whole world closing): splinters where it stood.
 func _exit_tree() -> void:
+	_drop_ladder()
 	if is_queued_for_deletion() and is_instance_valid(VfxPool.instance) and VfxPool.instance.is_inside_tree():
 		VfxPool.instance.splinters(global_position + Vector3.UP * LEVEL_HEIGHT * 0.5, 1.0)
 
@@ -89,7 +91,8 @@ func _rebuild() -> void:
 	for c in get_children():
 		if c is CollisionShape3D:
 			c.queue_free()
-	# Just the four corner posts: the turrets inside the frame have their own.
+	_drop_ladder()
+	# The four corner posts (the turrets inside the frame have their own).
 	var h := POST_INSET
 	for x: float in [-h, h]:
 		for z: float in [-h, h]:
@@ -99,6 +102,72 @@ func _rebuild() -> void:
 			col.shape = post
 			col.position = Vector3(x, frame_height(levels) * 0.5, z)
 			add_child(col)
+	# Every storey's plank deck is solid: you can stand on it and walk round the turret.
+	for k in levels:
+		var deck := CollisionShape3D.new()
+		var plank := BoxShape3D.new()
+		plank.size = Vector3(2.0 * h + 0.12, 0.12, 2.0 * h + 0.12)
+		deck.shape = plank
+		deck.position = Vector3(0, DECK + LEVEL_HEIGHT * k - 0.06, 0)
+		add_child(deck)
+		# Upper storeys: the side hand rails hold you in (the back stays open for
+		# the ladder, the front for the turret's field of fire).
+		if k >= 1:
+			for sx: float in [-h, h]:
+				var rail := CollisionShape3D.new()
+				var rb := BoxShape3D.new()
+				rb.size = Vector3(0.12, 1.1, 2.0 * h)
+				rail.shape = rb
+				rail.position = Vector3(sx, DECK + LEVEL_HEIGHT * k + 0.55, 0)
+				add_child(rail)
+	_build_ladder()
+
+
+## The ladder up the back: walk into it and climb (forward/back), step off
+## forward onto the top deck. Same as the house tower's ladder.
+func _build_ladder() -> void:
+	_ladder = Area3D.new()
+	_ladder.name = "Ladder"
+	_ladder.collision_layer = 0
+	_ladder.collision_mask = 0xFFFF
+	var top := ladder_top(levels)
+	var col := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	# Tall enough that the climb tops out (Player caps it a metre over the deck)
+	# while you're still on the ladder, so the step-off push lands you on the deck.
+	box.size = Vector3(0.9, top + 1.0, 1.3)
+	col.shape = box
+	col.position = Vector3(0, (top + 1.0) * 0.5, POST_INSET + 0.45)
+	_ladder.add_child(col)
+	add_child(_ladder)
+	var lad := _ladder
+	_ladder.body_entered.connect(func(b: Node3D) -> void:
+		if b is Player and not lad.has_meta("gone"):
+			(b as Player).ladder_count += 1
+			# Player tops the climb out a metre over ladder_top_y: aim that just
+			# over the deck, so stepping off drops you onto the planks, not past them.
+			(b as Player).ladder_top_y = global_position.y + ladder_top(levels) - 0.8)
+	_ladder.body_exited.connect(func(b: Node3D) -> void:
+		if b is Player and not lad.has_meta("gone"):
+			(b as Player).ladder_count = maxi((b as Player).ladder_count - 1, 0))
+
+
+## Lets go of anyone on the ladder (it's being rebuilt or torn down) and removes it.
+func _drop_ladder() -> void:
+	if _ladder == null:
+		return
+	_ladder.set_meta("gone", true)
+	if _ladder.is_inside_tree():
+		for b in _ladder.get_overlapping_bodies():
+			if b is Player:
+				(b as Player).ladder_count = maxi((b as Player).ladder_count - 1, 0)
+	_ladder.queue_free()
+	_ladder = null
+
+
+## Local height of the deck the ladder delivers you to (the top storey's).
+static func ladder_top(n: int) -> float:
+	return DECK + LEVEL_HEIGHT * maxi(n - 1, 0)
 
 
 static func mesh_for(n: int) -> ArrayMesh:
@@ -148,7 +217,7 @@ static func mesh_for(n: int) -> ArrayMesh:
 			_side_beams(st, rng, y0 + 1.0, 0.08, wood, false)
 	# Ladder up the back: to the deck, or on up to the upper floors.
 	var z := h + 0.14
-	top = frame_height(n) if n >= 2 else DECK + 0.4
+	top = ladder_top(n) + 1.0
 	for sx: float in [-0.24, 0.24]:
 		MeshKit.add_box(st, Transform3D(Basis(), Vector3(sx, top * 0.5, z)), Vector3(0.07, top, 0.07), wood, 0.01, rng)
 	var r := 0.35
