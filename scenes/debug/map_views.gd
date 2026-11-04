@@ -96,6 +96,7 @@ func _shoot() -> void:
 	await get_tree().create_timer(secs if secs > 0.0 else 3.0).timeout
 	var path := GameState.flag_value("--mapshot")
 	if path != "":
+		print("[fps] %d" % Engine.get_frames_per_second()) # frame rate at the moment of the shot (look checks)
 		get_viewport().get_texture().get_image().save_png(path)
 		print("[mapview] saved ", path)
 	get_tree().quit()

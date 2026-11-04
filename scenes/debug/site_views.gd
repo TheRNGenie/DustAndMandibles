@@ -97,6 +97,7 @@ func _run() -> void:
 		var secs := GameState.flag_value("--seconds").to_float()
 		await tree.create_timer(secs if secs > 0.0 else 3.0).timeout
 		await RenderingServer.frame_post_draw
+		print("[fps] %d" % Engine.get_frames_per_second()) # frame rate at the moment of the shot (look checks)
 		get_viewport().get_texture().get_image().save_png(shot)
 		print("[floor] saved %s" % shot)
 		tree.quit()
