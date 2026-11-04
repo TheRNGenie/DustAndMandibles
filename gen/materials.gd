@@ -15,6 +15,8 @@ const ROCK_TEX: Texture2D = preload("res://assets/terrain/rock_detail.png")
 const ROCK_NRM: Texture2D = preload("res://assets/terrain/rock_normal.png")
 const GROUND_TEX: Texture2D = preload("res://assets/terrain/ground_detail.png")
 const GROUND_NRM: Texture2D = preload("res://assets/terrain/ground_normal.png")
+const RESIN_ATLAS: Texture2D = preload("res://assets/terrain/resin_atlas.png")
+const RESIN_NRM: Texture2D = preload("res://assets/terrain/resin_normal.png")
 const INFEST_MASK: Texture2D = preload("res://assets/terrain/infest_mask.png")
 const MAX_HIVE_SPOTS := 12
 
@@ -91,6 +93,8 @@ static func strata(top: Color = Palette.SAND) -> ShaderMaterial:
 	mat.set_shader_parameter("rock_nrm", ROCK_NRM)
 	mat.set_shader_parameter("ground_tex", GROUND_TEX)
 	mat.set_shader_parameter("ground_nrm", GROUND_NRM)
+	mat.set_shader_parameter("resin_atlas", RESIN_ATLAS)
+	mat.set_shader_parameter("resin_nrm", RESIN_NRM)
 	mat.set_shader_parameter("infest_tex", INFEST_MASK)
 	mat.set_shader_parameter("plateau_y", WorldLayout.CLIFF_HEIGHT)
 	_apply_terrain(mat)
