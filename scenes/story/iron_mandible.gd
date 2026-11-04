@@ -202,7 +202,7 @@ func win_delay() -> float:
 	if not director._said.has("ch10_sealed"):
 		left += 7.0
 		for l: Array in director.chapter.event_lines("sealed"):
-			left += RadioCard.line_seconds(str(l[1]))
+			left += RadioCard.line_seconds(str(l[1]), str(l[0]))
 	return minf(left + 1.0, 45.0)
 
 
@@ -505,7 +505,7 @@ func _host_mother(delta: float) -> void:
 		_say_once("mother_seal")
 		# The charge goes off just after his last line is on the wire (however much
 		# radio is queued ahead of it), never sooner than his fuse.
-		var line := RadioCard.line_seconds(str(director.chapter.event_lines("mother_seal")[0][1]))
+		var line := RadioCard.line_seconds(str(director.chapter.event_lines("mother_seal")[0][1]), str(director.chapter.event_lines("mother_seal")[0][0]))
 		var wait := clampf(director.radio_left() - line + 1.5, ReckoningRules.SEAL_FUSE, 14.0)
 		get_tree().create_timer(wait).timeout.connect(_seal)
 
@@ -528,7 +528,7 @@ func _on_mother_died() -> void:
 		return
 	_seal_started = true
 	_say_once("mother_seal")
-	var line := RadioCard.line_seconds(str(director.chapter.event_lines("mother_seal")[0][1]))
+	var line := RadioCard.line_seconds(str(director.chapter.event_lines("mother_seal")[0][1]), str(director.chapter.event_lines("mother_seal")[0][0]))
 	get_tree().create_timer(clampf(director.radio_left() - line + 1.5, 0.5, 14.0)).timeout.connect(_seal)
 
 

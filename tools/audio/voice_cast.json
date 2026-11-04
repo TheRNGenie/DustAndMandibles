@@ -1,0 +1,11 @@
+{
+ "_readme": "Radio voice cast (Logan picked 4 Nov). ElevenLabs v3 voices through fal.ai unless endpoint says otherwise; tag is the style direction in front of every line; tempo < 1 slows the line after (pitch kept).",
+ "stroud": {"voice": "Aria", "stability": 0.5, "tag": "[confident, dry]"},
+ "kettle": {"endpoint": "fal-ai/maya", "prompt": "Old male voice in his late 60s with a thick Southern American drawl, a gruff frontier gunsmith. Low pitch, gravelly rasping timbre, slow pacing, grumbling tone at medium intensity."},
+ "pearl": {"voice": "Charlotte", "stability": 0.7, "tag": "[sultry, teasing, slow]"},
+ "doc": {"voice": "George", "stability": 0.7, "tag": "[flustered, nervous, speaking slowly]", "tempo": 0.9},
+ "vane": {"voice": "Daniel", "stability": 0.6, "tag": "[ice cold, contemptuous, measured]"},
+ "crane": {"voice": "Eric", "stability": 0.4, "tag": "[very smarmy, oily salesman, smug grin]"},
+ "ezra": {"voice": "Roger", "stability": 0.7, "tag": "[very old, quiet menace, rasping]"},
+ "lucky": {"voice": "Callum", "stability": 0.7, "tag": "[gravelly, conspiratorial, amused, unhurried]", "tempo": 0.9}
+}
