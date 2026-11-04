@@ -15,6 +15,9 @@ const HOUSE_DETAIL: Texture2D = preload("res://assets/house/house_detail.png")
 const HOUSE_NRM_A: Texture2D = preload("res://assets/house/house_normal_a.png")
 const HOUSE_NRM_B: Texture2D = preload("res://assets/house/house_normal_b.png")
 const HOUSE_NRM_C: Texture2D = preload("res://assets/house/house_normal_c.png")
+## The airship deck's set in the same layout: deck planks, wood, canvas, brass.
+const DECK_SET := ["res://assets/airship/deck/deck_detail.png", "res://assets/airship/deck/deck_normal_a.png",
+		"res://assets/airship/deck/deck_normal_b.png", "res://assets/airship/deck/deck_normal_c.png"]
 ## Hand-painted terrain textures (AI-generated with fal.ai, see assets/terrain/CREDITS.md;
 ## how each is packed: shaders/cliff_strata.gdshader): rock and ground detail with
 ## their normal maps, and the infestation masks.
@@ -125,6 +128,24 @@ static func toon_house(outline_thickness: float = 0.03) -> ShaderMaterial:
 	mat.set_shader_parameter("detail_level", _terrain_detail)
 	if outline_thickness > 0.0:
 		mat.next_pass = outline(outline_thickness)
+	_cache[key] = mat
+	return mat
+
+
+## toon_house() with the airship deck's paintings: planks on the browns, canvas
+## on the reds (the canopy, both sides), riveted brass on the greys.
+static func toon_deck(outline_thickness: float = 0.03) -> ShaderMaterial:
+	var key := "deck_%.3f" % outline_thickness
+	if _cache.has(key):
+		return _cache[key]
+	var mat := toon_house(outline_thickness).duplicate() as ShaderMaterial
+	if outline_thickness > 0.0:
+		mat.next_pass = outline(outline_thickness)
+	for i in 4:
+		mat.set_shader_parameter(["house_detail", "house_nrm_a", "house_nrm_b", "house_nrm_c"][i], load(DECK_SET[i]))
+	mat.set_shader_parameter("red_sides_wood", false)
+	mat.set_shader_parameter("tile", 2.6)
+	mat.set_shader_parameter("bump", 0.55) # big flat cloth: a gentle bump
 	_cache[key] = mat
 	return mat
 

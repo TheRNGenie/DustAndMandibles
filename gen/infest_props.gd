@@ -126,6 +126,25 @@ static func build(parent: Node3D, cliffs: CliffBuilder, seed_value: int) -> void
 			var s: float = rng.randf_range(spec[2].x, spec[2].y)
 			var b := Basis(Vector3.UP, rng.randf() * TAU)
 			_add(placed[k], Transform3D(b.scaled(Vector3.ONE * s), p + Vector3(0, -0.08 * s, 0)))
+	# The open canyon floor between the walls: thinner, but everywhere.
+	if canyon and m.count() >= 2:
+		var foot := [cliffs.face_point(0, 0.0, Buildable.ROPE_ANCHOR_Z), cliffs.face_point(1, 0.0, Buildable.ROPE_ANCHOR_Z)]
+		for i in 320:
+			var z := rng.randf_range(-span, span)
+			var t := rng.randf_range(0.15, 0.85)
+			var p := cliffs.face_point(0, 0.0, z).lerp(cliffs.face_point(1, 0.0, z), t)
+			p.y = cliffs.floor_height(p.x, p.z)
+			if by_mouth.call(p, 8.0) or SitePlan.in_site_zone(p, 2.5) or absf(z) > WorldLayout.WORLD_HALF_Z - 4.0:
+				continue
+			var near_rope := false
+			for f: Vector3 in foot:
+				near_rope = near_rope or Vector2(p.x - f.x, p.z - f.z).length() < 9.0
+			if near_rope or rng.randf() > 0.3 + float(hive_at.call(p)) * 0.4:
+				continue
+			var k := floor_kinds[_pick(rng, floor_w)]
+			var spec: Array = KINDS[k]
+			var s: float = rng.randf_range(spec[2].x, spec[2].y)
+			_add(placed[k], Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * s), p + Vector3(0, -0.08 * s, 0)))
 	var level := GraphicsQuality.level(Settings.effects)
 	for k: StringName in KINDS:
 		var path := DIR + String(k) + ".glb"

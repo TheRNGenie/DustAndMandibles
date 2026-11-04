@@ -85,7 +85,7 @@ func _shoot() -> void:
 			eye = p0 + b.x.normalized() * 6.0 + Vector3(0, 1.8, 0) - b.z.normalized() * 4.0
 			target = p0 + b.z.normalized() * 10.0 + Vector3(0, 0.6, 0)
 	elif spec.begins_with("airship:"):
-		# --mapcam=airship:below|side|deck: the casino airship from under it, from
+		# --mapcam=airship:below|side|deck|casino|bow|stalls: the casino airship from under it, from
 		# its flank, and on its deck.
 		var ship := world.get_node_or_null("Airship") as Node3D
 		if ship != null:
@@ -98,6 +98,15 @@ func _shoot() -> void:
 				"deck":
 					eye = ship.to_global(Vector3(5.0, 1.8, 14.0))
 					target = ship.to_global(Vector3(-1.0, 2.0, -6.0))
+				"casino":
+					eye = ship.to_global(Vector3(-5.5, 2.2, 6.0))
+					target = ship.to_global(Vector3(1.5, 0.8, -10.0))
+				"bow":
+					eye = ship.to_global(Vector3(5.5, 2.4, -15.0))
+					target = ship.to_global(Vector3(-2.0, 1.0, 2.0))
+				"stalls":
+					eye = ship.to_global(Vector3(0.0, 1.9, 15.5))
+					target = ship.to_global(Vector3(0.0, 1.4, 6.0))
 				_:
 					eye = ship.to_global(Vector3(48.0, 8.0, 10.0))
 					target = ship.to_global(Vector3(0, 8.0, 0))

@@ -50,6 +50,7 @@ const AI_ENVELOPE := "res://assets/airship/envelope.glb"
 const AI_KEEL := "res://assets/airship/keel.glb"
 const AI_ENGINE := "res://assets/airship/engine.glb"
 const AI_PROP := "res://assets/airship/engine_prop.glb"
+const AI_CANVAS := "res://assets/airship/envelope_canvas.jpg"
 
 
 func _ready() -> void:
@@ -73,10 +74,18 @@ func _ready() -> void:
 	add_child(_envelope)
 	if ai:
 		var env_ai := AiModels.instance(AI_ENVELOPE, 0.03)
+		# Aged tan canvas: envelope_canvas.jpg is the model's colour map with its
+		# dull pinkish panels turned tan, warmed further so the cool cel shadow on its
+		# underside reads tan, not pink.
+		var env_mat := AiModels.material(AI_ENVELOPE, 0.03, 1.1, Color(1.0, 0.86, 0.6), 1.0)
+		if ResourceLoader.exists(AI_CANVAS):
+			env_mat.set_shader_parameter("albedo_tex", load(AI_CANVAS))
+		env_ai.material_override = env_mat
 		env_ai.name = "EnvelopeModel"
 		env_ai.position = Vector3(0, AirshipBuilder.ENVELOPE_Y - AirshipBuilder.ROOF_Y, 0)
 		_envelope.add_child(env_ai)
 		var keel := AiModels.instance(AI_KEEL, 0.03)
+		keel.material_override = AiModels.material(AI_KEEL, 0.03, 1.45) # it's mostly seen from below, in its own shade
 		keel.name = "Keel"
 		keel.position = Vector3(0, -0.28, 0)
 		add_child(keel)
@@ -226,12 +235,55 @@ func _ready() -> void:
 	add_child(bar)
 	_add_market()
 	_add_boarding_ring()
+	_richer_deck.call_deferred()
 	# Always here, open for business.
 	_state = 2
 	_t = 1.0
 	_set_deck_active(true)
 	_ladder_mi.visible = false
 	_ladder_area.monitoring = false
+
+
+## The deck's look: every plain toon part aboard (deck, canopy, railing, bar,
+## stalls, games) gets the painted planks, canvas and brass (Materials.toon_deck),
+## and a few AI-made crates, barrels, a rope coil and lanterns stand in the
+## corners and hang from the canopy posts, clear of the walkways, stalls and
+## ladder. Visual only: no collision, no layout change.
+const DECK_PROPS := [
+	["crates", Vector3(-7.1, 0, -15.6), 0.3], ["barrel", Vector3(7.2, 0, -15.8), 0.0],
+	["barrel", Vector3(6.3, 0, -16.1), 1.2], ["rope_coil", Vector3(-7.0, 0, 15.6), 0.0],
+	["crates", Vector3(7.1, 0, 15.5), -0.4], ["barrel", Vector3(-7.3, 0, 6.2), 0.5],
+]
+
+
+func _richer_deck() -> void:
+	var swapped := {}
+	for n: Node in find_children("*", "GeometryInstance3D", true, false):
+		var gi := n as GeometryInstance3D
+		var m := gi.material_override as ShaderMaterial
+		if m == null or m.shader != Materials.TOON_SHADER:
+			continue
+		if not swapped.has(m):
+			var t := 0.0
+			if m.next_pass is ShaderMaterial:
+				t = float((m.next_pass as ShaderMaterial).get_shader_parameter("thickness"))
+			# Only the shared toon materials (not the bulbs or anything that flashes).
+			swapped[m] = Materials.toon_deck(t) if Materials.toon(t) == m else null
+		if swapped[m] != null:
+			gi.material_override = swapped[m]
+	if not AiModels.exists("res://assets/deck/barrel.glb"):
+		return
+	for p: Array in DECK_PROPS:
+		var mi := AiModels.instance("res://assets/deck/%s.glb" % p[0], 0.008, false)
+		mi.position = p[1]
+		mi.rotation.y = p[2]
+		add_child(mi)
+	for sx: float in [-1.0, 1.0]:
+		for k: int in [1, 3, 5]:
+			var z := lerpf(-1.0, 1.0, float(k) / 6.0) * (AirshipBuilder.DECK_L * 0.5 - 0.2)
+			var lamp := AiModels.instance("res://assets/deck/lantern.glb", 0.006, false)
+			lamp.position = Vector3(sx * (AirshipBuilder.DECK_W * 0.5 - 0.55), AirshipBuilder.ROOF_Y - 0.15, z)
+			add_child(lamp)
 
 
 ## The market at the stern: the produce vendor and the gunsmith either side of

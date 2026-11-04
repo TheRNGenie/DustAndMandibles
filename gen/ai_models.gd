@@ -32,14 +32,18 @@ static func mesh(path: String) -> Mesh:
 
 
 ## A cel-shaded material with the model's own colour map and an outline
-## `outline` thick (0 for none). Cached per model and thickness.
-static func material(path: String, outline: float = 0.012, brightness: float = 1.08) -> ShaderMaterial:
-	var key := "%s_%.3f_%.2f" % [path, outline, brightness]
+## `outline` thick (0 for none), optionally lightened, tinted and toned down
+## (saturation). Cached per model and look.
+static func material(path: String, outline: float = 0.012, brightness: float = 1.08,
+		tint: Color = Color.WHITE, saturation: float = 1.12) -> ShaderMaterial:
+	var key := "%s_%.3f_%.2f_%s_%.2f" % [path, outline, brightness, tint.to_html(), saturation]
 	if _mats.has(key):
 		return _mats[key]
 	var m := ShaderMaterial.new()
 	m.shader = TOON_TEX
 	m.set_shader_parameter("brightness", brightness)
+	m.set_shader_parameter("albedo", tint)
+	m.set_shader_parameter("saturation", saturation)
 	var src := mesh(path)
 	if src != null and src.get_surface_count() > 0:
 		var sm := src.surface_get_material(0) as BaseMaterial3D

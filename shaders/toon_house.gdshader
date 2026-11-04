@@ -4,7 +4,8 @@
 // and shingle the builder makes gets grain without UVs. Which painting a pixel
 // gets comes from its vertex colour: browns are wood planks, the East house's
 // pale blue paint is chipped clapboard, the roof red is shingles on top and
-// fieldstone on the sides (chimney, skirt), the tin and iron greys are
+// fieldstone on the chimney and skirt (wood trim on gables and roof edges),
+// the tin and iron greys are
 // corrugated tin. Anything else (team colours, glass, flowers) stays plain.
 // house_detail: R wood, G paint, B shingle, A stone (luminance, 0.5 = average);
 // house_nrm_a: RG wood, BA paint; house_nrm_b: RG shingle, BA stone;
@@ -25,6 +26,10 @@ uniform int detail_level = 2;
 uniform float tile = 2.2;          // metres per painted tile
 uniform float strength : hint_range(0.0, 1.5) = 0.85;
 uniform float bump : hint_range(0.0, 2.0) = 0.9;
+uniform vec2 chimney_xz = vec2(2.1, 0.825); // HouseBuilder: W * 0.3, D * 0.15
+// The airship deck uses this shader with its own paintings (Materials.toon_deck):
+// there every red that isn't facing up is canvas (the canopy's underside).
+uniform bool red_sides_wood = true;
 uniform vec4 ink : source_color = vec4(0.169, 0.106, 0.090, 1.0);
 
 varying vec3 obj_pos;
@@ -60,7 +65,10 @@ void fragment() {
 	} else if (hue > 14.0 && hue < 40.0 && hsv.y > 0.35 && hsv.z > 0.25 && hsv.z < 0.62) {
 		kind = 1;
 	} else if ((hue < 14.0 || hue > 350.0) && hsv.y > 0.5 && hsv.z > 0.45 && hsv.z < 0.74) {
-		kind = n.y > 0.35 ? 3 : 4;
+		// Up-facing roof red is shingles; on the sides only the stone skirt (low
+		// down) and the chimney are stone, the gable and roof edges are wood trim.
+		bool chimney = abs(obj_pos.x - chimney_xz.x) < 0.45 && abs(obj_pos.z - chimney_xz.y) < 0.45;
+		kind = n.y > 0.35 ? 3 : ((obj_pos.y < 0.75 || chimney || !red_sides_wood) ? 4 : 1);
 	}
 	vec3 tilt = vec3(0.0);
 	if (detail_level >= 1 && kind > 0 && glow < 0.01) {
