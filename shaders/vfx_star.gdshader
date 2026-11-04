@@ -8,6 +8,9 @@ uniform float spikes = 4.0;
 uniform float sharpness = 6.0;
 uniform float core = 0.3;
 uniform float brightness = 2.0;
+// Optional painted burst (assets/fx/spark.png) instead of the drawn star.
+uniform sampler2D tex : source_color, filter_linear_mipmap;
+uniform bool use_tex = false;
 
 void vertex() {
 	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
@@ -28,4 +31,9 @@ void fragment() {
 	float hot = 1.0 - smoothstep(0.0, core, r);
 	ALBEDO = mix(tint.rgb * COLOR.rgb, vec3(1.0), hot * 0.8) * brightness;
 	ALPHA = mask * COLOR.a;
+	if (use_tex) {
+		vec4 t = texture(tex, UV);
+		ALBEDO = t.rgb * COLOR.rgb * brightness * 0.8;
+		ALPHA = t.a * COLOR.a;
+	}
 }

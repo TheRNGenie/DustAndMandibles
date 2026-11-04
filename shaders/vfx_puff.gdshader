@@ -7,6 +7,9 @@ uniform vec4 tint : source_color = vec4(0.91, 0.78, 0.6, 1.0);
 uniform vec4 shade : source_color = vec4(0.62, 0.47, 0.52, 1.0);
 uniform float lumps = 5.0;
 uniform float softness : hint_range(0.0, 0.5) = 0.08;
+// Optional painted puff (assets/fx/dust.png): its shape and shading, in our tints.
+uniform sampler2D puff_tex : filter_linear_mipmap;
+uniform bool use_tex = false;
 
 varying float v_seed;
 
@@ -31,6 +34,15 @@ void fragment() {
 	// Lit from above: lighter top, shadowed underside, in two hard bands.
 	float lit = step(0.05, -p.y + 0.25 * (1.0 - r));
 	vec3 col = mix(shade.rgb, tint.rgb, lit) * COLOR.rgb;
+	if (use_tex) {
+		// Each particle turned its own way, so no two puffs match.
+		float ang = seed * 6.2832;
+		vec2 q = mat2(vec2(cos(ang), sin(ang)), vec2(-sin(ang), cos(ang))) * (UV - 0.5) + 0.5;
+		vec4 t = texture(puff_tex, q);
+		float l = dot(t.rgb, vec3(0.299, 0.587, 0.114));
+		col = mix(shade.rgb, tint.rgb, smoothstep(0.55, 0.8, l)) * COLOR.rgb;
+		mask = t.a;
+	}
 	ALBEDO = col;
 	ALPHA = mask * COLOR.a;
 }

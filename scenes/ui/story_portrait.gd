@@ -52,7 +52,17 @@ const SIZE := Vector2i(512, 512)
 static var _cache: Dictionary = {}
 
 
+## The painted portrait (assets/portraits, AI-made with fal.ai) when there is
+## one; the code-drawn bust (Painter) otherwise.
+static func painted(who: String) -> Texture2D:
+	var path := "res://assets/portraits/%s.png" % who
+	return load(path) as Texture2D if ResourceLoader.exists(path) else null
+
+
 static func texture(host: Node, who: String) -> Texture2D:
+	var art := painted(who if CAST.has(who) else "stroud")
+	if art != null:
+		return art
 	if _cache.has(who) and is_instance_valid(_cache[who]["vp"]):
 		return _cache[who]["tex"]
 	var vp := SubViewport.new()
@@ -109,6 +119,15 @@ static func framed(host: Node, who: String, px: float) -> Control:
 ## The head and shoulders only (for small round frames: the radio card).
 static func face_texture(host: Node, who: String) -> Texture2D:
 	var key := who + ":face"
+	var art := painted(who if CAST.has(who) else "stroud")
+	if art != null:
+		if not _cache.has(key):
+			var pa := AtlasTexture.new()
+			pa.atlas = art
+			var sz := Vector2(art.get_size())
+			pa.region = Rect2(sz * Vector2(0.17, 0.06), sz * 0.66) # head and shoulders
+			_cache[key] = {"vp": null, "tex": pa}
+		return _cache[key]["tex"]
 	if _cache.has(key) and is_instance_valid(_cache[key]["vp"]):
 		return _cache[key]["tex"]
 	var a := AtlasTexture.new()

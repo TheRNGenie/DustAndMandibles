@@ -95,7 +95,8 @@ static func make_paper(ch: StoryChapter, k: float) -> PanelContainer:
 	sb.set_content_margin_all(18 * k)
 	sb.shadow_color = Color(0, 0, 0, 0.35)
 	sb.shadow_size = int(8 * k)
-	paper.add_theme_stylebox_override("panel", sb)
+	var aged := UiStyle.aged_paper(PAPER, sb.border_color, 2, sb.content_margin_left)
+	paper.add_theme_stylebox_override("panel", aged if aged is StyleBoxTexture else sb)
 	paper.custom_minimum_size = Vector2(560 * k, 0)
 	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var col := VBoxContainer.new()

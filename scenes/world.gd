@@ -338,6 +338,11 @@ func _build_environment() -> void:
 	var sky_mat := ShaderMaterial.new()
 	sky_mat.shader = SKY_SHADER
 	sky_mat.set_shader_parameter("cloud_noise", Materials.noise_texture(42, 0.012, 512))
+	if ResourceLoader.exists("res://assets/sky/clouds.png"):
+		sky_mat.set_shader_parameter("use_art", true)
+		sky_mat.set_shader_parameter("art_clouds", load("res://assets/sky/clouds.png"))
+		sky_mat.set_shader_parameter("art_stars", load("res://assets/sky/stars.png"))
+		sky_mat.set_shader_parameter("art_mesas", load("res://assets/sky/mesas.png"))
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 	var env := Environment.new()

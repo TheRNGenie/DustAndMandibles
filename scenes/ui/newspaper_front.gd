@@ -20,7 +20,8 @@ func _ready() -> void:
 	sb.set_content_margin_all(16)
 	sb.shadow_color = Color(0, 0, 0, 0.35)
 	sb.shadow_size = 6
-	add_theme_stylebox_override("panel", sb)
+	var aged := UiStyle.aged_paper(PAPER, sb.border_color, 2, 16.0)
+	add_theme_stylebox_override("panel", aged if aged is StyleBoxTexture else sb)
 	custom_minimum_size = Vector2(620, 0)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var col := VBoxContainer.new()

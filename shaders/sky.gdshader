@@ -19,6 +19,13 @@ uniform float golden : hint_range(0.0, 1.0) = 0.0;
 uniform vec4 glow_color : source_color = vec4(1.0, 0.55, 0.25, 1.0);
 // Storms hide the stars.
 uniform float overcast : hint_range(0.0, 1.0) = 0.0;
+// Painted art (assets/sky, AI-made with fal.ai): cloud shapes (G mask, R shade),
+// a starfield, and a strip of distant mesas round the horizon. use_art off = the
+// generated look.
+uniform bool use_art = false;
+uniform sampler2D art_clouds : filter_linear_mipmap, repeat_enable;
+uniform sampler2D art_stars : filter_linear_mipmap, repeat_enable;
+uniform sampler2D art_mesas : source_color, filter_linear_mipmap, repeat_enable;
 
 float hash(vec3 p) {
 	p = fract(p * vec3(443.897, 441.423, 437.195));
@@ -108,17 +115,35 @@ void sky() {
 		col += vec3(0.32, 0.34, 0.55) * mw * fade * 0.42;
 		col = mix(col, col * 0.7, lane * fade * 0.6);
 		col += stars(dir) * fade * (1.0 + mw * 0.8) * (1.0 - lane * 0.7);
+		if (use_art) {
+			vec2 suv = dir.xz / (dir.y + 0.35) * 0.6;
+			col += vec3(0.95, 0.95, 1.0) * textureLod(art_stars, suv, 0.0).r * fade * 0.9;
+		}
 	}
 	// Flat, hard-edged cartoon clouds.
 	if (dir.y > 0.02) {
 		vec2 uv = dir.xz / (dir.y + 0.25) * 0.15 + vec2(TIME * 0.002, 0.0);
 		float c = texture(cloud_noise, uv).r;
+		float shade_c = 1.0;
+		if (use_art) {
+			vec4 ac = textureLod(art_clouds, uv * 2.2, 1.0);
+			c = mix(0.0, 1.0, ac.g) * mix(0.85, 1.05, c);
+			shade_c = mix(0.82, 1.0, ac.r);
+		}
 		float mask = smoothstep(1.0 - cloud_amount, 1.0 - cloud_amount + 0.02, c);
 		mask *= smoothstep(0.02, 0.2, dir.y);
 		// Clouds near the low sun get a hot rim.
 		float rim = smoothstep(1.0 - cloud_amount + 0.02, 1.0 - cloud_amount + 0.06, c);
 		vec3 cc = mix(cloud_color.rgb + glow_color.rgb * golden * 0.35 * smoothstep(0.5, 1.0, to_sun), cloud_color.rgb, rim);
-		col = mix(col, cc, mask * 0.9 * (1.0 - night * 0.4));
+		col = mix(col, cc * shade_c, mask * 0.9 * (1.0 - night * 0.4));
+	}
+	// The distant mesas: a painted strip just above the horizon, all the way round.
+	if (use_art && dir.y > -0.02 && dir.y < 0.16) {
+		float az = atan(dir.x, dir.z) / 6.2832;
+		vec4 m = textureLod(art_mesas, vec2(az * 3.0, 1.0 - (dir.y + 0.02) / 0.18), 0.0);
+		float land = 1.0 - smoothstep(0.82, 0.9, dot(m.rgb, vec3(0.33)));
+		vec3 hazed = mix(m.rgb, horizon_color.rgb, 0.45) * mix(1.0, 0.35, night);
+		col = mix(col, hazed, land * 0.85);
 	}
 	if (LIGHT0_ENABLED) {
 		if (night < 0.5) {

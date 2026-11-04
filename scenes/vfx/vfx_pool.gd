@@ -268,6 +268,10 @@ func _make_emitter(color: Color, amount: int, lifetime: float, speed: Vector2,
 	var quad := QuadMesh.new()
 	quad.size = Vector2(size, size)
 	quad.material = Materials.star(color, brightness)
+	# Painted spark burst (assets/fx) for the yellow hit sparks and muzzle flashes.
+	if color == Palette.GLOW_YELLOW and ResourceLoader.exists("res://assets/fx/spark.png"):
+		(quad.material as ShaderMaterial).set_shader_parameter("tex", load("res://assets/fx/spark.png"))
+		(quad.material as ShaderMaterial).set_shader_parameter("use_tex", true)
 	e.draw_pass_1 = quad
 	add_child(e)
 	return e
@@ -512,6 +516,10 @@ func _process(delta: float) -> void:
 func puff_material(tint: Color, shade: Color) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = PUFF_SHADER
+	# The painted puff (assets/fx) on Medium and up; the drawn blob on Low.
+	if ResourceLoader.exists("res://assets/fx/dust.png") and GraphicsQuality.level(Settings.effects) > 0:
+		m.set_shader_parameter("puff_tex", load("res://assets/fx/dust.png"))
+		m.set_shader_parameter("use_tex", true)
 	m.set_shader_parameter("tint", tint)
 	m.set_shader_parameter("shade", shade)
 	_puff_mats.append(m)
@@ -668,6 +676,19 @@ static var _splat_tex: ImageTexture
 ## A white splat with satellite droplets (tinted per bug by the decal's modulate).
 static func _splat_texture() -> ImageTexture:
 	if _splat_tex != null:
+		return _splat_tex
+	# The painted splat (assets/fx, AI-made with fal.ai), greyed so each bug's tint shows.
+	if ResourceLoader.exists("res://assets/fx/ichor.png"):
+		var pimg := (load("res://assets/fx/ichor.png") as Texture2D).get_image()
+		pimg.decompress()
+		pimg.convert(Image.FORMAT_RGBA8)
+		for y in pimg.get_height():
+			for x in pimg.get_width():
+				var c := pimg.get_pixel(x, y)
+				var l := clampf(c.get_luminance() * 1.5, 0.0, 1.0)
+				pimg.set_pixel(x, y, Color(l, l, l, c.a))
+		pimg.generate_mipmaps()
+		_splat_tex = ImageTexture.create_from_image(pimg)
 		return _splat_tex
 	var n := 128
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)

@@ -917,6 +917,25 @@ static func resource_chip(resource: StringName, px: float = 16.0) -> Control:
 	return r
 
 
+## Aged paper (assets/paper, AI-made with fal.ai) as a panel: tinted toward
+## `tint`, with a thin `border` line. Falls back to a flat panel.
+static func aged_paper(tint: Color, border: Color, border_px: int = 2, margin: float = 12.0) -> StyleBox:
+	if not ResourceLoader.exists("res://assets/paper/paper.jpg"):
+		var flat := StyleBoxFlat.new()
+		flat.bg_color = tint
+		flat.border_color = border
+		flat.set_border_width_all(border_px)
+		flat.set_content_margin_all(margin)
+		return flat
+	var sb := StyleBoxTexture.new()
+	sb.texture = load("res://assets/paper/paper.jpg")
+	sb.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+	sb.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+	sb.modulate_color = Color(1, 1, 1).lerp(tint * 1.15, 0.35)
+	sb.set_content_margin_all(margin)
+	return sb
+
+
 ## A small rounded square in a currency's colour.
 static func swatch(color: Color, px: float = 16.0) -> Panel:
 	var chip := Panel.new()

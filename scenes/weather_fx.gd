@@ -47,6 +47,19 @@ func _make(color: Color, size: Vector3, amount: int, life: float, gravity: Vecto
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_color = color
+	# Blowing dust: painted wind streaks (assets/fx) on a flat card instead of a box.
+	if size.x > size.y * 4.0 and ResourceLoader.exists("res://assets/fx/streak.png"):
+		var card := QuadMesh.new()
+		card.size = Vector2(size.x * 2.2, size.x * 0.7)
+		mat.albedo_texture = load("res://assets/fx/streak.png")
+		mat.albedo_color = Color(color.r, color.g, color.b, minf(color.a * 2.2, 1.0))
+		mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		card.material = mat
+		p.mesh = card
+		p.emitting = false
+		add_child(p)
+		return p
 	quad.material = mat
 	p.mesh = quad
 	p.emitting = false

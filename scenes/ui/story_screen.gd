@@ -50,6 +50,15 @@ func _build() -> void:
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	UiStyle.fit(_root)
 	add_child(_root)
+	# The Dry Gulch key art (assets/story_art) behind the scrim, where it's there.
+	if ResourceLoader.exists("res://assets/story_art/menu.jpg"):
+		var key_art := TextureRect.new()
+		key_art.texture = load("res://assets/story_art/menu.jpg")
+		key_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		key_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		key_art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		key_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_root.add_child(key_art)
 	_root.add_child(UiStyle.scrim())
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -177,6 +186,16 @@ func _fill_page(ch: StoryChapter) -> void:
 		start.theme_type_variation = "SoftInkLabel"
 		_page.add_child(start)
 	_page.add_child(UiStyle.divider(520))
+	# The chapter's painted card (assets/story_art), where it has one.
+	var art_path := "res://assets/story_art/ch%d.jpg" % ch.number
+	if ResourceLoader.exists(art_path):
+		var art := TextureRect.new()
+		art.texture = load(art_path)
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		art.custom_minimum_size = Vector2(560, 150)
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_page.add_child(art)
 	var blurb := UiStyle.label(ch.blurb, 18)
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT

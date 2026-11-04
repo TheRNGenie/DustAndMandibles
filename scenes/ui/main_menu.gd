@@ -101,6 +101,14 @@ func _build_ui() -> void:
 		_cinematic = MenuCinematic.new()
 		add_child(_cinematic)
 		add_child(_cinematic.fade)
+	elif ResourceLoader.exists("res://assets/story_art/menu.jpg"):
+		var key_art := TextureRect.new() # the key art (assets/story_art) when there's no canyon film
+		key_art.texture = load("res://assets/story_art/menu.jpg")
+		key_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		key_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		key_art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		key_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(key_art)
 	else:
 		add_child(UiStyle.backdrop())
 	var column := PanelContainer.new()

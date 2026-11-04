@@ -177,7 +177,7 @@ func _render(def: BugDef) -> SubViewport:
 	sb.border_color = Color("#B89A63")
 	sb.set_border_width_all(5)
 	sb.set_content_margin_all(12)
-	paper.add_theme_stylebox_override("panel", sb)
+	paper.add_theme_stylebox_override("panel", UiStyle.aged_paper(sb.bg_color, sb.border_color, 5, 12.0))
 	paper.position = Vector2.ZERO
 	paper.size = Vector2(TEX_SIZE)
 	vp.add_child(paper)
