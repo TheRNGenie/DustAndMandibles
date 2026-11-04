@@ -70,7 +70,7 @@ vec3 toon_paint(vec3 c, vec3 vcol, float glow) {
 	vec3 q = paint_pos / paint_tile;
 	vec2 uv = (a.y >= a.x && a.y >= a.z) ? q.xz : ((a.x >= a.z) ? q.zy : q.xy);
 	if (paint_mode == 1 && ch == 1) {
-		uv *= 0.45; // bigger bristle strokes: they read from a distance
+		uv *= 0.8; // the bristle tufts a little bigger than the chitin plates
 	}
 	vec4 t = texture(paint_tex, uv);
 	float l = ch == 0 ? t.r : (ch == 1 ? t.g : (ch == 2 ? t.b : t.a));
