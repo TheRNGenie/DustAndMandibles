@@ -184,7 +184,10 @@ func _enter_tree() -> void:
 	var root := get_tree().current_scene if get_tree().current_scene != null else get_tree().root
 	# Bodies of a kind share one mesh, so they draw as one MultiMesh (with shadows).
 	if not bool(spec.get("solo", false)):
-		_body_b = LegBatch.of(spec["body"], Materials.toon_glide(0.03), root, true)
+		# Painted chitin (assets/skins); the Hive Queen and Hive Mother wear their own.
+		var skin: int = {&"hive_queen": 1, &"hive_mother": 2}.get(def.id, 0)
+		var body_mat := Materials.toon_glide(0.03) if skin == 0 else Materials.toon_glide_skin(0.03, skin)
+		_body_b = LegBatch.of(spec["body"], body_mat, root, true)
 		_body_slot = _body_b.take()
 	if bool((spec.get("face", {}) as Dictionary).get("wings", false)):
 		_wing_b = LegBatch.of(_wings_mesh(), _wing_mat, root)

@@ -246,9 +246,8 @@ func _counter(parent: HBoxContainer, resource: StringName, caption: String) -> L
 	var box := HBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	parent.add_child(box)
-	var chip := UiStyle.swatch(UiStyle.resource_color(resource), 18)
+	var chip := UiStyle.resource_chip(resource, 18)
 	chip.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	chip.custom_minimum_size.y = 18
 	var chip_box := MarginContainer.new()
 	chip_box.add_theme_constant_override("margin_top", 18)
 	chip_box.mouse_filter = Control.MOUSE_FILTER_IGNORE

@@ -4,3 +4,8 @@ shader_type spatial;
 render_mode cull_back;
 
 #include "res://shaders/toon_surface.gdshaderinc"
+
+void vertex() {
+	paint_pos = VERTEX;
+	paint_nrm = NORMAL;
+}

@@ -97,7 +97,24 @@ class ItemIcon extends Control:
 	var host: Node
 
 	func _draw() -> void:
-		# A picture of the real model where we have one; the drawn icon otherwise.
+		# A painted icon (assets/icons) where there is one; then a picture of the
+		# real model; the drawn icon otherwise.
+		var painted: Texture2D = UiStyle.painted_icon(item) if item != &"" and not GunModels.has(item) else null
+		var pr := get_node_or_null("Painted") as TextureRect
+		if painted != null:
+			if pr == null:
+				pr = TextureRect.new()
+				pr.name = "Painted"
+				pr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				pr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				pr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				pr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+				add_child(pr)
+			pr.texture = painted
+			pr.visible = true
+			return
+		if pr != null:
+			pr.visible = false
 		if item != &"" and host != null:
 			var tex := IconStudio.item(host, item)
 			if tex != null:

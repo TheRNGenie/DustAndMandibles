@@ -188,6 +188,11 @@ func _apply_now() -> void:
 		sun.rotation_degrees = Vector3(-maxf(moon_el, 12.0), lerpf(-100.0, 100.0, night_t), 0.0)
 	sun.light_color = sun_color
 	sun.light_energy = energy
+	# Grade: at golden hour the fill light leans to a dusty neutral (the red wash
+	# flattened the painted rock, wood and chitin), and nights get a touch more
+	# moonlit fill so the textures still read.
+	ambient = ambient.lerp(Color("#B9AA9C"), golden_amount() * 0.3 * (1.0 - _storm))
+	ambient = ambient.lerp(Color("#8E98C0"), night_amount() * 0.18)
 	env.ambient_light_color = ambient
 	# Golden hour: the haze stays a soft dusty peach, so the low sun reads as
 	# warm light and long violet shadows rather than flooding everything orange.

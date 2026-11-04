@@ -114,7 +114,7 @@ func build(team: Color, is_first_person: bool, dummy_look: Dictionary = {}) -> v
 	_elbows.clear()
 	_ankles.clear()
 	action = &""
-	_mat = Materials.toon_unique(0.022)
+	_mat = Materials.cloth(Materials.toon_unique(0.022)) # denim, leather, felt, cotton (assets/skins)
 	_hips = _pivot(self, Vector3(0, 0.95, 0))
 	var pelvis := _part(_hips, "pelvis")
 	_tails = _pivot(_hips, Vector3(0, 0.02, 0.06))

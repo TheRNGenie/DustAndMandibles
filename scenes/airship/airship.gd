@@ -80,6 +80,7 @@ func _ready() -> void:
 		var env_mat := AiModels.material(AI_ENVELOPE, 0.03, 1.1, Color(1.0, 0.86, 0.6), 1.0)
 		if ResourceLoader.exists(AI_CANVAS):
 			env_mat.set_shader_parameter("albedo_tex", load(AI_CANVAS))
+		env_mat.set_shader_parameter("shadow_tint", Color(0.62, 0.5, 0.44)) # a warm shade on the canvas, not the purple that read pink
 		env_ai.material_override = env_mat
 		env_ai.name = "EnvelopeModel"
 		env_ai.position = Vector3(0, AirshipBuilder.ENVELOPE_Y - AirshipBuilder.ROOF_Y, 0)
