@@ -112,8 +112,10 @@ func anyone_down() -> bool:
 
 
 ## Host: a loud sound at `pos` carrying `radius` metres (gunshots call this).
-## Clients forward it to the host.
-func make_noise(pos: Vector3, radius: float) -> void:
+## Clients forward it to the host. `heat` is what it adds to the risk clock of
+## anyone down there in earshot (a gunshot's ExpeditionRules.SHOT_HEAT; the
+## grapple's dynamite much more).
+func make_noise(pos: Vector3, radius: float, heat: float = ExpeditionRules.SHOT_HEAT) -> void:
 	if radius <= 0.0:
 		return
 	if not multiplayer.is_server():
@@ -126,7 +128,7 @@ func make_noise(pos: Vector3, radius: float) -> void:
 		if pl == null:
 			continue
 		var h := float(_heat.get(peer, 0.0))
-		_heat[peer] = h + ExpeditionRules.shot_heat(pl.global_position.distance_to(pos), radius, h)
+		_heat[peer] = h + ExpeditionRules.shot_heat(pl.global_position.distance_to(pos), radius, h, heat)
 
 
 @rpc("any_peer", "reliable")

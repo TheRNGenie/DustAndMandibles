@@ -71,10 +71,10 @@ static func hunters_to_send(risk_secs: float, alive: int) -> int:
 
 
 ## Extra risk seconds after a gunshot of `radius` at `dist` metres.
-static func shot_heat(dist: float, radius: float, heat_now: float) -> float:
+static func shot_heat(dist: float, radius: float, heat_now: float, heat: float = SHOT_HEAT) -> float:
 	if radius <= 0.0 or dist > radius:
 		return 0.0
-	return clampf(SHOT_HEAT, 0.0, maxf(MAX_HEAT - heat_now, 0.0))
+	return clampf(heat, 0.0, maxf(MAX_HEAT - heat_now, 0.0))
 
 
 ## A dropped sack stays until the wave after the one it was dropped before ends.

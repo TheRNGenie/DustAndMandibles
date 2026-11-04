@@ -6,6 +6,12 @@ extends Node3D
 ##   Hold right:  hook on and swing from that point on a fixed-length rope;
 ##                let go of the button to drop off with your momentum. Hold
 ##                left as well to reel in: the rope shortens and pulls you up it.
+## Settings > Controls > "Grapple swing": Toggle makes right click a click-on,
+## click-off swing instead of hold (Settings.grapple_swing_toggle).
+## Secret code (Free Hands, SecretCodes "ability:grapple_any"): once you're on
+## the rope you can switch to any weapon and use it; the grapple carries on as
+## if the launcher were still out (a pull runs till you arrive, a swing till you
+## jump), each rider's own code on their own game.
 ## Jump also lets go. Runs on the owning peer; other peers see the rope through
 ## a small RPC. Catches on anything solid in the world: the canyon walls and
 ## cliff faces, plateaus, arches, buildings and structures; never bugs or players.
@@ -94,6 +100,8 @@ func aiming() -> bool:
 ## For the crosshair: something hookable sits within rope length where you're aiming.
 ## One ray, at most once a physics tick, only while the launcher's out.
 func aim_in_range() -> bool:
+	if player == null or not player.is_inside_tree():
+		return false # (the HUD asking while the world is torn down)
 	var f := Engine.get_physics_frames()
 	if f != _aim_frame:
 		_aim_frame = f
@@ -123,11 +131,26 @@ func _holding() -> bool:
 	return player.gun.holding == &"grapple"
 
 
+## Free Hands (secret code, or --freehands): weapons out mid-grapple.
+static func free_hands() -> bool:
+	return SecretCodes.is_unlocked(&"ability", SecretCodes.GRAPPLE_ANY) or GameState.has_flag("--freehands")
+
+
+## On the rope with something else in hand (Free Hands): the grapple keeps going.
+func _latched() -> bool:
+	return mode != Mode.NONE and not _holding() and free_hands()
+
+
+## The click that hooked on mustn't also let go (toggle swing): set when the
+## hook bites, cleared on the swing's first tick.
+var _fresh_hook := false
+
+
 ## Called by Player._physics_process (owner only) after normal movement maths
 ## and before move_and_slide. Returns true when it took over the velocity.
 func physics(delta: float) -> bool:
 	_cd = maxf(_cd - delta, 0.0)
-	var can_use := (_holding() or _harpoon) and not GameState.menu_open and not player.is_downed() \
+	var can_use := (_holding() or _harpoon or _latched()) and not GameState.menu_open and not player.is_downed() \
 			and not player.is_down_in_canyon() and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or test_mode)
 	if not can_use:
 		_release()
@@ -152,6 +175,7 @@ func attach(new_mode: Mode, point: Vector3) -> void:
 	_pull_t = 0.0
 	_rope_len = maxf((player.global_position + Vector3.UP * 0.9).distance_to(anchor), MIN_ROPE)
 	_pull_limit = maxf(PULL_MAX_TIME, _rope_len / PULL_SPEED * 1.5 + 0.6)
+	_fresh_hook = true
 	player.cancel_fall()
 	_show_rope.rpc(anchor)
 
@@ -172,6 +196,7 @@ func _launch(new_mode: Mode) -> void:
 	var hit := cast(from, from - cam.global_transform.basis.z * RANGE)
 	Audio.play_at(&"harpoon", from, -6.0)
 	_cd = COOLDOWN
+	_fresh_hook = true
 	if hit.is_empty():
 		Economy.notice.emit("Nothing to hook onto there (range %d m)." % int(RANGE))
 		return
@@ -202,7 +227,7 @@ static func _on_airship(n: Node) -> bool:
 func _pull(delta: float) -> bool:
 	_pull_t += delta
 	# Let go of the button: the rope lets go at once, and you keep your speed.
-	if not test_mode and not _harpoon and not Input.is_action_pressed("fire"):
+	if not test_mode and not _harpoon and not _latched() and not Input.is_action_pressed("fire"):
 		_release()
 		return false
 	var to := anchor - (player.global_position + Vector3.UP * 0.9)
@@ -227,14 +252,19 @@ func _pull(delta: float) -> bool:
 
 
 func _swing(delta: float) -> bool:
-	if not Input.is_action_pressed("alt_fire") or Input.is_action_just_pressed("jump"):
+	var jumped := Input.is_action_just_pressed("jump")
+	if GrappleRules.swing_lets_go(_holding(), Settings.grapple_swing_toggle, Input.is_action_pressed("alt_fire"),
+			Input.is_action_just_pressed("alt_fire"), jumped, _fresh_hook):
+		_fresh_hook = false
 		# Let go: keep the momentum, with a small upward pop if jumping.
-		if Input.is_action_just_pressed("jump"):
+		if jumped:
 			player.velocity.y += 3.0
 		_release()
 		return false
-	# Holding left click as well reels you in: a shorter rope and a tug up it.
-	var reeling := Input.is_action_pressed("fire") or reel_test
+	_fresh_hook = false
+	# Holding left click as well reels you in: a shorter rope and a tug up it
+	# (only with the launcher in hand: otherwise left click is your gun's).
+	var reeling := (_holding() and Input.is_action_pressed("fire")) or reel_test
 	if reeling:
 		_rope_len = maxf(_rope_len - REEL_SPEED * delta, MIN_ROPE)
 		var up_rope := (anchor - (player.global_position + Vector3.UP * 0.9)).normalized()

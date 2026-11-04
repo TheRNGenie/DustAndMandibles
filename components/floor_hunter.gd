@@ -35,6 +35,18 @@ func wake() -> void:
 	_retarget = 0.0
 
 
+## Host: a big noise (the grapple's dynamite) at `pos`: with nobody to chase it
+## goes to look there for `seconds` (still on its leash).
+func lure(pos: Vector3, seconds: float) -> void:
+	_lure = pos
+	_lure_t = maxf(_lure_t, seconds)
+	_lost = 0.0
+
+
+var _lure := Vector3.ZERO
+var _lure_t := 0.0
+
+
 func hunt_speed() -> float:
 	return (bug.def.walk_speed * 1.6 + 1.0) * bug.speed()
 
@@ -55,6 +67,10 @@ func update(delta: float) -> void:
 	if _retarget <= 0.0 or not is_instance_valid(target):
 		_retarget = RETARGET
 		target = _pick_target()
+	_lure_t = maxf(_lure_t - delta, 0.0)
+	if target == null and _lure_t > 0.0:
+		_walk_to(_lure, delta) # off to see what blew up
+		return
 	if target == null:
 		_lost += delta
 		_walk_to(home, delta * 0.6)

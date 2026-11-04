@@ -80,6 +80,9 @@ var _vy_smooth := 0.0
 var grapple: Grapple
 var lighter: Lighter
 var whip: Whip
+## The grapple's dynamite (left hand, R with the launcher out once the gunsmith's
+## Powder Satchel is bought).
+var dynamite: Dynamite
 ## Set by the world for the local player.
 var build_mode: BuildMode
 
@@ -102,13 +105,17 @@ func _ready() -> void:
 	whip.name = "Whip"
 	whip.player = self
 	camera.add_child(whip)
+	dynamite = Dynamite.new()
+	dynamite.name = "Dynamite"
+	dynamite.player = self
+	camera.add_child(dynamite)
 	lighter = Lighter.new()
 	lighter.name = "Lighter"
 	lighter.player = self
 	gun.add_child(lighter)
 	# Built after world.gd set our authority, so they'd default to the host's (1):
 	# a client's grapple rope and zippo RPCs were refused on every other peer.
-	for n: Node in [grapple, whip, lighter]:
+	for n: Node in [grapple, whip, lighter, dynamite]:
 		n.set_multiplayer_authority(get_multiplayer_authority())
 	rig = DummyRig.new()
 	rig.name = "Rig"
@@ -436,7 +443,11 @@ func _handle_weapon() -> void:
 		net.fire(aim_from, aim_dir)
 		kick_back(gun.def.kickback)
 	if Input.is_action_just_pressed("reload"):
-		gun.reload()
+		# The grapple out with the Powder Satchel: R is the dynamite; otherwise a reload.
+		if dynamite != null and dynamite.owns_r():
+			dynamite.press()
+		else:
+			gun.reload()
 
 
 # ------------------------------------------------------------------ steps
@@ -901,6 +912,10 @@ func _update_camera(delta: float, sprinting: bool) -> void:
 	head.position.y = lerpf(head.position.y, eye + bob, clampf(delta * 14.0, 0.0, 1.0))
 	camera.position.y = _cam_land * 0.08
 	camera.rotation.x = (-fp_hands.dip if fp_hands != null else 0.0) + _down_k * 0.9 # downed: staring up
+	# Blown off your feet (dynamite): the view tumbles and springs back.
+	_tumble_vel += (-_tumble * 38.0 - _tumble_vel * 7.0) * delta
+	_tumble += _tumble_vel * delta
+	camera.rotation.x += _tumble
 	# Hungry or thirsty: a slow, slight wander in your aim (shots follow the camera).
 	var sway := vitals.sway() if vitals != null else 0.0
 	_sway_t += delta
@@ -940,6 +955,33 @@ func bonk(dir: Vector3, strength: float) -> void:
 	var side := signf(flat.dot(global_transform.basis.x))
 	_roll_vel += -side * 6.0 * strength
 	add_shake(0.5 * strength)
+
+
+## Blown about by a teammate's dynamite (DynamiteRules.KNOCK, about three
+## rocks' worth at the middle; `strength` 0..1 by distance): thrown up and
+## away, a short small ragdoll (the view tumbles head over heels a little and
+## rolls, your legs barely answer for STAGGER seconds), then you're back. Never
+## hurt. Every peer calls it: the body's flop is shown to everyone, the shove
+## and the tumble only on the owner's screen.
+func blast_knock(dir: Vector3, strength: float) -> void:
+	strength = clampf(strength, 0.0, 1.0)
+	var k := DynamiteRules.KNOCK * strength
+	rig.tumble(dir, strength)
+	if not is_multiplayer_authority():
+		return
+	var flat := Vector3(dir.x, 0.0, dir.z).normalized()
+	velocity += flat * 7.0 * k + Vector3.UP * 3.5 * k
+	_stagger = maxf(_stagger, lerpf(0.6, DynamiteRules.STAGGER, strength))
+	var side := signf(flat.dot(global_transform.basis.x))
+	_roll_vel += -side * 9.0 * k
+	# Thrown back: the view pitches up and over; thrown forward: it noses down.
+	var back := signf(flat.dot(global_transform.basis.z)) if flat.length() > 0.01 else 1.0
+	_tumble_vel += back * 4.5 * k
+	add_shake(minf(0.5 * k, 1.0))
+
+
+var _tumble := 0.0
+var _tumble_vel := 0.0
 
 
 ## The Punt Gun's kick: shoved back along your aim, stumbling for a moment so

@@ -20,9 +20,11 @@ const DUR := {
 	&"tip_hat": 1.3, &"wave": 1.6, &"point": 1.4, &"shrug": 1.2,
 	# Gun flourishes (shown on your body to everyone else).
 	&"twirl": 0.75, &"reload_revolver": 1.5,
+	# The grapple's dynamite: an overhand lob from the left hand.
+	&"throw_dynamite": 0.55,
 }
 ## Moves that keep the gun in your hand (the rest put it away while acting).
-const KEEPS_GUN: Array[StringName] = [&"twirl", &"reload_revolver"]
+const KEEPS_GUN: Array[StringName] = [&"twirl", &"reload_revolver", &"throw_dynamite"]
 ## The emote wheel's moves, clockwise from the top, with their names.
 const EMOTES: Array[StringName] = [&"tip_hat", &"wave", &"point", &"shrug"]
 const EMOTE_NAMES := {&"tip_hat": "Tip hat", &"wave": "Wave", &"point": "Point", &"shrug": "Shrug"}
@@ -318,6 +320,11 @@ static func pose(rig: DummyRig, id: StringName, t: float, w: float) -> void:
 			var sway := sin(life * 11.0) * up
 			_arm(rig, 1, Vector3(2.6 * up + 0.1, 0.0, (0.45 + sway * 0.35) * up), (0.45 + sway * 0.25) * up + 0.2, w)
 			_head(rig, Vector3(0.12 * up, 0, 0.06 * up), w)
+		&"throw_dynamite":
+			# Left arm back over the shoulder, then whipped forward and down; the torso turns into it.
+			var fwd := _seg(t, 0.2, 0.55)
+			_arm(rig, 0, Vector3(lerpf(2.6, 0.7, fwd), 0.3 - 0.3 * fwd, -0.4 + 0.25 * fwd), lerpf(1.7, 0.2, fwd), w)
+			_rot(rig._torso, Vector3(-0.15 * fwd, 0.35 - 0.6 * fwd, 0), w)
 		&"point":
 			# A straight arm out at whatever you're looking at, held a beat.
 			_stand(rig, w)

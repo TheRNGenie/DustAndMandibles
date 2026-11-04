@@ -22,6 +22,14 @@ func _ready() -> void:
 	cam.item_selected.connect(func(i: int) -> void: Settings.set_value("build_cam_third", i == 1))
 	add_child(UiStyle.row("Build Camera", cam))
 	add_child(UiStyle.note("Remembered: switching views in build mode (%s) changes this too." % KeyHints.key_for("build_camera")))
+	add_child(UiStyle.section("Grapple"))
+	var swing := OptionButton.new()
+	swing.add_item("Hold")
+	swing.add_item("Toggle")
+	swing.selected = 1 if Settings.grapple_swing_toggle else 0
+	swing.item_selected.connect(func(i: int) -> void: Settings.set_value("grapple_swing_toggle", i == 1))
+	add_child(UiStyle.row("Right-Click Swing", swing))
+	add_child(UiStyle.note("Hold: swing while the button's down. Toggle: click to hook on and swing, click again (or jump) to let go."))
 	add_child(UiStyle.section("Key Bindings"))
 	add_child(UiStyle.note("Click a binding, then press the new key or mouse button. Esc cancels."))
 	for action: String in Settings.REMAPPABLE:

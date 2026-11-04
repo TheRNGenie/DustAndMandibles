@@ -138,6 +138,9 @@ static func _pretty(e: Variant) -> String:
 	var d: Dictionary = e if e is Dictionary else {}
 	if str(d.get("kind", "")) == "notches":
 		return "%s Notches" % str(d.get("id", "0"))
+	if str(d.get("kind", "")) == "ability":
+		var what := str(SecretCodes.ABILITY_NAMES.get(str(d.get("id", "")), UiStyle.tc(str(d.get("id", "")).replace("_", " "))))
+		return what + (" (now OFF; the code again turns it back on)" if bool(d.get("off", false)) else " (now ON; the code again turns it off)")
 	var bits := str(d.get("id", "")).split(":")
 	var where := " (at the gunsmith)" if str(d.get("kind", "")) == "weapon" else " (in the Wardrobe)"
 	return UiStyle.tc(bits[bits.size() - 1].replace("_", " ")) + where

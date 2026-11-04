@@ -56,6 +56,9 @@ const SHELF: Array[Dictionary] = [
 static var loadouts: Dictionary = {}
 ## Host: each peer's whip (WeaponMods code); everyone always has one.
 static var whips: Dictionary = {}
+## Host: each peer's grapple dynamite (WeaponMods code under DynamiteRules.ID;
+## 0 = no Powder Satchel yet).
+static var dynamite: Dictionary = {}
 
 var cliff_id: int = 0
 var _label: Label3D
@@ -98,6 +101,7 @@ func setup(cid: int) -> void:
 static func reset_loadouts() -> void:
 	loadouts.clear()
 	whips.clear()
+	dynamite.clear()
 
 
 signal menu_changed
@@ -199,10 +203,35 @@ func menu_items(tab: int) -> Array:
 				out.append({"id": "mod:whip:%d" % i, "name": "Bullwhip: %s" % m["name"], "icon": &"planks",
 						"desc": str(m["desc"]), "price": "" if fitted else UiStyle.cost(int(m["cost"]), "chitin"),
 						"price_ok": chitin >= int(m["cost"]), "disabled": "Fitted." if fitted else "", "buttons": [[&"buy", "Fit it"]]})
+	if p != null and p.dynamite != null:
+		# The Powder Satchel heads the Upgrades (it's new, and not a gun); its mods follow the rest.
+		var dyn := _dynamite_items(tab, p.dynamite.code, chitin)
+		out = dyn + out if tab == 1 else out + dyn
 	if tab == 2 and out.is_empty():
 		out.append({"id": "", "name": "Nothing to work on", "icon": &"hammer", "desc": "Mods are fitted to the guns you carry.",
 				"price": "", "price_ok": true, "disabled": "Buy a gun first.", "buttons": []})
 	return Perks.discount_menu(out, &"gunsmiths_friend", NetworkManager.cliff_of(multiplayer.get_unique_id())) # Perk: Gunsmith's Friend
+
+
+## The grapple's dynamite: the Powder Satchel (Upgrades), then its three mods.
+static func _dynamite_items(tab: int, c: int, chitin: int) -> Array:
+	var out: Array = []
+	var owned := DynamiteRules.unlocked(c)
+	if tab == 1:
+		out.append({"id": "upgrade:%s" % DynamiteRules.ID, "name": "Grapple Hook  ·  Powder Satchel", "icon": &"grapple",
+				"desc": "A satchel of dynamite on your belt and a match strip down the launcher. With the grapple out, R raises a bundle, R again strikes it and lobs it at your sights: %d damage in %s m, %d bundles carried, one back every %d s up top. It's the loudest thing in the canyon." % [
+					int(DynamiteRules.DAMAGE), str(DynamiteRules.RADIUS), DynamiteRules.MAX_BUNDLES, int(DynamiteRules.RESTOCK_SECS)],
+				"price": "" if owned else UiStyle.cost(DynamiteRules.SATCHEL_COST, "chitin"),
+				"price_ok": chitin >= DynamiteRules.SATCHEL_COST, "disabled": "On your belt." if owned else "", "buttons": [[&"buy", "Buy"]]})
+	elif tab == 2 and owned:
+		var mods := WeaponMods.list(DynamiteRules.ID)
+		for i in mods.size():
+			var m: Dictionary = mods[i]
+			var fitted := WeaponMods.has_mod(c, i)
+			out.append({"id": "mod:%s:%d" % [DynamiteRules.ID, i], "name": "Dynamite: %s" % m["name"], "icon": &"grapple",
+					"desc": str(m["desc"]), "price": "" if fitted else UiStyle.cost(int(m["cost"]), "chitin"),
+					"price_ok": chitin >= int(m["cost"]), "disabled": "Fitted." if fitted else "", "buttons": [[&"buy", "Fit it"]]})
+	return out
 
 
 ## What one level does for this gun (the smoker does no damage: it smokes longer).
@@ -232,6 +261,9 @@ func _request_buy(kind: String, id: StringName, slot: int = -1) -> void:
 func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
 	if id == &"whip":
 		_buy_whip(peer_id, kind, slot)
+		return
+	if id == DynamiteRules.ID:
+		_buy_dynamite(peer_id, kind, slot)
 		return
 	var w := Gun.weapon(id)
 	if w == null:
@@ -333,6 +365,39 @@ func _buy_whip(peer_id: int, kind: String, slot: int) -> void:
 		Economy.notify(peer_id, "The gunsmith hands you THE GOLDEN WHIP.")
 	else:
 		Economy.notify(peer_id, "Bullwhip: %s." % ("level %d" % WeaponMods.level(next) if kind != "mod" else WeaponMods.names(&"whip", next & ~c)))
+	_sold.rpc()
+
+
+## Host: the Powder Satchel, or one of the dynamite's workshop mods.
+func _buy_dynamite(peer_id: int, kind: String, slot: int) -> void:
+	var c := int(dynamite.get(peer_id, 0))
+	var cost := 0
+	var next := c
+	if kind == "mod":
+		var mods := WeaponMods.list(DynamiteRules.ID)
+		if not DynamiteRules.unlocked(c) or slot < 0 or slot >= mods.size() or WeaponMods.has_mod(c, slot):
+			return
+		cost = int(mods[slot]["cost"])
+		next = WeaponMods.with_mod(c, slot)
+	else:
+		if DynamiteRules.unlocked(c):
+			return
+		cost = DynamiteRules.SATCHEL_COST
+		next = c | 1
+	var payer := Economy.payer_cliff(peer_id, cliff_id)
+	cost = Perks.discount(peer_id, &"gunsmiths_friend", cost) # Perk: Gunsmith's Friend
+	if not Economy.spend(payer, {&"chitin": cost}):
+		Economy.notify(peer_id, "That costs %d chitin." % cost)
+		return
+	var player := _player_of(peer_id)
+	if player != null and player.dynamite != null:
+		player.dynamite.grant(next) # record, the owner's code, a full satchel the first time
+	else:
+		dynamite[peer_id] = next
+	if kind == "mod":
+		Economy.notify(peer_id, "Dynamite: %s." % WeaponMods.names(DynamiteRules.ID, next & ~c))
+	else:
+		Economy.notify(peer_id, "A Powder Satchel on your belt and a match strip on the launcher. Grapple out (%s), then R, R." % KeyHints.key_for("select_10"))
 	_sold.rpc()
 
 

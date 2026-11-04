@@ -781,3 +781,80 @@ static func gatling_drum() -> ArrayMesh:
 	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3.ZERO), 0.05, 0.05, 0.03, 16, BLUED)
 	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0, -0.018)), 0.015, 0.015, 0.012, 10, BRASS)
 	return MeshKit.finish(st)
+
+
+# ------------------------------------------------------------------ the grapple's dynamite
+
+## Where the fuse ends on a bundle (bundle space: the sticks stand along +Y,
+## centred on the origin), for the sparks and the strike.
+const DYNAMITE_FUSE_TIP := Vector3(0.018, 0.168, -0.012)
+const DYNAMITE_RED := Color("#B8322A")
+
+
+## Three sticks of dynamite tied with twine, a fuse curling out of the top
+## (Y up, centred on the origin; the fist wraps round the middle).
+static func dynamite_bundle() -> ArrayMesh:
+	var st := MeshKit.begin()
+	var paper := Color("#E2CFA4")
+	var twine := Color("#C4A46A")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1889
+	# Two in front, one behind, a touch staggered so it reads as hand-tied.
+	var spots: Array[Vector3] = [Vector3(-0.0165, 0.004, -0.009), Vector3(0.0165, -0.006, -0.009), Vector3(0.0, 0.0, 0.0195)]
+	for i in 3:
+		var c: Vector3 = spots[i]
+		var red := DYNAMITE_RED.darkened(0.06 * i)
+		MeshKit.add_cylinder(st, Transform3D(Basis(), c), 0.016, 0.016, 0.2, 12, red)
+		# Wax-paper ends, crimped.
+		for s: float in [-1.0, 1.0]:
+			MeshKit.add_cylinder(st, Transform3D(Basis(), c + Vector3(0, s * 0.101, 0)), 0.0162, 0.0135, 0.008, 12, paper)
+		# A printed band on each stick.
+		MeshKit.add_cylinder(st, Transform3D(Basis(), c + Vector3(0, 0.035, 0)), 0.0163, 0.0163, 0.018, 12, Color("#E9DDBF"), false)
+		MeshKit.add_cylinder(st, Transform3D(Basis(), c + Vector3(0, 0.035, 0)), 0.01635, 0.01635, 0.004, 12, Color("#2A1A14"), false)
+	# Twine: two lashings round all three, each with a knot.
+	for y: float in [-0.055, 0.07]:
+		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, y, 0.001)), 0.0365, 0.0365, 0.007, 14, twine, false)
+		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(0, y + 0.006, 0.001)), 0.036, 0.036, 0.004, 14, twine.darkened(0.12), false)
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.03, y, -0.022)), Vector3(0.008, 0.007, 0.007), 3, 6, twine.darkened(0.08))
+	MeshKit.add_limb(st, Vector3(0.03, -0.055, -0.022), Vector3(0.038, -0.075, -0.026), 0.0025, twine, 4)
+	# The fuse: out of the middle stick's top, a lazy curl, a frayed end.
+	var fuse := Color("#3A2A1E")
+	var pts: Array = [Vector3(0.0, 0.1, 0.019), Vector3(0.002, 0.125, 0.012), Vector3(0.01, 0.145, 0.0),
+			Vector3(0.016, 0.158, -0.008), DYNAMITE_FUSE_TIP]
+	MeshKit.tube(st, pts, [0.0034, 0.0032, 0.003, 0.003, 0.0028], 6, fuse)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), DYNAMITE_FUSE_TIP), Vector3.ONE * 0.0036, 3, 6, Color("#5A4030"))
+	return MeshKit.finish(st)
+
+
+## The match strip riveted down the grapple launcher's left flank: a strip of
+## brass backing with a band of grit (phosphorus and ground glass) on it.
+## Origin at its middle, running along Z, the grit facing -X.
+const MATCH_STRIP_LEN := 0.12
+
+
+static func match_strip() -> ArrayMesh:
+	var st := MeshKit.begin()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 71
+	# Brass backing plate, a band of dark grit standing proud of it.
+	MeshKit.add_box(st, Transform3D(), Vector3(0.003, 0.03, MATCH_STRIP_LEN + 0.014), BRASS.darkened(0.25))
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(-0.002, 0, 0)), Vector3(0.003, 0.02, MATCH_STRIP_LEN), Color("#3E1A14"), 0.0003, rng)
+	# Flecks of grit and the pale scorch marks of old strikes.
+	for k in 18:
+		var z := rng.randf_range(-0.055, 0.055)
+		var y := rng.randf_range(-0.008, 0.008)
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(-0.0036, y, z)), Vector3(0.0008, 0.0016, 0.0022), Color("#1A0C08") if k % 3 else Color("#C89A70"))
+	for k in 3:
+		MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, 0.2 * (k - 1)), Vector3(-0.0037, 0.002 * (k - 1), -0.01 + 0.02 * k)), Vector3(0.0006, 0.004, 0.016), Color("#7A6A5E"))
+	for s: float in [-1.0, 1.0]:
+		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(-0.002, 0, s * (MATCH_STRIP_LEN * 0.5 + 0.004))), Vector3(0.003, 0.004, 0.004), 3, 6, BRASS.lightened(0.2))
+	return MeshKit.finish(st)
+
+
+## The empty left hand that holds the bundle: a fist round a vertical grip at the
+## origin (+Y up the grip, knuckles to -X), the forearm running back out of view.
+static func left_item_arm(look: Dictionary = {}) -> ArrayMesh:
+	look = DummyLook.clean(look)
+	var st := MeshKit.begin()
+	arm(st, Vector3.ZERO, Vector3(0, 1, 0), Vector3(-1, 0, 0.3), Vector3(-0.12, -0.3, 0.38), look, false)
+	return MeshKit.finish(st)

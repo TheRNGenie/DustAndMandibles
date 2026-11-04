@@ -149,5 +149,7 @@ func slot_info(i: int) -> Dictionary:
 	else:
 		info["label"] = NAMES.get(id, String(id))
 		info["count"] = "" if id == &"grapple" or id == &"lighter" else "x%d" % Economy.amount(_cliff(), id)
+		if id == &"grapple" and player.dynamite != null and player.dynamite.unlocked():
+			info["count"] = "x%d" % player.dynamite.bundles # the dynamite bundles in your satchel
 		info["selected"] = player.gun.holding == id
 	return info

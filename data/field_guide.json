@@ -589,6 +589,20 @@
         "Sells Lucky's finish on the gunsmith's irons (they keep their level and mods), an exclusive wardrobe look, one-night favours (a supply drop, a bounty top-up) and the three amber turret blueprints.",
         "Blueprints you buy or find are yours for good: the team can craft that turret in any run you ride in."
       ]
+    },
+    "grapple_dynamite": {
+      "title": "The Grapple's Dynamite",
+      "icon": "grapple",
+      "lore": "The gunsmith's Powder Satchel: a bundle of three sticks, twine and a fuse in your free hand, and a match strip riveted down the grapple launcher. Strike it, throw it, cover your ears. Pell's Toes says no barrel shall dip below thirty degrees; it says nothing about a man's arm.",
+      "stats": "50 chitin at the gunsmith (Upgrades)  ·  160 damage in 6.5 m, less at the edge  ·  3 bundles, one back every 40 s up top",
+      "tips": [
+        "Grapple out (0), then R raises a bundle and R again strikes and throws it. It lands where you aim, out to 60 m, far enough for the far wall.",
+        "Fuse lit means it's going: switching away won't put it out.",
+        "It cracks armour, and a climber that lives through it is shaken on its line.",
+        "It blows teammates off their feet but never hurts them, and leaves the turrets be.",
+        "The loudest thing in the canyon: on the floor it wakes every sleeper for 150 m and brings them running.",
+        "Workshop mods: Bigger Blast, Heavier Charge, and Coal Oil to set the survivors burning."
+      ]
     }
   },
   "sites": {

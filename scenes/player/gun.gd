@@ -319,6 +319,12 @@ func hold_item(id: StringName) -> void:
 	loadout_changed.emit()
 
 
+## The held item's node (the grapple launcher's model hangs off it), for the
+## dynamite's match strip.
+func item_node() -> Node3D:
+	return _item_mi if holding != &"" and holding != &"none" else null
+
+
 ## Owner: the host confirmed a purchase or upgrade.
 func grant(id: StringName, level: int) -> void:
 	owned[id] = level

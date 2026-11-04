@@ -20,7 +20,9 @@ const NAMES: Array[StringName] = [&"revolver", &"gatling_1", &"gatling_2", &"gat
 	# Waterworks (recorded, CC0; see audio/CREDITS.txt).
 	&"generator_start", &"generator_stop", &"ground_rumble",
 	# Recorded (tools/audio/import_crunch.py): the light shell crack when a bug dies.
-	&"bug_crunch"]
+	&"bug_crunch",
+	# The grapple's dynamite (tools/audio/make_dynamite.py): the strike on the strip, the fuse.
+	&"match_strike", &"fuse_sizzle"]
 ## Most sounds have several takes (name.wav, name__2.wav, ...); one is picked at random.
 const MAX_TAKES := 6
 const POOL_3D := 32
