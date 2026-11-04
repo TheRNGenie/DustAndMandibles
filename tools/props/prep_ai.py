@@ -3,6 +3,7 @@
     blender -b --factory-startup --python tools/props/prep_ai.py -- in.glb out.glb
         [--size 1.0] [--axis x|y|z|max] [--max-tris 1500] [--cut-below 0.0]
         [--rot-z 0] [--origin bottom|center|top] [--tex 1024] [--part front|back --split 0.12]
+        [--dims x,y,z]   (stretch to exactly these extents instead of --size)
 
 Joins it into one mesh, optionally drops everything below `cut-below` (a share
 of its height: a base plate, a stray gondola), turns it `rot-z` degrees about
@@ -28,7 +29,7 @@ from slim import slim_textures  # noqa: E402
 def opts():
     a = sys.argv[sys.argv.index("--") + 1:]
     o = {"in": a[0], "out": a[1], "size": 1.0, "axis": "max", "max_tris": 1500, "cut_below": 0.0,
-            "rot_z": 0.0, "origin": "bottom", "tex": 1024, "part": "", "split": 0.12}
+            "rot_z": 0.0, "origin": "bottom", "tex": 1024, "part": "", "split": 0.12, "dims": ""}
     i = 2
     while i < len(a):
         o[a[i].lstrip("-").replace("-", "_")] = a[i + 1]
@@ -84,7 +85,12 @@ def main():
     cz = {"bottom": lo.z, "top": hi.z}.get(o["origin"], (lo.z + hi.z) * 0.5)
     c = Vector(((lo.x + hi.x) * 0.5, (lo.y + hi.y) * 0.5, cz))
     body.data.transform(Matrix.Translation(-c))
-    body.data.transform(Matrix.Scale(s, 4))
+    if o["dims"]:
+        dx, dy, dz = [float(v) for v in o["dims"].split(",")]
+        body.data.transform(Matrix.Diagonal((dx / ext.x, dy / ext.y, dz / ext.z, 1.0)))
+        s = dy / ext.y
+    else:
+        body.data.transform(Matrix.Scale(s, 4))
     body.data.update()
     if o["part"]:
         y_cut = (lo.y - c.y) * s + (hi.y - lo.y) * s * o["split"]

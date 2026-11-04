@@ -46,6 +46,12 @@ static func ring_position() -> Vector3:
 	return ARCH_CROWN + Vector3(0, RING_ABOVE_ARCHES, 0)
 
 
+const AI_ENVELOPE := "res://assets/airship/envelope.glb"
+const AI_KEEL := "res://assets/airship/keel.glb"
+const AI_ENGINE := "res://assets/airship/engine.glb"
+const AI_PROP := "res://assets/airship/engine_prop.glb"
+
+
 func _ready() -> void:
 	# Turned round so the stern (and its ring) faces south, toward the other arch.
 	rotation.y = PI
@@ -53,8 +59,11 @@ func _ready() -> void:
 	_away_pos = _hover_pos
 	position = _hover_pos
 	visible = true
+	# The AI-made exterior (envelope, keel, engines; assets/airship) when it's
+	# there; the deck, canopy, railing, stalls and every collision stay as built.
+	var ai := AiModels.exists(AI_ENVELOPE) and AiModels.exists(AI_KEEL) and AiModels.exists(AI_ENGINE) and AiModels.exists(AI_PROP)
 	var hull := MeshInstance3D.new()
-	hull.mesh = AirshipBuilder.hull()
+	hull.mesh = AirshipBuilder.hull(ai)
 	hull.material_override = Materials.toon(0.04)
 	add_child(hull)
 	# The envelope hangs on its rigging and sways a little; the bulbs light up at night.
@@ -62,11 +71,21 @@ func _ready() -> void:
 	_envelope.name = "Envelope"
 	_envelope.position = Vector3(0, AirshipBuilder.ROOF_Y, 0)
 	add_child(_envelope)
-	var env_mi := MeshInstance3D.new()
-	env_mi.mesh = AirshipBuilder.envelope()
-	env_mi.material_override = Materials.toon(0.04)
-	env_mi.position = Vector3(0, -AirshipBuilder.ROOF_Y, 0)
-	_envelope.add_child(env_mi)
+	if ai:
+		var env_ai := AiModels.instance(AI_ENVELOPE, 0.03)
+		env_ai.name = "EnvelopeModel"
+		env_ai.position = Vector3(0, AirshipBuilder.ENVELOPE_Y - AirshipBuilder.ROOF_Y, 0)
+		_envelope.add_child(env_ai)
+		var keel := AiModels.instance(AI_KEEL, 0.03)
+		keel.name = "Keel"
+		keel.position = Vector3(0, -0.28, 0)
+		add_child(keel)
+	else:
+		var env_mi := MeshInstance3D.new()
+		env_mi.mesh = AirshipBuilder.envelope()
+		env_mi.material_override = Materials.toon(0.04)
+		env_mi.position = Vector3(0, -AirshipBuilder.ROOF_Y, 0)
+		_envelope.add_child(env_mi)
 	var bulbs := MeshInstance3D.new()
 	bulbs.mesh = AirshipBuilder.bulbs()
 	_bulb_mat = Materials.toon_unique(0.0)
@@ -102,11 +121,26 @@ func _ready() -> void:
 		prop.mesh = AirshipBuilder.propeller()
 		prop.material_override = Materials.toon(0.02)
 		for pz: float in [-8.0, 8.0]:
+			var pod := Vector3(sx * (AirshipBuilder.DECK_W * 0.5 + 2.8), AirshipBuilder.ROOF_Y - 0.6, pz)
+			if ai:
+				# The engine faces -Z (its propeller at the casino end, as before).
+				var turn := Basis(Vector3.UP, PI)
+				var eng := AiModels.instance(AI_ENGINE, 0.015)
+				eng.transform = Transform3D(turn, pod)
+				add_child(eng)
+				var blades := AiModels.instance(AI_PROP, 0.012)
+				var hub := blades.mesh.get_aabb().get_center()
+				var spin := Spin.new()
+				spin.transform = Transform3D(turn, pod + turn * hub)
+				blades.position = -hub
+				spin.add_child(blades)
+				add_child(spin)
+				continue
 			var p2 := Spin.new()
 			p2.mesh = AirshipBuilder.propeller()
 			p2.material_override = Materials.toon(0.02)
 			p2.scale = Vector3.ONE * 1.4
-			p2.position = Vector3(sx * (AirshipBuilder.DECK_W * 0.5 + 2.8), AirshipBuilder.ROOF_Y - 0.6, pz - 1.2)
+			p2.position = pod + Vector3(0, 0, -1.2)
 			add_child(p2)
 		prop.queue_free()
 	# The name painted on both flanks of the envelope (a decal that wraps the curve).

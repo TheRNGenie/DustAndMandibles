@@ -14,7 +14,9 @@ const ENVELOPE := Vector3(11.0, 8.5, 30.0)
 const ROOF_Y := 4.6
 
 
-static func hull() -> ArrayMesh:
+## `ai_exterior`: the AI-made keel and engines (Airship) replace the skirt under
+## the deck and the engine pods, so they are left out here.
+static func hull(ai_exterior: bool = false) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 777
 	var st := MeshKit.begin()
@@ -26,7 +28,8 @@ static func hull() -> ArrayMesh:
 			MeshKit.add_limb(st, a, b, 0.04, Palette.WOOD_DARK, 4)
 	# Gondola: plank deck, a skirt below, and a canopy roof on posts (open sides).
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, -0.15, 0)), Vector3(DECK_W, 0.3, DECK_L), Palette.WOOD_DARK, 0.02, rng)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, -0.9, 0)), Vector3(DECK_W - 0.6, 1.2, DECK_L - 0.6), Color("#7A2E22"), 0.02, rng)
+	if not ai_exterior:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, -0.9, 0)), Vector3(DECK_W - 0.6, 1.2, DECK_L - 0.6), Color("#7A2E22"), 0.02, rng)
 	for sx: float in [-1.0, 1.0]:
 		for k in 7:
 			var z := lerpf(-1.0, 1.0, float(k) / 6.0) * (DECK_L * 0.5 - 0.2)
@@ -38,7 +41,8 @@ static func hull() -> ArrayMesh:
 	for sx: float in [-1.0, 1.0]:
 		for pz: float in [-8.0, 8.0]:
 			MeshKit.add_box(st, Transform3D(Basis(), Vector3(sx * (DECK_W * 0.5 + 1.4), ROOF_Y - 0.6, pz)), Vector3(2.8, 0.2, 0.25), Palette.METAL)
-			MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(sx * (DECK_W * 0.5 + 2.8), ROOF_Y - 0.6, pz)), 0.7, 0.55, 2.2, 10, Palette.METAL.darkened(0.2))
+			if not ai_exterior:
+				MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(sx * (DECK_W * 0.5 + 2.8), ROOF_Y - 0.6, pz)), 0.7, 0.55, 2.2, 10, Palette.METAL.darkened(0.2))
 	return MeshKit.finish(st)
 
 
