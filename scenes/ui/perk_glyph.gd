@@ -8,6 +8,7 @@ extends Control
 var glyph := ""
 var ink := Color("#F2E3C2")
 var _item: Control
+var _painted: TextureRect
 
 
 func _init(g: String = "", color: Color = Color("#F2E3C2")) -> void:
@@ -17,6 +18,20 @@ func _init(g: String = "", color: Color = Color("#F2E3C2")) -> void:
 
 
 func _ready() -> void:
+	# A painted icon (assets/perks, AI-made with fal.ai) when there is one: full
+	# colour when the ink is bright (taken), toned down when it isn't.
+	var painted_path := "res://assets/perks/%s.png" % glyph
+	if not glyph.begins_with("item:") and ResourceLoader.exists(painted_path):
+		_painted = TextureRect.new()
+		_painted.texture = load(painted_path)
+		_painted.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_painted.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_painted.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_painted.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var dim := clampf(0.6 - ink.get_luminance(), 0.0, 0.6) * 1.4
+		_painted.modulate = Color(1, 1, 1, ink.a).lerp(Color(0.5, 0.46, 0.42, ink.a), dim)
+		add_child(_painted)
+		return
 	if glyph.begins_with("item:"):
 		var ic := HudHotbar.ItemIcon.new()
 		ic.item = StringName(glyph.substr(5))
@@ -28,6 +43,8 @@ func _ready() -> void:
 
 func _draw() -> void:
 	if _item != null:
+		return
+	if _painted != null:
 		return
 	var c := size * 0.5
 	var s := minf(size.x, size.y) * 0.42

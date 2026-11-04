@@ -171,6 +171,42 @@ static func build(parent: Node3D, cliffs: CliffBuilder, seed_value: int) -> void
 			_batches.append(mmi)
 			_counts.append(xs.size())
 	set_detail(level)
+	_drips(parent, mouths)
+
+
+## Resin drips (assets/fx/drip.png) falling slowly from the rock over each tunnel
+## mouth: a few cheap CPU particles each, none on Low.
+static func _drips(parent: Node3D, mouths: Array[Vector3]) -> void:
+	if not ResourceLoader.exists("res://assets/fx/drip.png") or GraphicsQuality.level(Settings.effects) == 0:
+		return
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	mat.alpha_scissor_threshold = 0.4
+	mat.albedo_texture = load("res://assets/fx/drip.png")
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	mat.billboard_keep_scale = true
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.35, 0.5)
+	quad.material = mat
+	for m in mouths:
+		var p := CPUParticles3D.new()
+		p.name = "ResinDrips"
+		p.mesh = quad
+		p.amount = 6
+		p.lifetime = 2.6
+		p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		p.emission_box_extents = Vector3(2.2, 0.2, 2.2)
+		p.direction = Vector3.DOWN
+		p.spread = 2.0
+		p.gravity = Vector3(0, -2.2, 0)
+		p.initial_velocity_min = 0.0
+		p.initial_velocity_max = 0.3
+		p.scale_amount_min = 0.6
+		p.scale_amount_max = 1.2
+		p.local_coords = false
+		parent.add_child(p)
+		p.global_position = m + Vector3(0, 6.0, 0)
 
 
 static func _pick(rng: RandomNumberGenerator, w: Array[float]) -> int:

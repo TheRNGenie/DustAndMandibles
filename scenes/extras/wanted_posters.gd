@@ -196,7 +196,7 @@ func _render(def: BugDef) -> SubViewport:
 	frame.custom_minimum_size = Vector2(0, 150)
 	col.add_child(frame)
 	var pic := TextureRect.new()
-	pic.texture = IconStudio.bug(self, def.id)
+	pic.texture = UiStyle.plate(def.id) if UiStyle.plate(def.id) != null else IconStudio.bug(self, def.id) # the painted plate
 	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	frame.add_child(pic)

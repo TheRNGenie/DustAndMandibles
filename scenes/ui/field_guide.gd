@@ -68,6 +68,8 @@ func menu_items(tab: int) -> Array:
 						("Front Armour %d%%  ·  " % int(b.front_armor * 100.0)) if b.front_armor > 0.0 else "",
 						"Story Only" if b.story_only else "From Wave %d" % b.first_wave, UiStyle.cost(b.scrap_drop, "scrap"), (", " + UiStyle.cost(b.chitin_drop, "chitin")) if b.chitin_drop > 0 else ""]
 				var icon: Variant = IconStudio.bug(MenuScreen.instance, id) if MenuScreen.instance != null else null
+				if UiStyle.plate(id) != null:
+					icon = UiStyle.plate(id) # the painted plate
 				# (Bugs helper) The counter, and the variants overusing one method brings.
 				var tips: Array = []
 				if b.counter != "":
@@ -111,6 +113,8 @@ func menu_items(tab: int) -> Array:
 				var tips: Array = [c.role] if c.role != "" else []
 				tips.append_array(e.get("tips", []))
 				var crop_icon: Variant = c.harvest.keys()[0] if not c.harvest.is_empty() else null
+				if UiStyle.plate(id) != null:
+					crop_icon = UiStyle.plate(id) # the painted plate
 				out.append(_item(id, c.display_name, crop_icon, str(e.get("lore", "")), stats, tips, UiStyle.cost(MarketPrices.seed_price(c), "scrap") + " a Seed"))
 		4:
 			# Plain-words help: how the team's money works, and the other basics.

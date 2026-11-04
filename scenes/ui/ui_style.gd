@@ -902,6 +902,13 @@ static func painted_icon(id: StringName) -> Texture2D:
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
 
 
+## A painted Field Guide plate (assets/plates, AI-made with fal.ai) for a bug
+## or crop, or null.
+static func plate(id: StringName) -> Texture2D:
+	var path := "res://assets/plates/%s.png" % id
+	return load(path) as Texture2D if ResourceLoader.exists(path) else null
+
+
 ## A currency's painted icon `px` square, or its colour swatch if it has none.
 static func resource_chip(resource: StringName, px: float = 16.0) -> Control:
 	var tex := painted_icon(resource)
