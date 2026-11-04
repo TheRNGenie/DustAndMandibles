@@ -158,6 +158,9 @@ var item_pos := Vector3.ZERO
 ## 0..1: the gun is lowered out of the way while your hands do something else.
 var lowered := 0.0
 var _lower_target := 0.0
+## 0..1: the gun ducks out of view while the whip hand swings (so there are never three arms).
+var _tuck := 0.0
+var _tuck_target := 0.0
 
 
 ## Rebuilds the first-person hands for a new outfit (dummy paint, coat sleeves).
@@ -451,6 +454,16 @@ func set_lowered(on: bool) -> void:
 	_lower_target = 1.0 if on else 0.0
 
 
+## Whip: duck the gun out of view (fast) for a melee, then bring it back.
+func tuck_for_melee(on: bool) -> void:
+	_tuck_target = 1.0 if on else 0.0
+
+
+## True once the gun is far enough down that the whip can swing.
+func is_tucked() -> bool:
+	return _tuck >= 0.95
+
+
 func _feel_step(delta: float) -> void:
 	var dt := clampf(delta, 0.0, 0.05)
 	# Look sway: a spring pulled by mouse movement, so the gun trails your view.
@@ -464,6 +477,7 @@ func _feel_step(delta: float) -> void:
 	_land += _land_vel * dt
 	_raise = move_toward(_raise, 0.0, dt * 3.6 * (def.draw_speed if def != null else 1.0))
 	lowered = move_toward(lowered, _lower_target, dt * 5.0)
+	_tuck = move_toward(_tuck, _tuck_target, dt * (12.0 if _tuck_target > _tuck else 5.0))
 
 
 ## [position offset, rotation offset] from sway, bob, sprint, landing, switching.
@@ -489,6 +503,10 @@ func _feel_offset() -> Array:
 	var l := smoothstep(0.0, 1.0, lowered)
 	pos += Vector3(0.05, -0.36, 0.1) * l
 	rot += Vector3(-0.9, 0.2, 0.4) * l
+	# Tucked away for a whip lash: dropped right out of frame.
+	var tk := smoothstep(0.0, 1.0, _tuck)
+	pos += Vector3(0.12, -0.6, 0.15) * tk
+	rot += Vector3(-1.1, 0.3, 0.5) * tk
 	return [pos, rot]
 
 

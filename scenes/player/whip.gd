@@ -30,6 +30,8 @@ var _t := -1.0
 var _move := 0
 var _last := -1
 var _hit_done := false
+## Waiting for the gun to duck out of view before the lash starts (seconds left, -1 = not waiting).
+var _wait := -1.0
 var _hand: MeshInstance3D
 var _segs: Array[MeshInstance3D] = []
 
@@ -87,7 +89,7 @@ func _show(on: bool) -> void:
 
 
 func can_lash() -> bool:
-	return _cd <= 0.0 and _t < 0.0
+	return _cd <= 0.0 and _t < 0.0 and _wait < 0.0
 
 
 ## Owner: start a lash (picks the swing, plays the crack, asks the host to hit).
@@ -102,11 +104,23 @@ func lash() -> void:
 		pick = (pick + 1 + randi() % 2) % 3
 	_move = pick
 	_last = pick
-	_show(true)
+	# The held weapon ducks away first, so the whip hand never makes a third arm.
+	_t = -1.0
+	_wait = 0.12
+	if player != null and player.gun != null:
+		player.gun.tuck_for_melee(true)
 
 
 func _process(delta: float) -> void:
 	_cd = maxf(_cd - delta, 0.0)
+	if _wait >= 0.0:
+		_wait -= delta
+		var ready := _wait <= 0.0 or player == null or player.gun == null or player.gun.is_tucked()
+		if ready:
+			_wait = -1.0
+			_t = 0.0
+			_show(true)
+		return
 	if _t < 0.0:
 		return
 	_t += delta
@@ -114,6 +128,8 @@ func _process(delta: float) -> void:
 	if k >= 1.0:
 		_t = -1.0
 		_show(false)
+		if player != null and player.gun != null:
+			player.gun.tuck_for_melee(false)
 		return
 	_pose(k)
 	if not _hit_done and k >= 0.55:
