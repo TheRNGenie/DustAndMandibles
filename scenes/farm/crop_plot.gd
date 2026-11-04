@@ -37,6 +37,7 @@ var _sync_t := 0.0
 
 
 func setup(cid: int) -> void:
+	Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_YARD) # painted planks (assets/rustic)
 	cliff_id = cid
 	collision_layer = WorldLayout.LAYER_WORLD
 	var soil := MeshInstance3D.new()

@@ -116,6 +116,10 @@ func _apply_seed(s: int) -> void:
 		root.global_transform = Transform3D(site.basis(), site.pos)
 		_roots.append(root)
 		SiteProps.build(root, site, self)
+		if site.kind_id() == &"wreck": # the 1889 wreck: rusty iron, planks
+			Materials.paint_live(root, Materials.RUSTIC, Materials.MAP_TRAIN)
+		elif site.kind_id() == &"camp":
+			Materials.paint_live(root, Materials.RUSTIC, Materials.MAP_RUINS)
 	print("[sites] seed %d: %s" % [s, ", ".join(sites.map(func(x: SitePlan.Site) -> String: return "%s by tunnel %d" % [x.display_name(), x.tunnel]))])
 
 

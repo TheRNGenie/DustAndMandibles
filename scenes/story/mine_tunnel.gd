@@ -46,6 +46,7 @@ static func local_at(d: float, x: float, y: float) -> Vector3:
 
 
 func _ready() -> void:
+	Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_MINE) # painted wood, iron, rock (assets/rustic)
 	if DayCycle.instance != null and DayCycle.instance.sun != null:
 		DayCycle.instance.sun.light_cull_mask &= ~LAYER
 	_build_rock()

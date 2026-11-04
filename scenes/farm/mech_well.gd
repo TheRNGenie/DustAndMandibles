@@ -43,6 +43,7 @@ var _speed := 0.0
 
 
 func _ready() -> void:
+	Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_YARD) # painted wood, iron, rock (assets/rustic)
 	super()
 	display_name = "Well"
 	rates = Vector2(IDLE_RATE, IDLE_RATE)

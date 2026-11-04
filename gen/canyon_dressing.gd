@@ -17,7 +17,7 @@ static func build(parent: Node3D, cliffs: CliffBuilder, seed_value: int) -> void
 	for cid in 2:
 		_wall_shelves(rock_st, rng, cliffs, cid)
 		_wall_base(rock_st, rng, cliffs, cid)
-	_floor(rock_st, dry_st, rng, cliffs)
+	_floor(rock_st, dry_st, rng, cliffs, parent)
 	_horizon(rock_st, rng)
 	_add(parent, "CanyonRocks", MeshKit.finish(rock_st), Materials.toon(0.03))
 	_add(parent, "CanyonDryStuff", MeshKit.finish(dry_st), Materials.toon(0.015))
@@ -96,7 +96,9 @@ static func _wall_base(st: SurfaceTool, rng: RandomNumberGenerator, cliffs: Clif
 
 
 ## The canyon floor: hoodoos, dead trees, skulls and a cracked dry wash.
-static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerator, cliffs: CliffBuilder) -> void:
+static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerator, cliffs: CliffBuilder, parent: Node3D = null) -> void:
+	# The AI-made dead tree and cattle skull (assets/scatter) when they're there.
+	var ai := parent != null and AiModels.exists(TREE_GLB) and AiModels.exists(SKULL_GLB)
 	# Hoodoos: stacked, weathered pillars with a cap stone.
 	for i in 14:
 		var z := rng.randf_range(-190.0, 190.0)
@@ -122,6 +124,13 @@ static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerat
 		var top := base + Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(2.5, 4.5), rng.randf_range(-0.6, 0.6))
 		var bark := Color("#8C8378").darkened(rng.randf_range(0.0, 0.2))
 		var dst := dry if not SitePlan.in_site_zone(base, 2.0) else MeshKit.begin() # Expeditions: not in a site
+		if ai:
+			if dst == dry:
+				_ai_at(parent, TREE_GLB, base + Vector3(0, -0.15, 0), fposmod(base.z * 1.7, TAU), (top.y - base.y) / 3.6)
+			for b in rng.randi_range(2, 4): # keep the random stream as it was
+				for _k in 7:
+					rng.randf()
+			continue
 		MeshKit.add_limb(dst, base, top, 0.16, bark, 6)
 		for b in rng.randi_range(2, 4):
 			var from := base.lerp(top, rng.randf_range(0.45, 1.0))
@@ -135,6 +144,10 @@ static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerat
 		var z := rng.randf_range(-85.0, 85.0)
 		var at := Vector3(x, cliffs.floor_height(x, z) + 0.2, z)
 		var basis := Basis(Vector3.UP, rng.randf() * TAU).rotated(Vector3.RIGHT, rng.randf_range(-0.2, 0.2))
+		if ai:
+			if not SitePlan.in_site_zone(at, 1.5):
+				_ai_at(parent, SKULL_GLB, at + Vector3(0, -0.25, 0), basis.get_euler().y, 0.8 + fposmod(at.x * 3.1, 0.3))
+			continue
 		MeshKit.add_ellipsoid(dry, Transform3D(basis, at), Vector3(0.28, 0.22, 0.4), 5, 8, Palette.BONE)
 		MeshKit.add_ellipsoid(dry, Transform3D(basis, at + basis * Vector3(0, -0.05, -0.35)), Vector3(0.16, 0.13, 0.22), 4, 8, Palette.BONE.darkened(0.05))
 		for s: float in [-1.0, 1.0]:
@@ -157,6 +170,18 @@ static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerat
 		var c := Color("#A86A42").lerp(Color("#C08250"), rng.randf())
 		for j in k:
 			MeshKit.tri(dry, at, pts[(j + 1) % k], pts[j], Vector3.UP, Vector3.UP, Vector3.UP, MeshKit.vcol(c), Vector3.UP)
+
+
+const TREE_GLB := "res://assets/scatter/dead_tree.glb"
+const SKULL_GLB := "res://assets/scatter/cow_skull.glb"
+
+
+static func _ai_at(parent: Node3D, path: String, at: Vector3, yaw: float, s: float) -> void:
+	var mi := AiModels.instance(path, 0.012)
+	mi.position = at
+	mi.rotation.y = yaw
+	mi.scale = Vector3.ONE * s
+	parent.add_child(mi)
 
 
 ## Buttes and mesas on the far horizon, beyond the plateaus.

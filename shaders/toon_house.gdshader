@@ -34,6 +34,11 @@ uniform bool red_sides_wood = true;
 // vary: the deck's canopy wants smooth cloth, not crumpled foil.
 uniform float red_bump = 1.0;
 uniform float red_strength = 1.0;
+// Which painting each colour class gets (Materials.toon_painted): index = class
+// (1 wood browns, 2 pale-blue paint, 3 red facing up, 4 red sides, 5 greys,
+// 6 dark earthy browns, 7 dark greys), value = painting slot (1-4 the detail
+// channels R-A, 5 the C set, 0 plain). The house and deck keep 6 and 7 plain.
+uniform int kind_map[8]; // set by Materials (the house: 0,1,2,3,4,5,0,0)
 uniform vec4 ink : source_color = vec4(0.169, 0.106, 0.090, 1.0);
 
 varying vec3 obj_pos;
@@ -66,13 +71,23 @@ void fragment() {
 		kind = 5;
 	} else if (hue > 170.0 && hue < 215.0 && hsv.y < 0.3 && hsv.z > 0.5) {
 		kind = 2;
-	} else if (hue > 14.0 && hue < 40.0 && hsv.y > 0.35 && hsv.z > 0.25 && hsv.z < 0.62) {
+	} else if (hue > 14.0 && hue < 40.0 && hsv.y > 0.35 && hsv.z > 0.33 && hsv.z < 0.62) {
 		kind = 1;
+	} else if (hsv.y < 0.2 && hsv.z > 0.06 && hsv.z <= 0.3) {
+		kind = 7;
+	} else if ((hue < 45.0 || hue > 340.0) && hsv.y >= 0.12 && hsv.z > 0.08 && hsv.z <= 0.42) {
+		kind = 6;
 	} else if ((hue < 14.0 || hue > 350.0) && hsv.y > 0.5 && hsv.z > 0.45 && hsv.z < 0.74) {
 		// Up-facing roof red is shingles; on the sides only the stone skirt (low
 		// down) and the chimney are stone, the gable and roof edges are wood trim.
 		bool chimney = abs(obj_pos.x - chimney_xz.x) < 0.45 && abs(obj_pos.z - chimney_xz.y) < 0.45;
 		kind = n.y > 0.35 ? 3 : ((obj_pos.y < 0.75 || chimney || !red_sides_wood) ? 4 : 1);
+	}
+	// Near-black iron shows no painting at all: lift it a little where it's painted.
+	bool dark_raw = kind == 7;
+	kind = kind_map[kind];
+	if (dark_raw && kind > 0 && detail_level >= 1) {
+		c = c * 1.6 + vec3(0.045, 0.035, 0.03);
 	}
 	vec3 tilt = vec3(0.0);
 	if (detail_level >= 1 && kind > 0 && glow < 0.01) {

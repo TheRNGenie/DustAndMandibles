@@ -126,6 +126,7 @@ static func toon_house(outline_thickness: float = 0.03) -> ShaderMaterial:
 	mat.set_shader_parameter("house_nrm_b", HOUSE_NRM_B)
 	mat.set_shader_parameter("house_nrm_c", HOUSE_NRM_C)
 	mat.set_shader_parameter("detail_level", _terrain_detail)
+	mat.set_shader_parameter("kind_map", PackedInt32Array([0, 1, 2, 3, 4, 5, 0, 0]))
 	if outline_thickness > 0.0:
 		mat.next_pass = outline(outline_thickness)
 	_cache[key] = mat
@@ -151,6 +152,108 @@ static func toon_deck(outline_thickness: float = 0.03) -> ShaderMaterial:
 	mat.set_shader_parameter("red_strength", 0.0)
 	_cache[key] = mat
 	return mat
+
+
+## The painted toon look on any builder mesh: `set_dir` holds a texture set packed
+## like assets/house (detail, normal_a/b/c; e.g. assets/rustic: wood, paint, cave
+## rock, stone, rusty iron) and `kind_map` says which painting each vertex-colour
+## class gets (see toon_house.gdshader). Cached per set, map and outline.
+const RUSTIC := "res://assets/rustic/rustic"
+static func toon_painted(set_prefix: String, kind_map: Array, outline_thickness: float = 0.03, tile: float = 2.2) -> ShaderMaterial:
+	var key := "painted_%s_%s_%.3f_%.2f" % [set_prefix, str(kind_map), outline_thickness, tile]
+	if _cache.has(key):
+		return _cache[key]
+	var mat := ShaderMaterial.new()
+	mat.shader = HOUSE_SHADER
+	mat.set_shader_parameter("spec_strength", 0.14)
+	mat.set_shader_parameter("house_detail", load(set_prefix + "_detail.png"))
+	mat.set_shader_parameter("house_nrm_a", load(set_prefix + "_normal_a.png"))
+	mat.set_shader_parameter("house_nrm_b", load(set_prefix + "_normal_b.png"))
+	mat.set_shader_parameter("house_nrm_c", load(set_prefix + "_normal_c.png"))
+	mat.set_shader_parameter("detail_level", _terrain_detail)
+	mat.set_shader_parameter("kind_map", PackedInt32Array(kind_map))
+	mat.set_shader_parameter("tile", tile)
+	if outline_thickness > 0.0:
+		mat.next_pass = outline(outline_thickness)
+	_cache[key] = mat
+	return mat
+
+
+## Swaps the shared plain toon materials under `root` for toon_painted ones
+## (leaves unique ones that flash, glow or change colour alone). Visual only.
+static func paint_subtree(root: Node, set_prefix: String, kind_map: Array, tile: float = 2.2) -> void:
+	if root == null or not ResourceLoader.exists(set_prefix + "_detail.png"):
+		return
+	var swapped := {}
+	var nodes: Array = root.find_children("*", "GeometryInstance3D", true, false)
+	if root is GeometryInstance3D:
+		nodes.append(root)
+	for n: Node in nodes:
+		var gi := n as GeometryInstance3D
+		var m := gi.material_override as ShaderMaterial
+		if m == null or m.shader != TOON_SHADER:
+			continue
+		if not swapped.has(m):
+			var t := 0.0
+			if m.next_pass is ShaderMaterial:
+				t = float((m.next_pass as ShaderMaterial).get_shader_parameter("thickness"))
+			swapped[m] = toon_painted(set_prefix, kind_map, t, tile) if toon(t) == m else null
+		if swapped[m] != null:
+			gi.material_override = swapped[m]
+
+
+## Kind maps for toon_painted (see toon_house.gdshader's kind_map).
+const MAP_TRAIN := [0, 1, 2, 1, 1, 5, 5, 5]    # reds as planks, every grey and dark as rusty iron
+const MAP_MINE := [0, 1, 2, 3, 3, 5, 3, 3]     # dark rock and reds as cave rock, greys as iron
+const MAP_YARD := [0, 1, 2, 1, 4, 5, 0, 5]     # greys and darks iron, earthy soil left plain
+const MAP_TIMBER := [0, 1, 2, 1, 1, 5, 1, 5]   # all wood, iron fittings
+const MAP_RUINS := [0, 1, 2, 1, 4, 5, 1, 5]
+
+static var _live: Array = [] # [root, set_prefix, kind_map]
+static var _pending: Array = []
+
+
+## paint_subtree now (next frame) and again for anything later built under `root`
+## (cars, upgrade parts, story stages swap their meshes in as they go).
+static func paint_live(root: Node, set_prefix: String, kind_map: Array) -> void:
+	if root == null or not ResourceLoader.exists(set_prefix + "_detail.png"):
+		return
+	var tree := root.get_tree() if root.is_inside_tree() else Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	_live = _live.filter(func(e: Array) -> bool: return is_instance_valid(e[0]))
+	_live.append([root, set_prefix, kind_map])
+	if not tree.node_added.is_connected(_on_node_added):
+		tree.node_added.connect(_on_node_added)
+	_queue(root)
+
+
+static func _on_node_added(n: Node) -> void:
+	if n is GeometryInstance3D:
+		_queue(n)
+
+
+static func _queue(n: Node) -> void:
+	if _pending.is_empty():
+		var tree := Engine.get_main_loop() as SceneTree
+		tree.process_frame.connect(_flush, CONNECT_ONE_SHOT)
+	_pending.append(n)
+
+
+static func _flush() -> void:
+	var batch := _pending.duplicate()
+	_pending.clear()
+	for v: Variant in batch:
+		if not is_instance_valid(v):
+			continue
+		var n := v as Node
+		for e: Array in _live:
+			if not is_instance_valid(e[0]):
+				continue
+			var root := e[0] as Node
+			if root == n or root.is_ancestor_of(n):
+				paint_subtree(n, e[1], e[2])
+				break
 
 
 ## Every strata material in the cache (duplicates made from one included).

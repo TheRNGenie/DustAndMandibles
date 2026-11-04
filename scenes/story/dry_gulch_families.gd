@@ -95,6 +95,7 @@ static func spots(cl: CliffBuilder) -> Array[Vector3]:
 
 
 func _ready() -> void:
+	Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_RUINS) # painted wood, iron, rock (assets/rustic)
 	cliffs = world.get("cliffs") as CliffBuilder
 	spots_list = spots(cliffs)
 	var n := HomesteadRules.FAMILIES.size()
@@ -500,6 +501,7 @@ class Ruin extends StaticBody3D:
 	var _beam: MeshInstance3D
 
 	func _ready() -> void:
+		Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_RUINS)
 		collision_layer = WorldLayout.LAYER_WORLD
 		collision_mask = 0
 		var boxes: Array = []
@@ -579,6 +581,7 @@ class PapersBox extends StaticBody3D:
 	var _home := true
 
 	func _ready() -> void:
+		Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_RUINS)
 		collision_layer = WorldLayout.LAYER_TRAP
 		collision_mask = 0
 		_mi = MeshInstance3D.new()
@@ -617,6 +620,7 @@ class Camp extends StaticBody3D:
 	var _glow: OmniLight3D
 
 	func _ready() -> void:
+		Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_RUINS)
 		collision_layer = WorldLayout.LAYER_WORLD
 		collision_mask = 0
 		var boxes: Array = []
@@ -670,6 +674,7 @@ class LedgerBox extends StaticBody3D:
 	var _full := true
 
 	func _ready() -> void:
+		Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_RUINS)
 		collision_layer = WorldLayout.LAYER_TRAP
 		collision_mask = 0
 		var mi := MeshInstance3D.new()
@@ -709,6 +714,7 @@ class DroppedBundle extends StaticBody3D:
 	var director: DryGulchFamilies
 
 	func _ready() -> void:
+		Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_RUINS)
 		collision_layer = WorldLayout.LAYER_TRAP
 		collision_mask = 0
 		var mi := MeshInstance3D.new()

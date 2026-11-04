@@ -69,6 +69,7 @@ func setup(cid: int, c: Vector2i, pos: Vector3) -> void:
 
 
 func _ready() -> void:
+	Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_TIMBER) # painted wood, iron, rock (assets/rustic)
 	_rebuild()
 
 

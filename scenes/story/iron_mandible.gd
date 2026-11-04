@@ -111,6 +111,7 @@ static func _nose_to(kind: String, cars_list: Array[String]) -> float:
 
 
 func _ready() -> void:
+	Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_TRAIN) # painted wood, iron, rock (assets/rustic)
 	cliffs = world.get("cliffs") as CliffBuilder
 	main = cliffs.main_tunnel()
 	var tn := cliffs.tunnel(main)
@@ -751,6 +752,7 @@ class Car extends AnimatableBody3D:
 	var _mi: MeshInstance3D
 
 	func _ready() -> void:
+		Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_TRAIN)
 		collision_layer = WorldLayout.LAYER_WORLD
 		collision_mask = 0
 		sync_to_physics = false
@@ -808,6 +810,7 @@ class Furnace extends StaticBody3D:
 	var _beam: MeshInstance3D
 
 	func _ready() -> void:
+		Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_TRAIN)
 		collision_layer = WorldLayout.LAYER_STRUCTURE
 		collision_mask = 0
 		for b: Array in [[TrainMeshes.KILN + Vector3(0, 0.4, 0), Vector3(3.3, 4.6, 3.4)], [Vector3(0, 8.1, -1.2), Vector3(1.1, 4.8, 1.1)]]:

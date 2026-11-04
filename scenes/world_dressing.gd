@@ -303,14 +303,30 @@ func _scatter_props(cid: int) -> void:
 			var rseed := _rng.randi()
 			var ryaw := _rng.randf() * TAU
 			if not SitePlan.in_site_zone(Vector3(x, 0, z), size + 1.5): # Expeditions: not in a raid site
-				add_mesh(PropBuilder.rock(rseed, size), Vector3(x, cliffs.floor_height(x, z) - 0.2, z), ryaw)
+				if not _ai_scatter("rock_a" if rseed % 2 == 0 else "rock_b", Vector3(x, cliffs.floor_height(x, z) - 0.12 * size, z), ryaw, size * 1.5):
+					add_mesh(PropBuilder.rock(rseed, size), Vector3(x, cliffs.floor_height(x, z) - 0.2, z), ryaw)
 		for i in 8:
 			var x := _rng.randf_range(-16.0, 16.0)
 			var z := _rng.randf_range(-80.0, 80.0)
 			var cseed := _rng.randi()
 			var cyaw := _rng.randf() * TAU
 			if not SitePlan.in_site_zone(Vector3(x, 0, z), 2.0):
-				add_mesh(PropBuilder.cactus(cseed), Vector3(x, cliffs.floor_height(x, z), z), cyaw)
+				if not _ai_scatter("saguaro" if cseed % 3 != 0 else "prickly_pear", Vector3(x, cliffs.floor_height(x, z) - 0.1, z), cyaw, 0.8 + float(cseed % 7) * 0.07):
+					add_mesh(PropBuilder.cactus(cseed), Vector3(x, cliffs.floor_height(x, z), z), cyaw)
+
+
+## An AI-made canyon-floor piece (assets/scatter: rocks, cacti), visual only.
+## False when the model is missing (then the old procedural one is placed).
+func _ai_scatter(model: String, pos: Vector3, yaw: float, s: float) -> bool:
+	var path := "res://assets/scatter/%s.glb" % model
+	if not AiModels.exists(path):
+		return false
+	var mi := AiModels.instance(path, 0.012)
+	mi.position = pos
+	mi.rotation.y = yaw
+	mi.scale = Vector3.ONE * s
+	parent.add_child(mi)
+	return true
 
 
 ## Fence along the playable boundary (back and sides) plus invisible walls.

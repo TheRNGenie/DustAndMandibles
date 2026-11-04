@@ -26,6 +26,7 @@ static func of(cid: int) -> WaterTower:
 
 
 func _ready() -> void:
+	Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_YARD) # painted wood, iron, rock (assets/rustic)
 	add_to_group("water_towers")
 	_by_cliff[cliff_id] = self
 	collision_layer = WorldLayout.LAYER_WORLD
