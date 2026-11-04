@@ -76,6 +76,13 @@ var _smoke: Array = [] # [mesh, age]
 var _smoke_t := 0.0
 var _smoke_mat: StandardMaterial3D
 var _fire: OmniLight3D
+## The engine's voice (every peer): a chuffing loop on the loco while it rolls,
+## quicker on the run in than on the crawl; the whistle as it sets off, the
+## brakes as it stops (not when it blows: it stops dead then).
+const CHUFF := "res://audio/sfx/train_chuff.ogg"
+var _chuff: AudioStreamPlayer3D
+var _last_s := -1.0
+var _rolling := false
 
 
 ## The train's route for this map (every peer: the same floor gives the same rails).
@@ -266,6 +273,7 @@ func _process(delta: float) -> void:
 	if not blown:
 		s = ReckoningRules.advance(s, delta * _speed_k, crawling, hold_s, stop_s)
 	_place_cars()
+	_engine_sound(delta)
 	if furnace != null:
 		Bug.frenzy_at = furnace.global_position
 	_smoke_tick(delta)
@@ -276,6 +284,46 @@ func _process(delta: float) -> void:
 		_sync_t = 3.0
 		_broadcast()
 	_host_mother(delta)
+
+
+func _engine_sound(delta: float) -> void:
+	if cars.is_empty() or not is_instance_valid(cars[0]):
+		return
+	var step := s - _last_s if _last_s >= 0.0 else 0.0
+	_last_s = s
+	if absf(step) > 2.0:
+		step = 0.0 # (a sync jump, not a roll)
+	var speed := step / maxf(delta, 0.0001)
+	var rolling := speed > 0.05 and not blown
+	if rolling != _rolling:
+		_rolling = rolling
+		var at := cars[0].global_position + Vector3.UP * 3.0
+		if rolling:
+			Audio.play_at(&"train_whistle", at, 6.0)
+		elif not blown:
+			Audio.play_at(&"train_brakes", at, 2.0)
+	if _chuff == null:
+		if not rolling or not ResourceLoader.exists(CHUFF):
+			return
+		var st := load(CHUFF) as AudioStreamOggVorbis
+		st.loop = true
+		_chuff = AudioStreamPlayer3D.new()
+		_chuff.name = "Chuff"
+		_chuff.stream = st
+		_chuff.bus = &"SFX" if AudioServer.get_bus_index("SFX") >= 0 else &"Master"
+		_chuff.unit_size = 14.0
+		_chuff.max_distance = 220.0
+		_chuff.volume_db = -40.0
+		_chuff.position = Vector3(0, 2.5, 0)
+		cars[0].add_child(_chuff)
+	var k := clampf(speed / ReckoningRules.ARRIVE_SPEED, 0.0, 1.0)
+	var goal := lerpf(-5.0, 0.0, k) if rolling else -60.0
+	_chuff.volume_db = move_toward(_chuff.volume_db, goal, delta * (40.0 if rolling else 25.0))
+	_chuff.pitch_scale = 0.78 + 0.32 * k
+	if rolling and not _chuff.playing:
+		_chuff.play()
+	elif not rolling and _chuff.playing and _chuff.volume_db <= -59.0:
+		_chuff.stop()
 
 
 func _place_cars() -> void:

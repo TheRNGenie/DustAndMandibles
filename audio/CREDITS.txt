@@ -77,3 +77,24 @@ wave_theme_1.ogg      "The Cowboy's Theme" (from "Wild West Music") by Umplix, O
                       https://opengameart.org/content/wild-west-music
 wave_theme_2.ogg      "Spaghetti Western" by Julie Damsgaard / Spring Spring, OpenGameArt
                       https://opengameart.org/content/spaghetti-western
+
+AI-generated sound effects (tools/audio/import_fal_sfx.py)
+----------------------------------------------------------
+Generated with fal.ai, ElevenLabs sound effects v2 (fal-ai/elevenlabs/sound-effects/v2),
+from text prompts written for this game (kept with the raw takes in the project archive).
+Decoded to mono 44.1 kHz, trimmed, faded, loudness-matched to the sounds they replaced;
+loops crossfaded end-over-start. These replace synthesized versions from make_sfx.py,
+make_foley.py and make_dynamite.py (those scripts would overwrite them if run again).
+  match_strike*, fuse_sizzle* (loops), dynamite*, thunder*, whip_crack_1-3,
+  skitter*, beetle_hiss*, spider_screech*, acid_spit*, loot_crack*,
+  homestead_hit*, hammer_hit*, build, bell, coin, register,
+  land_dirt*, land_wood*, slide*, throw*, spur*, zip_start,
+  harvest_pull*, plant_dig*, water_pour, rustle*, pump*, salvage*, hook_bite*, herb_eat,
+  cig_light, zippo_open, zippo_close, zippo_strike,
+  dice*, card_flick*, roulette_spin, slot_lever
+New sounds:
+  wing_buzz*      fliers (locusts, dragonflies) arriving
+  queen_shriek*   the Hive Queen (was spider_screech pitched down)
+  mother_roar*    the Hive Mother (likewise)
+  train_chuff.ogg, train_whistle, train_brakes   the Iron Mandible (ch10)
+  airship_engine.ogg                             the Lucky Mandible's engines

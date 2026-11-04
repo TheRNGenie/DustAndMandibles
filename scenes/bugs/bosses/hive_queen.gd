@@ -216,7 +216,7 @@ func on_event(kind: StringName, args: Array) -> void:
 	match kind:
 		&"phase":
 			_enraged = int(args[0]) >= 3
-			Audio.play_at(&"spider_screech", world(bug.spec.get("mouth_at", Vector3.ZERO)), 6.0, 0.45)
+			Audio.play_at(&"queen_shriek", world(bug.spec.get("mouth_at", Vector3.ZERO)), 4.0, 1.0)
 			if f != null:
 				f.shake(bug.global_position, 0.7)
 				if _enraged:
@@ -231,7 +231,7 @@ func on_event(kind: StringName, args: Array) -> void:
 				&"brood":
 					Audio.play_at(&"beetle_hiss", bug.global_position, 4.0, 0.5)
 				&"spit":
-					Audio.play_at(&"spider_screech", world(bug.spec.get("mouth_at", Vector3.ZERO)), 0.0, 0.6)
+					Audio.play_at(&"queen_shriek", world(bug.spec.get("mouth_at", Vector3.ZERO)), -2.0, 1.15)
 				&"shriek":
 					if f != null:
 						f.ground_ring(args[2], SHRIEK_RADIUS, SHRIEK, SHRIEK_CHARGE)
@@ -253,14 +253,14 @@ func on_event(kind: StringName, args: Array) -> void:
 			if f != null:
 				f.shockwave(head, (args[0] as Vector3) + Vector3.UP, SHRIEK_RADIUS, SHRIEK)
 				f.shake(args[0], 0.6)
-			Audio.play_at(&"spider_screech", head, 8.0, 0.4)
+			Audio.play_at(&"queen_shriek", head, 6.0, 0.95)
 			Audio.play_at(&"thunder", args[0], 2.0, 1.2)
 		&"dead":
 			if f != null:
 				f.shake(bug.global_position, 1.0)
 				f.pop(world(bug.spec.get("crown", Vector3.ZERO)), AMBER, 3.0)
 				f.rocks(bug.global_position, 2.0)
-			Audio.play_at(&"spider_screech", bug.global_position, 8.0, 0.35)
+			Audio.play_at(&"queen_shriek", bug.global_position, 6.0, 0.85)
 
 
 func visual(delta: float) -> void:

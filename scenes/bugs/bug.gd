@@ -162,8 +162,10 @@ func _ready() -> void:
 	match def.behavior:
 		BugDef.Behavior.TANK, BugDef.Behavior.BROOD, BugDef.Behavior.BOSS:
 			cue = &"beetle_hiss"
-		BugDef.Behavior.LEAPER, BugDef.Behavior.FLIER:
+		BugDef.Behavior.LEAPER:
 			cue = &"spider_screech"
+		BugDef.Behavior.FLIER:
+			cue = &"wing_buzz"
 	if def.group_size == 1 or name.hash() % 4 == 0:
 		Audio.play_at.call_deferred(cue, target_transform().origin)
 	if bool(spec.get("solo", false)):

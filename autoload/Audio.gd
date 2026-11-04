@@ -1,5 +1,5 @@
 extends Node
-## Plays the generated sound effects (audio/sfx/*.wav, made by tools/audio/make_sfx.py)
+## Plays the sound effects in audio/sfx (see audio/CREDITS.txt for where each comes from)
 ## through pooled players on the SFX and UI buses. Positional sounds use
 ## AudioStreamPlayer3D so you can hear which lane bugs climb. Missing files are skipped.
 
@@ -22,7 +22,10 @@ const NAMES: Array[StringName] = [&"revolver", &"gatling_1", &"gatling_2", &"gat
 	# Recorded (tools/audio/import_crunch.py): the light shell crack when a bug dies.
 	&"bug_crunch",
 	# The grapple's dynamite (tools/audio/make_dynamite.py): the strike on the strip, the fuse.
-	&"match_strike", &"fuse_sizzle"]
+	&"match_strike", &"fuse_sizzle",
+	# AI-generated (fal.ai, ElevenLabs sound effects v2; tools/audio/import_fal_sfx.py): fliers'
+	# wings, the bosses' own voices, the Iron Mandible's whistle and brakes.
+	&"wing_buzz", &"queen_shriek", &"mother_roar", &"train_whistle", &"train_brakes"]
 ## Most sounds have several takes (name.wav, name__2.wav, ...); one is picked at random.
 const MAX_TAKES := 6
 const POOL_3D := 32

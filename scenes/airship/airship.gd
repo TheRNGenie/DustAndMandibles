@@ -152,6 +152,7 @@ func _ready() -> void:
 			p2.position = pod + Vector3(0, 0, -1.2)
 			add_child(p2)
 		prop.queue_free()
+	_engine_drone()
 	# The name painted on both flanks of the envelope (a decal that wraps the curve).
 	var name_tex: Texture2D = load("res://assets/airship/name.png")
 	for sx: float in [-1.0, 1.0]:
@@ -518,6 +519,29 @@ func _animate_grandeur() -> void:
 		z = x.cross(y).normalized()
 		_shadow.global_transform = Transform3D(Basis(x, y, z), centre - y * 180.0)
 		_shadow.modulate = Color(1, 1, 1, clampf(sun.light_energy / 1.35, 0.0, 1.0) * 0.55)
+
+
+## The engines' drone: one looping player per side, at the pods, on the Ambience bus.
+## Heard on deck and from the arches; gone well before the canyon floor's battles.
+func _engine_drone() -> void:
+	const DRONE := "res://audio/sfx/airship_engine.ogg"
+	if not ResourceLoader.exists(DRONE):
+		return
+	var st := load(DRONE) as AudioStreamOggVorbis
+	st.loop = true
+	for sx: float in [-1.0, 1.0]:
+		var p := AudioStreamPlayer3D.new()
+		p.name = "EngineDrone"
+		p.stream = st
+		p.bus = &"Ambience" if AudioServer.get_bus_index("Ambience") >= 0 else &"Master"
+		p.unit_size = 8.0
+		p.max_distance = 110.0
+		p.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
+		p.volume_db = -10.0
+		p.pitch_scale = 1.0 if sx < 0.0 else 1.04 # (the two engines beat slowly against each other)
+		p.autoplay = true
+		p.position = Vector3(sx * (AirshipBuilder.DECK_W * 0.5 + 2.8), AirshipBuilder.ROOF_Y - 0.6, 0.0)
+		add_child(p)
 
 
 ## Spins a propeller.
