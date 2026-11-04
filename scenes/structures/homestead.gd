@@ -71,7 +71,7 @@ func _ready() -> void:
 	add_to_group("structures")
 	add_to_group("homesteads")
 	_mi = MeshInstance3D.new()
-	_mi.material_override = Materials.toon()
+	_mi.material_override = Materials.toon_house()
 	add_child(_mi)
 	_col = CollisionShape3D.new()
 	add_child(_col)
@@ -281,7 +281,7 @@ func _build_porch() -> void:
 	var mi := MeshInstance3D.new()
 	mi.name = "PorchWings"
 	mi.mesh = MeshKit.finish(st)
-	mi.material_override = Materials.toon(0.02)
+	mi.material_override = Materials.toon_house(0.02)
 	add_child(mi)
 
 

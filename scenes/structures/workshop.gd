@@ -16,7 +16,7 @@ func _ready() -> void:
 	collision_mask = 0
 	var mi := MeshInstance3D.new()
 	mi.mesh = _shed_mesh()
-	mi.material_override = Materials.toon(0.02)
+	mi.material_override = Materials.toon_house(0.02)
 	add_child(mi)
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()

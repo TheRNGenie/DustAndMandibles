@@ -73,7 +73,7 @@ func _shoot() -> void:
 			var b := home.global_transform.basis
 			var front := home.global_position - b.z.normalized() * (HouseBuilder.D * 0.5)
 			target = front + Vector3(0, 3.0, 0)
-			eye = front - b.z.normalized() * 15.0 + b.x.normalized() * 9.0 + Vector3(0, 4.5, 0)
+			eye = front - b.z.normalized() * 9.5 + b.x.normalized() * 6.0 + Vector3(0, 3.2, 0)
 		for i in 30:
 			await get_tree().process_frame
 	elif spec.begins_with("fence:"):
