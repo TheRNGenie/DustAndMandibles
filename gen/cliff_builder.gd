@@ -469,6 +469,7 @@ const FAR_STEP := 4.0
 func build(parent: Node3D) -> void:
 	if not _canyon:
 		MapTerrain.new(self).build(parent)
+		_infest_tunnels()
 		return
 	var rock := Materials.strata(Palette.SAND)
 	var floor_mat := Materials.strata(Color("#D9A35E"))
@@ -493,6 +494,18 @@ func build(parent: Node3D) -> void:
 	_add_visual(parent, "Bones", _carcasses(), Materials.toon(0.03))
 	_add_visual(parent, "BugTunnels", _bug_tunnels(), Materials.toon(0.03))
 	_add_hinterland(parent, rock)
+	_infest_tunnels()
+
+
+## The rock shader's infestation (resin, scrapes, burrows) gathers round the bug
+## tunnel mouths, thickest at the main one (the way down to the hive).
+func _infest_tunnels() -> void:
+	var spots := PackedVector4Array()
+	var main := main_tunnel()
+	for i in mini(tunnel_count(), Materials.MAX_HIVE_SPOTS):
+		var m: Vector3 = tunnel(i)[0]
+		spots.append(Vector4(m.x, m.y + 2.0, m.z, 16.0 if i == main else 10.0))
+	Materials.set_hive_spots(spots)
 
 
 # ---------------------------------------------------------------- hinterland

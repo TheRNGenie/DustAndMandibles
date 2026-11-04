@@ -1389,6 +1389,7 @@ func _take_screenshot(path: String) -> void:
 			shown += 1
 	for p: Node in players_root.get_children():
 		print("[peer %d]   player %s at %s" % [multiplayer.get_unique_id(), p.name, str((p as Node3D).global_position.snapped(Vector3.ONE * 0.1))])
+	print("[fps] %d" % Engine.get_frames_per_second()) # frame rate at the moment of the shot (look checks)
 	get_viewport().get_texture().get_image().save_png(path)
 	print("Saved screenshot to ", path)
 	get_tree().quit()
