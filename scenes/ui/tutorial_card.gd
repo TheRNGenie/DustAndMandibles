@@ -151,6 +151,15 @@ func _rebuild() -> void:
 	_col.add_theme_constant_override("separation", 6)
 	_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.add_child(_col)
+	# A painted vignette across the top of the card (assets/story_art/tips.jpg).
+	if ResourceLoader.exists("res://assets/story_art/tips.jpg"):
+		var art := TextureRect.new()
+		art.texture = load("res://assets/story_art/tips.jpg")
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		art.custom_minimum_size = Vector2(0, 90)
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_col.add_child(art)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 6)
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
