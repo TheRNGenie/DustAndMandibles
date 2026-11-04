@@ -234,6 +234,8 @@ func _request_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, se
 	# Trust the host's own record of this gun (level and mods), not the sender's.
 	var owned: Dictionary = GunShop.loadouts.get(multiplayer.get_remote_sender_id(), {})
 	var code := int(owned.get(id, 0))
+	if GameState.has_flag("--netlog"):
+		print("[host] %s shot from peer %d: host code %d (sender said %d), %.1f damage a pellet" % [String(id), multiplayer.get_remote_sender_id(), code, level, Gun.damage_for(id, code)])
 	_show_remote_shot(origin, dir, id, seed_value, code)
 	_server_fire(origin, dir, id, code, seed_value)
 
