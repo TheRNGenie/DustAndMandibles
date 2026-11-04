@@ -373,8 +373,10 @@ func _row(item: Dictionary) -> Control:
 	row.add_child(h)
 	var icon_box := PanelContainer.new()
 	icon_box.theme_type_variation = "IconPanel"
-	icon_box.custom_minimum_size = Vector2(60, 60)
-	icon_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	# An item may ask for a bigger picture ("icon_px": the Field Guide's painted plates).
+	var ipx := float(item.get("icon_px", 60.0))
+	icon_box.custom_minimum_size = Vector2(ipx, ipx)
+	icon_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER if ipx <= 60.0 else Control.SIZE_SHRINK_BEGIN
 	h.add_child(icon_box)
 	var ic: Variant = item.get("icon", null)
 	if ic is Texture2D:
