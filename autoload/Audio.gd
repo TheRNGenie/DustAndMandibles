@@ -57,6 +57,27 @@ const ECHO_SOUNDS: Array[StringName] = [&"revolver", &"gatling_1", &"gatling_2",
 	&"dynamite", &"lever_rifle", &"shotgun", &"repeater", &"sharpshooter", &"scattergun", &"blunderbuss",
 	&"mortar", &"lobber", &"cannon", &"thunder"]
 const ECHO_MIN_DIST := AmbienceMix.ECHO_MIN_DIST
+## Settings > Audio has its own sliders for bugs, weapons and speech: those sounds
+## play on their own buses (made in _make_buses, beside SFX, each feeding Master).
+const BUG_SOUNDS: Array[StringName] = [&"skitter", &"beetle_hiss", &"spider_screech", &"bug_pop", &"acid_spit",
+	&"loot_crack", &"bug_crunch", &"wing_buzz", &"queen_shriek", &"mother_roar"]
+const WEAPON_SOUNDS: Array[StringName] = [&"revolver", &"gatling_1", &"gatling_2", &"gatling_3", &"buffalo",
+	&"dynamite", &"armor_ping", &"hit_tick", &"reload", &"lever_rifle", &"shotgun", &"repeater", &"sharpshooter",
+	&"harpoon", &"scattergun", &"water_blast", &"mortar", &"lobber", &"cannon", &"blunderbuss",
+	&"whip_crack_1", &"whip_crack_2", &"whip_crack_3", &"revolver_open", &"revolver_load", &"revolver_close",
+	&"lever_rifle_open", &"lever_rifle_load", &"lever_rifle_close", &"coach_shotgun_open", &"coach_shotgun_load",
+	&"coach_shotgun_close", &"shell_eject", &"blunderbuss_open", &"blunderbuss_load", &"blunderbuss_close",
+	&"crank_gatling_open", &"crank_gatling_load", &"crank_gatling_close", &"equip", &"match_strike", &"fuse_sizzle"]
+
+
+## The bus a sound plays on: Bugs, Weapons or SFX (falls back to Master if missing).
+static func bus_for(sound: StringName) -> StringName:
+	var b := &"SFX"
+	if sound in BUG_SOUNDS:
+		b = &"Bugs"
+	elif sound in WEAPON_SOUNDS:
+		b = &"Weapons"
+	return b if AudioServer.get_bus_index(b) >= 0 else &"Master"
 const ECHO_GAP_MS := 140
 var _players_echo: Array[AudioStreamPlayer] = []
 var _next_echo := 0
@@ -153,6 +174,28 @@ func _make_buses() -> void:
 		rv.dry = 0.0
 		rv.wet = 1.0
 		AudioServer.add_bus_effect(i, rv)
+	# Bugs, Weapons and Voice: their own sliders. Bugs and Weapons get the same gentle
+	# compressor as SFX so stacked gunfire and swarms still don't clip.
+	for b: String in ["Bugs", "Weapons", "Voice"]:
+		if AudioServer.get_bus_index(b) < 0:
+			AudioServer.add_bus()
+			var k := AudioServer.bus_count - 1
+			AudioServer.set_bus_name(k, b)
+			AudioServer.set_bus_send(k, &"Master")
+			if b != "Voice":
+				var comp := AudioEffectCompressor.new()
+				comp.threshold = -10.0
+				comp.ratio = 3.0
+				comp.attack_us = 2000.0
+				comp.release_ms = 180.0
+				AudioServer.add_bus_effect(k, comp)
+	# Settings may have applied its volumes before these buses existed: set them now.
+	var st: Node = get_node_or_null("/root/Settings")
+	if st != null:
+		for pair: Array in [["Bugs", "bug_volume"], ["Weapons", "weapon_volume"], ["Voice", "speech_volume"]]:
+			var k2 := AudioServer.get_bus_index(str(pair[0]))
+			if k2 >= 0:
+				AudioServer.set_bus_volume_db(k2, linear_to_db(maxf(float(st.get(str(pair[1]))), 0.0001)))
 	if AudioServer.get_bus_index("Ambience") < 0:
 		AudioServer.add_bus()
 		var a := AudioServer.bus_count - 1
@@ -217,6 +260,7 @@ func play_at(sound: StringName, pos: Vector3, volume_db: float = 0.0, pitch: flo
 	var p := _players_3d[_next_3d]
 	_next_3d = (_next_3d + 1) % _players_3d.size()
 	p.stream = _pick(sound)
+	p.bus = bus_for(sound)
 	p.global_position = pos
 	p.volume_db = volume_db
 	p.pitch_scale = randf_range(1.0 - PITCH_VARIATION, 1.0 + PITCH_VARIATION) * pitch
@@ -259,6 +303,7 @@ func play_crunch(pos: Vector3, volume_db: float = 0.0, pitch: float = 1.0) -> vo
 		print("[audio] bug_crunch at %s %.0f m slot %d" % [str(pos.snapped(Vector3.ONE * 0.1)), dist, slot])
 	var p := _players_crunch[slot]
 	p.stream = _pick(&"bug_crunch")
+	p.bus = bus_for(&"bug_crunch")
 	p.global_position = pos
 	p.volume_db = volume_db
 	p.pitch_scale = randf_range(1.0 - PITCH_VARIATION, 1.0 + PITCH_VARIATION) * pitch
@@ -280,6 +325,7 @@ func play_ui(sound: StringName, volume_db: float = 0.0, pitch: float = 1.0) -> v
 	var p := _players_ui[_next_ui]
 	_next_ui = (_next_ui + 1) % _players_ui.size()
 	p.stream = _pick(sound)
+	p.bus = bus_for(sound) if (sound in BUG_SOUNDS or sound in WEAPON_SOUNDS) else (&"UI" if AudioServer.get_bus_index("UI") >= 0 else &"Master")
 	p.volume_db = volume_db
 	p.pitch_scale = pitch
 	p.play()

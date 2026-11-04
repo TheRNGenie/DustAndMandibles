@@ -17,7 +17,7 @@ func _ready() -> void:
 	var src := load("res://audio/sfx/skitter.wav") as AudioStreamWAV
 	if src == null:
 		return
-	var bus := &"SFX" if AudioServer.get_bus_index("SFX") >= 0 else &"Master"
+	var bus := &"Bugs" if AudioServer.get_bus_index("Bugs") >= 0 else &"Master"
 	# [pitch, loudest dB]: deep rumble underneath, chitter on top.
 	for layer: Array in [[0.48, -7.0], [0.82, -13.0]]:
 		var s := src.duplicate() as AudioStreamWAV

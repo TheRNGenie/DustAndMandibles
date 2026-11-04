@@ -1,13 +1,19 @@
 class_name AudioTab
 extends VBoxContainer
-## Audio tab: master, sound effects and music volume.
+## Audio tab: the overall volume, then bugs, music, weapons (guns, turrets, the
+## dynamite, the whip), speech (the voiced radio) and every other sound effect.
 
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 8)
-	add_child(UiStyle.row("Master volume", UiStyle.slider(0.0, 1.0, 0.05, Settings.master_volume, "pct",
-			func(v: float) -> void: Settings.set_value("master_volume", v))))
-	add_child(UiStyle.row("Sound effects", UiStyle.slider(0.0, 1.0, 0.05, Settings.sfx_volume, "pct",
-			func(v: float) -> void: Settings.set_value("sfx_volume", v))))
-	add_child(UiStyle.row("Music", UiStyle.slider(0.0, 1.0, 0.05, Settings.music_volume, "pct",
-			func(v: float) -> void: Settings.set_value("music_volume", v))))
+	_slider("Volume", "master_volume", Settings.master_volume)
+	_slider("Bug Volume", "bug_volume", Settings.bug_volume)
+	_slider("Music Volume", "music_volume", Settings.music_volume)
+	_slider("Weapon Volume", "weapon_volume", Settings.weapon_volume)
+	_slider("Speech Volume", "speech_volume", Settings.speech_volume)
+	_slider("Other Effects", "sfx_volume", Settings.sfx_volume)
+
+
+func _slider(label: String, key: String, value: float) -> void:
+	add_child(UiStyle.row(label, UiStyle.slider(0.0, 1.0, 0.05, value, "pct",
+			func(v: float) -> void: Settings.set_value(key, v))))

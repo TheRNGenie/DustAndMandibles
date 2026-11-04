@@ -90,7 +90,7 @@ func _ready() -> void:
 	_card.visible = false
 	_build_subtitle()
 	_voice = AudioStreamPlayer.new()
-	_voice.bus = &"UI" if AudioServer.get_bus_index("UI") >= 0 else &"Master"
+	_voice.bus = &"Voice" if AudioServer.get_bus_index("Voice") >= 0 else &"Master"
 	add_child(_voice)
 
 

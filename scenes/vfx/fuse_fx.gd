@@ -102,7 +102,7 @@ func _ready() -> void:
 	_light.shadow_enabled = false
 	add_child(_light)
 	_sizzle = AudioStreamPlayer3D.new()
-	_sizzle.bus = &"SFX" if AudioServer.get_bus_index("SFX") >= 0 else &"Master"
+	_sizzle.bus = &"Weapons" if AudioServer.get_bus_index("Weapons") >= 0 else &"Master"
 	_sizzle.unit_size = 4.0
 	_sizzle.max_distance = 40.0
 	_sizzle.volume_db = -8.0 if small else -2.0

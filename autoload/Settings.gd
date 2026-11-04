@@ -69,6 +69,9 @@ var bug_detail: int = GraphicsQuality.HIGH
 var master_volume: float = 0.8
 var sfx_volume: float = 1.0
 var music_volume: float = 0.6
+var bug_volume: float = 1.0
+var weapon_volume: float = 1.0
+var speech_volume: float = 1.0
 # Accessibility: shape glyphs on team colours and alerts, not colour alone.
 var colorblind: bool = false
 ## UI text size, 0.9 - 1.3 (UiStyle.ts applies it).
@@ -173,6 +176,9 @@ func apply() -> void:
 	_set_bus_volume("Master", master_volume)
 	_set_bus_volume("SFX", sfx_volume)
 	_set_bus_volume("Music", music_volume)
+	_set_bus_volume("Bugs", bug_volume)
+	_set_bus_volume("Weapons", weapon_volume)
+	_set_bus_volume("Voice", speech_volume)
 	changed.emit()
 
 
@@ -297,7 +303,7 @@ func _deserialize(data: String) -> InputEvent:
 
 const SAVED_KEYS: Array[String] = ["mouse_sensitivity", "invert_y", "fov", "brightness", "fps_cap",
 	"vsync", "fullscreen", "shadows", "msaa", "render_scale", "quality", "shadow_detail", "effects",
-	"view_distance", "particles", "bug_detail", "master_volume", "sfx_volume", "music_volume", "debug_mode",
+	"view_distance", "particles", "bug_detail", "master_volume", "sfx_volume", "music_volume", "bug_volume", "weapon_volume", "speech_volume", "debug_mode",
 	"colorblind", "ui_text_scale", "tutorial_done", "host_online", "build_cam_third", "grapple_swing_toggle"]
 
 
