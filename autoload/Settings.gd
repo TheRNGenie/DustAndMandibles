@@ -169,6 +169,7 @@ func apply() -> void:
 	RenderingServer.directional_soft_shadow_filter_set_quality(GraphicsQuality.SHADOW_FILTER[sd] as RenderingServer.ShadowQuality)
 	BugManager.set_detail_level(GraphicsQuality.level(bug_detail))
 	Materials.set_terrain_detail(GraphicsQuality.level(effects)) # the rock shader's painted detail
+	InfestProps.set_detail(GraphicsQuality.level(effects)) # how many infestation props
 	_set_bus_volume("Master", master_volume)
 	_set_bus_volume("SFX", sfx_volume)
 	_set_bus_volume("Music", music_volume)

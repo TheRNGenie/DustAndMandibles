@@ -29,6 +29,7 @@ func build() -> void:
 		_build_boundary(cid)
 	_build_nests()
 	_build_webs()
+	InfestProps.build(parent, cliffs, 9191) # eggs, resin, husks, cocoons, burrows, bones
 	if WorldLayout.map().is_canyon():
 		CanyonDressing.build(parent, cliffs, 5151)
 		_build_floor_ends()
@@ -333,7 +334,12 @@ func _build_boundary(cid: int) -> void:
 	while d >= 1.0:
 		pts.append(ground(cid, d, half_w))
 		d -= 2.5
-	add_mesh(BuildingBuilder.fence(pts, 600 + cid), Vector3.ZERO, 0.0, "Fence%d" % cid)
+	var fence := BuildingBuilder.fence_node(pts, cid, 600 + cid)
+	if fence != null:
+		fence.name = "Fence%d" % cid
+		parent.add_child(fence)
+	else:
+		add_mesh(BuildingBuilder.fence(pts, 600 + cid), Vector3.ZERO, 0.0, "Fence%d" % cid)
 
 	var wall_h := 8.0
 	var y := WorldLayout.CLIFF_HEIGHT + wall_h * 0.5 - 1.0

@@ -128,6 +128,38 @@ static func windmill_fan() -> ArrayMesh:
 	return MeshKit.finish(st)
 
 
+## The yard fence from the AI-made sections (assets/fences: style 0 West a
+## split-rail log fence, 1 East a picket fence with barbed wire): one 2.5 m
+## section between each pair of points, stretched to fit, leaning a touch at
+## random. Null when the models are missing (then fence() draws the old one).
+static func fence_node(points: Array[Vector3], style: int, seed_value: int) -> Node3D:
+	var path := "res://assets/fences/fence_%s.glb" % ("west" if style % 2 == 0 else "east")
+	if not AiModels.exists(path) or points.size() < 2:
+		return null
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = AiModels.mesh(path)
+	mm.instance_count = points.size() - 1
+	for i in points.size() - 1:
+		var a := points[i]
+		var b := points[i + 1]
+		var d := b - a
+		var x := d.normalized()
+		var z := x.cross(Vector3.UP).normalized()
+		var y := z.cross(x).normalized()
+		var lean := Basis(x, rng.randf_range(-0.05, 0.05))
+		# Stretched so neighbouring sections share their end posts.
+		var post_gap := 2.14 if style % 2 == 0 else 2.3
+		var basis := (lean * Basis(x, y, z)).scaled(Vector3(d.length() / post_gap, rng.randf_range(0.95, 1.05), 1.0))
+		mm.set_instance_transform(i, Transform3D(basis, (a + b) * 0.5 - Vector3(0, 0.04, 0)))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.material_override = AiModels.material(path, 0.01)
+	return mmi
+
+
 ## A run of fence posts with two rails between `from` and `to` (local space, y = ground offset).
 static func fence(points: Array[Vector3], seed_value: int) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
