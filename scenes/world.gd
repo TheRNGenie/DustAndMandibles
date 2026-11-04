@@ -334,6 +334,20 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # ------------------------------------------------------------------ environment
 
+## Depth fog for the player's view distance (GraphicsQuality.VIEW_FAR): full at
+## 92% of the far plane, with a curve that keeps ~27% at 100 m like the old
+## exponential fog (density 0.0032).
+static func apply_horizon_fog(env: Environment) -> void:
+	var far := GraphicsQuality.VIEW_FAR[GraphicsQuality.level(Settings.view_distance)]
+	var end := far * 0.92
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_density = 1.0
+	env.fog_depth_begin = 0.0
+	env.fog_depth_end = end
+	env.fog_depth_curve = log(0.27) / log(100.0 / end)
+	env.set_meta(&"base_curve", env.fog_depth_curve) # DayCycle bends it for weather
+
+
 func _build_environment() -> void:
 	var sky_mat := ShaderMaterial.new()
 	sky_mat.shader = SKY_SHADER
@@ -356,6 +370,12 @@ func _build_environment() -> void:
 	env.fog_light_color = Palette.SKY_HORIZON
 	env.fog_density = 0.0032
 	env.fog_sky_affect = 0.0
+	# An endless horizon: depth fog that matches the old exponential haze up close
+	# (about a quarter at 100 m) but is complete just before the camera's far
+	# plane, and the sky takes the fog's colour at and below the horizon, so the
+	# far desert melts into the sky instead of ending at an edge.
+	apply_horizon_fog(env)
+	sky_mat.set_shader_parameter("use_fog_color", true)
 	env.glow_enabled = true
 	env.glow_intensity = 0.65
 	env.glow_hdr_threshold = 1.2
@@ -391,6 +411,8 @@ func _build_environment() -> void:
 
 
 func _apply_settings() -> void:
+	if _env.fog_mode == Environment.FOG_MODE_DEPTH:
+		apply_horizon_fog(_env) # the view distance may have changed
 	_env.adjustment_enabled = true
 	_env.adjustment_brightness = Settings.brightness
 	# (The OpenGL renderer draws a shadowed sun in an extra additive pass that

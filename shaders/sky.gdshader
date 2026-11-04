@@ -6,6 +6,12 @@ shader_type sky;
 uniform vec4 top_color : source_color = vec4(0.310, 0.722, 0.847, 1.0); // #4FB8D8
 uniform vec4 horizon_color : source_color = vec4(0.969, 0.851, 0.627, 1.0); // #F7D9A0
 uniform vec4 ground_color : source_color = vec4(0.784, 0.502, 0.353, 1.0);
+// The scene fog's colour (DayCycle): the sky meets it at and below the horizon,
+// so the far ground (fully fogged before the camera's far plane) melts into the
+// sky with no edge. fog_band: how far above the horizon the blend reaches.
+uniform vec4 fog_color : source_color = vec4(0.969, 0.851, 0.627, 1.0);
+uniform float fog_band = 0.07;
+uniform bool use_fog_color = false;
 uniform vec4 sun_color : source_color = vec4(1.0, 0.95, 0.8, 1.0);
 uniform float sun_size : hint_range(0.0, 0.1) = 0.012;
 uniform float bands = 0.0; // > 0 posterises the gradient
@@ -137,13 +143,17 @@ void sky() {
 		vec3 cc = mix(cloud_color.rgb + glow_color.rgb * golden * 0.35 * smoothstep(0.5, 1.0, to_sun), cloud_color.rgb, rim);
 		col = mix(col, cc * shade_c, mask * 0.9 * (1.0 - night * 0.4));
 	}
+	if (use_fog_color) {
+		col = mix(fog_color.rgb, col, smoothstep(-0.01, fog_band, dir.y));
+	}
 	// The distant mesas: a painted strip just above the horizon, all the way round.
-	if (use_art && dir.y > -0.02 && dir.y < 0.16) {
+	if (use_art && dir.y > -0.005 && dir.y < 0.16) {
 		float az = atan(dir.x, dir.z) / 6.2832;
 		vec4 m = textureLod(art_mesas, vec2(az * 3.0, 1.0 - (dir.y + 0.02) / 0.18), 0.0);
 		float land = 1.0 - smoothstep(0.82, 0.9, dot(m.rgb, vec3(0.33)));
-		vec3 hazed = mix(m.rgb, horizon_color.rgb, 0.45) * mix(1.0, 0.35, night);
-		col = mix(col, hazed, land * 0.85);
+		vec3 haze = use_fog_color ? fog_color.rgb : horizon_color.rgb;
+		vec3 hazed = mix(m.rgb * 0.82, haze, 0.32) * mix(1.0, 0.35, night);
+		col = mix(col, hazed, land * 0.85 * smoothstep(-0.005, 0.035, dir.y)); // its foot melts into the haze
 	}
 	if (LIGHT0_ENABLED) {
 		if (night < 0.5) {
