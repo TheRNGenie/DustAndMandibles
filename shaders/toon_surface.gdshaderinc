@@ -69,10 +69,17 @@ vec3 toon_paint(vec3 c, vec3 vcol, float glow) {
 	vec3 a = abs(n);
 	vec3 q = paint_pos / paint_tile;
 	vec2 uv = (a.y >= a.x && a.y >= a.z) ? q.xz : ((a.x >= a.z) ? q.zy : q.xy);
+	if (paint_mode == 1 && ch == 1) {
+		uv *= 0.45; // bigger bristle strokes: they read from a distance
+	}
 	vec4 t = texture(paint_tex, uv);
 	float l = ch == 0 ? t.r : (ch == 1 ? t.g : (ch == 2 ? t.b : t.a));
-	c *= max(1.0 + (l * 2.0 - 1.0) * paint_strength, 0.35);
-	c = mix(c, vec3(0.169, 0.106, 0.090), smoothstep(0.12, 0.05, l) * 0.4 * paint_strength);
+	// Bristles, filigree and hide are fine and low-contrast: pushed harder, with
+	// their dark strokes inked, so they read at playing distance.
+	float st = paint_strength * ((paint_mode == 1 && ch >= 1) ? 1.7 : 1.0);
+	float ink_at = (paint_mode == 1 && ch >= 1) ? 0.3 : 0.12;
+	c *= max(1.0 + (l * 2.0 - 1.0) * st, 0.3);
+	c = mix(c, vec3(0.169, 0.106, 0.090), smoothstep(ink_at, ink_at - 0.12, l) * min(0.4 * st, 0.75));
 	return c;
 }
 

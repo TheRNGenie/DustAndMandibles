@@ -79,8 +79,8 @@ static func toon_glide_skin(outline_thickness: float, skin: int) -> ShaderMateri
 	var mat := toon_glide(outline_thickness).duplicate() as ShaderMaterial
 	if outline_thickness > 0.0:
 		mat.next_pass = toon_glide(outline_thickness).next_pass
-	_paint(mat, 1, skin, 1.0)
-	mat.set_shader_parameter("paint_strength", 0.95)
+	_paint(mat, 1, skin, 1.4)
+	mat.set_shader_parameter("paint_strength", 0.75)
 	_cache[key] = mat
 	return mat
 
