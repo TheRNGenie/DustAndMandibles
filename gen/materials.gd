@@ -8,8 +8,21 @@ const TOON_GLIDE_SHADER: Shader = preload("res://shaders/toon_glide.gdshader")
 const OUTLINE_GLIDE_SHADER: Shader = preload("res://shaders/outline_glide.gdshader")
 const STRATA_SHADER: Shader = preload("res://shaders/cliff_strata.gdshader")
 const STAR_SHADER: Shader = preload("res://shaders/vfx_star.gdshader")
+## Hand-painted terrain textures (AI-generated with fal.ai, see assets/terrain/CREDITS.md;
+## how each is packed: shaders/cliff_strata.gdshader): rock and ground detail with
+## their normal maps, and the infestation masks.
+const ROCK_TEX: Texture2D = preload("res://assets/terrain/rock_detail.png")
+const ROCK_NRM: Texture2D = preload("res://assets/terrain/rock_normal.png")
+const GROUND_TEX: Texture2D = preload("res://assets/terrain/ground_detail.png")
+const GROUND_NRM: Texture2D = preload("res://assets/terrain/ground_normal.png")
+const INFEST_MASK: Texture2D = preload("res://assets/terrain/infest_mask.png")
+const MAX_HIVE_SPOTS := 12
 
 static var _cache: Dictionary = {}
+## Terrain texture detail (GraphicsQuality level: 0 Low, 1 Medium, 2 High) and the
+## spots the infestation gathers round (tunnel mouths), applied to every strata material.
+static var _terrain_detail := GraphicsQuality.HIGH
+static var _hive_spots := PackedVector4Array()
 
 
 ## Toon material that reads colour from vertex colours, with an outline pass.
@@ -74,8 +87,48 @@ static func strata(top: Color = Palette.SAND) -> ShaderMaterial:
 	mat.shader = STRATA_SHADER
 	mat.set_shader_parameter("noise_tex", noise_texture(7, 0.02))
 	mat.set_shader_parameter("top_color", top)
+	mat.set_shader_parameter("rock_tex", ROCK_TEX)
+	mat.set_shader_parameter("rock_nrm", ROCK_NRM)
+	mat.set_shader_parameter("ground_tex", GROUND_TEX)
+	mat.set_shader_parameter("ground_nrm", GROUND_NRM)
+	mat.set_shader_parameter("infest_tex", INFEST_MASK)
+	mat.set_shader_parameter("plateau_y", WorldLayout.CLIFF_HEIGHT)
+	_apply_terrain(mat)
 	_cache[key] = mat
 	return mat
+
+
+## Every strata material in the cache (duplicates made from one included).
+static func _strata_materials() -> Array[ShaderMaterial]:
+	var out: Array[ShaderMaterial] = []
+	for m: Variant in _cache.values():
+		if m is ShaderMaterial and (m as ShaderMaterial).shader == STRATA_SHADER:
+			out.append(m)
+	return out
+
+
+static func _apply_terrain(mat: ShaderMaterial) -> void:
+	mat.set_shader_parameter("detail_level", _terrain_detail)
+	var spots: Array[Vector4] = []
+	for i in MAX_HIVE_SPOTS:
+		spots.append(_hive_spots[i] if i < _hive_spots.size() else Vector4.ZERO)
+	mat.set_shader_parameter("hive_spots", spots)
+	mat.set_shader_parameter("hive_count", mini(_hive_spots.size(), MAX_HIVE_SPOTS))
+
+
+## Terrain texture detail from the Effects setting: Low draws the infestation only.
+static func set_terrain_detail(level: int) -> void:
+	_terrain_detail = GraphicsQuality.level(level)
+	for mat in _strata_materials():
+		_apply_terrain(mat)
+
+
+## Where the infestation is thickest (x, y, z, radius), e.g. the bug tunnel mouths.
+## Call after the terrain is built (map materials are duplicated from the cache).
+static func set_hive_spots(spots: PackedVector4Array) -> void:
+	_hive_spots = spots
+	for mat in _strata_materials():
+		_apply_terrain(mat)
 
 
 static func star(tint: Color, brightness: float = 2.0) -> ShaderMaterial:
