@@ -154,6 +154,9 @@ func test_route_and_pace() -> void:
 	assert_almost(ReckoningRules.advance(60.0, 2.0, true, 60.0, 150.0), 60.0 + ReckoningRules.CRAWL_SPEED * 2.0)
 	assert_almost(ReckoningRules.advance(149.5, 5.0, true, 60.0, 150.0), 150.0)
 	assert_almost(ReckoningRules.advance(150.0, 5.0, false, 60.0, 150.0), 150.0, 0.001, "never backwards")
+	# A wave that starts before the train is in: it rolls in at full speed, then crawls.
+	assert_almost(ReckoningRules.advance(20.0, 1.0, true, 60.0, 150.0), 20.0 + ReckoningRules.ARRIVE_SPEED, 0.001, "still rolling in")
+	assert_almost(ReckoningRules.advance(58.0, 1.0, true, 60.0, 150.0), 60.0 + ReckoningRules.CRAWL_SPEED * (1.0 - 2.0 / ReckoningRules.ARRIVE_SPEED), 0.001, "in, then the crawl")
 	var arc := ReckoningRules.arc_route(Vector3.ZERO, 10.0, 0.0, PI, 1.0, fy)
 	assert_almost(ReckoningRules.length_of(arc), PI * 10.0, 0.2)
 	assert_true(ReckoningRules.point_at(arc, 999.0).is_equal_approx(Vector3(10, 0, 0)), "ends at a_end")

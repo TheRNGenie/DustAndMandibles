@@ -55,7 +55,7 @@
 			["stroud", "Silas. Answer me."],
 			["doc", "His wire's gone dead, Captain. Let him be."]
 		],
-		"hold": [["stroud", "Night's done, and those papers are still on the floor. Down you go."]],
+		"hold": [["stroud", "Night's done, and what we went down for is still on that floor. Down you go."]],
 		"win": [["pearl", "Four families and one ledger. That's a case, Captain. Somebody's going to answer for it."], ["stroud", "Silas hasn't said a word since. Leave his bench be."]],
 		"lost": [["stroud", "The crews have the floor. The papers are ash. Regroup, ranchers, and we go again."]]
 	},

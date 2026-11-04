@@ -584,7 +584,7 @@ func status() -> Array:
 		return ["Furnace out. The Iron Mandible is a wreck  ·  Night 1 of 2", "good"]
 	if not sealed:
 		if _seal_started:
-			return ["SILAS'S FUSE IS BURNING  ·  keep her on the wall!", "bad"]
+			return ["SILAS'S FUSE IS BURNING  ·  she's pinned where she stands", "bad"]
 		return ["The lower hive is open  ·  bring down the Hive Mother", "warn"]
 	return ["The gallery is sealed. Silas didn't come up.", "good"]
 
