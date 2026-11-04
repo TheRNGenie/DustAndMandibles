@@ -8,6 +8,9 @@ extends RefCounted
 ##   weapon    id = a weapon id (data/weapons) - e.g. a secret gun the gunsmith
 ##             only stocks for riders who know the code
 ##   notches   id = how many Notches it pays (every time it's entered)
+##   ability   id = a knack that's on while unlocked; entering the code again
+##             switches it off (and again, on). GRAPPLE_ANY: Free Hands,
+##             weapons out mid-grapple (Grapple.free_hands)
 ## Unlocks are saved in the profile (PerkProfile.secrets, plus cosmetics for
 ## looks). Query with SecretCodes.is_unlocked(kind, id) (this player) or
 ## Perks.has_secret(peer_id, kind, id) (host, any rider).
@@ -16,11 +19,15 @@ extends RefCounted
 ## and paste the line it prints into TABLE.
 
 const SALT := "dust&mandibles:"
-const KINDS: Array[String] = ["cosmetic", "weapon", "notches"]
+const KINDS: Array[String] = ["cosmetic", "weapon", "notches", "ability"]
+const GRAPPLE_ANY := &"grapple_any"
+## How abilities read on the Secrets screen.
+const ABILITY_NAMES := {"grapple_any": "Free Hands: any weapon out on the grapple rope"}
 ## sha256 hex -> Array of {"kind", "id"}. Empty until the owner picks codes.
 const TABLE: Dictionary = {
 	"a2bc441e9bd7ae562183d029f1224f0debf316ecbf147ef64753d6dea2f4c067": [{"kind": "weapon", "id": "dino_rifle"}],
 	"0f581a4a1816b73337ada44143a18bf27f7a332afcbea5d3c0aab40985d30787": [{"kind": "notches", "id": "120"}],
+	"1f848874bfdb5b2d6359bf153b838dd939a96475ab8494b2b55514abc9fbb12d": [{"kind": "ability", "id": "grapple_any"}],
 }
 
 

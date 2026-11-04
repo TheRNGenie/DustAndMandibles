@@ -7,7 +7,7 @@ extends RefCounted
 ## gun keeps everything done to it, and the host can check every shot from it.
 ##
 ## fx keys: damage, fire_interval, reload, spread, range, spin_up, zoom, reach,
-## stun (all multipliers), mag, pellets (added), pierce (bool). The whip uses
+## stun, radius (all multipliers), mag, pellets (added), pierce, burn (bool). The whip uses
 ## the same scheme: every player carries one, with its own level and mods.
 
 ## Chitin per whip level.
@@ -102,6 +102,12 @@ const MODS: Dictionary = {
 		{"name": "Long lash", "desc": "Four more feet of plaited hide: reaches 40% further.", "cost": 15, "fx": {"reach": 1.4}},
 		{"name": "Barbed popper", "desc": "A wire-wrapped tip: +50% damage.", "cost": 20, "fx": {"damage": 1.5}},
 		{"name": "Snakeskin grip", "desc": "Lash again 40% sooner, and stuns last twice as long.", "cost": 20, "fx": {"fire_interval": 0.6, "stun": 2.0}},
+	],
+	# The grapple's dynamite (DynamiteRules): level 1 is the Powder Satchel.
+	&"dynamite": [
+		{"name": "Bigger Blast", "desc": "Fatter sticks, packed loose: the blast reaches 40% further.", "cost": 20, "fx": {"radius": 1.4}},
+		{"name": "Heavier Charge", "desc": "Blasting gelatine instead of black powder: +40% damage.", "cost": 25, "fx": {"damage": 1.4}},
+		{"name": "Coal Oil", "desc": "A rag soaked in coal oil round the sticks: whatever lives through the blast goes up in flames.", "cost": 25, "fx": {"burn": true}},
 	],
 	&"crank_gatling": [
 		{"name": "Greased gears", "desc": "Winds up in less than half the time.", "cost": 20, "fx": {"spin_up": 0.4}},

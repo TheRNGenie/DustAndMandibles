@@ -2,7 +2,8 @@
 
     python tools/ui/secret_hash.py "GOLD RUSH 77" weapon:dino_rifle cosmetic:hat:bug_skull
 
-Each unlock is kind:id, kind = weapon (a weapon id), cosmetic (slot:option) or notches (an amount, paid once).
+Each unlock is kind:id, kind = weapon (a weapon id), cosmetic (slot:option), notches (an amount, paid once)
+or ability (a knack the code switches on and off, e.g. ability:grapple_any).
 Codes are matched upper-cased with only letters and digits kept, salted with
 SecretCodes.SALT, and stored as SHA-256 so the plain code never enters the repo.
 """
@@ -24,7 +25,7 @@ if __name__ == "__main__":
     unlocks = []
     for arg in sys.argv[2:]:
         kind, _, uid = arg.partition(":")
-        if kind not in ("weapon", "cosmetic", "notches") or not uid:
+        if kind not in ("weapon", "cosmetic", "notches", "ability") or not uid:
             sys.exit("unlocks look like weapon:dino_rifle or cosmetic:hat:bug_skull, not %r" % arg)
         unlocks.append('{"kind": "%s", "id": "%s"}' % (kind, uid))
     print('\t"%s": [%s],' % (digest, ", ".join(unlocks)))

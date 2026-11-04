@@ -181,6 +181,7 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 	tutorial.player = player
 	player.gun.ammo_changed.connect(_on_ammo_changed)
 	_scope.gun = player.gun
+	_dyn_player = player
 	player.gun.hit_confirmed.connect(func(weak: bool) -> void: (_crosshair as Crosshair).flash(weak))
 	(_crosshair as Crosshair).grapple = player.grapple
 	player.gun.reload_started.connect(func(_d: float) -> void: _ammo_label.text = "Reloading")
@@ -198,7 +199,50 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 	_on_ammo_changed(player.gun.ammo, player.gun.def.mag_size)
 
 
+## The grapple's dynamite: with the launcher out the ammo sign counts bundles,
+## and a keycap hint above it says what R does next.
+var _dyn_player: Player
+var _dyn_hint: Control
+var _dyn_hint_text := ""
+var _dyn_sign := false
+
+
+func _update_dynamite_hud() -> void:
+	var p := _dyn_player
+	var dyn := p.dynamite if p != null and is_instance_valid(p) else null
+	var on := dyn != null and dyn.owns_r()
+	if on:
+		_ammo_label.text = "Dynamite %d / %d" % [dyn.bundles, DynamiteRules.MAX_BUNDLES]
+		if not _dyn_sign:
+			_ammo_label.add_theme_font_size_override("font_size", 21)
+		_dyn_sign = true
+	elif _dyn_sign:
+		_dyn_sign = false
+		_ammo_label.add_theme_font_size_override("font_size", 30)
+		if p != null and is_instance_valid(p) and p.gun.def != null:
+			_on_ammo_changed(p.gun.ammo, p.gun.mag_size())
+	var text := dyn.hint() if on else ""
+	if text != _dyn_hint_text:
+		_dyn_hint_text = text
+		if _dyn_hint != null:
+			_dyn_hint.queue_free()
+			_dyn_hint = null
+		if text != "":
+			_dyn_hint = KeyHints.row([[KeyHints.key_for("reload"), text]])
+			# Under the crosshair, clear of the backpack card on the canyon floor.
+			_dyn_hint.anchor_left = 0.5
+			_dyn_hint.anchor_right = 0.5
+			_dyn_hint.anchor_top = 0.5
+			_dyn_hint.anchor_bottom = 0.5
+			_dyn_hint.offset_left = -160
+			_dyn_hint.offset_right = 160
+			_dyn_hint.offset_top = 46
+			_dyn_hint.offset_bottom = 72
+			add_child(_dyn_hint)
+
+
 func _process(_delta: float) -> void:
+	_update_dynamite_hud()
 	if Input.is_action_just_pressed("debug_overlay"):
 		_debug_label.visible = not _debug_label.visible
 	_update_phase_label()

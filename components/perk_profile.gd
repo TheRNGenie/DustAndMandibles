@@ -145,6 +145,11 @@ func unlock_secret(unlocks: Array) -> Array:
 			brands += maxi(int(id), 0)
 			added.append({"kind": kind, "id": id})
 			continue
+		if kind == "ability" and secrets.has(k):
+			# Abilities toggle: the code again switches it off.
+			secrets.erase(k)
+			added.append({"kind": kind, "id": id, "off": true})
+			continue
 		if kind == "" or id == "" or secrets.has(k):
 			continue
 		secrets.append(k)

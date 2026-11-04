@@ -117,7 +117,11 @@ func menu_items(tab: int) -> Array:
 			var basics: Dictionary = text().get("basics", {})
 			for key: Variant in basics:
 				var e: Dictionary = basics[key]
-				out.append(_item(StringName(str(key)), str(e.get("title", key)), StringName(str(e["icon"])) if e.has("icon") else null, str(e.get("lore", "")), str(e.get("stats", "")), e.get("tips", []), ""))
+				var stats := str(e.get("stats", ""))
+				if str(key) == "grapple_dynamite": # the numbers from the rules, not the text
+					stats = "%s at the gunsmith (Upgrades)  ·  %d damage in %s m, less at the edge  ·  %d bundles, one back every %d s up top" % [
+							UiStyle.cost(DynamiteRules.SATCHEL_COST, "chitin"), int(DynamiteRules.DAMAGE), str(DynamiteRules.RADIUS), DynamiteRules.MAX_BUNDLES, int(DynamiteRules.RESTOCK_SECS)]
+				out.append(_item(StringName(str(key)), str(e.get("title", key)), StringName(str(e["icon"])) if e.has("icon") else null, str(e.get("lore", "")), stats, e.get("tips", []), ""))
 		5:
 			# Story: one page per chapter won (StoryScreen.journal_pages), the rest torn out.
 			for v: Array in StoryScreen.journal_pages():

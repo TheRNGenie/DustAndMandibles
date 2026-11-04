@@ -89,6 +89,17 @@ var action_freeze := -1.0
 var relaxed := false
 ## 0..1: raises the right arm and waves (shopkeepers greeting you).
 var wave := 0.0
+## The grapple's dynamite in the left hand (Dynamite._show_state): 0 none,
+## 1 a bundle up, 2 its fuse lit. Third person only.
+var _dyn_state := 0
+var _dyn_k := 0.0
+var _dyn: Node3D
+var _dyn_fuse: FuseFx
+## Blown about by dynamite: a short small ragdoll (seconds left, tilt axis, how hard).
+const TUMBLE_TIME := 0.85
+var _tumble_t := 0.0
+var _tumble_axis := Vector3.RIGHT
+var _tumble_amt := 0.0
 
 
 func build(team: Color, is_first_person: bool, dummy_look: Dictionary = {}) -> void:
@@ -139,6 +150,20 @@ func build(team: Color, is_first_person: bool, dummy_look: Dictionary = {}) -> v
 	_gun_mi.material_override = Materials.toon(0.008)
 	_gun_mi.transform = Transform3D(Basis(Vector3.RIGHT, GUN_TILT), GUN_AT)
 	_hand.add_child(_gun_mi)
+	var lhand := _pivot(_elbows[0], Vector3(0, -FOREARM - 0.05, 0))
+	_dyn = Node3D.new()
+	_dyn.position = Vector3(0, -0.03, -0.01)
+	_dyn.rotation = Vector3(-PI * 0.5, 0, 0) # sticks out along the fist, fuse up when the arm's raised
+	_dyn.scale = Vector3.ONE * 1.6
+	lhand.add_child(_dyn)
+	var dmi := MeshInstance3D.new()
+	dmi.mesh = WeaponBuilder.dynamite_bundle()
+	dmi.material_override = Materials.toon(0.01)
+	_dyn.add_child(dmi)
+	_dyn_fuse = FuseFx.new()
+	_dyn_fuse.position = WeaponBuilder.DYNAMITE_FUSE_TIP
+	_dyn.add_child(_dyn_fuse)
+	_dyn.visible = false
 	if first_person:
 		_gun_mi.visible = false
 		for mi: MeshInstance3D in [head_mi, torso, pelvis, tails]:
@@ -159,7 +184,7 @@ func build(team: Color, is_first_person: bool, dummy_look: Dictionary = {}) -> v
 ## the pivot head, which line up with the model's.
 func _wear_model(outfit: StringName) -> void:
 	for mi: MeshInstance3D in find_children("*", "MeshInstance3D", true, false):
-		if mi != _gun_mi:
+		if mi != _gun_mi and not (_dyn != null and _dyn.is_ancestor_of(mi)): # (the dynamite in the left hand stays)
 			mi.visible = false
 	_model = ModelBody.new()
 	_model.name = "Model"
@@ -340,6 +365,10 @@ func animate(delta: float, speed: float, sliding: bool, pitch: float, vy: float 
 	# Idle fidget: touch the hat brim.
 	l_sh = l_sh.lerp(Vector3(2.35, 0.25, -0.35), fidget * (1.0 - _two))
 	l_el = lerpf(l_el, 2.0, fidget * (1.0 - _two))
+	# Dynamite: the left hand holds the bundle up by the shoulder, ready to throw.
+	_dyn_k = move_toward(_dyn_k, 1.0 if _dyn_state > 0 else 0.0, dt * 6.0)
+	l_sh = l_sh.lerp(Vector3(1.9 + clampf(pitch, -0.6, 0.6) * 0.5, 0.35, -0.45), _dyn_k)
+	l_el = lerpf(l_el, 1.6, _dyn_k)
 	_shoulders[1].rotation = r_sh + Vector3(0, 0, absf(_wobble.x) * 1.5)
 	_elbows[1].rotation = Vector3(r_el, 0, 0)
 	_shoulders[0].rotation = l_sh + Vector3(0, 0, -absf(_wobble.z) * 2.0)
@@ -347,12 +376,51 @@ func animate(delta: float, speed: float, sliding: bool, pitch: float, vy: float 
 	# Head follows your aim and glances around; nods into the fidget.
 	_head.rotation = Vector3(clampf(pitch, -0.7, 0.7) - _torso.rotation.x - 0.12 * fidget, _head_yaw - _torso.rotation.y - _hips.rotation.y * 0.6, 0.0)
 	_apply_action(dt)
+	_apply_tumble(dt)
 	# Wobble spring (damped): floppy dummy reaction to hits.
 	_wobble_vel += (-_wobble * 60.0 - _wobble_vel * 7.0) * dt
 	_wobble += _wobble_vel * dt
 	_head.rotation.z = -_wobble.z * 1.4
 	if _model != null and is_inside_tree():
 		_model.apply()
+
+
+## Dynamite: what's in the left hand (0 nothing, 1 a bundle, 2 lit).
+func set_dynamite(state: int) -> void:
+	_dyn_state = state
+	if _dyn == null:
+		return
+	_dyn.visible = state > 0 and not first_person
+	_dyn_fuse.lit = state == 2 and not first_person
+
+
+## Blown about by dynamite (`strength` 0..1): the body is thrown over away from
+## `dir` a little, arms and legs flung out, then it rights itself.
+func tumble(dir: Vector3, strength: float) -> void:
+	knock(dir, strength * 2.0)
+	var local := global_transform.basis.inverse() * dir
+	var axis := Vector3(local.z, 0.0, -local.x)
+	_tumble_axis = axis.normalized() if axis.length() > 0.01 else Vector3.RIGHT
+	_tumble_amt = 0.35 + 0.75 * clampf(strength, 0.0, 1.0)
+	_tumble_t = TUMBLE_TIME
+
+
+func _apply_tumble(dt: float) -> void:
+	if _tumble_t <= 0.0:
+		return
+	_tumble_t = maxf(_tumble_t - dt, 0.0)
+	var u := 1.0 - _tumble_t / TUMBLE_TIME
+	# Thrown over fast, a beat limp, then up again.
+	var w := smoothstep(0.0, 0.18, u) * (1.0 - smoothstep(0.55, 1.0, u)) * _tumble_amt
+	_hips.rotation += _tumble_axis * w * 1.1
+	_hips.position.y -= 0.3 * w
+	_head.rotation.x += 0.5 * w
+	for i in 2:
+		var s := -1.0 if i == 0 else 1.0
+		_shoulders[i].rotation += Vector3(1.4 * w, 0.0, s * 1.1 * w)
+		_elbows[i].rotation.x += 0.6 * w
+		_thighs[i].rotation.x += (0.7 if i == 0 else 0.2) * w
+		_shins[i].rotation.x -= (0.9 if i == 0 else 0.4) * w
 
 
 ## Act out an interaction (harvest, plant, slots...). See DummyActions.

@@ -32,8 +32,10 @@ static func classify(source: String) -> StringName:
 	var low := source.to_lower()
 	if low.ends_with("bear trap"):
 		return TRAP
-	if low.ends_with("dynamite crate"):
+	if low.ends_with("dynamite crate") or low.ends_with("'s dynamite"): # (a player's grapple dynamite too)
 		return BLAST
+	if low.ends_with("'s coal oil"): # the dynamite's Coal Oil mod: survivors burn
+		return FIRE
 	if source.ends_with(SpecialShotRules.FIRE_SHELL): # Twin Mortar's fire shell
 		return FIRE
 	for id: StringName in Defs.TURRETS:
