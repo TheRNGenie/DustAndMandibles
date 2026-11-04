@@ -70,7 +70,7 @@ func _on_wanted_died(bug: Bug, source: String, source_cliff: int) -> void:
 	Economy.earn(to_cliff, {&"scrap": amount})
 	var who := source if source != "" else "Somebody"
 	_paid.rpc(base, who)
-	BugManager.instance._announce_line.rpc("Bounty collected! %s got the %s: %d scrap" % [who, bug.def.display_name, amount])
+	BugManager.instance._announce_line.rpc("Bounty collected! %s got the %s: %d scrap" % [who, bug.def.display_name.trim_prefix("The "), amount])
 
 
 @rpc("authority", "call_local", "reliable")

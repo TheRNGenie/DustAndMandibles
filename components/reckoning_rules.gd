@@ -115,9 +115,16 @@ static func s_nearest(route: PackedVector3Array, p: Vector3) -> float:
 
 
 ## Where the nose is after `dt` more seconds: rolling in toward `hold` (build),
-## or crawling on toward `stop` (the wave); never backwards.
+## or crawling on toward `stop` (the wave); never backwards. A wave that starts
+## before the train is in (the riders readied up early) finds it still rolling
+## in at full speed until it reaches `hold`, so the furnace is never left out
+## of rifle range for half the night.
 static func advance(s: float, dt: float, crawling: bool, hold: float, stop: float) -> float:
 	if crawling:
+		if s < hold:
+			var rolled := minf(s + ARRIVE_SPEED * dt, hold)
+			var spare := dt - (rolled - s) / ARRIVE_SPEED
+			return minf(rolled + CRAWL_SPEED * maxf(spare, 0.0), stop)
 		return minf(s + CRAWL_SPEED * dt, stop) if s < stop else s
 	return minf(s + ARRIVE_SPEED * dt, hold) if s < hold else s
 

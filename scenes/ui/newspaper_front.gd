@@ -61,10 +61,16 @@ func show_run(won: bool, reason: String) -> void:
 		_story("Top Gun", "%s led the town with %s." % [str(top[0]), RunStats.count_of(int(top[1]), "kill")])
 	var bosses := RunStats.bosses
 	if not bosses.is_empty():
-		var catch := "%s brought down. Bounties paid in full." % ", ".join(PackedStringArray(bosses))
+		# (Story chapters 9 and 10: the board voided the charter; nobody pays bounties.)
+		var ch := Story.chapter()
+		var paid := " Bounties paid in full." if ch == null or ch.number < 9 else ""
+		var catch := "%s brought down.%s" % [", ".join(PackedStringArray(bosses)), paid]
 		var last := str(bosses[bosses.size() - 1])
 		if RunStats.boss_by.has(last):
-			catch += " %s fell to %s." % [last, str(RunStats.boss_by[last])]
+			if bosses.size() == 1:
+				catch = "%s brought down by %s.%s" % [last, str(RunStats.boss_by[last]), paid]
+			else:
+				catch += " %s fell to %s." % [last, str(RunStats.boss_by[last])]
 		_story("Biggest Catch", catch)
 	else:
 		var tb := RunStats.top_bug()

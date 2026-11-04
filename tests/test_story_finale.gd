@@ -103,7 +103,23 @@ func test_homestead_spots_keep_away_from_the_ropes_and_each_other() -> void:
 	var more := HomesteadRules.pick_spots(cands, feet, 3, HomesteadRules.MIN_SEP, avoid)
 	for q in more:
 		assert_true(Vector2(q.x - got[0].x, q.z - got[0].z).length() >= HomesteadRules.MIN_SEP, "kept off the camp")
-	assert_eq(HomesteadRules.ring_candidates(Vector3.ZERO, 30.0).size(), 72)
+	assert_eq(HomesteadRules.ring_candidates(Vector3.ZERO, 30.0).size(), 120)
+
+
+## A crowded ring floor (the Buttes: the lakebed cracks' raid-site zones cover
+## the middle): the spots ease off the zones rather than piling up.
+func test_homestead_spots_ease_off_on_a_crowded_floor() -> void:
+	var feet: Array[Vector3] = [Vector3(19, 60, -34.5), Vector3(34.5, 60, 19), Vector3(-19, 60, 34.5), Vector3(-34.5, 60, -19)]
+	var cands := HomesteadRules.ring_candidates(Vector3.ZERO, 30.0)
+	var everywhere := func(_p: Vector3) -> bool: return true
+	var near_middle := func(p: Vector3) -> bool: return Vector2(p.x, p.z).length() < 15.0
+	assert_eq(HomesteadRules.pick_spots(cands, feet, 4, HomesteadRules.MIN_SEP, [], everywhere).size(), 0, "the strict pick finds nothing")
+	var got := HomesteadRules.pick_spots_eased(cands, feet, 4, [], everywhere, near_middle)
+	assert_eq(got.size(), 4)
+	for i in got.size():
+		assert_false(near_middle.call(got[i]), "clear of the tunnel mouths")
+		for j in i:
+			assert_true(Vector2(got[i].x - got[j].x, got[i].z - got[j].z).length() >= HomesteadRules.SEP_FLOOR)
 
 
 func test_papers_bookkeeping() -> void:
@@ -154,6 +170,9 @@ func test_route_and_pace() -> void:
 	assert_almost(ReckoningRules.advance(60.0, 2.0, true, 60.0, 150.0), 60.0 + ReckoningRules.CRAWL_SPEED * 2.0)
 	assert_almost(ReckoningRules.advance(149.5, 5.0, true, 60.0, 150.0), 150.0)
 	assert_almost(ReckoningRules.advance(150.0, 5.0, false, 60.0, 150.0), 150.0, 0.001, "never backwards")
+	# A wave that starts before the train is in: it rolls in at full speed, then crawls.
+	assert_almost(ReckoningRules.advance(20.0, 1.0, true, 60.0, 150.0), 20.0 + ReckoningRules.ARRIVE_SPEED, 0.001, "still rolling in")
+	assert_almost(ReckoningRules.advance(58.0, 1.0, true, 60.0, 150.0), 60.0 + ReckoningRules.CRAWL_SPEED * (1.0 - 2.0 / ReckoningRules.ARRIVE_SPEED), 0.001, "in, then the crawl")
 	var arc := ReckoningRules.arc_route(Vector3.ZERO, 10.0, 0.0, PI, 1.0, fy)
 	assert_almost(ReckoningRules.length_of(arc), PI * 10.0, 0.2)
 	assert_true(ReckoningRules.point_at(arc, 999.0).is_equal_approx(Vector3(10, 0, 0)), "ends at a_end")

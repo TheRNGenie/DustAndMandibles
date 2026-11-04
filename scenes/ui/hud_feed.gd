@@ -254,13 +254,18 @@ func _on_bug_killed(bug_name: String, bug_cliff: int, source: String, source_cli
 	var saved := _cliff_owner_name(bug_cliff)
 	var text: String
 	if source_cliff >= 0 and source_cliff != bug_cliff:
-		text = "%s saved %s from a %s (+%d scrap to %s)" % [source, saved, bug_name, scrap, saved]
+		text = "%s saved %s from %s (+%d scrap to %s)" % [source, saved, _a(bug_name), scrap, saved]
 	elif source != "":
-		text = "%s got a %s (+%d scrap)" % [source, bug_name, scrap]
+		text = "%s got %s (+%d scrap)" % [source, _a(bug_name), scrap]
 	else:
-		text = "A %s went down (+%d scrap)" % [bug_name, scrap]
+		text = "%s went down (+%d scrap)" % [bug_name if bug_name.begins_with("The ") else "A " + bug_name, scrap]
 	var mine := source_cliff == cliff_id or bug_cliff == cliff_id
 	add_line(text, UiStyle.c("title") if mine else UiStyle.c("hud"))
+
+
+## "a Dust Mite", but "The Hive Mother" (a boss's name already has its article).
+static func _a(bug_name: String) -> String:
+	return bug_name if bug_name.begins_with("The ") else "a " + bug_name
 
 
 func _on_wave_announced(heavy_cliff: int, west_share: float, lane_counts: Array) -> void:

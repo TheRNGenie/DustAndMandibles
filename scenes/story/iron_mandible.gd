@@ -199,11 +199,15 @@ func done() -> bool:
 ## silence after it).
 func win_delay() -> float:
 	var left := director.radio_left()
+	if blown and not director._said.has("ch10_vane"):
+		left += 7.0 # (the furnace went late in the last wave: Vane's wire is still to come)
+		for l: Array in director.chapter.event_lines("vane"):
+			left += RadioCard.line_seconds(str(l[1]), str(l[0]))
 	if not director._said.has("ch10_sealed"):
 		left += 7.0
 		for l: Array in director.chapter.event_lines("sealed"):
 			left += RadioCard.line_seconds(str(l[1]), str(l[0]))
-	return minf(left + 1.0, 45.0)
+	return minf(left + 1.0, 70.0)
 
 
 func _state() -> Dictionary:
@@ -354,8 +358,8 @@ func _blow_furnace(source: String) -> void:
 	blown = true
 	lit = false
 	print("[ch10] furnace blown by %s at s %.1f" % [source, s])
-	for cid in WorldLayout.cliff_count():
-		Economy.notify_cliff(cid, "%s blew the Iron Mandible's amber furnace!" % (source if source != "" else "Someone"))
+	for pid: int in Economy._everyone(): # (once each: solo holds every cliff)
+		Economy.notify(pid, "%s blew the Iron Mandible's amber furnace!" % (source if source != "" else "Someone"))
 	_blow_fx.rpc()
 	_broadcast()
 	_say_once("furnace_down")
@@ -363,6 +367,9 @@ func _blow_furnace(source: String) -> void:
 	get_tree().create_timer(7.0).timeout.connect(func() -> void: _say_once("vane"))
 	get_tree().create_timer(40.0).timeout.connect(func() -> void: _say_once("crane"))
 	if director.holding and done():
+		# The hold after the last wave: Vane's last words go out now (not on the
+		# timer) and the chapter waits for them, so the win doesn't cut his wire.
+		_say_once("vane")
 		director.piece_done(director.radio_left() + 3.0)
 
 
@@ -584,7 +591,7 @@ func status() -> Array:
 		return ["Furnace out. The Iron Mandible is a wreck  ·  Night 1 of 2", "good"]
 	if not sealed:
 		if _seal_started:
-			return ["SILAS'S FUSE IS BURNING  ·  keep her on the wall!", "bad"]
+			return ["SILAS'S FUSE IS BURNING  ·  she's pinned where she stands", "bad"]
 		return ["The lower hive is open  ·  bring down the Hive Mother", "warn"]
 	return ["The gallery is sealed. Silas didn't come up.", "good"]
 

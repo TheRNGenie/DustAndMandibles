@@ -29,6 +29,8 @@ extends Node
 ## at once (the ending beat).
 
 const P := HomesteadRules.Papers
+## Seconds of radio already queued past which a passing line keeps for later.
+const QUIET_RADIO := 8.0
 
 var director: StoryDirector
 var world: Node3D
@@ -65,14 +67,23 @@ static func spots(cl: CliffBuilder) -> Array[Vector3]:
 		feet.append(cl.plateau_point(cid, 0.0, Buildable.ROPE_ANCHOR_Z))
 	var cands: Array[Vector3] = HomesteadRules.canyon_candidates() if cl.map.is_canyon() \
 			else HomesteadRules.ring_candidates(cl.map.center, cl.map.ring_radius)
+	if not cl.map.is_canyon():
+		# Ring maps: only spots down on the basin / lakebed floor (not up a wall's foot).
+		var low := INF
+		for c in cands:
+			low = minf(low, cl.floor_height(c.x, c.z))
+		var floor_only: Array[Vector3] = []
+		for c in cands:
+			if cl.floor_height(c.x, c.z) < low + 1.5:
+				floor_only.append(c)
+		cands = floor_only
 	var blocked := func(p: Vector3) -> bool: return SitePlan.in_site_zone(p, 1.5, false)
-	var sep := HomesteadRules.MIN_SEP
-	var camp_at := HomesteadRules.pick_spots(cands, feet, 1, sep, [], blocked)
-	var homes := HomesteadRules.pick_spots(cands, feet, HomesteadRules.FAMILIES.size(), sep, camp_at, blocked)
-	while homes.size() < HomesteadRules.FAMILIES.size() and sep > 6.0:
-		# A small basin: squeeze them closer.
-		sep -= 2.0
-		homes = HomesteadRules.pick_spots(cands, feet, HomesteadRules.FAMILIES.size(), sep, camp_at, blocked)
+	var mouths: Array[Vector3] = []
+	for t: Array in tunnels:
+		mouths.append(t[0])
+	var near_mouth := func(p: Vector3) -> bool: return HomesteadRules._nearest(p, mouths) < 8.0
+	var camp_at := HomesteadRules.pick_spots_eased(cands, feet, 1, [], blocked, near_mouth)
+	var homes := HomesteadRules.pick_spots_eased(cands, feet, HomesteadRules.FAMILIES.size(), camp_at, blocked, near_mouth)
 	var out: Array[Vector3] = []
 	for h in homes:
 		out.append(Vector3(h.x, cl.floor_height(h.x, h.z), h.z))
@@ -277,27 +288,29 @@ func _take(peer: int, i: int) -> void:
 	states[i] = P.PACKED
 	holders[i] = peer
 	Economy.notify(peer, "The %s family's deed and letters are in your backpack." % HomesteadRules.family_name(i))
-	_say_once("papers")
+	_say_once("papers", true)
 	_broadcast()
 
 
 ## WIRE TO AMBER AT MERGE (StoryAmber): the crew's crates of amber go in the
 ## pack of whoever opened the strongbox (nothing on the story branch).
 func _amber_crates(peer: int) -> void:
-	var n := StoryAmber.pack(peer, 6, "the board's amber crates")
-	if n > 0:
-		Economy.notify(peer, "And %d chunks of the board's hive amber from the crew's crates. Theirs no longer." % n)
+	StoryAmber.pack(peer, 6, "the board's crates, theirs no longer") # (Amber.grant announces it)
 
 
-func _say_once(key: String) -> void:
+## `quiet_only`: a line about the moment (stepping down, opening a box) that
+## would be stale behind a queue of letters: kept for a quieter moment instead.
+func _say_once(key: String, quiet_only := false) -> void:
 	if director._said.has("ch9_" + key):
+		return
+	if quiet_only and director.radio_left() > QUIET_RADIO:
 		return
 	director._said["ch9_" + key] = true
 	director._event.rpc(key)
 
 
 func _on_went_down(_peer: int) -> void:
-	_say_once("down")
+	_say_once("down", true)
 
 
 ## Host: papers or the ledger came up out of the canyon in a pack.

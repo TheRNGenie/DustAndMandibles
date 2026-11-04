@@ -106,6 +106,7 @@ func _exit_tree() -> void:
 	Expedition.story_items.clear()
 	SitePlan.skip_tunnels = []
 	SitePlan.story_zones.clear()
+	SitePlan.site_keep_out.clear()
 	Bug.frenzy_lit = false
 	BugManager.boss_tunnel = -1
 	if Expedition.story_item_up.is_connected(_on_item_up):
@@ -428,12 +429,14 @@ static func reserved_tunnels(cliffs: CliffBuilder) -> Array[int]:
 ## dresses the canyon.
 static func reserve_story_ground(cliffs: CliffBuilder) -> void:
 	SitePlan.story_zones.clear()
+	SitePlan.site_keep_out.clear()
 	var ch := Story.chapter()
 	if ch == null or cliffs == null:
 		return
 	match ch.kind():
 		"salvage":
 			SitePlan.story_zones.append_array(DryGulchFamilies.spots(cliffs))
+			SitePlan.site_keep_out.append_array(SitePlan.story_zones)
 		"reckoning":
 			var route := IronMandible.route_for(cliffs)
 			var s := 0.0
