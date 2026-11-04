@@ -42,6 +42,12 @@ var _phi := 0.0
 var _speed := 0.0
 
 
+const AI_BASE := "res://assets/yard/jack_base.glb"
+const AI_BEAM := "res://assets/yard/jack_beam.glb"
+## Where the AI jack's beam pivots, in its own frame (fitted by eye).
+const AI_PIVOT := Vector3(0.0, 1.95, -0.45)
+
+
 func _ready() -> void:
 	Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_YARD) # painted wood, iron, rock (assets/rustic)
 	super()
@@ -82,6 +88,22 @@ func _build() -> void:
 	var belt := _part("Belt", WellJackBuilder.belt(drive_at), Materials.toon(0.0))
 	(belt as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_tumbler = _part("Tumbler", WellJackBuilder.tumbler(), mat)
+	# The AI-made jack (assets/yard): its stand in place of the builder frame (the
+	# trough and casing stay as built), its walking beam riding the animated beam
+	# node; crank, pitman, rod and drive stay as built and keep moving.
+	if AiModels.exists(AI_BASE) and AiModels.exists(AI_BEAM):
+		frame.visible = false
+		_part("TroughCasing", WellJackBuilder.trough_casing(style, 400 + cliff_id), mat)
+		var s := _pivot.y / AI_PIVOT.y
+		var jack_stand := AiModels.instance(AI_BASE, 0.015)
+		jack_stand.name = "StandAI"
+		jack_stand.transform = Transform3D(Basis.from_scale(Vector3.ONE * s), _pivot - AI_PIVOT * s)
+		add_child(jack_stand)
+		var beam_ai := AiModels.instance(AI_BEAM, 0.015)
+		beam_ai.name = "BeamAI"
+		beam_ai.transform = Transform3D(Basis.from_scale(Vector3.ONE * s), -AI_PIVOT * s)
+		_beam.add_child(beam_ai)
+		(_beam as MeshInstance3D).mesh = null
 	# Water: the stream from the spout, and the level in the trough.
 	var water_mat := StandardMaterial3D.new()
 	water_mat.albedo_color = Color(WaterworksBuilder.WATER.lightened(0.25), 0.75)

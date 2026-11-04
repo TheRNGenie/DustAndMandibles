@@ -36,6 +36,9 @@ func _ready() -> void:
 	mi.mesh = info["mesh"]
 	mi.material_override = Materials.toon()
 	add_child(mi)
+	# The AI-made tower (assets/yard) over the builder mesh; collision, the sight
+	# glass and the water level stay as built.
+	AiModels.stand_in(mi, "res://assets/yard/water_tower.glb", 0.02, "height")
 	for s: Array in info["shapes"]:
 		var col := CollisionShape3D.new()
 		col.shape = s[0]

@@ -4,6 +4,9 @@
         [--size 1.0] [--axis x|y|z|max] [--max-tris 1500] [--cut-below 0.0]
         [--rot-z 0] [--origin bottom|center|top] [--tex 1024] [--part front|back --split 0.12]
         [--dims x,y,z]   (stretch to exactly these extents instead of --size)
+        [--trim 1]       (drop stray far-off bits: vertices outside the 0.5-99.5% spread)
+        [--zpart top|bottom --zcut 0.7]   (keep only what's above / below that share of
+                          the height, in the whole model's frame: a beam and its stand)
 
 Joins it into one mesh, optionally drops everything below `cut-below` (a share
 of its height: a base plate, a stray gondola), turns it `rot-z` degrees about
@@ -29,12 +32,12 @@ from slim import slim_textures  # noqa: E402
 def opts():
     a = sys.argv[sys.argv.index("--") + 1:]
     o = {"in": a[0], "out": a[1], "size": 1.0, "axis": "max", "max_tris": 1500, "cut_below": 0.0,
-            "rot_z": 0.0, "origin": "bottom", "tex": 1024, "part": "", "split": 0.12, "dims": ""}
+            "rot_z": 0.0, "origin": "bottom", "tex": 1024, "part": "", "split": 0.12, "dims": "", "zpart": "", "zcut": 0.7, "trim": ""}
     i = 2
     while i < len(a):
         o[a[i].lstrip("-").replace("-", "_")] = a[i + 1]
         i += 2
-    for k in ("size", "cut_below", "rot_z", "split"):
+    for k in ("size", "cut_below", "rot_z", "split", "zcut"):
         o[k] = float(o[k])
     for k in ("max_tris", "tex"):
         o[k] = int(o[k])
@@ -65,6 +68,20 @@ def main():
     body = bpy.context.view_layer.objects.active
     for e in [x for x in bpy.context.scene.objects if x.type != "MESH"]:
         bpy.data.objects.remove(e, do_unlink=True)
+    if o["trim"]:
+        import numpy as np
+        co = np.array([v.co[:] for v in body.data.vertices])
+        lo_p = np.percentile(co, 0.5, axis=0)
+        hi_p = np.percentile(co, 99.5, axis=0)
+        pad = (hi_p - lo_p) * 0.06
+        bad = np.any((co < lo_p - pad) | (co > hi_p + pad), axis=1)
+        bm = bmesh.new()
+        bm.from_mesh(body.data)
+        bm.verts.ensure_lookup_table()
+        bmesh.ops.delete(bm, geom=[bm.verts[i] for i in np.nonzero(bad)[0]], context="VERTS")
+        bm.to_mesh(body.data)
+        bm.free()
+        print("[prep] trimmed", int(bad.sum()), "stray vertices")
     lo, hi = bounds(body)
     if o["cut_below"] > 0.0:
         cut = lo.z + (hi.z - lo.z) * o["cut_below"]
@@ -92,6 +109,14 @@ def main():
     else:
         body.data.transform(Matrix.Scale(s, 4))
     body.data.update()
+    if o["zpart"]:
+        z_cut = (lo.z - c.z) * s + (hi.z - lo.z) * s * o["zcut"]
+        bm = bmesh.new()
+        bm.from_mesh(body.data)
+        top = o["zpart"] == "top"
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if (v.co.z >= z_cut) != top], context="VERTS")
+        bm.to_mesh(body.data)
+        bm.free()
     if o["part"]:
         y_cut = (lo.y - c.y) * s + (hi.y - lo.y) * s * o["split"]
         bm = bmesh.new()

@@ -55,6 +55,42 @@ static func material(path: String, outline: float = 0.012, brightness: float = 1
 	return m
 
 
+## Puts the model in place of a builder mesh, visually only: sized to the mesh's
+## bounds (`mode` "length": one scale from the length along z; "height": from
+## the height; "fit": stretched to all three), standing on its bottom and centred,
+## as a sibling with the same transform (so it moves, tilts and hides with the
+## same parent); the builder mesh is hidden. Collision and logic stay as they are.
+## Null (and nothing changed) when the model is missing.
+## `box` (non-zero size) fits the model to that box instead of the mesh's bounds,
+## and `keep` leaves the builder mesh showing (the model is added beside it).
+static func stand_in(mi: MeshInstance3D, path: String, outline: float = 0.02, mode: String = "length",
+		box: AABB = AABB(), keep: bool = false) -> MeshInstance3D:
+	if mi == null or mi.mesh == null or mi.get_parent() == null or not exists(path):
+		return null
+	var src := mesh(path)
+	if src == null:
+		return null
+	var t := box if box.size != Vector3.ZERO else mi.mesh.get_aabb()
+	var a := src.get_aabb()
+	var sc := Vector3.ONE * (t.size.z / maxf(a.size.z, 0.001))
+	if mode == "height":
+		sc = Vector3.ONE * (t.size.y / maxf(a.size.y, 0.001))
+	elif mode == "fit":
+		sc = t.size / a.size.max(Vector3.ONE * 0.001)
+	var tb := t.get_center()
+	tb.y = t.position.y
+	var ab := a.get_center()
+	ab.y = a.position.y
+	var ai := instance(path, outline)
+	ai.name = String(mi.name) + "AI"
+	ai.layers = mi.layers
+	ai.cast_shadow = mi.cast_shadow
+	ai.transform = mi.transform * Transform3D(Basis.from_scale(sc), tb - ab * sc)
+	mi.get_parent().add_child(ai)
+	mi.visible = keep
+	return ai
+
+
 ## A ready MeshInstance3D of the model.
 static func instance(path: String, outline: float = 0.012, shadows: bool = true) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()

@@ -160,12 +160,14 @@ static func _wreck(root: Node3D, site: SitePlan.Site, mgr: SiteManager, rng: Ran
 	# Number Seven on her side, nose toward the wall, propped on two trestle bents.
 	var loco := _put(root, mgr, _mesh("loco", SiteBuilder.locomotive), Vector2(-0.6, -2.6), PI * 0.5 + 0.15, Basis(Vector3.BACK, 1.22), 0.95)
 	loco.name = "Loco"
+	# The AI-made engine and cars (assets/train) stand in for the builder meshes.
+	AiModels.stand_in(loco, "res://assets/train/loco.glb", 0.02)
 	_solid(root, mgr, Vector2(-0.6, -2.6), Vector3(9.0, 2.0, 2.4), 0.15)
-	_put(root, mgr, _mesh("tender", SiteBuilder.tender.bind(22)), Vector2(-5.6, -4.4), 0.6, Basis(Vector3.BACK, 0.5), 0.2)
+	AiModels.stand_in(_put(root, mgr, _mesh("tender", SiteBuilder.tender.bind(22)), Vector2(-5.6, -4.4), 0.6, Basis(Vector3.BACK, 0.5), 0.2), "res://assets/train/tender.glb", 0.02)
 	_solid(root, mgr, Vector2(-5.6, -4.4), Vector3(2.4, 2.0, 3.8), 0.6)
-	_put(root, mgr, _mesh("car_a", SiteBuilder.rail_car.bind(23)), Vector2(5.4, 2.0), 0.9, Basis(Vector3.BACK, 0.12), 0.0)
+	AiModels.stand_in(_put(root, mgr, _mesh("car_a", SiteBuilder.rail_car.bind(23)), Vector2(5.4, 2.0), 0.9, Basis(Vector3.BACK, 0.12), 0.0), "res://assets/train/boxcar.glb", 0.02)
 	_solid(root, mgr, Vector2(5.4, 2.0), Vector3(2.3, 2.0, 5.4), 0.9)
-	_put(root, mgr, _mesh("car_b", SiteBuilder.rail_car.bind(24)), Vector2(-3.6, 2.6), -0.5, Basis(Vector3.BACK, 1.45), 1.1)
+	AiModels.stand_in(_put(root, mgr, _mesh("car_b", SiteBuilder.rail_car.bind(24)), Vector2(-3.6, 2.6), -0.5, Basis(Vector3.BACK, 1.45), 1.1), "res://assets/train/boxcar.glb", 0.02)
 	_solid(root, mgr, Vector2(-3.6, 2.6), Vector3(2.0, 2.2, 5.4), -0.5)
 	# The trestle bents holding her up (they come down in a collapse).
 	var standing := Node3D.new()

@@ -760,6 +760,11 @@ class Car extends AnimatableBody3D:
 		_mi.material_override = Materials.toon(0.04)
 		add_child(_mi)
 		set_kind(kind)
+		# The AI-made locomotive and cars (assets/train) over the builder meshes; the
+		# furnace car stays as built (its doors, kiln and wreck are the fight).
+		var ai_path: String = {"loco": "loco", "tender": "tender", "charges": "boxcar", "private": "private_car"}.get(kind, "")
+		if ai_path != "":
+			AiModels.stand_in(_mi, "res://assets/train/%s.glb" % ai_path, 0.03)
 		var l := float(TrainMeshes.LENGTHS.get(kind, 8.0))
 		var col := CollisionShape3D.new()
 		var bs := BoxShape3D.new()

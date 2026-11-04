@@ -131,6 +131,18 @@ static func frame(style: StringName, seed_value: int) -> Dictionary:
 	return {"mesh": MeshKit.finish(st), "shapes": shapes, "water": water}
 
 
+## Just the well casing with its spout and the trough (frame() without the
+## sills and Samson post): what stays when an AI-made jack stands in.
+static func trough_casing(style: StringName, seed_value: int) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var st := MeshKit.begin()
+	var base_y: float = {&"steel": 0.2, &"adobe": 0.5}.get(style, 0.31)
+	_casing(st, style, base_y)
+	_trough(st, rng, style)
+	return MeshKit.finish(st)
+
+
 ## The Samson post: an A-frame each side of the beam carrying the saddle bearings.
 static func _samson(st: SurfaceTool, rng: RandomNumberGenerator, style: StringName, h: float, base_y: float) -> void:
 	var wood := _wood(style)
