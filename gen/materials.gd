@@ -145,7 +145,10 @@ static func toon_deck(outline_thickness: float = 0.03) -> ShaderMaterial:
 		mat.set_shader_parameter(["house_detail", "house_nrm_a", "house_nrm_b", "house_nrm_c"][i], load(DECK_SET[i]))
 	mat.set_shader_parameter("red_sides_wood", false)
 	mat.set_shader_parameter("tile", 2.6)
-	mat.set_shader_parameter("bump", 0.55) # big flat cloth: a gentle bump
+	mat.set_shader_parameter("bump", 0.55)
+	# The canopy is smooth canvas: no bump or painted pattern on the reds.
+	mat.set_shader_parameter("red_bump", 0.0)
+	mat.set_shader_parameter("red_strength", 0.0)
 	_cache[key] = mat
 	return mat
 

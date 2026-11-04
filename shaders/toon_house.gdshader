@@ -30,6 +30,10 @@ uniform vec2 chimney_xz = vec2(2.1, 0.825); // HouseBuilder: W * 0.3, D * 0.15
 // The airship deck uses this shader with its own paintings (Materials.toon_deck):
 // there every red that isn't facing up is canvas (the canopy's underside).
 uniform bool red_sides_wood = true;
+// How much the reds (shingles/stone on the house, canvas on the deck) bump and
+// vary: the deck's canopy wants smooth cloth, not crumpled foil.
+uniform float red_bump = 1.0;
+uniform float red_strength = 1.0;
 uniform vec4 ink : source_color = vec4(0.169, 0.106, 0.090, 1.0);
 
 varying vec3 obj_pos;
@@ -85,8 +89,9 @@ void fragment() {
 		}
 		vec4 d = texture(house_detail, uv);
 		float l = kind == 1 ? d.r : (kind == 2 ? d.g : (kind == 3 ? d.b : (kind == 4 ? d.a : texture(house_nrm_c, uv).b)));
-		c *= max(1.0 + (l * 2.0 - 1.0) * strength, 0.3);
-		c = mix(c, ink.rgb, smoothstep(0.14, 0.06, l) * 0.5 * strength);
+		float st = (kind == 3 || kind == 4) ? strength * red_strength : strength;
+		c *= max(1.0 + (l * 2.0 - 1.0) * st, 0.3);
+		c = mix(c, ink.rgb, smoothstep(0.14, 0.06, l) * 0.5 * st);
 		if (detail_level >= 2) {
 			vec2 m;
 			if (kind <= 2) {
@@ -96,7 +101,7 @@ void fragment() {
 			} else {
 				m = texture(house_nrm_c, uv).rg;
 			}
-			m = (m * 2.0 - 1.0) * bump;
+			m = (m * 2.0 - 1.0) * bump * ((kind == 3 || kind == 4) ? red_bump : 1.0);
 			float sx = n.x < 0.0 ? -1.0 : 1.0;
 			float sz = n.z < 0.0 ? -1.0 : 1.0;
 			tilt = axis == 1 ? vec3(m.x, 0.0, -m.y) : (axis == 0 ? vec3(0.0, m.y, sx * m.x) : vec3(-sz * m.x, m.y, 0.0));
@@ -109,7 +114,8 @@ void fragment() {
 	SPECULAR = 0.0;
 	METALLIC = 0.0;
 	EMISSION = c * glow * 2.5;
-	if (detail_level >= 2 && kind > 0) {
+	// (Flat reds with no bump keep the mesh's own smooth normal: the canopy reads as soft cloth.)
+	if (detail_level >= 2 && kind > 0 && !((kind == 3 || kind == 4) && red_bump <= 0.0)) {
 		vec3 bent = normalize(n + tilt);
 		NORMAL = normalize((VIEW_MATRIX * MODEL_MATRIX * vec4(bent, 0.0)).xyz);
 	}
