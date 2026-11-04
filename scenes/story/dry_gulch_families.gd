@@ -509,12 +509,12 @@ class Ruin extends StaticBody3D:
 		mi.mesh = HomesteadProps.ruin_mesh(1889 + index * 37, boxes)
 		mi.material_override = Materials.toon(0.03)
 		add_child(mi)
-		# The back half of an AI-made ruined cabin or farmhouse (assets/story, cut
-		# open at the front) over the builder ruin's footprint: its back and side
-		# walls and caved roof frame the builder's floor, door frame and the family's
+		# The back of an AI-made ruined cabin or farmhouse (assets/story, cut open
+		# at the front) built round the builder ruin: its back and side walls and
+		# caved roof enclose the builder's floor, door frame and the family's
 		# box, which stay as built (as do the walls' collision).
 		AiModels.stand_in(mi, "res://assets/story/ruin_%s.glb" % ("a" if index % 2 == 0 else "b"), 0.03, "fit",
-				AABB(Vector3(-3.5, -0.05, -2.85), Vector3(7.0, 4.4, 3.6)), true)
+				AABB(Vector3(-4.0, -0.05, -3.3), Vector3(8.0, 5.4, 4.9)), true)
 		for b: Array in boxes:
 			var col := CollisionShape3D.new()
 			var bs := BoxShape3D.new()

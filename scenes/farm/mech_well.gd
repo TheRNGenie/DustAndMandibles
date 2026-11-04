@@ -44,8 +44,13 @@ var _speed := 0.0
 
 const AI_BASE := "res://assets/yard/jack_base.glb"
 const AI_BEAM := "res://assets/yard/jack_beam.glb"
-## Where the AI jack's beam pivots, in its own frame (fitted by eye).
-const AI_PIVOT := Vector3(0.0, 1.95, -0.45)
+## The AI jack's beam bearing in its own frame, the tilt it was modelled at, and
+## the beam's scale (its horsehead face then lands over the polished rod, the
+## bridle hanging below it as the builder beam's did), measured from the model.
+const AI_PIVOT := Vector3(0.0, 2.12, 0.0)
+const AI_BEAM_TILT := -0.255
+const AI_BEAM_SCALE := 0.9
+const AI_BEAM_LIFT := 0.12
 
 
 func _ready() -> void:
@@ -99,9 +104,11 @@ func _build() -> void:
 		jack_stand.name = "StandAI"
 		jack_stand.transform = Transform3D(Basis.from_scale(Vector3.ONE * s), _pivot - AI_PIVOT * s)
 		add_child(jack_stand)
+		# The beam, levelled and centred on its bearing, rides the animated beam node.
 		var beam_ai := AiModels.instance(AI_BEAM, 0.015)
 		beam_ai.name = "BeamAI"
-		beam_ai.transform = Transform3D(Basis.from_scale(Vector3.ONE * s), -AI_PIVOT * s)
+		var level := Transform3D(Basis(Vector3.RIGHT, AI_BEAM_TILT).scaled(Vector3.ONE * AI_BEAM_SCALE), Vector3(0, AI_BEAM_LIFT, 0))
+		beam_ai.transform = level * Transform3D(Basis(), -AI_PIVOT)
 		_beam.add_child(beam_ai)
 		(_beam as MeshInstance3D).mesh = null
 	# Water: the stream from the spout, and the level in the trough.

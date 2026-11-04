@@ -35,8 +35,8 @@ static func mesh(path: String) -> Mesh:
 ## `outline` thick (0 for none), optionally lightened, tinted and toned down
 ## (saturation). Cached per model and look.
 static func material(path: String, outline: float = 0.012, brightness: float = 1.08,
-		tint: Color = Color.WHITE, saturation: float = 1.12) -> ShaderMaterial:
-	var key := "%s_%.3f_%.2f_%s_%.2f" % [path, outline, brightness, tint.to_html(), saturation]
+		tint: Color = Color.WHITE, saturation: float = 1.12, matte: float = 0.0) -> ShaderMaterial:
+	var key := "%s_%.3f_%.2f_%s_%.2f_%.2f" % [path, outline, brightness, tint.to_html(), saturation, matte]
 	if _mats.has(key):
 		return _mats[key]
 	var m := ShaderMaterial.new()
@@ -44,6 +44,9 @@ static func material(path: String, outline: float = 0.012, brightness: float = 1
 	m.set_shader_parameter("brightness", brightness)
 	m.set_shader_parameter("albedo", tint)
 	m.set_shader_parameter("saturation", saturation)
+	if matte > 0.0:
+		m.set_shader_parameter("matte", matte)
+		m.set_shader_parameter("rim_strength", 0.3) # no glossy rim on the shiny-looking models
 	var src := mesh(path)
 	if src != null and src.get_surface_count() > 0:
 		var sm := src.surface_get_material(0) as BaseMaterial3D
@@ -82,6 +85,8 @@ static func stand_in(mi: MeshInstance3D, path: String, outline: float = 0.02, mo
 	var ab := a.get_center()
 	ab.y = a.position.y
 	var ai := instance(path, outline)
+	if path.contains("/train/"):
+		ai.material_override = material(path, outline, 1.12, Color.WHITE, 1.05, 1.0) # matte paint
 	ai.name = String(mi.name) + "AI"
 	ai.layers = mi.layers
 	ai.cast_shadow = mi.cast_shadow

@@ -762,7 +762,8 @@ class Car extends AnimatableBody3D:
 		set_kind(kind)
 		# The AI-made locomotive and cars (assets/train) over the builder meshes; the
 		# furnace car stays as built (its doors, kiln and wreck are the fight).
-		var ai_path: String = {"loco": "loco", "tender": "tender", "charges": "boxcar", "private": "private_car"}.get(kind, "")
+		# (The charge car stays as built too: its open bed of dynamite crates is the story.)
+		var ai_path: String = {"loco": "loco", "tender": "tender", "private": "private_car"}.get(kind, "")
 		if ai_path != "":
 			AiModels.stand_in(_mi, "res://assets/train/%s.glb" % ai_path, 0.03)
 		var l := float(TrainMeshes.LENGTHS.get(kind, 8.0))
