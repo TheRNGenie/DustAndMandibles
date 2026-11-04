@@ -28,9 +28,12 @@ OUT = ROOT / "audio" / "sfx"
 RAW = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("D:/DustAndMandibles-archive/sfx/raw")
 FF = imageio_ffmpeg.get_ffmpeg_exe()
 PEAK_CAP = 10 ** (-1.0 / 20)
+## The last commit with the synthesized set: loudness references and the Zippo ting come from it.
+REF_COMMIT = "bc2b8fd"
 
 # out name: (raw take, reference: an existing sound's name to match, or a dB level, options)
 #   loop: crossfade the ends (seconds); ogg: write .ogg; pitch: resample; db: offset;
+#   ting: (pitch, dB, decay s) the old synthesized Zippo ring layered on at the click.
 #   onset: start where the sound first comes within this many dB of its peak; max: cut to s.
 JOBS = {
     # The grapple's dynamite: the strike and the fuse (were make_dynamite.py placeholders).
@@ -108,8 +111,8 @@ JOBS = {
     "herb_eat": ("herb_eat", "herb_eat", {}),
     # Smokes.
     "cig_light": ("cig_light", "cig_light", {}),
-    "zippo_open": ("zippo_open", "zippo_open", {"onset": 30}),
-    "zippo_close": ("zippo_close", "zippo_close", {"onset": 30}),
+    "zippo_open": ("zippo_open", "zippo_open", {"onset": 30, "ting": (1.0, -4.0, 0.9)}),
+    "zippo_close": ("zippo_close", "zippo_close", {"onset": 30, "ting": (0.86, -8.0, 0.35)}),
     "zippo_strike": ("zippo_strike", "zippo_strike", {}),
     # The airship casino.
     "dice": ("dice_a", "dice", {}),
@@ -134,9 +137,9 @@ def decode(path: Path) -> np.ndarray:
 
 
 def load_ref(name: str) -> np.ndarray:
-    """The sound being replaced, as it is in git HEAD (so re-running stays stable)."""
+    """The sound being replaced, as it was before this pass (REF_COMMIT, so re-running stays stable)."""
     for ext in (".wav", ".ogg"):
-        r = subprocess.run(["git", "-C", str(ROOT), "show", f"HEAD:audio/sfx/{name}{ext}"], capture_output=True)
+        r = subprocess.run(["git", "-C", str(ROOT), "show", f"{REF_COMMIT}:audio/sfx/{name}{ext}"], capture_output=True)
         if r.returncode == 0:
             x = subprocess.run([FF, "-v", "error", "-i", "-", "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"],
                                input=r.stdout, capture_output=True, check=True).stdout
@@ -185,6 +188,23 @@ def resample(x: np.ndarray, pitch: float) -> np.ndarray:
     return signal.resample(x, n)
 
 
+def add_ting(x: np.ndarray, pitch: float, db: float, decay: float) -> np.ndarray:
+    """The classic Zippo lid ring: the old synthesized open's ping (its click high-passed
+    away), retuned, laid on at the new take's click, `db` below its peak."""
+    ting = load_ref("zippo_open")
+    ting = signal.sosfilt(signal.butter(4, 2500 / (SR / 2), "high", output="sos"), ting)
+    ting = resample(ting, pitch)
+    ting *= np.exp(-np.arange(len(ting)) / SR / decay)
+    hit = int(np.argmax(np.abs(x)))
+    ting = ting / (np.abs(ting).max() + 1e-9) * np.abs(x).max() * 10 ** (db / 20)
+    y = np.zeros(max(len(x), hit + len(ting)))
+    y[:len(x)] += x
+    y[hit:hit + len(ting)] += ting
+    fo = int(SR * 0.05)
+    y[-fo:] *= np.linspace(1, 0, fo)
+    return y
+
+
 def build(out: str, src: str, ref, opt: dict) -> None:
     x = decode(RAW / f"{src}.mp3")
     if "loop" in opt:
@@ -193,6 +213,8 @@ def build(out: str, src: str, ref, opt: dict) -> None:
             x = np.roll(x, int(len(x) * opt["rotate"]))
     else:
         x = trim(x, opt.get("onset", 48.0), opt.get("max", 0.0))
+    if "ting" in opt:
+        x = add_ting(x, *opt["ting"])
     if "pitch" in opt:
         x = resample(x, opt["pitch"])
     goal = loud_db(load_ref(ref)) if isinstance(ref, str) else float(ref)
