@@ -62,6 +62,45 @@ func _shoot() -> void:
 			var back := home.global_position + b.z.normalized() * (HouseBuilder.D * 0.5 + 1.3)
 			target = back + Vector3(0, 1.1, 0)
 			eye = back + b.z.normalized() * 5.0 + b.x.normalized() * 2.5 + Vector3(0, 2.2, 0)
+	elif spec.begins_with("yard:"):
+		# --mapcam=yard:<cliff>[:full]: a cliff's house and fenced yard from outside the
+		# front corner (full: every upgrade built for the shot).
+		var parts := spec.split(":")
+		var home := Homestead.of(int(parts[1]))
+		if home != null:
+			if parts.has("full"):
+				home._set_state(3, true, true, true, true, true)
+			var b := home.global_transform.basis
+			var front := home.global_position - b.z.normalized() * (HouseBuilder.D * 0.5)
+			target = front + Vector3(0, 3.0, 0)
+			eye = front - b.z.normalized() * 15.0 + b.x.normalized() * 9.0 + Vector3(0, 4.5, 0)
+		for i in 30:
+			await get_tree().process_frame
+	elif spec.begins_with("fence:"):
+		# --mapcam=fence:<cliff>: low along the yard fence's side run.
+		var home := Homestead.of(int(spec.substr(6)))
+		if home != null:
+			var b := home.global_transform.basis
+			var p0 := home.global_position + b.x.normalized() * 9.0 - b.z.normalized() * 6.0
+			eye = p0 + b.x.normalized() * 6.0 + Vector3(0, 1.8, 0) - b.z.normalized() * 4.0
+			target = p0 + b.z.normalized() * 10.0 + Vector3(0, 0.6, 0)
+	elif spec.begins_with("airship:"):
+		# --mapcam=airship:below|side|deck: the casino airship from under it, from
+		# its flank, and on its deck.
+		var ship := world.get_node_or_null("Airship") as Node3D
+		if ship != null:
+			for i in 60:
+				await get_tree().process_frame
+			match spec.substr(8):
+				"below":
+					eye = ship.to_global(Vector3(24.0, -20.0, 26.0))
+					target = ship.to_global(Vector3(0, 6.0, 0))
+				"deck":
+					eye = ship.to_global(Vector3(5.0, 1.8, 14.0))
+					target = ship.to_global(Vector3(-1.0, 2.0, -6.0))
+				_:
+					eye = ship.to_global(Vector3(48.0, 8.0, 10.0))
+					target = ship.to_global(Vector3(0, 8.0, 0))
 	elif spec.begins_with("well:"):
 		# --mapcam=well:<cliff>[:run][:side]: close on a cliff's pump jack (run: pumping).
 		var parts := spec.split(":")
