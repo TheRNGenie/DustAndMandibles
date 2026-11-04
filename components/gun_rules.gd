@@ -8,6 +8,18 @@ extends RefCounted
 ## PlayerNet; everything here is typed loosely (any object with Bug's fields and
 ## methods) so tests run it on stand-in bugs.
 
+# ------------------------------------------------------------------ held model
+
+## Guns whose model steps out of view while you look through their glass.
+const SCOPED: Array[StringName] = [&"elephant_gun", &"dino_rifle", &"telescope_rifle"]
+
+
+## Is the model of the last gun drawn showing? Not while an item or empty hands
+## are out (Gun.holding), nor while you look through its glass.
+static func model_shown(holding: StringName, scoped: bool) -> bool:
+	return holding == &"" and not scoped
+
+
 # ------------------------------------------------------------------ harpoon
 
 enum Harpoon { NONE, REEL, PULL }

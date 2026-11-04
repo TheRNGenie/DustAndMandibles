@@ -28,3 +28,14 @@ func test_rolls_are_spread_evenly() -> void:
 		counts[DinoGlass.roll(rng)] += 1
 	for n: int in counts:
 		assert_true(n > 850 and n < 1150, "each fit about 1 in 6 (got %d)" % n)
+
+
+func test_scoped_gun_model_stays_away_while_an_item_is_out() -> void:
+	# Put away for the grapple, lighter, bucket, a crop or empty hands, the last
+	# gun's model must not show (it used to, for the scoped guns: wrong model, no shot).
+	for item: StringName in [&"grapple", &"lighter", &"water", &"herbs", &"corn", &"none"]:
+		assert_false(GunRules.model_shown(item, false), "%s out: no gun model" % item)
+	assert_true(GunRules.model_shown(&"", false), "gun in hand: shown")
+	assert_false(GunRules.model_shown(&"", true), "looking through the glass: hidden")
+	for id: StringName in [&"elephant_gun", &"dino_rifle", &"telescope_rifle"]:
+		assert_true(GunRules.SCOPED.has(id))

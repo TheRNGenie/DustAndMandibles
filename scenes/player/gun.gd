@@ -415,16 +415,15 @@ func _process(delta: float) -> void:
 			vm.twirl(twirl_angle())
 		vm.turn_crank(spin, delta)
 	aim = move_toward(aim, 1.0 if aiming else 0.0, delta * 7.0)
-	# Elephant Gun: once the glass is up to your eye you look through it (the HUD
-	# draws the lens), so the gun itself steps out of view.
-	if def != null and (def.id == &"elephant_gun" or def.id == &"dino_rifle") and _models.has(def.id):
-		(_models[def.id] as Node3D).visible = not is_scoped()
+	# Elephant Gun, Dino Rifle, Telescope Rifle: once the glass is up to your eye you
+	# look through it (the HUD draws the lens), so the gun itself steps out of view.
+	# With an item or empty hands out (hold_item) it stays hidden.
+	if def != null and GunRules.SCOPED.has(def.id) and _models.has(def.id):
+		(_models[def.id] as Node3D).visible = GunRules.model_shown(holding, is_scoped())
 	if def != null and def.id == &"dino_rifle" and _models.has(def.id):
 		(_models[def.id] as ViewModel).set_glass(DinoGlass.of(code_of(def.id))) # this gun's glass fit
 	if def != null and _models.has(def.id):
 		(_models[def.id] as ViewModel).set_finish(AmberRules.is_lucky(code_of(def.id))) # Hive amber: Lucky's finish
-	if def != null and def.id == &"telescope_rifle" and _models.has(def.id):
-		(_models[def.id] as Node3D).visible = not is_scoped()
 	var rest: Vector3 = REST_POS + (REST_OFF.get(def.id, Vector3.ZERO) if def != null else Vector3.ZERO)
 	var aim_pos: Vector3 = AIM_POS.get(def.id, rest) if def != null else rest
 	_feel_step(delta)
