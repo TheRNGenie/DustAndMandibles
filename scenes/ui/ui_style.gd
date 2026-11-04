@@ -894,6 +894,29 @@ static func resource_color(resource: StringName) -> Color:
 	return Palette.BONE
 
 
+## A painted icon (assets/icons, AI-made with fal.ai) for a resource or item,
+## or null if there isn't one.
+static func painted_icon(id: StringName) -> Texture2D:
+	var key := {&"notches": &"brands", &"medicine": &"herbs"}.get(id, id) as StringName
+	var path := "res://assets/icons/%s.png" % key
+	return load(path) as Texture2D if ResourceLoader.exists(path) else null
+
+
+## A currency's painted icon `px` square, or its colour swatch if it has none.
+static func resource_chip(resource: StringName, px: float = 16.0) -> Control:
+	var tex := painted_icon(resource)
+	if tex == null:
+		return swatch(resource_color(resource), px)
+	var r := TextureRect.new()
+	r.texture = tex
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	r.custom_minimum_size = Vector2(px, px) * 1.5
+	r.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r
+
+
 ## A small rounded square in a currency's colour.
 static func swatch(color: Color, px: float = 16.0) -> Panel:
 	var chip := Panel.new()
@@ -953,7 +976,7 @@ static func stock_chip(resource: StringName, amount: int) -> PanelContainer:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 7)
 	p.add_child(h)
-	h.add_child(swatch(resource_color(resource), 14))
+	h.add_child(resource_chip(resource, 14))
 	# Scrap is the team's shared pot: say so ("150 Team Scrap").
 	var l := strap_text(cost(amount, ("team " if EconomyLedger.is_shared(resource) else "") + String(resource)), 16)
 	l.name = "Text"

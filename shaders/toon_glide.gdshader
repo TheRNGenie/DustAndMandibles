@@ -8,5 +8,7 @@ render_mode cull_back;
 #include "res://shaders/bug_glide.gdshaderinc"
 
 void vertex() {
+	paint_pos = VERTEX;
+	paint_nrm = NORMAL;
 	VERTEX = bug_glide(VERTEX, INSTANCE_CUSTOM, MODEL_MATRIX);
 }

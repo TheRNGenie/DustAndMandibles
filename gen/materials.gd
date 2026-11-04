@@ -60,12 +60,49 @@ static func toon_glide(outline_thickness: float = 0.03) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = TOON_GLIDE_SHADER
 	mat.set_shader_parameter("spec_strength", 0.14)
+	_paint(mat, 1, 0, 0.6)
 	if outline_thickness > 0.0:
 		var ol := ShaderMaterial.new()
 		ol.shader = OUTLINE_GLIDE_SHADER
 		ol.set_shader_parameter("thickness", outline_thickness)
 		mat.next_pass = ol
 	_cache[key] = mat
+	return mat
+
+
+## toon_glide() with a boss's own skin (1 the Hive Queen's gilded filigree,
+## 2 the Hive Mother's veined hide), painted at a boss's scale.
+static func toon_glide_skin(outline_thickness: float, skin: int) -> ShaderMaterial:
+	var key := "toon_glide_skin%d_%.3f" % [skin, outline_thickness]
+	if _cache.has(key):
+		return _cache[key]
+	var mat := toon_glide(outline_thickness).duplicate() as ShaderMaterial
+	if outline_thickness > 0.0:
+		mat.next_pass = toon_glide(outline_thickness).next_pass
+	_paint(mat, 1, skin, 1.0)
+	mat.set_shader_parameter("paint_strength", 0.95)
+	_cache[key] = mat
+	return mat
+
+
+const BUG_SKIN: Texture2D = preload("res://assets/skins/bug_detail.png")
+const CLOTH: Texture2D = preload("res://assets/skins/cloth_detail.png")
+
+
+## Painted detail on a toon material (toon_surface.gdshaderinc): mode 1 bug
+## skin, 2 cloth. Off on Low effects.
+static func _paint(mat: ShaderMaterial, mode: int, skin: int = 0, tile: float = 0.6) -> void:
+	mat.set_meta(&"paint_mode", mode)
+	mat.set_shader_parameter("paint_tex", BUG_SKIN if mode == 1 else CLOTH)
+	mat.set_shader_parameter("paint_mode", mode if _terrain_detail > 0 else 0)
+	mat.set_shader_parameter("paint_skin", skin)
+	mat.set_shader_parameter("paint_tile", tile)
+	mat.set_shader_parameter("paint_strength", 0.65 if mode == 1 else 0.5)
+
+
+## Cloth textures (denim, leather, felt, cotton by colour) on a cowboy's material.
+static func cloth(mat: ShaderMaterial) -> ShaderMaterial:
+	_paint(mat, 2, 0, 0.3)
 	return mat
 
 
@@ -280,6 +317,8 @@ static func set_terrain_detail(level: int) -> void:
 	for mat in _strata_materials():
 		_apply_terrain(mat)
 	for m: Variant in _cache.values():
+		if m is ShaderMaterial and (m as ShaderMaterial).has_meta(&"paint_mode"):
+			(m as ShaderMaterial).set_shader_parameter("paint_mode", int((m as ShaderMaterial).get_meta(&"paint_mode")) if _terrain_detail > 0 else 0)
 		if m is ShaderMaterial and (m as ShaderMaterial).shader == HOUSE_SHADER:
 			(m as ShaderMaterial).set_shader_parameter("detail_level", _terrain_detail)
 
