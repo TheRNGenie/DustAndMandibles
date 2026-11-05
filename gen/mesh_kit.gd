@@ -115,6 +115,39 @@ static func add_cylinder(st: SurfaceTool, xf: Transform3D, r_bottom: float, r_to
 				tri(st, ct, p0t, p1t, up, up, up, col, up)
 
 
+## A solid wheel rim (a thick ring) round xf's local Y: outer and inner walls and
+## both flat faces, so it reads solid from every side (no see-through band).
+static func add_rim(st: SurfaceTool, xf: Transform3D, r_out: float, r_in: float, width: float, segments: int, color: Color) -> void:
+	var col := vcol(color)
+	var nb := _normal_basis(xf)
+	var hy := width * 0.5
+	var up := (nb * Vector3.UP).normalized()
+	for i in segments:
+		var a0 := TAU * float(i) / float(segments)
+		var a1 := TAU * float(i + 1) / float(segments)
+		var d0 := Vector3(cos(a0), 0.0, sin(a0))
+		var d1 := Vector3(cos(a1), 0.0, sin(a1))
+		var o0b := xf * (d0 * r_out + Vector3(0, -hy, 0))
+		var o1b := xf * (d1 * r_out + Vector3(0, -hy, 0))
+		var o0t := xf * (d0 * r_out + Vector3(0, hy, 0))
+		var o1t := xf * (d1 * r_out + Vector3(0, hy, 0))
+		var i0b := xf * (d0 * r_in + Vector3(0, -hy, 0))
+		var i1b := xf * (d1 * r_in + Vector3(0, -hy, 0))
+		var i0t := xf * (d0 * r_in + Vector3(0, hy, 0))
+		var i1t := xf * (d1 * r_in + Vector3(0, hy, 0))
+		var n0 := (nb * d0).normalized()
+		var n1 := (nb * d1).normalized()
+		var out := (n0 + n1).normalized()
+		tri(st, o0b, o1b, o1t, n0, n1, n1, col, out)
+		tri(st, o0b, o1t, o0t, n0, n1, n0, col, out)
+		tri(st, i0b, i1t, i1b, -n0, -n1, -n1, col, -out)
+		tri(st, i0b, i0t, i1t, -n0, -n0, -n1, col, -out)
+		tri(st, o0t, o1t, i1t, up, up, up, col, up)
+		tri(st, o0t, i1t, i0t, up, up, up, col, up)
+		tri(st, o0b, i1b, o1b, -up, -up, -up, col, -up)
+		tri(st, o0b, i0b, i1b, -up, -up, -up, col, -up)
+
+
 ## Ellipsoid centred on xf.origin with smooth normals. `bumps` adds noisy displacement.
 static func add_ellipsoid(st: SurfaceTool, xf: Transform3D, radii: Vector3, rings: int,
 		segments: int, color: Color, bumps: float = 0.0, rng: RandomNumberGenerator = null,

@@ -158,6 +158,10 @@ static func chair_spot() -> Vector3:
 static func rocking_chair() -> ArrayMesh:
 	var st := MeshKit.begin()
 	var wood := Palette.WOOD
+	# The back leans back (+Z): its posts rise from the rockers, past the seat's
+	# back edge, to the top rail; the slats follow the same line.
+	var lean := atan2(0.28, 1.24)
+	var back_z := func(y: float) -> float: return 0.22 + 0.28 * (y - 0.06) / 1.24
 	for s: float in [-1.0, 1.0]:
 		# Curved rocker made of short limbs.
 		var prev := Vector3(s * 0.26, 0.12, -0.45)
@@ -167,15 +171,20 @@ static func rocking_chair() -> ArrayMesh:
 			var p := Vector3(s * 0.26, 0.04 + pow(z * 1.6, 2.0) * 0.12, z)
 			MeshKit.add_limb(st, prev, p, 0.03, Palette.WOOD_DARK, 5)
 			prev = p
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(s * 0.26, 0.28, -0.15)), Vector3(0.05, 0.4, 0.05), wood)
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(s * 0.26, 0.28, 0.2)), Vector3(0.05, 0.4, 0.05), wood)
-		MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.25), Vector3(s * 0.26, 0.85, 0.3)), Vector3(0.05, 0.9, 0.05), wood)
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(s * 0.26, 0.68, 0.0)), Vector3(0.07, 0.04, 0.55), Palette.WOOD_DARK)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.48, 0.02)), Vector3(0.6, 0.06, 0.55), wood)
+		# Front legs, rocker to seat.
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(s * 0.26, 0.27, -0.15)), Vector3(0.05, 0.42, 0.05), wood)
+		# Back posts, rocker to top rail.
+		MeshKit.add_limb(st, Vector3(s * 0.26, 0.06, back_z.call(0.06)), Vector3(s * 0.26, 1.3, back_z.call(1.3)), 0.03, wood, 6)
+		# Arm on a spindle, reaching back to the post.
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(s * 0.26, 0.6, -0.2)), Vector3(0.04, 0.18, 0.04), wood)
+		var arm_back: float = back_z.call(0.68)
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(s * 0.26, 0.68, (-0.28 + arm_back) * 0.5)), Vector3(0.07, 0.04, arm_back + 0.28), Palette.WOOD_DARK)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.48, 0.02)), Vector3(0.6, 0.06, 0.6), wood)
 	for i in 5:
-		MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.25), Vector3(-0.2 + i * 0.1, 0.85, 0.3)), Vector3(0.05, 0.7, 0.03), wood.lightened(0.08))
-	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.25), Vector3(0, 1.25, 0.4)), Vector3(0.6, 0.07, 0.05), Palette.WOOD_DARK)
-	# A folded red blanket over the arm, and a cushion.
+		MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, lean), Vector3(-0.2 + i * 0.1, 0.885, back_z.call(0.885))), Vector3(0.05, 0.7, 0.03), wood.lightened(0.08))
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, lean), Vector3(0, 1.25, back_z.call(1.25))), Vector3(0.6, 0.07, 0.05), Palette.WOOD_DARK)
+	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, lean), Vector3(0, 0.55, back_z.call(0.55))), Vector3(0.56, 0.06, 0.04), Palette.WOOD_DARK)
+	# A folded red blanket over the seat, and a cushion.
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.52, 0.02)), Vector3(0.5, 0.04, 0.45), Color("#B8352A"))
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0.28, 0.6, -0.05)), Vector3(0.1, 0.22, 0.3), Color("#E0C890"))
 	return MeshKit.finish(st)

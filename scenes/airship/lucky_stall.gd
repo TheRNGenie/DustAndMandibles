@@ -45,6 +45,9 @@ func _ready() -> void:
 	add_child(keeper)
 	keeper.setup({"hat": "gambler", "facial": "pencil", "hair": "ponytail", "hair_color": "black", "outfit": "duster",
 		"neck": "bolo", "extra": "none", "paint": "white"}, Color("#5A1E4A"))
+	# Lucky himself leans on the rail beside the booth now (LuckyNpc); the booth
+	# stands unattended (the dummy behind it is kept for the old views, hidden).
+	keeper.visible = false
 	# Warm amber light from the case and a lantern, and his painted sign.
 	var glow := OmniLight3D.new()
 	glow.light_color = AmberRules.GLOW

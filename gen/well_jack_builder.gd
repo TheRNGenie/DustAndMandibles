@@ -417,8 +417,9 @@ static func crank(style: StringName) -> ArrayMesh:
 		MeshKit.add_limb(st, Vector3(sx, CRANK_R, 0), Vector3(sx * 0.7, CRANK_R, 0), 0.035, Palette.METAL, 6)
 	# The bull wheel: a crowned rim the belt rides on, painted spokes, a hub.
 	var bx := BULL_X
-	_axle_cyl(st, Vector3(bx, 0, 0), BULL_R, 0.16, IRON.lightened(0.04), 22, false)
-	_axle_cyl(st, Vector3(bx, 0, 0), BULL_R - 0.05, 0.12, IRON.darkened(0.2), 22, false)
+	# A solid rim (walls and faces), with a darker web inside it.
+	MeshKit.add_rim(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(bx, 0, 0)), BULL_R, BULL_R - 0.07, 0.16, 22, IRON.lightened(0.04))
+	MeshKit.add_rim(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(bx, 0, 0)), BULL_R - 0.07, 0.14, 0.03, 22, IRON.darkened(0.2))
 	var paint: Color = {&"timber": Palette.TEAM_WEST, &"steel": Color("#D9B23A"), &"adobe": TILE_BLUE, &"trestle": WaterworksBuilder.ENGINE}.get(style, Palette.TEAM_WEST)
 	for i in 6:
 		var a := TAU * float(i) / 6.0
@@ -459,9 +460,9 @@ static func rod() -> ArrayMesh:
 
 ## The stand at the generator: a timber trestle (or iron pedestal) holding the
 ## drive shaft's bearing. `at` is the pulley centre, jack-local.
-static func drive_stand(style: StringName, at: Vector3, ground_y: float) -> ArrayMesh:
+static func drive_stand(style: StringName, at: Vector3, ground_y: float, dir: float = 1.0) -> ArrayMesh:
 	var st := MeshKit.begin()
-	var bx := at.x + 0.24
+	var bx := at.x + 0.24 * dir
 	var foot := Vector3(bx, ground_y, at.z)
 	if style == &"steel":
 		MeshKit.add_box(st, Transform3D(Basis(), foot + Vector3(0, 0.06, 0)), Vector3(0.4, 0.12, 0.5), CONCRETE)
@@ -477,16 +478,17 @@ static func drive_stand(style: StringName, at: Vector3, ground_y: float) -> Arra
 	return MeshKit.finish(st)
 
 
-## The drive pulley and its short shaft, centred on the axle (turns round local X).
-static func drive_pulley() -> ArrayMesh:
+## The drive pulley and its short shaft, centred on the axle (turns round local X);
+## the shaft and its knuckle stick out toward `dir` (the engine's side).
+static func drive_pulley(dir: float = 1.0) -> ArrayMesh:
 	var st := MeshKit.begin()
-	MeshKit.add_limb(st, Vector3(-0.1, 0, 0), Vector3(0.42, 0, 0), 0.04, Palette.METAL, 6)
+	MeshKit.add_limb(st, Vector3(-0.1 * dir, 0, 0), Vector3(0.42 * dir, 0, 0), 0.04, Palette.METAL, 6)
 	_axle_cyl(st, Vector3.ZERO, DRIVE_R, 0.16, IRON.lightened(0.04), 16, true)
 	for i in 4:
 		var a := TAU * float(i) / 4.0
 		MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, a), Vector3(0.085, 0, 0) + Vector3(0, cos(a), sin(a)) * DRIVE_R * 0.5), Vector3(0.012, DRIVE_R * 0.7, 0.05), Palette.TEAM_WEST)
 	# A knuckle for the tumbling rod.
-	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.44, 0, 0)), Vector3.ONE * 0.06, 3, 6, IRON)
+	MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(0.44 * dir, 0, 0)), Vector3.ONE * 0.06, 3, 6, IRON)
 	return MeshKit.finish(st)
 
 

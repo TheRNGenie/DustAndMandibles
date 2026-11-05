@@ -1213,7 +1213,7 @@ func _take_screenshot(path: String) -> void:
 			"ledger":
 				target = Homestead.of(0).get_node("Ledger")
 			"wardrobe":
-				for kv: Array in [["hair", GameState.flag_value("--hairstyle")]]:
+				for kv: Array in [["hair", GameState.flag_value("--hairstyle")], ["hat", GameState.flag_value("--hatstyle")], ["outfit", GameState.flag_value("--outfitstyle")]]:
 					if str(kv[1]) != "":
 						Settings.look[kv[0]] = kv[1]
 				Wardrobe.open()
