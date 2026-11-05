@@ -828,7 +828,7 @@ func _auto_step() -> void:
 					b.receive_hit(999.0, b.global_position, Vector3.FORWARD, true, 1.0, "revolver", me)
 					break
 			_auto_t = 0.5
-		Step.PAPER, Step.GUNS, Step.PELL, Step.TURRETS, Step.WEATHER, Step.ECONOMY, Step.UPGRADES:
+		Step.PAPER, Step.GUNS, Step.PELL, Step.TURRETS, Step.WEATHER, Step.MEDICINE, Step.ECONOMY, Step.UPGRADES:
 			if _t > READ_MIN + 1.0:
 				accept_pressed()
 		Step.IDEA:
