@@ -408,6 +408,18 @@ func _page(id: StringName) -> void:
 ## Home: the five choices, top to bottom (then Quit).
 func _build_home() -> void:
 	var home := _new_page(&"home")
+	# [Foundation] Continue Run: the saved Endless run, on top when there is one
+	# (hosted like before: start alone, with the CPU, or wait for your partner).
+	var saved := RunSave.read()
+	if not saved.is_empty():
+		var cont := _button("Continue Run (Wave %d)" % int(saved["wave"]))
+		cont.tooltip_text = "Pick up your saved Endless run where you left it."
+		cont.pressed.connect(func() -> void:
+			_mode = &"endless"
+			NetworkManager.solo = false
+			Story.chapter_id = ""
+			_on_continue())
+		home.add_child(cont)
 	var story_btn := _button("Story")
 	story_btn.tooltip_text = "Chapters of the Dry Gulch story, solo or with friends."
 	story_btn.pressed.connect(_open_mode.bind(&"story"))
