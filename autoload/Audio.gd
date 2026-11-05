@@ -87,6 +87,7 @@ var _echo_at := 0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_log = "--audiolog" in OS.get_cmdline_user_args()
+	var t0 := Time.get_ticks_usec()
 	for n in NAMES:
 		# Each sound is a .wav (made by our scripts) or an .ogg (recorded, imported).
 		var ext := ".wav" if ResourceLoader.exists(SFX_DIR + String(n) + ".wav") else ".ogg"
@@ -99,6 +100,8 @@ func _ready() -> void:
 				if ResourceLoader.exists(alt):
 					takes.append(load(alt))
 			_takes[n] = takes
+	if LoadTimes.on:
+		print("[load] boot         Audio: %d sfx streams loaded         %8.1f ms" % [_streams.size(), (Time.get_ticks_usec() - t0) / 1000.0])
 	# Keep stacked gunfire from clipping: gentle glue on effects, a brick wall on the master.
 	var sfx_i := AudioServer.get_bus_index("SFX")
 	if sfx_i >= 0 and AudioServer.get_bus_effect_count(sfx_i) == 0:

@@ -10,6 +10,13 @@ var _rng := RandomNumberGenerator.new()
 ## Width of the lip walkway from the plateau to the Oasis drawbridge.
 const WALKWAY_D := 4.5
 
+## Load times: the seeded props (cactus and rock meshes with their collision
+## hulls) and the web mesh come out the same every build of a map, so the menu's
+## canyon film and every later game reuse the first build's (see _memo_prop).
+## key -> [mesh, convex shape or null]
+static var _props: Dictionary = {}
+static var _webs: Dictionary = {}
+
 
 func _init(cliff_builder: CliffBuilder, parent_node: Node3D, seed_value: int = 99) -> void:
 	cliffs = cliff_builder
@@ -18,26 +25,62 @@ func _init(cliff_builder: CliffBuilder, parent_node: Node3D, seed_value: int = 9
 
 
 func build() -> void:
-	# Canyon Expeditions: keep the floor clear wherever a raid site could go.
-	var tunnels: Array = []
-	for i in cliffs.tunnel_count():
-		tunnels.append(cliffs.tunnel(i))
-	SitePlan.reserve_zones(tunnels)
+	for step in build_steps():
+		step.call()
+
+
+## The build in pieces, one per frame for the title screen's canyon film
+## (build() runs them all at once). Same order, same seeded results.
+func build_steps() -> Array[Callable]:
+	var steps: Array[Callable] = []
+	steps.append(func() -> void:
+		# Canyon Expeditions: keep the floor clear wherever a raid site could go.
+		var tunnels: Array = []
+		for i in cliffs.tunnel_count():
+			tunnels.append(cliffs.tunnel(i))
+		SitePlan.reserve_zones(tunnels)
+		LoadTimes.mark("  dress: site zones"))
 	for cid in WorldLayout.cliff_count():
-		_build_homestead_area(cid)
-		_scatter_props(cid)
-		_build_boundary(cid)
-	_build_nests()
-	_build_webs()
-	InfestProps.build(parent, cliffs, 9191) # eggs, resin, husks, cocoons, burrows, bones
+		steps.append(func() -> void:
+			_build_homestead_area(cid)
+			LoadTimes.mark("  dress: homestead area %d" % cid))
+		steps.append(func() -> void:
+			_scatter_props(cid)
+			_build_boundary(cid)
+			LoadTimes.mark("  dress: props, boundary %d" % cid))
+	steps.append(func() -> void:
+		_build_nests()
+		_build_webs()
+		LoadTimes.mark("  dress: nests, webs"))
+	steps.append(func() -> void:
+		InfestProps.build(parent, cliffs, 9191) # eggs, resin, husks, cocoons, burrows, bones
+		LoadTimes.mark("  dress: infest props"))
 	if WorldLayout.map().is_canyon():
-		CanyonDressing.build(parent, cliffs, 5151)
-		_build_floor_ends()
+		steps.append(func() -> void:
+			CanyonDressing.build(parent, cliffs, 5151)
+			_build_floor_ends()
+			LoadTimes.mark("  dress: canyon dressing"))
+	return steps
 
 
 ## A heavy spider infestation: orb webs all over both canyon walls (thicker low
 ## down), sheet webs and egg sacs on the floor, and silk strung across the gap.
 func _build_webs() -> void:
+	# The same map, terrain and kept-clear ground always weave the same webs.
+	var key := "%s_%d_%d" % [WorldLayout.map().id, cliffs._seed, hash([SitePlan._zones, SitePlan.story_zones])]
+	var mesh: ArrayMesh = _webs.get(key)
+	if mesh == null:
+		mesh = _weave_webs()
+		_webs[key] = mesh
+	var mi := MeshInstance3D.new()
+	mi.name = "SpiderWebs"
+	mi.mesh = mesh
+	mi.material_override = WebBuilder.material()
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+
+
+func _weave_webs() -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7171
 	var st := MeshKit.begin()
@@ -83,12 +126,7 @@ func _build_webs() -> void:
 			WebBuilder.strand(st, prev, p, Vector3(0, 0, 1), 0.05, Color(1, 1, 1, 0.55))
 			WebBuilder.strand(st, prev, p, Vector3(0, 1, 0), 0.05, Color(1, 1, 1, 0.55))
 			prev = p
-	var mi := MeshInstance3D.new()
-	mi.name = "SpiderWebs"
-	mi.mesh = MeshKit.finish(st)
-	mi.material_override = WebBuilder.material()
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(mi)
+	return MeshKit.finish(st)
 
 
 ## Ground position on a plateau.
@@ -110,13 +148,47 @@ func add_mesh(mesh: ArrayMesh, pos: Vector3, yaw: float, node_name: String = "",
 		parent.add_child(body)
 		body.add_child(mi)
 		var col := CollisionShape3D.new()
-		col.shape = mesh.create_convex_shape()
+		col.shape = _hull_of(mesh)
 		body.add_child(col)
 	else:
 		mi.position = pos
 		mi.rotation.y = yaw
 		parent.add_child(mi)
 	return mi
+
+
+## A seeded prop mesh (PropBuilder), built once per key.
+static func _memo_prop(key: String, make: Callable) -> ArrayMesh:
+	var hit: Array = _props.get(key, [])
+	if hit.is_empty():
+		hit = [make.call(), null]
+		_props[key] = hit
+	return hit[0]
+
+
+## The convex collision hull of `mesh` (kept with a memoised prop's mesh).
+static func _hull_of(mesh: ArrayMesh) -> Shape3D:
+	var key := str(mesh.get_meta(&"prop_key", ""))
+	if key == "" or not _props.has(key):
+		return mesh.create_convex_shape()
+	var hit: Array = _props[key]
+	if hit[1] == null:
+		hit[1] = mesh.create_convex_shape()
+	return hit[1]
+
+
+static func _cactus(seed_value: int) -> ArrayMesh:
+	var key := "cactus_%d" % seed_value
+	var m := _memo_prop(key, PropBuilder.cactus.bind(seed_value))
+	m.set_meta(&"prop_key", key)
+	return m
+
+
+static func _rock(seed_value: int, size: float) -> ArrayMesh:
+	var key := "rock_%d_%s" % [seed_value, var_to_str(size)]
+	var m := _memo_prop(key, PropBuilder.rock.bind(seed_value, size))
+	m.set_meta(&"prop_key", key)
+	return m
 
 
 func _build_homestead_area(cid: int) -> void:
@@ -282,7 +354,7 @@ func _scatter_props(cid: int) -> void:
 		var in_build_area := d < WorldLayout.PLATEAU_DEPTH + 2.0 and absf(z) < WorldLayout.PLATEAU_WIDTH * 0.5 + 2.0
 		if in_build_area or _in_walkway(d, z):
 			continue
-		add_mesh(PropBuilder.cactus(_rng.randi()), ground(cid, d, z), _rng.randf() * TAU, "", true)
+		add_mesh(_cactus(_rng.randi()), ground(cid, d, z), _rng.randf() * TAU, "", true)
 		placed += 1
 	for i in 26:
 		var d := _rng.randf_range(2.0, max_d + 3.0)
@@ -292,7 +364,7 @@ func _scatter_props(cid: int) -> void:
 			continue # the build area stays clear
 		if _in_walkway(d, z):
 			continue
-		add_mesh(PropBuilder.rock(_rng.randi(), size), ground(cid, d, z) + Vector3(0, -0.2 * size, 0),
+		add_mesh(_rock(_rng.randi(), size), ground(cid, d, z) + Vector3(0, -0.2 * size, 0),
 				_rng.randf() * TAU, "", size > 0.8)
 	# Rocks and cacti on the canyon floor.
 	if cid == 0 and m.is_canyon():
@@ -304,7 +376,7 @@ func _scatter_props(cid: int) -> void:
 			var ryaw := _rng.randf() * TAU
 			if not SitePlan.in_site_zone(Vector3(x, 0, z), size + 1.5): # Expeditions: not in a raid site
 				if not _ai_scatter("rock_a" if rseed % 2 == 0 else "rock_b", Vector3(x, cliffs.floor_height(x, z) - 0.12 * size, z), ryaw, size * 1.5):
-					add_mesh(PropBuilder.rock(rseed, size), Vector3(x, cliffs.floor_height(x, z) - 0.2, z), ryaw)
+					add_mesh(_rock(rseed, size), Vector3(x, cliffs.floor_height(x, z) - 0.2, z), ryaw)
 		for i in 8:
 			var x := _rng.randf_range(-16.0, 16.0)
 			var z := _rng.randf_range(-80.0, 80.0)
@@ -312,7 +384,7 @@ func _scatter_props(cid: int) -> void:
 			var cyaw := _rng.randf() * TAU
 			if not SitePlan.in_site_zone(Vector3(x, 0, z), 2.0):
 				if not _ai_scatter("saguaro" if cseed % 3 != 0 else "prickly_pear", Vector3(x, cliffs.floor_height(x, z) - 0.1, z), cyaw, 0.8 + float(cseed % 7) * 0.07):
-					add_mesh(PropBuilder.cactus(cseed), Vector3(x, cliffs.floor_height(x, z), z), cyaw)
+					add_mesh(_cactus(cseed), Vector3(x, cliffs.floor_height(x, z), z), cyaw)
 
 
 ## An AI-made canyon-floor piece (assets/scatter: rocks, cacti), visual only.

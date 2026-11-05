@@ -23,6 +23,7 @@ var saver: RunSaver
 
 
 func _ready() -> void:
+	LoadTimes.mark("scene change + load world.tscn")
 	# Maps: build the lobby's map (offline runs: --map=).
 	var map_id := NetworkManager.map_id
 	if not NetworkManager.is_online() and GameState.flag_value("--map") != "":
@@ -32,62 +33,78 @@ func _ready() -> void:
 	MapDef.select(map_id)
 	print("[map] %s (%d cliffs)" % [WorldLayout.map().display_name, WorldLayout.cliff_count()])
 	_build_environment()
+	LoadTimes.mark("environment + sky")
 	var terrain := Node3D.new()
 	terrain.name = "Terrain"
 	add_child(terrain)
+	LoadTimes.mark("add terrain")
 	cliffs = CliffBuilder.new(WORLD_SEED)
 	cliffs.build(terrain)
+	LoadTimes.mark("CliffBuilder.build")
 	var dressing := Node3D.new()
 	dressing.name = "Dressing"
 	add_child(dressing)
+	LoadTimes.mark("add dressing")
 	StoryDirector.reserve_story_ground(cliffs) # Story: chapters 9-10 keep their floor clear
 	WorldDressing.new(cliffs, dressing, WORLD_SEED + 1).build()
+	LoadTimes.mark("WorldDressing.build")
 	vfx = VfxPool.new()
 	vfx.name = "Vfx"
 	add_child(vfx)
+	LoadTimes.mark("add vfx")
 	Bug.cliffs = cliffs
 	bugs = BugManager.new()
 	bugs.name = "Bugs"
 	bugs.vfx = vfx
 	add_child(bugs)
+	LoadTimes.mark("add bugs")
 	# Boss mechanics' shared effects and their RPC channel (same path on every peer).
 	var boss_fx := BossFx.new()
 	boss_fx.name = "BossFx"
 	add_child(boss_fx)
+	LoadTimes.mark("add boss_fx")
 	var weather := WeatherFx.new()
 	weather.name = "WeatherFx"
 	add_child(weather)
+	LoadTimes.mark("add weather")
 	var menu := MenuScreen.new()
 	menu.name = "MenuScreen"
 	add_child(menu)
+	LoadTimes.mark("add menu")
 	Amber.world_ready() # Hive amber: this run's blueprints and favours start fresh
 	var airship := Airship.new()
 	airship.name = "Airship"
 	add_child(airship)
+	LoadTimes.mark("add airship")
 	# Wind, the climbing swarm's chitter and the airship's creaks (local only, no sync).
 	var ambience := Ambience.new()
 	ambience.name = "Ambience"
 	ambience.bugs = bugs
 	ambience.airship = airship
 	add_child(ambience)
+	LoadTimes.mark("add ambience")
 	# Canyon Expeditions: the raid sites on the canyon floor (a Story chapter's
 	# own set piece keeps its tunnel to itself).
 	SitePlan.skip_tunnels = StoryDirector.reserved_tunnels(cliffs)
 	var sites := SiteManager.new()
 	sites.name = "Sites"
 	add_child(sites)
+	LoadTimes.mark("add sites")
 	var pickups := PickupManager.new()
 	pickups.name = "Pickups"
 	add_child(pickups)
+	LoadTimes.mark("add pickups")
 	builds = BuildManager.new()
 	builds.name = "Builds"
 	builds.cliffs = cliffs
 	add_child(builds)
+	LoadTimes.mark("add builds")
 	# Additions: coverage table, wanted posters, corpse piles, campfires.
 	var extras := WorldExtras.new()
 	extras.name = "Extras"
 	extras.cliffs = cliffs
 	add_child(extras)
+	LoadTimes.mark("add extras")
 	Turret.bug_manager = bugs
 	Turret.vfx = vfx
 	StructureNode.vfx = vfx
@@ -95,23 +112,29 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.name = "Hud"
 	add_child(hud)
+	LoadTimes.mark("add hud")
 	# Pings draw on the HUD layer but live here so their RPCs line up on every peer.
 	var pings := Pings.new()
 	pings.name = "Pings"
 	hud.add_child(pings)
+	LoadTimes.mark("add pings")
 	var pause := PauseMenu.new()
 	pause.name = "PauseMenu"
 	add_child(pause)
+	LoadTimes.mark("add pause")
 	var vote := PauseVote.new()
 	vote.name = "PauseVote"
 	add_child(vote)
+	LoadTimes.mark("add vote")
 
 	players_root = Node3D.new()
 	players_root.name = "Players"
 	add_child(players_root)
+	LoadTimes.mark("add players_root")
 	spawner = MultiplayerSpawner.new()
 	spawner.name = "PlayerSpawner"
 	add_child(spawner)
+	LoadTimes.mark("add spawner")
 	spawner.spawn_path = spawner.get_path_to(players_root)
 	spawner.spawn_function = _spawn_player
 
@@ -124,6 +147,7 @@ func _ready() -> void:
 	saver.name = "RunSaver"
 	saver.world = self
 	add_child(saver)
+	LoadTimes.mark("add saver")
 	# Tutorial: the guided first run (steps, cards, the scripted wave).
 	if GameState.tutorial:
 		var tut := TutorialRun.new()
@@ -136,15 +160,18 @@ func _ready() -> void:
 		story.name = "StoryDirector"
 		story.world = self
 		add_child(story)
+		LoadTimes.mark("add story director")
 
 	if multiplayer.is_server():
 		_on_peer_loaded(1)
+		LoadTimes.mark("spawn players / start run")
 	else:
 		# Clients build the CPU teammates as puppets of the host's (same node paths,
 		# so their pose / shot / action RPCs land, and the HUD knows their names).
 		if NetworkManager.has_cpu():
 			_spawn_cpus()
 		_client_loaded.rpc_id(1)
+		LoadTimes.mark("client loaded rpc")
 		# If the host was still loading, that word is lost (no World there yet):
 		# keep saying it until our own player has arrived.
 		var again := Timer.new()
@@ -162,6 +189,7 @@ func _ready() -> void:
 	tools.name = "DebugTools"
 	tools.world = self
 	add_child(tools)
+	LoadTimes.mark("add tools")
 	if GameState.flag_value("--trailer") != "":
 		var director := TrailerDirector.new()
 		director.name = "TrailerDirector"
@@ -182,6 +210,19 @@ func _ready() -> void:
 		ft.autostart = true
 		ft.timeout.connect(_test_toggle_fullscreen)
 		add_child(ft)
+	# The lobby's background loads (WorldPreload) are in use now; a client's own
+	# player arrives a moment later, so they're let go after a while.
+	get_tree().create_timer(30.0).timeout.connect(WorldPreload.release)
+	LoadTimes.mark("world _ready done")
+	LoadTimes.watch_frames(60)
+	if LoadTimes.auto: # --loadtest: a few seconds in the world, then quit
+		get_tree().create_timer(12.0).timeout.connect(func() -> void:
+			if LoadTimes.rounds_left > 0:
+				LoadTimes.rounds_left -= 1
+				LoadTimes.again = true
+				_test_leave()
+			else:
+				get_tree().quit())
 
 
 func _test_toggle_fullscreen() -> void:
@@ -231,6 +272,7 @@ func _on_peer_loaded(id: int) -> void:
 	_started = true
 	for peer_id: int in roster:
 		spawner.spawn({"peer": peer_id, "cliff": int((roster[peer_id] as Dictionary)["cliff"])})
+	LoadTimes.mark("  spawn: players")
 	if NetworkManager.has_cpu():
 		_spawn_cpus()
 	else:
@@ -240,6 +282,7 @@ func _on_peer_loaded(id: int) -> void:
 	RunSave.pending = {}
 	if not saver.resume(resume):
 		GameState.start_run(StoryDirector.instance.start_wave() if StoryDirector.instance != null else 1)
+	LoadTimes.mark("  spawn: start run")
 
 
 ## CPU teammates take every empty cliff; each may spend 1 / team size of the

@@ -23,6 +23,7 @@ var _floor_noise := FastNoiseLite.new()
 ## Beyond the play area the canyon stops being a straight trench: it meanders,
 ## pinches and widens, and its walls get buttresses, jagged rims and mesas.
 var _wild := FastNoiseLite.new()
+var _seed := 0
 
 
 func _init(seed_value: int = 1234, map_def: MapDef = null) -> void:
@@ -36,6 +37,7 @@ func _init(seed_value: int = 1234, map_def: MapDef = null) -> void:
 		n.frequency = 1.0
 		n.fractal_octaves = 3
 		_noise.append(n)
+	_seed = seed_value
 	_floor_noise.seed = seed_value + 7
 	_floor_noise.frequency = 0.05
 	_wild.seed = seed_value + 31
@@ -467,34 +469,105 @@ const FAR_STEP := 4.0
 ## (|z| <= WORLD_HALF_Z) is detailed and collidable; the canyon then keeps going
 ## into the distance in both directions at low detail, without collision.
 func build(parent: Node3D) -> void:
+	for step in build_steps(parent):
+		step.call()
+
+
+## The build in pieces, to run one per frame (the title screen's canyon film
+## builds behind its menu without freezing it): build() just runs them all.
+## The terrain only depends on the map and the seed, so the film and every later
+## game on the same map reuse the meshes and collision shapes built the first
+## time (the built nodes packed into a scene that shares their resources).
+func build_steps(parent: Node3D) -> Array[Callable]:
+	var key := "%s_%d" % [map.id, _seed]
+	var cached: PackedScene = _built.get(key)
+	if cached != null:
+		return [_from_cache.bind(parent, cached)]
+	var steps: Array[Callable] = []
+	var from := parent.get_child_count()
 	if not _canyon:
-		MapTerrain.new(self).build(parent)
+		steps.append(func() -> void: MapTerrain.new(self).build(parent))
+	else:
+		var rock := Materials.strata(Palette.SAND)
+		var floor_mat := Materials.strata(Color("#D9A35E"))
+		for part in 3: # each cliff's plateau and face, then the floor
+			steps.append(_near_canyon.bind(parent, rock, floor_mat, part))
+		for side: float in [-1.0, 1.0]:
+			steps.append(_far_canyon.bind(parent, rock, floor_mat, side))
+		steps.append(func() -> void:
+			_add_visual(parent, "FarRocks", _wild_rocks(), rock)
+			LoadTimes.mark("  cliff: far rocks"))
+		steps.append(func() -> void:
+			_add_arches(parent, rock)
+			LoadTimes.mark("  cliff: arches"))
+		steps.append(func() -> void:
+			_add_visual(parent, "HostileRidges", _hostile_ridges(), rock)
+			_add_visual(parent, "Bones", _carcasses(), Materials.toon(0.03))
+			_add_visual(parent, "BugTunnels", _bug_tunnels(), Materials.toon(0.03))
+			LoadTimes.mark("  cliff: ridges/bones/tunnels"))
+		steps.append(func() -> void:
+			_add_hinterland(parent, rock)
+			LoadTimes.mark("  cliff: hinterland"))
+	steps.append(func() -> void:
 		_infest_tunnels()
-		return
-	var rock := Materials.strata(Palette.SAND)
-	var floor_mat := Materials.strata(Color("#D9A35E"))
-	var near := Vector2(-WorldLayout.WORLD_HALF_Z, WorldLayout.WORLD_HALF_Z)
-	for cid in 2:
-		_add_static(parent, "Plateau%d" % cid, _build_plateau(cid, near, PLATEAU_Z_STEP, PLATEAU_D_STEP, WorldLayout.TERRAIN_DEPTH), rock)
-		_add_static(parent, "CliffFace%d" % cid, _build_face(cid, near, FACE_Z_STEP, FACE_Y_STEP), rock)
-	_add_static(parent, "CanyonFloor", _build_floor(near, FLOOR_STEP), floor_mat)
-	# Distant canyon, both directions (a little overlap hides the seam).
-	for side: float in [-1.0, 1.0]:
-		var a := side * (WorldLayout.WORLD_HALF_Z - 2.0)
-		var b := side * FAR_Z
-		var span := Vector2(minf(a, b), maxf(a, b))
-		var tag := "N" if side > 0.0 else "S"
-		for cid in 2:
-			_add_visual(parent, "FarPlateau%d%s" % [cid, tag], _build_plateau(cid, span, FAR_STEP, 3.0, 140.0), rock)
-			_add_visual(parent, "FarFace%d%s" % [cid, tag], _build_face(cid, span, 2.5, 1.6), rock)
-		_add_visual(parent, "FarFloor%s" % tag, _build_floor(span, FAR_STEP), floor_mat)
-	_add_visual(parent, "FarRocks", _wild_rocks(), rock)
-	_add_arches(parent, rock)
-	_add_visual(parent, "HostileRidges", _hostile_ridges(), rock)
-	_add_visual(parent, "Bones", _carcasses(), Materials.toon(0.03))
-	_add_visual(parent, "BugTunnels", _bug_tunnels(), Materials.toon(0.03))
-	_add_hinterland(parent, rock)
+		_store(parent, from, key))
+	return steps
+
+
+func _from_cache(parent: Node3D, cached: PackedScene) -> void:
+	var copy := cached.instantiate()
+	for c in copy.get_children():
+		copy.remove_child(c)
+		parent.add_child(c)
+	copy.free()
 	_infest_tunnels()
+
+
+func _store(parent: Node3D, from: int, key: String) -> void:
+	var holder := Node3D.new()
+	for i in range(from, parent.get_child_count()):
+		var c := parent.get_child(i).duplicate()
+		holder.add_child(c)
+		_own(c, holder)
+	var packed := PackedScene.new()
+	if packed.pack(holder) == OK:
+		_built[key] = packed
+	holder.free()
+
+
+## Built terrain per map and seed (see build_steps).
+static var _built: Dictionary = {}
+
+
+static func _own(n: Node, owner_node: Node) -> void:
+	n.owner = owner_node
+	for c in n.get_children():
+		_own(c, owner_node)
+
+
+## The playable stretch: plateaus, cliff faces and floor, all collidable.
+## `part` 0 and 1: that cliff's plateau and face; 2: the floor.
+func _near_canyon(parent: Node3D, rock: Material, floor_mat: Material, part: int) -> void:
+	var near := Vector2(-WorldLayout.WORLD_HALF_Z, WorldLayout.WORLD_HALF_Z)
+	if part < 2:
+		_add_static(parent, "Plateau%d" % part, _build_plateau(part, near, PLATEAU_Z_STEP, PLATEAU_D_STEP, WorldLayout.TERRAIN_DEPTH), rock)
+		_add_static(parent, "CliffFace%d" % part, _build_face(part, near, FACE_Z_STEP, FACE_Y_STEP), rock)
+	else:
+		_add_static(parent, "CanyonFloor", _build_floor(near, FLOOR_STEP), floor_mat)
+	LoadTimes.mark("  cliff: near part %d" % part)
+
+
+## The distant canyon one way (a little overlap with the near part hides the seam).
+func _far_canyon(parent: Node3D, rock: Material, floor_mat: Material, side: float) -> void:
+	var a := side * (WorldLayout.WORLD_HALF_Z - 2.0)
+	var b := side * FAR_Z
+	var span := Vector2(minf(a, b), maxf(a, b))
+	var tag := "N" if side > 0.0 else "S"
+	for cid in 2:
+		_add_visual(parent, "FarPlateau%d%s" % [cid, tag], _build_plateau(cid, span, FAR_STEP, 3.0, 140.0), rock)
+		_add_visual(parent, "FarFace%d%s" % [cid, tag], _build_face(cid, span, 2.5, 1.6), rock)
+	_add_visual(parent, "FarFloor%s" % tag, _build_floor(span, FAR_STEP), floor_mat)
+	LoadTimes.mark("  cliff: far canyon " + tag)
 
 
 ## The rock shader's infestation (resin, scrapes, burrows) gathers round the bug
@@ -852,35 +925,72 @@ func _build_floor(span: Vector2, step: float) -> ArrayMesh:
 
 
 ## Turns a 2D grid of positions (Array of Array[Vector3]) into a smooth-shaded mesh
-## whose faces point roughly along `outward`.
+## whose faces point roughly along `outward`. (Built straight into indexed arrays:
+## the same triangles, normals and winding SurfaceTool + index() made, several
+## times faster, which the load into a game feels.)
 func _grid_mesh(grid: Array, outward: Vector3) -> ArrayMesh:
 	var rows := grid.size()
 	var cols: int = (grid[0] as Array).size()
-	var normals: Array = []
+	var n_v := rows * cols
+	var verts := PackedVector3Array()
+	verts.resize(n_v)
+	var i := 0
 	for r in rows:
-		var nrow: Array[Vector3] = []
+		var row: Array = grid[r]
 		for c in cols:
-			var p_up: Vector3 = grid[mini(r + 1, rows - 1)][c]
-			var p_dn: Vector3 = grid[maxi(r - 1, 0)][c]
-			var p_rt: Vector3 = grid[r][mini(c + 1, cols - 1)]
-			var p_lt: Vector3 = grid[r][maxi(c - 1, 0)]
-			var n := (p_up - p_dn).cross(p_rt - p_lt).normalized()
+			verts[i] = row[c]
+			i += 1
+	var normals := PackedVector3Array()
+	normals.resize(n_v)
+	for r in rows:
+		var up := mini(r + 1, rows - 1) * cols
+		var dn := maxi(r - 1, 0) * cols
+		var here := r * cols
+		for c in cols:
+			var n := (verts[up + c] - verts[dn + c]).cross(verts[here + mini(c + 1, cols - 1)] - verts[here + maxi(c - 1, 0)]).normalized()
 			if n.dot(outward) < 0.0:
 				n = -n
-			nrow.append(n)
-		normals.append(nrow)
-	var st := MeshKit.begin()
-	var col := Color(1, 1, 1, 1)
+			normals[here + c] = n
+	var idx := PackedInt32Array()
+	idx.resize((rows - 1) * (cols - 1) * 6)
+	var k := 0
 	for r in rows - 1:
 		for c in cols - 1:
-			var a: Vector3 = grid[r][c]
-			var b: Vector3 = grid[r][c + 1]
-			var cc: Vector3 = grid[r + 1][c + 1]
-			var d: Vector3 = grid[r + 1][c]
-			var na: Vector3 = normals[r][c]
-			var nb: Vector3 = normals[r][c + 1]
-			var nc: Vector3 = normals[r + 1][c + 1]
-			var nd: Vector3 = normals[r + 1][c]
-			MeshKit.tri(st, a, b, cc, na, nb, nc, col, (na + nb + nc).normalized())
-			MeshKit.tri(st, a, cc, d, na, nc, nd, col, (na + nc + nd).normalized())
-	return MeshKit.finish(st)
+			var a := r * cols + c
+			var b := a + 1
+			var cc := a + cols + 1
+			var d := a + cols
+			# Each triangle faces along its averaged normal (as MeshKit.tri winds them).
+			var va := verts[a]
+			var na := normals[a]
+			var nc := normals[cc]
+			var vc := verts[cc]
+			if (verts[b] - va).cross(vc - va).dot((na + normals[b] + nc).normalized()) > 0.0:
+				idx[k] = a
+				idx[k + 1] = cc
+				idx[k + 2] = b
+			else:
+				idx[k] = a
+				idx[k + 1] = b
+				idx[k + 2] = cc
+			if (vc - va).cross(verts[d] - va).dot((na + nc + normals[d]).normalized()) > 0.0:
+				idx[k + 3] = a
+				idx[k + 4] = d
+				idx[k + 5] = cc
+			else:
+				idx[k + 3] = a
+				idx[k + 4] = cc
+				idx[k + 5] = d
+			k += 6
+	var colors := PackedColorArray()
+	colors.resize(n_v)
+	colors.fill(Color(1, 1, 1, 1))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_INDEX] = idx
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh

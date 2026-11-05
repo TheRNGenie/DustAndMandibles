@@ -561,6 +561,7 @@ func _sync_players(roster: Dictionary) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _start_game(id: String = "canyon") -> void:
+	LoadTimes.begin("world")
 	map_id = StringName(id)
 	MapDef.select(map_id)
 	get_tree().change_scene_to_file.call_deferred(WORLD_SCENE)

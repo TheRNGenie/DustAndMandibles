@@ -62,8 +62,11 @@ func _ready() -> void:
 	await get_tree().process_frame
 	if not is_inside_tree():
 		return
-	_build_world()
+	if not await _build_world():
+		return # the menu closed while the set went up
 	_shots = _make_shots()
+	LoadTimes.mark("(film) shots")
+	LoadTimes.watch_frames(20)
 	ready_to_film = true
 	if GameState.flag_value("--cineshot") != "": # screenshots: jump to a shot (1-based) and a moment in it
 		_shot = int(GameState.flag_value("--cineshot")) - 2
@@ -131,19 +134,27 @@ func _build_environment() -> void:
 	add_child(_cycle)
 
 
-func _build_world() -> void:
+func _build_world() -> bool:
 	var terrain := Node3D.new()
 	add_child(terrain)
 	# Maps: the title screen always flies over the canyon (the world selects the run's map).
 	MapDef.select(MapDef.CANYON)
 	_cliffs = CliffBuilder.new(WORLD_SEED)
-	_cliffs.build(terrain)
 	Bug.cliffs = _cliffs
 	var dressing := Node3D.new()
 	add_child(dressing)
-	WorldDressing.new(_cliffs, dressing, WORLD_SEED + 1).build()
+	# One piece a frame, so the menu in front keeps answering while the set goes up
+	# (behind the black fade: nothing shows until the first shot).
+	LoadTimes.mark("(film) frames before build")
+	if not await _run_steps(_cliffs.build_steps(terrain)):
+		return false
+	LoadTimes.mark("(film) CliffBuilder.build")
+	if not await _run_steps(WorldDressing.new(_cliffs, dressing, WORLD_SEED + 1).build_steps()):
+		return false
+	LoadTimes.mark("(film) WorldDressing.build")
 	var vfx := VfxPool.new() # brings the CanyonLife (vultures, birds, tumbleweeds, dust devils)
 	add_child(vfx)
+	LoadTimes.mark("(film) vfx pool")
 	for stage in 3:
 		var root := Node3D.new()
 		root.visible = false
@@ -155,7 +166,25 @@ func _build_world() -> void:
 			if stage == 2:
 				for t: Array in FORT_EXTRAS:
 					_turret(root, t[0], cid, t[1])
+	LoadTimes.mark("(film) stage turrets")
 	_ship = _airship()
+	LoadTimes.mark("(film) airship")
+	return true
+
+
+## Runs build steps one per frame, each on the film's own canyon map (whatever
+## a lobby has picked meanwhile is put back after). False if the menu closed.
+func _run_steps(steps: Array[Callable]) -> bool:
+	for step in steps:
+		var was := MapDef.current
+		MapDef.current = _cliffs.map
+		step.call()
+		MapDef.current = was
+		await get_tree().process_frame
+		if not is_inside_tree():
+			return false
+	MapDef.current = _cliffs.map
+	return true
 
 
 func _turret(root: Node3D, id: StringName, cid: int, cell: Vector2i) -> void:

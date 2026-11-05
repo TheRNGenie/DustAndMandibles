@@ -37,14 +37,17 @@ var _story: StoryScreen
 
 
 func _ready() -> void:
+	LoadTimes.begin("menu")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	GameState.reset()
+	WorldPreload.release() # (back from a game: it has let go of what it used)
 	GameState.tutorial = false # back from the tutorial (or never in it)
 	Story.chapter_id = "" # Story: back from a chapter (a lobby's host picks again)
 	# [Foundation] --continue (tests): resume the saved run on the automatic start.
 	if GameState.has_flag("--continue"):
 		RunSave.pending = RunSave.read()
 	_build_ui()
+	LoadTimes.mark("build_ui done")
 	NetworkManager.players_changed.connect(_refresh)
 	NetworkManager.connected_to_host.connect(_on_connected)
 	NetworkManager.connection_failed.connect(func(reason: String) -> void: _show_connect(reason))
@@ -91,6 +94,18 @@ func _ready() -> void:
 	else:
 		_show_connect(NetworkManager.menu_message) # e.g. why the last game ended
 		NetworkManager.menu_message = ""
+	LoadTimes.mark("menu _ready done")
+	LoadTimes.watch_frames(20)
+	if LoadTimes.auto and (first or LoadTimes.again): # --loadtest: host after the menu settles, start a moment later
+		LoadTimes.again = false
+		get_tree().create_timer(6.0).timeout.connect(func() -> void:
+			RunSave.pending = {}
+			Story.chapter_id = ""
+			if GameState.flag_value("--loadstory") != "": # e.g. --loadstory=ch1
+				await _on_story(GameState.flag_value("--loadstory"))
+			else:
+				await _on_host()
+			get_tree().create_timer(4.0).timeout.connect(NetworkManager.start_game))
 
 
 func _build_ui() -> void:
@@ -101,6 +116,7 @@ func _build_ui() -> void:
 		_cinematic = MenuCinematic.new()
 		add_child(_cinematic)
 		add_child(_cinematic.fade)
+		LoadTimes.mark("cinematic node")
 	elif ResourceLoader.exists("res://assets/story_art/menu.jpg"):
 		var key_art := TextureRect.new() # the key art (assets/story_art) when there's no canyon film
 		key_art.texture = load("res://assets/story_art/menu.jpg")
@@ -340,18 +356,24 @@ func _build_ui() -> void:
 	_status.theme_type_variation = "SoftInkLabel"
 	page.add_child(_status)
 
+	LoadTimes.mark("menu column")
 	_settings = PauseMenu.new()
 	_settings.in_main_menu = true
 	add_child(_settings)
+	LoadTimes.mark("settings screen")
 	_ledger = LedgerScreen.new() # Perk
 	add_child(_ledger)
+	LoadTimes.mark("ledger screen")
 	Perks.loadouts_changed.connect(_refresh)
 	_secrets = SecretsScreen.new() # Theme: Secrets
 	add_child(_secrets)
+	LoadTimes.mark("secrets screen")
 	_brands = BrandScreen.new() # Brand
 	add_child(_brands)
+	LoadTimes.mark("brand screen")
 	_story = StoryScreen.new() # Story: chapter select and Doc Whitlow's journal
 	add_child(_story)
+	LoadTimes.mark("story screen")
 	_story.ride.connect(_on_story)
 	Story.changed.connect(_refresh)
 	if GameState.has_flag("--openstory"): # screenshots of the chapter screen
@@ -409,15 +431,19 @@ func _test_launch() -> bool:
 
 
 func _on_host() -> void:
+	LoadTimes.begin("lobby")
 	NetworkManager.local_name = _player_name()
 	if NetworkManager.wants_online() and NetworkManager.online_signing_in(): # a moment after launch: let online play finish signing in
 		_status.text = "Signing in to online play..."
 		await NetworkManager.wait_for_online()
 	var err := NetworkManager.host(int(_port_edit.text))
+	LoadTimes.mark("NetworkManager.host")
 	if err != OK:
 		_show_connect("Could not host on port %s (error %d)." % [_port_edit.text, err])
 		return
 	_show_lobby("Hosting. Send your invite code to a friend, or start alone.")
+	LoadTimes.mark("show_lobby")
+	LoadTimes.watch_frames(20)
 	if _auto_ready:
 		_ready_btn.set_pressed_no_signal(true)
 		NetworkManager.set_ready.call_deferred(true)
@@ -436,6 +462,7 @@ func _on_story(cid: String) -> void:
 	if not NetworkManager.is_online():
 		return
 	Story.select(cid)
+	WorldPreload.start(true) # Story: the chapter's art too
 	var ch := Story.chapter()
 	_status.text = "Chapter %d: %s. Start alone, or send your invite code to your posse." % [ch.number, ch.title]
 	_refresh()
@@ -504,6 +531,9 @@ func _show_lobby(message: String) -> void:
 	_lobby_box.visible = true
 	_status.text = message
 	_refresh()
+	LoadTimes.mark("lobby refresh")
+	# The game's scene and art start loading in the background while the lobby is up.
+	WorldPreload.start(Story.active())
 	# Brand: every run starts at the branding irons (a continued run brings its brands back).
 	if not Brand.has_chosen() and RunSave.pending.is_empty() and not _test_launch() and GameState.flag_value("--lobbyshot") == "":
 		_brands.open()
