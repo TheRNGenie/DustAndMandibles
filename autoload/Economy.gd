@@ -118,7 +118,7 @@ func _sync_tonic(cliff_id: int, secs: float) -> void:
 
 ## Host (or offline): back to starting resources.
 func reset() -> void:
-	ledger.reset({&"scrap": Defs.WAVE_CONFIG.start_scrap, &"water": 6, &"herbs": 1}, WorldLayout.cliff_count())
+	ledger.reset({&"scrap": Defs.WAVE_CONFIG.start_scrap, &"water": 0, &"herbs": 1}, WorldLayout.cliff_count()) # no water until the first wave starts the pumps (Logan)
 	gained.clear()
 	cpu_spent.clear()
 	tonic_left.clear()
