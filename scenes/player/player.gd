@@ -39,6 +39,7 @@ var spawn_transform: Transform3D
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _sliding := false
 var _slide_left := 0.0
+var _was_on_floor := true ## last tick (Hold to Crouch: landing into a slide)
 var _mantling := false
 var _fall_left := -1.0
 var _bob_t := 0.0
@@ -397,6 +398,10 @@ func _physics_process(delta: float) -> void:
 		var speed := Vector2(velocity.x, velocity.z).length()
 		if sprinting or speed > WALK_SPEED * 0.9:
 			_start_slide()
+	# Hold to Crouch (Settings): holding Slide as you touch down lands you in a slide.
+	elif not blocked and on_floor and not _was_on_floor and not _sliding and Settings.hold_crouch 			and Input.is_action_pressed("slide") and Vector2(velocity.x, velocity.z).length() > WALK_SPEED * 0.9:
+		_start_slide()
+	_was_on_floor = on_floor
 
 	var grappling := grapple != null and is_multiplayer_authority() and grapple.physics(delta)
 	if grappling:

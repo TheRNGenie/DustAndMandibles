@@ -30,6 +30,14 @@ func _ready() -> void:
 	swing.item_selected.connect(func(i: int) -> void: Settings.set_value("grapple_swing_toggle", i == 1))
 	add_child(UiStyle.row("Right-Click Swing", swing))
 	add_child(UiStyle.note("Hold: swing while the button's down. Toggle: click to hook on and swing, click again (or jump) to let go."))
+	add_child(UiStyle.section("Slide"))
+	var crouch := OptionButton.new()
+	crouch.add_item("Off")
+	crouch.add_item("On")
+	crouch.selected = 1 if Settings.hold_crouch else 0
+	crouch.item_selected.connect(func(i: int) -> void: Settings.set_value("hold_crouch", i == 1))
+	add_child(UiStyle.row("Hold to Crouch", crouch))
+	add_child(UiStyle.note("On: hold %s as you land from a jump or a swing to hit the ground sliding." % KeyHints.key_for("slide")))
 	add_child(UiStyle.section("Key Bindings"))
 	add_child(UiStyle.note("Click a binding, then press the new key or mouse button. Esc cancels."))
 	for action: String in Settings.REMAPPABLE:

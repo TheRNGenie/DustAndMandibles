@@ -47,6 +47,9 @@ var build_cam_third: bool = false
 ## The grapple's right-click swing: false = hold to swing (let go to drop off),
 ## true = click to hook on, click again to let go.
 var grapple_swing_toggle: bool = false
+## Hold to Crouch: holding Slide as you land from the air drops you straight
+## into a slide (if you're moving fast enough to slide at all).
+var hold_crouch: bool = true
 # Graphics
 var fov: float = 85.0
 var brightness: float = 1.0
@@ -304,7 +307,7 @@ func _deserialize(data: String) -> InputEvent:
 const SAVED_KEYS: Array[String] = ["mouse_sensitivity", "invert_y", "fov", "brightness", "fps_cap",
 	"vsync", "fullscreen", "shadows", "msaa", "render_scale", "quality", "shadow_detail", "effects",
 	"view_distance", "particles", "bug_detail", "master_volume", "sfx_volume", "music_volume", "bug_volume", "weapon_volume", "speech_volume", "debug_mode",
-	"colorblind", "ui_text_scale", "tutorial_done", "host_online", "build_cam_third", "grapple_swing_toggle"]
+	"colorblind", "ui_text_scale", "tutorial_done", "host_online", "build_cam_third", "grapple_swing_toggle", "hold_crouch"]
 
 
 func save_settings() -> void:
