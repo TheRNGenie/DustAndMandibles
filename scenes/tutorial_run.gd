@@ -38,7 +38,12 @@ const TICK_HOLD := 1.3
 ## Scrap the tutorial makes sure you have (two Gatling Posts and change).
 const SCRAP_FLOOR := 160
 ## What --tutorialrun puts up in the Gatling Post's place on the sell step.
-const SWAP_TURRET := &"scattergun_post"
+const SWAP_TURRET := &"gatling_post"
+## Logan: the first turret is a rifle nest, sold for the Gatling Post.
+const FIRST_TURRET := &"buffalo_rifle"
+## Keep Playing: this much of every resource, and the CPU partner's share of the pot.
+const KEEP_PLAYING_GIFT := 10000
+const KEEP_PLAYING_CPU_SHARE := 0.2
 ## The farm step's crop grows this many times faster (corn in about eight seconds).
 const GROW_FAST := 15.0
 ## Seconds on the rope that count as a swing or a reel.
@@ -75,7 +80,11 @@ var _gatling_id := 0 # the first Gatling Post (the one to sell)
 var _swing_t := 0.0
 var _reel_t := 0.0
 var _rope0 := INF
+var _swing_reel_t := 0.0 ## seconds reeled in while swinging (its own task, Logan)
+var _picked := 0 ## pieces of gear picked up (the second brings the hotbar tip)
 var _corn0 := 0
+var _gear: Dictionary = {} ## kind -> TutorialPickup still lying in the house
+var _have: Dictionary = {} ## gear taken: &"revolver", &"lighter", &"grapple", &"bucket", &"herbs"
 ## The design the Workshop step's three parts make.
 var _craft_id: StringName = &""
 var _auto := false
@@ -96,6 +105,7 @@ func _exit_tree() -> void:
 	if instance == self:
 		instance = null
 	GameState.god_mode = false
+	Hotbar.locked.clear() # (the real game: every slot as normal)
 
 
 func _ready() -> void:
@@ -165,12 +175,14 @@ func _try_begin() -> void:
 	var short := SCRAP_FLOOR - Economy.amount(me, &"scrap")
 	if short > 0:
 		Economy.earn(me, {&"scrap": short})
-	_cell = _free_lip_cell(&"gatling_post")
+	_cell = _free_lip_cell(FIRST_TURRET)
 	var first := TutorialPlan.step_from_flag(GameState.flag_value("--tutorialstep"))
+	_stash_supplies()
+	_lay_out_gear(first)
 	if first > Step.SELL and first <= Step.WAVE:
 		_build_gatling() # later steps want the turret standing
 	if first == Step.SELL:
-		_build_gatling()
+		BuildManager.instance.build(FIRST_TURRET, me, _cell)
 	print("[tutorial] begin on cliff %d, Gatling Post cell %s, starting at step %d" % [me, str(_cell), first])
 	_enter(first)
 	if first == Step.WAVE:
@@ -217,6 +229,8 @@ func _enter(s: int) -> void:
 	if s >= Step.DONE:
 		_finish()
 		return
+	if STEPS[s].has("tip"):
+		card.show_tip(str(STEPS[s]["tip"]), 30.0)
 	_tasks.clear()
 	for i in (STEPS[s]["tasks"] as Array).size():
 		_tasks.append(false)
@@ -232,7 +246,7 @@ func _enter(s: int) -> void:
 		Step.IDEA:
 			_show_cone()
 		Step.SELL:
-			var g := _my_gatling()
+			var g := _my_turret(FIRST_TURRET)
 			_gatling_id = g.get_instance_id() if g != null else 0
 		Step.FARM:
 			_water0 = Economy.amount(me, &"water")
@@ -240,6 +254,7 @@ func _enter(s: int) -> void:
 		Step.GRAPPLE:
 			_swing_t = 0.0
 			_reel_t = 0.0
+			_swing_reel_t = 0.0
 			_rope0 = INF
 		Step.AIRSHIP:
 			if Economy.amount(me, &"corn") <= 0:
@@ -294,12 +309,18 @@ func _check(delta: float) -> void:
 			_last_yaw = player.rotation.y
 			if _turned > deg_to_rad(100.0):
 				_tasks[1] = true
+			if not player.is_on_floor() and player.velocity.y > 1.0 and player.ladder_count == 0:
+				_tasks[2] = true # (a jump: rising off the ground)
+			if bool(player.get("_sliding")):
+				_tasks[3] = true
 		Step.SHOOT:
-			if _kills >= PRACTICE:
+			if _have.has(&"revolver"):
 				_tasks[0] = true
+			if _kills >= PRACTICE:
+				_tasks[1] = true
 			elif _practice_alive() == 0 and _t > 3.0 and _spawned - _kills < PRACTICE:
 				_spawn_practice(PRACTICE - _kills) # one got away: send another
-			card.set_task_text(0, "Dust Mites Shot: %d / %d" % [mini(_kills, PRACTICE), PRACTICE])
+			card.set_task_text(1, "Dust Mites Shot: %d / %d" % [mini(_kills, PRACTICE), PRACTICE])
 		Step.IDEA:
 			# A deliberate look: held on the wall (looking away starts it over),
 			# and never before the card has had time to be read.
@@ -310,20 +331,20 @@ func _check(delta: float) -> void:
 			var bm := player.build_mode
 			if bm != null and (bm.menu_open or bm.active):
 				_tasks[0] = true
-			if bm != null and bm.active and bm.selected_id() == &"gatling_post":
+			if bm != null and bm.active and bm.selected_id() == FIRST_TURRET:
 				_tasks[0] = true
 				_tasks[1] = true
-			if _my_gatling() != null:
+			if _my_turret(FIRST_TURRET) != null:
 				_tasks = [true, true, true]
 		Step.SELL:
-			# Sell the Gatling Post, then put up a different kind of turret (Logan).
-			var g := _my_gatling()
+			# Sell the rifle nest, then put up a Gatling Post (Logan).
+			var g := _my_turret(FIRST_TURRET)
 			var gid := g.get_instance_id() if g != null else 0
 			if _gatling_id == 0:
 				_gatling_id = gid # (it went up a moment after the step began)
 			elif not _tasks[0] and gid != _gatling_id:
 				_tasks[0] = true
-			if _tasks[0] and _my_other_turret() != null:
+			if _tasks[0] and _my_gatling() != null:
 				_tasks[1] = true
 		Step.LEVER:
 			if GameState.lever_thrown(me) or GameState.phase != GameState.Phase.BUILD:
@@ -333,6 +354,15 @@ func _check(delta: float) -> void:
 				_tasks[0] = true
 		Step.FARM:
 			_check_farm(delta)
+		Step.MEDICINE:
+			if _have.has(&"herbs"):
+				_tasks[0] = true
+		Step.WEATHER:
+			if _have.has(&"lighter"):
+				_tasks[0] = true
+			if player.lighter != null and player.lighter.lit:
+				_tasks[0] = true
+				_tasks[1] = true
 		Step.GRAPPLE:
 			_check_grapple(delta)
 		Step.AIRSHIP:
@@ -370,8 +400,8 @@ func _check(delta: float) -> void:
 
 
 func _check_farm(delta: float) -> void:
-	# The seeds come out of the house chest first (Logan).
-	if Economy.amount(me, CropPlot.seed_res(&"corn")) > 0:
+	# The bucket and seeds come out of the house chest first (Logan).
+	if _have.has(&"bucket") and Economy.amount(me, CropPlot.seed_res(&"corn")) > 0:
 		_tasks[0] = true
 	var water := Economy.amount(me, &"water")
 	if water > _water0:
@@ -381,7 +411,6 @@ func _check_farm(delta: float) -> void:
 		return
 	var g := _plot.growth
 	if g.stage != CropGrowth.Stage.EMPTY:
-		_tasks[0] = true
 		_tasks[2] = true
 	if g.stage >= CropGrowth.Stage.GROWING:
 		_tasks[1] = true # (had water to spare: that counts as filled)
@@ -399,15 +428,18 @@ func _check_farm(delta: float) -> void:
 
 func _check_grapple(delta: float) -> void:
 	var g := player.grapple
+	if _have.has(&"grapple"):
+		_tasks[0] = true
 	if player.gun.holding == &"grapple":
 		_tasks[0] = true
+		_tasks[1] = true
 	if g == null:
 		return
 	match g.mode:
 		Grapple.Mode.SWING:
 			_swing_t += delta
 			if g._rope_len < _rope0 - 0.01: # reeling in on the swing (left click held)
-				_reel_t += delta
+				_swing_reel_t += delta
 			_rope0 = g._rope_len
 		Grapple.Mode.PULL:
 			_reel_t += delta
@@ -415,9 +447,11 @@ func _check_grapple(delta: float) -> void:
 		_:
 			_rope0 = INF
 	if _swing_t >= ROPE_TIME:
-		_tasks[1] = true
-	if _reel_t >= ROPE_TIME:
 		_tasks[2] = true
+	if _reel_t >= ROPE_TIME:
+		_tasks[3] = true
+	if _swing_reel_t >= ROPE_TIME * 0.5:
+		_tasks[4] = true
 
 
 ## Enter / pad A: carries on from a reading card (once it has been up a
@@ -505,8 +539,8 @@ func _my_other_turret() -> Node3D:
 
 ## The turret on your lip after the swap (or the Gatling Post if there's no other).
 func _main_turret() -> Node3D:
-	var t := _my_other_turret()
-	return t if t != null else _my_gatling()
+	var t := _my_gatling()
+	return t if t != null else _my_other_turret()
 
 
 ## The crafted turret placed on your cliff, if it's up.
@@ -553,6 +587,123 @@ func _prepare_farm() -> void:
 		chest._sync.rpc(chest.items, chest.weapons)
 	elif chest == null:
 		Economy.earn(me, {seed: 1}) # (no house chest: hand it over as before)
+
+
+## Logan: the tutorial starts with empty pockets. Every starting item (medicine,
+## water, seeds, food) waits in the house chest; guns and tools stay in hand,
+## scrap and chitin stay in the pot.
+func _stash_supplies() -> void:
+	var chest := _chest()
+	if chest == null or not multiplayer.is_server():
+		return
+	var kinds: Array = StorageChest.ITEMS.duplicate()
+	for k: StringName in TutorialPlan.CHEST_SEEDS:
+		kinds.append(k)
+	for k: StringName in [&"seed_chili", &"seed_herbs"]:
+		kinds.append(k)
+	for k: StringName in kinds:
+		var n := Economy.amount(me, k)
+		if n > 0 and Economy.spend(me, {k: n}):
+			chest.items[k] = int(chest.items.get(k, 0)) + n
+	for k: StringName in TutorialPlan.CHEST_START:
+		chest.items[k] = maxi(int(chest.items.get(k, 0)), int(TutorialPlan.CHEST_START[k]))
+	chest._sync.rpc(chest.items, chest.weapons)
+	if not chest.took.is_connected(_on_chest_took):
+		chest.took.connect(_on_chest_took)
+
+
+## Logan: you start with empty hands. The revolver, zippo and grapple lie in the
+## house; the bucket and medicine are in the chest. Gear for steps before
+## `first` (a --tutorialstep start) is handed straight over.
+func _lay_out_gear(first: int) -> void:
+	for k: StringName in [&"lighter", &"grapple", &"water", &"herbs"]:
+		Hotbar.locked[k] = true
+	player.gun.remove_weapon(&"revolver")
+	if GunShop.loadouts.has(multiplayer.get_unique_id()):
+		(GunShop.loadouts[multiplayer.get_unique_id()] as Dictionary).erase(&"revolver")
+	var home := Homestead.of(me)
+	var due := {&"lighter": Step.WEATHER, &"revolver": Step.SHOOT, &"bucket": Step.FARM, &"herbs": Step.MEDICINE, &"grapple": Step.GRAPPLE}
+	for k: StringName in due:
+		if first > int(due[k]):
+			_give(k)
+	if home == null:
+		for g: Array in TutorialPlan.GEAR:
+			_give(g[0]) # (no house: just hand it over)
+		return
+	for g: Array in TutorialPlan.GEAR:
+		var kind: StringName = g[0]
+		if _have.has(kind):
+			continue
+		var p := TutorialPickup.make(kind, g[1], g[2], g[3])
+		p.taken.connect(_give)
+		home.add_child(p)
+		_gear[kind] = p
+
+
+## Hands over a piece of gear (picked up, taken from the chest, or skipped past).
+func _give(kind: StringName) -> void:
+	if _have.has(kind):
+		return
+	_have[kind] = true
+	_count_pickup()
+	if _gear.has(kind) and is_instance_valid(_gear[kind]):
+		(_gear[kind] as Node).queue_free()
+	_gear.erase(kind)
+	match kind:
+		&"revolver":
+			var uid := multiplayer.get_unique_id()
+			if GunShop.loadouts.has(uid):
+				(GunShop.loadouts[uid] as Dictionary)[&"revolver"] = 0
+			player.gun.grant(&"revolver", 0)
+			player.gun.equip(&"revolver")
+		&"lighter":
+			Hotbar.locked.erase(&"lighter")
+		&"grapple":
+			Hotbar.locked.erase(&"grapple")
+		&"bucket":
+			Hotbar.locked.erase(&"water")
+			var chest := _chest()
+			if chest != null and multiplayer.is_server() and int(chest.items.get(&"bucket", 0)) > 0:
+				chest.items.erase(&"bucket")
+				chest._sync.rpc(chest.items, chest.weapons)
+		&"herbs":
+			Hotbar.locked.erase(&"herbs")
+			if Economy.amount(me, &"herbs") <= 0:
+				var chest := _chest()
+				var n := int(chest.items.get(&"herbs", 0)) if chest != null else 0
+				if chest != null and n > 0 and multiplayer.is_server():
+					chest.items.erase(&"herbs")
+					chest._sync.rpc(chest.items, chest.weapons)
+				Economy.earn(me, {&"herbs": maxi(n, 3)})
+	_hotbar_changed()
+
+
+func _on_chest_took(_peer: int, what: StringName, _n: int) -> void:
+	if what == &"bucket" or what == &"herbs":
+		if not _have.has(what):
+			_count_pickup()
+		_have[what] = true
+		Hotbar.locked.erase(&"water" if what == &"bucket" else &"herbs")
+		_hotbar_changed()
+
+
+## Logan: after the second piece of gear, a tip about moving along the hotbar.
+func _count_pickup() -> void:
+	_picked += 1
+	if _picked == 2 and card != null:
+		card.show_tip("Your hotbar: scroll the mouse wheel to move along it, or press a slot's number key (1 to 0) to jump straight to it.", 16.0)
+
+
+func _hotbar_changed() -> void:
+	var hb := player.get_node_or_null("Hotbar") as Hotbar
+	if hb != null:
+		hb.changed.emit()
+
+
+## Where a piece of gear lies (for the marker), or null once it's taken.
+func _gear_at(kind: StringName) -> Variant:
+	var p: Node3D = _gear.get(kind)
+	return p.global_position + Vector3.UP * 0.35 if p != null and is_instance_valid(p) else null
 
 
 ## The chest inside your house.
@@ -656,6 +807,15 @@ func _fund(cost: Dictionary) -> void:
 
 ## Where this step's marker points (null: no marker).
 func _marker() -> Variant:
+	# Gear still lying in the house is the marker until it's taken (Logan).
+	var gear_kind: StringName = {Step.WEATHER: &"lighter", Step.SHOOT: &"revolver", Step.GRAPPLE: &"grapple"}.get(step, &"")
+	if gear_kind != &"" and not _have.has(gear_kind):
+		var at: Variant = _gear_at(gear_kind)
+		if at != null:
+			return at
+	if step == Step.MEDICINE and not _have.has(&"herbs"):
+		var c := _chest()
+		return c.global_position + Vector3.UP * 1.0 if c != null else null
 	match step:
 		Step.SHOOT, Step.WAVE:
 			var b := _nearest_bug()
@@ -670,7 +830,7 @@ func _marker() -> Variant:
 		Step.BUILD:
 			return _lip_point() + Vector3.UP * 1.2
 		Step.SELL, Step.TURRETS:
-			var g := _my_gatling() if step == Step.SELL else _main_turret()
+			var g := _my_turret(FIRST_TURRET) if step == Step.SELL else _main_turret()
 			if g != null and (step == Step.TURRETS or (_tasks.size() > 0 and not _tasks[0])):
 				return g.global_position + Vector3.UP * 2.0
 			return _lip_point() + Vector3.UP * 1.2 if step == Step.SELL else null
@@ -718,6 +878,12 @@ func caption() -> String:
 	var words := str(STEPS[step].get("marker", "")) if step >= 0 and step < Step.DONE else ""
 	if step == Step.SELL and _tasks.size() > 0 and _tasks[0]:
 		words = "Your Lip" # sold: the marker now points at where the new turret goes
+	if step == Step.SHOOT and not _have.has(&"revolver"):
+		return "Revolver"
+	if step == Step.GRAPPLE and not _have.has(&"grapple"):
+		return "Grapple"
+	if step == Step.WEATHER and _have.has(&"lighter"):
+		return ""
 	match step:
 		Step.FARM:
 			if _tasks.size() > 1 and _tasks[1]:
@@ -791,6 +957,25 @@ func to_menu() -> void:
 func keep_playing() -> void:
 	GameState.god_mode = false
 	card.set_marker(null, "")
+	card.show_tip("")
+	# Logan: stay and try things out: 10,000 of everything, a CPU partner on the
+	# other cliff (spending at most 20% of the pot), waves until the homestead falls.
+	var gift := {}
+	for r: StringName in EconomyLedger.RESOURCES:
+		gift[r] = KEEP_PLAYING_GIFT
+	Economy.earn(me, gift)
+	for k: StringName in [&"revolver", &"lighter", &"grapple", &"bucket", &"herbs"]:
+		_give(k)
+	if multiplayer.is_server() and world.get_node_or_null("CPU") == null:
+		NetworkManager.cpu_quality = 1
+		var cpu := CpuTeammate.new()
+		cpu.name = "CPU"
+		cpu.setup(1, other, cliffs, world.get("vfx"), 0)
+		world.add_child(cpu)
+		Economy.enable_cpu_budget(2, 1)
+		Economy.cpu_share = KEEP_PLAYING_CPU_SHARE
+		Economy.call("_push")
+	_hotbar_changed()
 
 
 ## --tutorialshots: a picture of the screen a moment from now.
@@ -820,15 +1005,20 @@ func _auto_step() -> void:
 		Step.MOVE:
 			player.global_position += -player.global_basis.z * 5.0
 			player.rotation.y += PI * 0.7
+			if not _tasks[2]:
+				player.velocity.y = 6.0
+			elif not _tasks[3]:
+				player.call("_start_slide")
 			_auto_t = 0.0
 		Step.SHOOT:
+			_give(&"revolver")
 			for c: Node in WaveDirector.bug_manager.get_children():
 				var b := c as Bug
 				if b != null and b.is_alive():
 					b.receive_hit(999.0, b.global_position, Vector3.FORWARD, true, 1.0, "revolver", me)
 					break
 			_auto_t = 0.5
-		Step.PAPER, Step.GUNS, Step.PELL, Step.TURRETS, Step.WEATHER, Step.MEDICINE, Step.ECONOMY, Step.UPGRADES:
+		Step.PAPER, Step.GUNS, Step.PELL, Step.TURRETS, Step.ECONOMY, Step.UPGRADES:
 			if _t > READ_MIN + 1.0:
 				accept_pressed()
 		Step.IDEA:
@@ -838,13 +1028,14 @@ func _auto_step() -> void:
 				_aim_at(at as Vector3)
 			_auto_t = 0.8
 		Step.BUILD:
-			_build_gatling()
+			if _my_turret(FIRST_TURRET) == null:
+				BuildManager.instance.build(FIRST_TURRET, me, _cell)
 			_auto_t = -2.0
 		Step.SELL:
-			var g := _my_gatling()
+			var g := _my_turret(FIRST_TURRET)
 			if not _tasks[0] and g != null:
 				BuildManager.instance.demolish_node(g)
-			elif _tasks[0] and _my_other_turret() == null:
+			elif _tasks[0] and _my_gatling() == null:
 				BuildManager.instance.build(SWAP_TURRET, me, _cell)
 			_auto_t = -1.0
 		Step.LEVER:
@@ -863,11 +1054,23 @@ func _auto_step() -> void:
 			var w := _well()
 			var chest := _chest()
 			if not _tasks[0] and chest != null:
-				chest._host(uid, &"take_item", CropPlot.seed_res(&"corn"), 99)
+				for k: StringName in [&"bucket", CropPlot.seed_res(&"corn")]:
+					chest._host(uid, &"take_item", k, 99)
 			elif not _tasks[1] and w != null:
 				w._use(uid)
 			elif _plot != null and _plot.growth.stage != CropGrowth.Stage.GROWING:
 				_plot._use(uid, &"corn")
+			_auto_t = 0.0
+		Step.WEATHER:
+			if not _tasks[0]:
+				_give(&"lighter")
+			elif player.lighter != null:
+				player.lighter.call("_set_state", true, true)
+			_auto_t = -1.0
+		Step.MEDICINE:
+			var mc := _chest()
+			if mc != null:
+				mc._host(uid, &"take_item", &"herbs", 99)
 			_auto_t = 0.0
 		Step.GRAPPLE:
 			var g := player.grapple
@@ -875,13 +1078,17 @@ func _auto_step() -> void:
 			if g == null or tower == null:
 				return
 			if not _tasks[0]:
-				player.hotbar_use_grapple()
+				_give(&"grapple")
 			elif not _tasks[1]:
+				player.hotbar_use_grapple()
+			elif not _tasks[2]:
 				g.attach(Grapple.Mode.SWING, tower.global_position + Vector3.UP * 7.0)
 				_swing_t = ROPE_TIME # (a test can't hold right click; the hook did go on)
-			elif not _tasks[2]:
+			elif not _tasks[3]:
 				g.test_mode = true # (holds the pull without a held left click)
 				g.attach(Grapple.Mode.PULL, tower.global_position + Vector3.UP * 7.0)
+			elif not _tasks[4]:
+				_swing_reel_t = ROPE_TIME # (a test can't hold both buttons on a swing)
 			_auto_t = 0.0
 		Step.AIRSHIP:
 			if not _tasks[0]:

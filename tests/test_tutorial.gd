@@ -21,7 +21,7 @@ func test_wave_plan_is_a_covered_swarm_on_the_partner_wall() -> void:
 		assert_eq(int(g["cliff"]), WorldLayout.EAST)
 		assert_eq(StringName(g["bug"]), TutorialPlan.SLOW_MITE)
 		assert_true(int(g["pulse"]) < int(plan["pulses"]))
-	assert_true(total >= 20 and total <= 30, "20-30 mites (Logan)")
+	assert_true(total >= 20 and total <= 50, "a swarm, up to 50 (Logan)")
 	assert_eq(total, int(plan["spent"]))
 	for g: Dictionary in plan["groups"]:
 		assert_true([1, 2].has(int(g["lane"])), "only the lanes the turret covers")

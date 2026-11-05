@@ -6,11 +6,13 @@ extends StaticBody3D
 ## keeps a synced copy of the contents for the menu.
 
 signal menu_changed
+## Host: someone took `n` of `what` out (the tutorial watches for its gear).
+signal took(peer_id: int, what: StringName, n: int)
 
 const ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili", &"herbs", &"water", &"sarsaparilla"]
 const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Prickly Pear", &"chili": "Firecracker Chili",
 	&"herbs": "Medicine (sage)", &"water": "Water", &"sarsaparilla": "Sarsaparilla Root",
-	&"seed_corn": "Corn Seeds", &"seed_chili": "Chili Seeds", &"seed_herbs": "Sage Seeds"}
+	&"seed_corn": "Corn Seeds", &"seed_chili": "Chili Seeds", &"seed_herbs": "Sage Seeds", &"bucket": "Water Bucket"}
 const MAX_WEAPONS := 6
 
 var home: Homestead
@@ -239,7 +241,9 @@ func _host(peer_id: int, op: StringName, what: StringName, n: int) -> void:
 			if n <= 0:
 				return
 			items[what] = int(items[what]) - n
-			Economy.earn(cid, {what: n})
+			if what != &"bucket": # (the tutorial's bucket is gear, not a stockpile)
+				Economy.earn(cid, {what: n})
+			took.emit(peer_id, what, n)
 	_sync.rpc(items, weapons)
 
 

@@ -58,8 +58,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 
 
+## Tutorial (Logan): gear you haven't picked up yet (lighter, grapple, water =
+## the bucket, herbs): its slot stays empty until TutorialRun unlocks it.
+static var locked: Dictionary = {}
+
+
 ## The item id in slot i ("" when empty).
 func slot_item(i: int) -> StringName:
+	var id := _slot_raw(i)
+	return &"" if locked.has(id) else id
+
+
+func _slot_raw(i: int) -> StringName:
 	if i < 3:
 		return player.gun.slots[i]
 	if i < 6:

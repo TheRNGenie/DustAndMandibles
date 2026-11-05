@@ -32,6 +32,9 @@ var _chip_label: Label
 var _marker: Variant = null
 var _bob := 0.0
 var _finish: Control
+var _tip: PanelContainer ## a small note under the card (Logan: settings, hotbar)
+var _tip_label: Label
+var _tip_left := 0.0
 var _step := 0
 var _total := 1
 var _def: Dictionary = {}
@@ -62,6 +65,15 @@ func _ready() -> void:
 	_chip_label = UiStyle.strap_text("", 14)
 	_chip.add_child(_chip_label)
 	add_child(_chip)
+	_tip = PanelContainer.new()
+	_tip.add_theme_stylebox_override("panel", KeyHints.card_style())
+	_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tip.visible = false
+	_tip_label = KeyHints.text("", 14, UiStyle.c("hud").darkened(0.12))
+	_tip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_tip_label.custom_minimum_size.x = WIDTH - 32.0
+	_tip.add_child(_tip_label)
+	add_child(_tip)
 	UiStyle.notifier.changed.connect(_restyle)
 	_voice = AudioStreamPlayer.new()
 	_voice.bus = &"Voice" if AudioServer.get_bus_index("Voice") >= 0 else &"Master"
@@ -309,8 +321,29 @@ static func _key(action: String) -> String:
 
 # ------------------------------------------------------------------ the marker
 
+## A tip in a small panel under the card for `seconds` (0 = until the step changes).
+func show_tip(text: String, seconds: float = 14.0) -> void:
+	_tip_label.text = text
+	_tip_left = seconds if seconds > 0.0 else INF
+	_tip.visible = text != ""
+	_tip.reset_size()
+
+
+func _place_tip(delta: float) -> void:
+	if not _tip.visible:
+		return
+	_tip_left -= delta
+	if _tip_left <= 0.0 or not _card.visible:
+		_tip.visible = false
+		return
+	_tip.size.x = _card.size.x
+	_tip.position = Vector2(_card.position.x, _card.position.y + _card.size.y + 10.0)
+	_tip.modulate.a = clampf(_tip_left, 0.0, 1.0)
+
+
 func _process(delta: float) -> void:
 	_bob += delta
+	_place_tip(delta)
 	if _wait_row != null and _wait_row.visible:
 		_wait_row.modulate.a = 0.55 + 0.45 * sin(_bob * 5.0) # a pulse, like a live wire
 	_place_marker()
@@ -425,7 +458,7 @@ func show_finish() -> void:
 	# Captain Stroud's word on the canyon (a hint, not a task).
 	col.add_child(UiStyle.note("Capt. Stroud: \"The canyon floor isn't the bottom of anything, ranchers. If you know what's good for you, you'll stay topside.\"", 14))
 	col.add_child(UiStyle.divider(420))
-	col.add_child(UiStyle.note("Host a game from the main menu and send your invite code to a partner. Keep Playing carries on with practice waves; nothing here is saved.", 14))
+	col.add_child(UiStyle.note("Host a game from the main menu and send your invite code to a partner. Keep Playing gives you 10,000 of every resource to try things out, and a CPU partner on the other cliff. The waves keep coming until your homestead falls; nothing here is saved.", 14))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", UiStyle.GAP_ROW)
 	col.add_child(row)
