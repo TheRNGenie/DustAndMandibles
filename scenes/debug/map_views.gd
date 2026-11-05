@@ -85,7 +85,7 @@ func _shoot() -> void:
 			eye = p0 + b.x.normalized() * 6.0 + Vector3(0, 1.8, 0) - b.z.normalized() * 4.0
 			target = p0 + b.z.normalized() * 10.0 + Vector3(0, 0.6, 0)
 	elif spec.begins_with("airship:"):
-		# --mapcam=airship:below|side|deck|casino|bow|stalls: the casino airship from under it, from
+		# --mapcam=airship:below|side|deck|casino|bow|stalls|lucky|luckyout: the casino airship from under it, from
 		# its flank, and on its deck.
 		var ship := world.get_node_or_null("Airship") as Node3D
 		if ship != null:
@@ -107,9 +107,49 @@ func _shoot() -> void:
 				"stalls":
 					eye = ship.to_global(Vector3(0.0, 1.9, 15.5))
 					target = ship.to_global(Vector3(0.0, 1.4, 6.0))
+				"lucky":
+					eye = ship.to_global(Vector3(3.2, 2.0, -1.2))
+					target = ship.to_global(Vector3(7.4, 1.2, 2.2))
+				"luckyout":
+					eye = ship.to_global(Vector3(9.5, 1.8, 0.4))
+					target = ship.to_global(Vector3(7.0, 1.3, 2.0))
 				_:
 					eye = ship.to_global(Vector3(48.0, 8.0, 10.0))
 					target = ship.to_global(Vector3(0, 8.0, 0))
+	elif spec.begins_with("jackpose:"):
+		# --mapcam=jackpose:<cliff>:<phi>[:side|:drive|:back]: the pump jack held at crank
+		# angle phi (radians), close up from the side, at its drive, or from behind.
+		var parts := spec.split(":")
+		for n: Node in get_tree().get_nodes_in_group("water_sources"):
+			if n is MechWell and (n as MechWell).cliff_id == int(parts[1]):
+				var w := n as MechWell
+				w.set("_speed", 0.0)
+				w.set("_phi", float(parts[2]))
+				w.call("_pose")
+				w.set_process(false)
+				var b := w.global_transform.basis
+				var view := parts[3] if parts.size() > 3 else "side"
+				match view:
+					"drive":
+						var d: Vector3 = w.drive_at
+						target = w.to_global(d + Vector3(-0.2, 0.0, 0.3))
+						eye = w.to_global(d + Vector3(-2.6, 1.4, -0.6))
+					"back":
+						target = w.to_global(Vector3(0, 1.6, 0.8))
+						eye = w.to_global(Vector3(2.2, 2.2, 4.0))
+					_:
+						target = w.global_position + b * Vector3(0, 1.7, 0.0)
+						eye = target + b.x.normalized() * 4.6 + Vector3(0, 0.6, 0)
+		for i in 10:
+			await get_tree().process_frame
+	elif spec.begins_with("porchchair:"):
+		# --mapcam=porchchair:<cliff>: close on the rocking chair on the porch.
+		var home := Homestead.of(int(spec.substr(11)))
+		if home != null:
+			var spot := home.to_global(HouseBuilder.chair_spot())
+			var hb := home.global_transform.basis
+			target = spot + Vector3(0, 0.6, 0)
+			eye = spot + hb.x.normalized() * 1.9 - hb.z.normalized() * 0.9 + Vector3(0, 1.0, 0)
 	elif spec.begins_with("well:"):
 		# --mapcam=well:<cliff>[:run][:side]: close on a cliff's pump jack (run: pumping).
 		var parts := spec.split(":")
