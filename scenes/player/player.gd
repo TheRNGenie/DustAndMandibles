@@ -18,7 +18,7 @@ const SLIDE_FRICTION := 7.0
 ## speed for a few seconds. Chain slide-jumps to stack it (up to SLIDE_HOP_MAX).
 const SLIDE_HOP_KICK := 2.2
 const SLIDE_HOP_SPEED := 1.3
-const SLIDE_HOP_TIME := 3.0
+const SLIDE_HOP_TIME := 8.0 # (Logan: was 3)
 const SLIDE_HOP_MAX := 3
 const MANTLE_REACH := 0.9
 const MANTLE_MAX_HEIGHT := 1.9
