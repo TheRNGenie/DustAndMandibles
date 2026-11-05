@@ -34,7 +34,7 @@ func test_buffs_only_for_their_own_brand() -> void:
 			assert_eq(BrandTable.scale_yield({&"corn": 5}, id, 0.0), {&"corn": 5})
 		if id != BrandTable.IRONS:
 			assert_eq(BrandTable.kill_loot({&"scrap": 5, &"chitin": 2}, id), {&"scrap": 5, &"chitin": 2})
-			assert_eq(BrandTable.heap_loot(4, id), {&"chitin": 4})
+			assert_eq(BrandTable.heap_loot(4, id), {&"scrap": 4})
 
 
 func test_buffs_stay_modest() -> void:
@@ -77,9 +77,8 @@ func test_irons_loot() -> void:
 	for n in 20:
 		assert_true(int(BrandTable.kill_loot({&"scrap": n}, BrandTable.IRONS)[&"scrap"]) >= n, "never less loot")
 	var heap := BrandTable.heap_loot(4, BrandTable.IRONS)
-	assert_eq(heap[&"chitin"], int(ceil(4 * (1.0 + BrandTable.HEAP_LOOT))))
-	assert_eq(heap[&"scrap"], BrandTable.HEAP_SCRAP)
-	assert_true(int(BrandTable.heap_loot(1, BrandTable.IRONS)[&"chitin"]) >= 2, "a 1-chitin heap still pays extra (ceil)")
+	assert_eq(heap, {&"scrap": int(ceil(4 * (1.0 + BrandTable.HEAP_LOOT))) + BrandTable.HEAP_SCRAP})
+	assert_true(int(BrandTable.heap_loot(1, BrandTable.IRONS)[&"scrap"]) >= 2 + BrandTable.HEAP_SCRAP, "a 1-shell heap still pays extra (ceil)")
 
 
 func test_cheat_odds() -> void:

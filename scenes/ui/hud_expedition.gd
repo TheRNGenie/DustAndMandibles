@@ -102,7 +102,7 @@ func _refresh() -> void:
 	if down:
 		var secs := Time.get_ticks_msec() / 1000.0 - _down_since
 		foot.append("In the Canyon %s" % UiStyle.clock(secs))
-		foot.append("G: Hail the Airship (%d Chitin)" % ExpeditionRules.AIRSHIP_FARE)
+		foot.append("G: Hail the Airship (%s)" % UiStyle.cost(ExpeditionRules.AIRSHIP_FARE, ResNames.PERSONAL_ID))
 	else:
 		foot.append("Unpacks When You're Back Up Top")
 	_foot.text = "\n".join(foot)

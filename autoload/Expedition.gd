@@ -280,7 +280,7 @@ func _hail(peer_id: int) -> void:
 		return
 	var cid := Economy.payer_cliff(peer_id, _cliff_of(peer_id))
 	if not Economy.spend(cid, {&"chitin": ExpeditionRules.AIRSHIP_FARE}):
-		Economy.notify(peer_id, "The airship wants %d chitin to haul you up. Climb, or bring some home first." % ExpeditionRules.AIRSHIP_FARE)
+		Economy.notify(peer_id, "The airship wants %s to haul you up. Climb, or bring some home first." % UiStyle.cost(ExpeditionRules.AIRSHIP_FARE, ResNames.PERSONAL_ID))
 		return
 	_haul.rpc_id(peer_id)
 

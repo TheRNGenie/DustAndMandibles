@@ -163,7 +163,7 @@ func _use(peer_id: int, seed_id: StringName) -> void:
 			if def == null:
 				return
 			if not Economy.spend(payer, {seed_res(seed_id): 1}):
-				Economy.notify(peer_id, "No %s seeds. Buy them at the airship market for scrap." % def.display_name.to_lower())
+				Economy.notify(peer_id, "No %s seeds. Buy them at the airship market for team %s." % [def.display_name.to_lower(), ResNames.team()])
 				return
 			crop_def = def
 			growth.plant(def)

@@ -30,7 +30,7 @@ const BLURBS: Array[String] = [
 	"Dust storm! Turrets see only about half as far (lanterns help) and so do you. Get on the guns yourself.",
 	"Heat wave: turrets run hot and fire slower, crops and catchers dry out, and you get thirsty fast.",
 	"Fog bank rolling in: turrets can't see far unless a lantern lights the way.",
-	"BLOOD MOON. A huge swarm is coming, and every bug drops double chitin.",
+	"BLOOD MOON. A huge swarm is coming, and every bug's shell pays double chitin.",
 ]
 ## Roll weights: plain weather is common, the dramatic kinds are rarer.
 const WEIGHTS: Array[float] = [34.0, 18.0, 16.0, 9.0, 4.0, 5.0, 7.0, 7.0, 3.0]

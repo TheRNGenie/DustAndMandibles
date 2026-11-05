@@ -65,18 +65,21 @@ func test_loot_tables() -> void:
 	for k: StringName in mouth:
 		if CraftTable.is_part(k):
 			parts += int(mouth[k])
-	assert_true(parts >= 1 and int(mouth.get(&"chitin", 0)) > 0, "tunnel mouth: parts and chitin")
+	# Shed shells are bug pieces: they pay the team pot (&"scrap", shown as chitin; DECISIONS 162).
+	assert_true(parts >= 1 and int(mouth.get(&"scrap", 0)) > 0 and not mouth.has(&"chitin"), "tunnel mouth: parts and team chitin")
 	assert_true(int(SitePlan.totals(SitePlan.loot_for(SitePlan.Kind.NEST, 5, 1)).get(SitePlan.NEST_EGG, 0)) >= 6, "nest: eggs")
 	var camp := SitePlan.totals(SitePlan.loot_for(SitePlan.Kind.CAMP, 5, 1))
 	assert_eq(int(camp.get(SitePlan.SPECIMEN, 0)), 1)
 	assert_eq(int(camp.get(SitePlan.JOURNAL_PAGE, 0)), 1)
 	var bones := SitePlan.totals(SitePlan.loot_for(SitePlan.Kind.BONEYARD, 5, 1))
 	assert_eq(int(bones.get(&"upgrade_token", 0)), 1, "bone yard: a boss trophy")
-	# The wreck is scrap by the cartload: more than a cliff's wave pay.
+	# The wreck is junk by the cartload: personal stock (&"chitin", shown as scrap),
+	# more than a night's junk heap pays.
 	var wreck := SitePlan.totals(SitePlan.loot_for(SitePlan.Kind.WRECK, 5, 1))
-	assert_true(int(wreck.get(&"scrap", 0)) > EconomyLedger.wave_pay(1) * 2, "wreck scrap %d" % int(wreck.get(&"scrap", 0)))
+	assert_true(int(wreck.get(&"chitin", 0)) > EconomyLedger.heap_pay(1, Defs.WAVE_CONFIG), "wreck scrap %d" % int(wreck.get(&"chitin", 0)))
+	assert_false(wreck.has(&"scrap"), "no team pot from the wreck")
 	# Refills bring new loot, and more of it later.
-	assert_true(SitePlan.totals(SitePlan.loot_for(SitePlan.Kind.WRECK, 5, 10)).get(&"scrap", 0) > wreck[&"scrap"])
+	assert_true(SitePlan.totals(SitePlan.loot_for(SitePlan.Kind.WRECK, 5, 10)).get(&"chitin", 0) > wreck[&"chitin"])
 
 
 func test_sleepers_grow_with_waves() -> void:

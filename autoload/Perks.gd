@@ -315,7 +315,7 @@ func discount_cost(peer_id: int, perk: StringName, cost: Dictionary) -> Dictiona
 
 
 ## Shop rows (MenuScreen items) with the local player's discount applied to
-## their "price" text ("12 chitin", "25 scrap + 10 chitin"), price_ok rechecked.
+## their "price" text ("12 Scrap", "25 Chitin + 10 Scrap": player-facing names), price_ok rechecked.
 func discount_menu(items: Array, perk: StringName, payer_cliff: int) -> Array:
 	var me := multiplayer.get_unique_id()
 	if rank(me, perk) <= 0:
@@ -338,7 +338,7 @@ static func _parse_price(text: String) -> Dictionary:
 		var bits := part.strip_edges().split(" ", false)
 		if bits.size() != 2 or not bits[0].is_valid_int():
 			return {}
-		out[StringName(bits[1])] = int(bits[0])
+		out[ResNames.id_of(bits[1])] = int(bits[0])
 	return out
 
 
@@ -601,7 +601,7 @@ func _start_of_run() -> void:
 				got.append("a farm plot")
 		if not gifts.is_empty():
 			Economy.earn(cid, gifts)
-			var names := {&"scrap": "scrap for the team pot", &"water": "water", &"herbs": "herbs", &"seed_corn": "corn seeds"}
+			var names := {&"scrap": ResNames.team() + " for the team pot", &"water": "water", &"herbs": "herbs", &"seed_corn": "corn seeds"}
 			for r: StringName in gifts:
 				got.append("%d %s" % [int(gifts[r]), names.get(r, String(r))])
 		if lo.has(&"old_scaffolds"):

@@ -91,10 +91,10 @@ func setup(cid: int) -> void:
 	board.add_child(_label)
 	# No price board in the world: the prices live in the shop screen (Logan's call).
 	board.visible = false
-	var lines: PackedStringArray = ["GUNSMITH", "prices in chitin", ""]
+	var lines: PackedStringArray = ["GUNSMITH", "prices in " + ResNames.personal(), ""]
 	for w: StringName in [&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun"]:
 		lines.append("%s ... %d" % [Gun.weapon(w).display_name, Gun.weapon(w).price_chitin])
-	lines.append("Upgrades ... from 10 chitin")
+	lines.append("Upgrades ... from " + UiStyle.cost(10, ResNames.PERSONAL_ID))
 	_label.text = "\n".join(lines)
 
 
@@ -123,7 +123,7 @@ func menu_title() -> String:
 
 
 func menu_tagline() -> String:
-	return "New irons and upgrades, paid in chitin. You can carry three guns; drop one with Q to make room."
+	return "New irons and upgrades, paid in your own %s. You can carry three guns; drop one with Q to make room." % ResNames.personal()
 
 
 func menu_tabs() -> Array:
@@ -299,7 +299,7 @@ func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
 		level = int(owned[id]) + 1 # bumps the level bits, keeps the mods
 	cost = Perks.discount(peer_id, &"gunsmiths_friend", cost) # Perk: Gunsmith's Friend
 	if not Economy.spend(payer, {&"chitin": cost}):
-		Economy.notify(peer_id, "That costs %d chitin. Sell vegetables at the vendor or kill armoured bugs." % cost)
+		Economy.notify(peer_id, "That costs %s. Salvage the junk heap by your house each build phase, or sell chilies at the market." % UiStyle.cost(cost, ResNames.PERSONAL_ID))
 		return
 	owned[id] = level
 	var player := _player_of(peer_id)
@@ -354,7 +354,7 @@ func _buy_whip(peer_id: int, kind: String, slot: int) -> void:
 	var payer := Economy.payer_cliff(peer_id, cliff_id)
 	cost = Perks.discount(peer_id, &"gunsmiths_friend", cost) # Perk: Gunsmith's Friend
 	if not Economy.spend(payer, {&"chitin": cost}):
-		Economy.notify(peer_id, "That costs %d chitin." % cost)
+		Economy.notify(peer_id, "That costs %s." % UiStyle.cost(cost, ResNames.PERSONAL_ID))
 		return
 	whips[peer_id] = next
 	if peer_id == multiplayer.get_unique_id():
@@ -387,7 +387,7 @@ func _buy_dynamite(peer_id: int, kind: String, slot: int) -> void:
 	var payer := Economy.payer_cliff(peer_id, cliff_id)
 	cost = Perks.discount(peer_id, &"gunsmiths_friend", cost) # Perk: Gunsmith's Friend
 	if not Economy.spend(payer, {&"chitin": cost}):
-		Economy.notify(peer_id, "That costs %d chitin." % cost)
+		Economy.notify(peer_id, "That costs %s." % UiStyle.cost(cost, ResNames.PERSONAL_ID))
 		return
 	var player := _player_of(peer_id)
 	if player != null and player.dynamite != null:

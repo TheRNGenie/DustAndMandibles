@@ -15,9 +15,9 @@ const SLOT_SYMBOLS: Array[Array] = [["BUG", 30, 0, 0], ["CACTUS", 25, 10, 1], ["
 const SLOT_BONUS: Dictionary = {"CHILI": {&"seed_chili": 3}, "STAR": {&"upgrade_token": 1}}
 ## Prize wheel wedges: label, prize.
 const WHEEL_WEDGES: Array[Array] = [
-	["BUST", {}], ["50 SCRAP", {&"scrap": 50}], ["UPGRADE TOKEN", {&"upgrade_token": 1}], ["BUST", {}],
-	["120 SCRAP", {&"scrap": 120}], ["3 CHILI SEEDS", {&"seed_chili": 3}], ["BUST", {}], ["JACKPOT 25 CHITIN", {&"chitin": 25}],
-	["30 SCRAP", {&"scrap": 30}], ["4 HERBS", {&"herbs": 4}], ["TURRET PART", {&"turret_part": 1}],
+	["BUST", {}], ["50 CHITIN", {&"scrap": 50}], ["UPGRADE TOKEN", {&"upgrade_token": 1}], ["BUST", {}],
+	["120 CHITIN", {&"scrap": 120}], ["3 CHILI SEEDS", {&"seed_chili": 3}], ["BUST", {}], ["JACKPOT 25 SCRAP", {&"chitin": 25}],
+	["30 CHITIN", {&"scrap": 30}], ["4 HERBS", {&"herbs": 4}], ["TURRET PART", {&"turret_part": 1}],
 ]
 ## A wheel prize that stands for one random crafting part (CraftTable.random_part).
 const WHEEL_PART := &"turret_part"

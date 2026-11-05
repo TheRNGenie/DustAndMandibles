@@ -66,7 +66,7 @@ func menu_items(tab: int) -> Array:
 				var stats := "%s  ·  %d HP  ·  Climbs %.1f m/s  ·  %s%s  ·  Drops %s%s" % [
 						UiStyle.tc(str(BEHAVIORS[b.behavior])), int(b.max_hp), b.climb_speed,
 						("Front Armour %d%%  ·  " % int(b.front_armor * 100.0)) if b.front_armor > 0.0 else "",
-						"Story Only" if b.story_only else "From Wave %d" % b.first_wave, UiStyle.cost(b.scrap_drop, "scrap"), (", " + UiStyle.cost(b.chitin_drop, "chitin")) if b.chitin_drop > 0 else ""]
+						"Story Only" if b.story_only else "From Wave %d" % b.first_wave, UiStyle.cost(int(EconomyLedger.kill_pay(b.scrap_drop, b.chitin_drop)[&"scrap"]), "scrap"), " (Team Pot)"]
 				var icon: Variant = IconStudio.bug(MenuScreen.instance, id) if MenuScreen.instance != null else null
 				if UiStyle.plate(id) != null:
 					icon = UiStyle.plate(id) # the painted plate
@@ -150,7 +150,7 @@ func _floor_items() -> Array:
 		var loot := SitePlan.totals(SitePlan.loot_for(kind, 1, 1))
 		var finds: PackedStringArray = []
 		for k: StringName in loot:
-			var n := SitePlan.item_name(k) if k != &"scrap" and k != &"chitin" else String(k).capitalize()
+			var n := SitePlan.item_name(k) if k != &"scrap" and k != &"chitin" else ResNames.of(k).capitalize()
 			if not finds.has(n) and not CraftTable.is_part(k):
 				finds.append(n)
 			elif CraftTable.is_part(k) and not finds.has("Turret Parts"):

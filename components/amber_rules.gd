@@ -150,9 +150,9 @@ static func stock_item(id: String) -> Dictionary:
 ## One-night favours: paid now, delivered at the next dawn (the build phase
 ## after the next wave is held).
 const FAVOURS: Dictionary = {
-	&"supply": {"name": "Airship Supply Drop", "desc": "Next dawn the Lucky Mandible's crew kicks a crate off the deck for you: 8 water, 30 chitin, an upgrade token and corn seed.",
+	&"supply": {"name": "Airship Supply Drop", "desc": "Next dawn the Lucky Mandible's crew kicks a crate off the deck for you: 8 water, 30 scrap, an upgrade token and corn seed.",
 		"gives": {&"water": 8, &"chitin": 30, &"upgrade_token": 1, &"seed_corn": 3}},
-	&"bounty": {"name": "Scrap Bounty Top-Up", "desc": "Lucky leans on the town council: next dawn's bounty pays the team pot an extra 250 scrap.",
+	&"bounty": {"name": "Bounty Top-Up", "desc": "Lucky leans on the town council: next dawn's bounty pays the team pot an extra 250 chitin.",
 		"gives": {&"scrap": 250}},
 }
 
@@ -225,7 +225,8 @@ const STATUE_TIME := 24.0
 ## Bosses in the splash crawl at this speed for this long.
 const BOSS_SET_SLOW := 0.3
 const BOSS_SET_TIME := 4.0
-## A shattered statue pays this on top of the kill: scrap per bug size, chitin.
+## A shattered statue pays this on top of the kill, all into the team pot (it's
+## bug pieces: shown as chitin, ResNames): some per bug size, plus its shell.
 const SHATTER_SCRAP_PER_SIZE := 4
 const SHATTER_CHITIN := 2
 ## Crowd weight of a statue: nothing shoves it, everything is shoved off it
@@ -237,7 +238,7 @@ static func should_entomb(is_boss: bool, alive: bool, hp_fraction: float) -> boo
 
 
 static func shatter_loot(size: float) -> Dictionary:
-	return {&"scrap": maxi(roundi(SHATTER_SCRAP_PER_SIZE * maxf(size, 0.5)), 1), &"chitin": SHATTER_CHITIN}
+	return {&"scrap": maxi(roundi(SHATTER_SCRAP_PER_SIZE * maxf(size, 0.5)), 1) + SHATTER_CHITIN}
 
 
 # ------------------------------------------------------------------ Queen's Bell

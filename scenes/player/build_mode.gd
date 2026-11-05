@@ -357,7 +357,7 @@ func build_info(icon: Texture2D) -> Dictionary:
 		elif not BuildManager.instance.is_free_for(id, _cliff, _cell):
 			status = "That spot is taken"
 		else:
-			status = "None left: craft another at the Workshop" if CraftTable.is_item_turret(id) else "Not enough scrap"
+			status = "None left: craft another at the Workshop" if CraftTable.is_item_turret(id) else "Not enough " + ResNames.team()
 	elif not _ghost.visible:
 		status = "Aim at an open spot on your plateau"
 	return {

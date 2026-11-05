@@ -73,4 +73,4 @@ func test_breach_thieves() -> void:
 	assert_false(BreachRules.is_thief(Defs.bug(&"dragonfly_bandit")), "bandits already steal their own way")
 	var take := BreachRules.steal_amounts(Defs.bug(&"dust_mite"))
 	assert_true(int(take.get(&"scrap", 0)) > 0)
-	assert_eq(BreachRules.describe({&"scrap": 7, &"chitin": 1}), "7 scrap and 1 chitin")
+	assert_eq(BreachRules.describe({&"scrap": 7, &"chitin": 1}), "7 chitin and 1 scrap") # player-facing names (ResNames)

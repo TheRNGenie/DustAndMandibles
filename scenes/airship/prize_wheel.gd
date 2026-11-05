@@ -81,11 +81,11 @@ func ui_title() -> String:
 
 
 func ui_tagline() -> String:
-	return "%d chitin or %d scrap a spin. Round and round she goes..." % [COST, COST_SCRAP]
+	return "%s or %s a spin. Round and round she goes..." % [UiStyle.cost(COST, ResNames.PERSONAL_ID), UiStyle.cost(COST_SCRAP, ResNames.TEAM_ID)]
 
 
 func ui_rules() -> String:
-	return "%d chitin or %d scrap a spin. Scrap, chili seeds, herbs, a turret upgrade token, a turret part, or the 25-chitin jackpot. Three wedges bust. Chitin spins hit the rare wedges far more often (%d%% vs %d%%)." % [COST, COST_SCRAP,
+	return "%s or %s a spin. Team chitin, chili seeds, herbs, a turret upgrade token, a turret part, or the 25-scrap jackpot. Three wedges bust. Scrap spins hit the rare wedges far more often (%d%% vs %d%%)." % [UiStyle.cost(COST, ResNames.PERSONAL_ID), UiStyle.cost(COST_SCRAP, ResNames.TEAM_ID),
 			roundi(CasinoRules.wheel_rare_chance(&"chitin") * 100.0), roundi(CasinoRules.wheel_rare_chance(&"scrap") * 100.0)]
 
 
@@ -94,7 +94,7 @@ func ui_currency() -> StringName:
 
 
 func ui_actions() -> Array:
-	return [] if _t < SPIN_TIME else [[&"spin", "Spin (%d Chitin)" % COST], [&"spin_scrap", "Spin (%d Scrap)" % COST_SCRAP]]
+	return [] if _t < SPIN_TIME else [[&"spin", "Spin (%s)" % UiStyle.cost(COST, ResNames.PERSONAL_ID)], [&"spin_scrap", "Spin (%s)" % UiStyle.cost(COST_SCRAP, ResNames.TEAM_ID)]]
 
 
 func make_board() -> CasinoBoard:
@@ -301,7 +301,7 @@ class WheelBoard extends CasinoBoard:
 	func _prize_card(r: Rect2) -> void:
 		rrect(r, CREAM, 8, 3, WOOD)
 		text(Vector2(r.get_center().x, r.position.y + 26), "PRIZES", 24, Color("#7A1E18"), 0, 0, true)
-		text(Vector2(r.get_center().x, r.position.y + 50), "%d Chitin or %d Scrap a Spin" % [PrizeWheel.COST, PrizeWheel.COST_SCRAP], 14, INK, 0)
+		text(Vector2(r.get_center().x, r.position.y + 50), "%s or %s a Spin" % [UiStyle.cost(PrizeWheel.COST, ResNames.PERSONAL_ID), UiStyle.cost(PrizeWheel.COST_SCRAP, ResNames.TEAM_ID)], 14, INK, 0)
 		draw_line(Vector2(r.position.x + 14, r.position.y + 64), Vector2(r.end.x - 14, r.position.y + 64), WOOD, 2.0)
 		var seen := {}
 		var y := r.position.y + 86
@@ -327,7 +327,7 @@ class WheelBoard extends CasinoBoard:
 				text(Vector2(r.end.x - 14, y), "Rare", 13, Color("#B8862B"), 1, 0, true)
 			y += 34
 		# Paying in chitin tips the wheel toward the rare wedges.
-		text(Vector2(r.get_center().x, r.end.y - 18), "Rare: %d%% on Chitin, %d%% on Scrap" % [
+		text(Vector2(r.get_center().x, r.end.y - 18), ("Rare: %d%% on " + ResNames.personal_cap() + ", %d%% on " + ResNames.team_cap()) % [
 				roundi(CasinoRules.wheel_rare_chance(&"chitin") * 100.0), roundi(CasinoRules.wheel_rare_chance(&"scrap") * 100.0)], 12, Color("#6B5034"), 0)
 
 	func _click(p: Vector2, right: bool) -> bool:

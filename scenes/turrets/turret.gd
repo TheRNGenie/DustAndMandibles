@@ -481,15 +481,15 @@ func interact_prompt() -> String:
 	if def.has_upkeep():
 		text += ("\nUpkeep: %s a shot" if has_ammo else "\nEMPTY: needs %s a shot") % def.upkeep_text()
 	if needs_repair():
-		text += "\nHold E: repair (1 scrap per %d HP)" % int(BuildManager.REPAIR_HP_PER_SCRAP)
+		text += "\nHold E: repair (1 %s per %d HP)" % [ResNames.team(), int(BuildManager.REPAIR_HP_PER_SCRAP)]
 	if upgrade_cost() > 0:
 		var payer := Economy.payer_cliff(multiplayer.get_unique_id(), cliff_id)
-		var price := "1 upgrade token" if Economy.amount(payer, UPGRADE_TOKEN) > 0 else "%d chitin" % Perks.discount(multiplayer.get_unique_id(), &"chitin_smith", upgrade_cost()) # Perk: Chitin Smith
+		var price := "1 upgrade token" if Economy.amount(payer, UPGRADE_TOKEN) > 0 else UiStyle.cost(Perks.discount(multiplayer.get_unique_id(), &"chitin_smith", upgrade_cost()), ResNames.PERSONAL_ID) # Perk: Chitin Smith (shown as Scrap Smith)
 		text += "\nU: upgrade to %s (%s)" % [TurretDef.TIER_NAMES[tier + 1], price]
 	var next := Defs.tier_up_of(def.id)
 	if next != &"" and not (self is CrewedTurret):
 		if Defs.is_unlocked(next, GameState.tier_wave()):
-			text += "\n%s: step up to %s (%d scrap)" % [KeyHints.key_for("tier_up"), Defs.name_of(next), Defs.tier_up_cost(def.id)]
+			text += "\n%s: step up to %s (%s)" % [KeyHints.key_for("tier_up"), Defs.name_of(next), UiStyle.cost(Defs.tier_up_cost(def.id), ResNames.TEAM_ID)]
 		else:
 			text += "\nSteps up to %s at wave %d" % [Defs.name_of(next), Defs.unlock_wave(next)]
 	return text

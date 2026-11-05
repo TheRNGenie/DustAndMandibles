@@ -12,7 +12,7 @@ func _ready() -> void:
 				_refresh())))
 	add_child(UiStyle.note("Cheats for testing. Online, they only work when the host has debug mode on."))
 	for entry: Array in [["skip", "Skip to the next phase", "debug_skip_phase"],
-			["scrap", "+500 scrap, +50 chitin", "debug_add_scrap"],
+			["scrap", "+500 team chitin, +50 scrap", "debug_add_scrap"],
 			["spawn", "Spawn a bug on the covered wall", "debug_spawn_bug"],
 			["god", "God mode on/off", "debug_god_mode"],
 			["lanes", "Show climb lanes", "debug_show_lanes"]]:

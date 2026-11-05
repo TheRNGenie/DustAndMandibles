@@ -108,10 +108,10 @@ static func split_story(items: Dictionary, story: Array) -> Array:
 static func item_name(item: StringName) -> String:
 	if item == &"amber":
 		return "Hive Amber" # AmberRules.NAME
-	return String(item).capitalize()
+	return ResNames.of(item).capitalize() # the two currencies under their player-facing names
 
 
-## "12 Scrap, 3 Chitin".
+## "12 Chitin, 3 Scrap".
 static func describe(items: Dictionary) -> String:
 	var parts: PackedStringArray = []
 	for k: Variant in items:

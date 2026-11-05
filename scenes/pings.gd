@@ -15,7 +15,7 @@ const WHEEL_R := 110.0
 const KINDS := [
 	{"label": "Look here", "color": Color("#F2E6C9"), "glyph": "!"},
 	{"label": "Bugs here", "color": Color("#E0533A"), "glyph": "x"},
-	{"label": "Need scrap", "color": Color("#F2C14E"), "glyph": "$"},
+	{"label": "Need chitin", "color": Color("#F2C14E"), "glyph": "$"},
 	{"label": "Build here", "color": Color("#7BC96F"), "glyph": "+"},
 	{"label": "On my way", "color": Color("#6FA8DC"), "glyph": ">"},
 ]

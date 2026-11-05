@@ -72,7 +72,7 @@ func _act(peer_id: int, action: StringName, choice: int, bet: int) -> void:
 	var verdict := "%s wins" % String(r["winner"]).capitalize() if r["winner"] != "tie" else "Tie"
 	var pv := CasinoRules.bac_value(r["player"])
 	var bv := CasinoRules.bac_value(r["banker"])
-	var outcome := ("you win %d scrap" % won) if won > bet else ("your bet comes back" if won == bet else "the house takes it")
+	var outcome := ("you win %s" % UiStyle.cost(won, ResNames.TEAM_ID)) if won > bet else ("your bet comes back" if won == bet else "the house takes it")
 	var prize: Dictionary = {&"scrap": won} if won > 0 else {}
 	if won > bet:
 		var key := CasinoRules.part_bonus(_rng)

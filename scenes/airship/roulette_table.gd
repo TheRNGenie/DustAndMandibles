@@ -182,7 +182,7 @@ func _act_data(peer_id: int, action: StringName, data: Dictionary) -> void:
 	if won > total:
 		line += " You win %s!" % CasinoRules.prize_text(prize) + bonus
 	elif won > 0:
-		line += " %d scrap back on %d staked." % [won, total] + bonus
+		line += " %s back on %d staked." % [UiStyle.cost(won, ResNames.TEAM_ID), total] + bonus
 	else:
 		line += " The house sweeps the table."
 	_broadcast({"kind": "wheel", "peer": peer_id, "number": n, "colour": colour, "bets": bets, "win": won, "staked": total,
@@ -449,7 +449,7 @@ class RouletteBoard extends CasinoBoard:
 		var total := 0
 		for k: Variant in showing.keys():
 			total += int(showing[k])
-		text(Vector2(x0, y), "On the Table: %d Scrap" % total, 17, CREAM, -1, 3, true)
+		text(Vector2(x0, y), "On the Table: %s" % UiStyle.cost(total, ResNames.TEAM_ID), 17, CREAM, -1, 3, true)
 		text(Vector2(size.x - 20, y), "Table Limit %d" % CasinoRules.ROULETTE_MAX_TOTAL, 13, Color(1, 1, 1, 0.6), 1)
 		text(Vector2(x0, y + 28), "Straight Up 35 to 1   Columns & Dozens 2 to 1   Even Money 1 to 1", 12, Color(1, 1, 1, 0.6), -1)
 		if spinning and settled and int(game.view.get("win", 0)) > 0:

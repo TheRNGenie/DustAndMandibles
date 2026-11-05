@@ -1194,6 +1194,8 @@ func _take_screenshot(path: String) -> void:
 	if GameState.flag_value("--buildmode") != "" and player != null:
 		player.build_mode.toggle()
 		player.build_mode._select(int(GameState.flag_value("--buildmode")))
+		if GameState.has_flag("--buildmenu"): # the build menu open too (its costs, for screenshots)
+			player.build_mode.open_menu()
 	if GameState.flag_value("--house") != "":
 		var f := int(GameState.flag_value("--house"))
 		for n: Node in world.get_tree().get_nodes_in_group("homesteads"):

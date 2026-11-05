@@ -1,9 +1,8 @@
 class_name SalvagePile
 extends StaticBody3D
-## A big heap of frontier junk on a plateau. Press E on it during the build phase for scrap;
-## it refills at every new build phase.
-
-const SCRAP := 15
+## A big heap of frontier junk on a plateau. Press E on it during the build phase for
+## scrap: your own stock (internal &"chitin"; see ResNames). It refills at every new
+## build phase and pays more as the waves grow (EconomyLedger.heap_pay).
 
 var cliff_id: int = 0
 var available := true
@@ -12,13 +11,13 @@ var _top: MeshInstance3D
 
 
 ## `big` makes the heap behind the house: twice the size and twice the scrap.
-var scrap := SCRAP
+var big := false
 
 
 func setup(cid: int, seed_value: int, big: bool = false) -> void:
 	cliff_id = cid
 	collision_layer = WorldLayout.LAYER_WORLD
-	scrap = SCRAP * (2 if big else 1)
+	self.big = big
 	var k := 1.25 if big else 0.45
 	_mesh = MeshInstance3D.new()
 	_mesh.mesh = heap_mesh(seed_value)
@@ -51,7 +50,13 @@ func interact_prompt() -> String:
 		return "Picked clean. Comes back next daybreak."
 	if GameState.phase != GameState.Phase.BUILD:
 		return "Salvage only during the build phase"
-	return "E: Salvage (+%d scrap)" % scrap
+	return "E: Salvage (+%s for you)" % UiStyle.cost(pay(), ResNames.PERSONAL_ID)
+
+
+## What salvaging pays right now (the waves held so far set it; a small heap half).
+func pay() -> int:
+	var full := EconomyLedger.heap_pay(GameState.wave - 1, Defs.WAVE_CONFIG)
+	return full if big else maxi(full / 2, 1)
 
 
 func local_interact(_holding: bool) -> void:
@@ -71,7 +76,9 @@ func _collect(peer_id: int) -> void:
 	if not available or GameState.phase != GameState.Phase.BUILD:
 		return
 	var payer := cliff_id if GameState.is_solo() else NetworkManager.cliff_of(peer_id)
-	Economy.earn(payer, {&"scrap": scrap})
+	var got := pay()
+	Economy.earn(payer, {ResNames.PERSONAL_ID: got})
+	Economy.notify(peer_id, "Salvaged the junk heap: +%s for you." % UiStyle.cost(got, ResNames.PERSONAL_ID))
 	_set_available.rpc(false)
 
 

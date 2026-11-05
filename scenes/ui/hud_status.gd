@@ -1,7 +1,8 @@
 class_name HudStatus
 extends Control
 ## Bottom-left: your health and your two currencies as big counters: the
-## team's shared scrap pot ("Team Scrap") and your own chitin ("Your Chitin").
+## team's shared pot ("Team Chitin", internal &"scrap") and your own stock
+## ("Your Scrap", internal &"chitin"); names from ResNames.
 ## Vegetables and water live on the hotbar. Top corners: both
 ## Homesteads' health, labelled "Yours" (left) and "Theirs" (right) for each player.
 
@@ -55,9 +56,10 @@ func _ready() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 18)
 	col.add_child(row)
-	_scrap = _counter(row, &"scrap", "Team Scrap")
-	_scrap.tooltip_text = "Scrap is shared: everyone builds from this pot and every kill pays into it."
-	_chitin = _counter(row, &"chitin", "Your Chitin")
+	_scrap = _counter(row, ResNames.TEAM_ID, "Team " + ResNames.team_cap())
+	_scrap.tooltip_text = "%s is shared: everyone builds from this pot, and every bug killed pays its shell into it." % ResNames.team_cap()
+	_chitin = _counter(row, ResNames.PERSONAL_ID, "Your " + ResNames.personal_cap())
+	_chitin.tooltip_text = "%s is yours alone: guns, gun mods and turret upgrades. Salvage the junk heap by your house each build phase; chilies sell for it too." % ResNames.personal_cap()
 	_chitin_other = _chitin.get_meta(&"other") as Label
 	# Hive amber (personal, like chitin): its own row under the others, only
 	# shown once you've got some.

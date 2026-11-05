@@ -70,7 +70,7 @@ func _on_wanted_died(bug: Bug, source: String, source_cliff: int) -> void:
 	Economy.earn(to_cliff, {&"scrap": amount})
 	var who := source if source != "" else "Somebody"
 	_paid.rpc(base, who)
-	BugManager.instance._announce_line.rpc("Bounty collected! %s got the %s: %d scrap" % [who, bug.def.display_name.trim_prefix("The "), amount])
+	BugManager.instance._announce_line.rpc("Bounty collected! %s got the %s: %s" % [who, bug.def.display_name.trim_prefix("The "), UiStyle.cost(amount, ResNames.TEAM_ID)])
 
 
 @rpc("authority", "call_local", "reliable")
@@ -203,7 +203,7 @@ func _render(def: BugDef) -> SubViewport:
 	var name_l := _ink(def.display_name.to_upper(), 19, MenuScreen.INK)
 	name_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(name_l)
-	col.add_child(_ink("REWARD  %d  SCRAP" % bounty_of(def), 20, Color("#7A1E14")))
+	col.add_child(_ink("REWARD  %d  %s" % [bounty_of(def), ResNames.team().to_upper()], 20, Color("#7A1E14")))
 	# The PAID stamp, hidden until the bounty is collected.
 	var stamp := Control.new()
 	stamp.name = "Stamp"

@@ -21,8 +21,8 @@ const REMAPPABLE: Dictionary = {
 	"interact": "Interact / repair",
 	"build_menu": "Build menu",
 	"demolish": "Sell",
-	"upgrade": "Upgrade turret (chitin)",
-	"tier_up": "Step a turret up a tier (scrap)",
+	"upgrade": "Upgrade turret (scrap)", # player-facing names (ResNames): your own stock
+	"tier_up": "Step a turret up a tier (team chitin)",
 	"cycle_option": "Change seed / shop item",
 	"drop_item": "Drop weapon",
 	"field_guide": "Field Guide (wiki)",

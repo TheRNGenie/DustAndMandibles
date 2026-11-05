@@ -276,7 +276,8 @@ func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 	WaveDirector.note_kill(bug.def, source)
 	BossFx.on_bug_died(bug) # Boss: the Bone Collector eats the dead near it
 	_drop_parts(bug)
-	var loot := {&"scrap": bug.def.scrap_drop, &"chitin": bug.def.chitin_drop * Weather.chitin_mult(GameState.weather)}
+	# Every bug pays the team pot (players call it chitin, see ResNames), shell bonus included.
+	var loot := EconomyLedger.kill_pay(bug.def.scrap_drop, bug.def.chitin_drop, Weather.chitin_mult(GameState.weather))
 	loot = Brand.kill_loot(loot, source_cliff) # Theme: Crossed Irons brand, more per kill
 	var raw_scrap := roundi(float(loot[&"scrap"]))
 	loot[&"scrap"] = _scrap_carry.scale(bug.cliff_id, raw_scrap, Perks.kill_scrap_mult(source)) # Perk: Scrap Scavenger (fractions carried)
@@ -289,7 +290,7 @@ func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 	var was := bug.died_in
 	if was == Bug.State.BREACHING or was == Bug.State.CRESTING or (was == Bug.State.FLYING and _over_plateau(bug)):
 		_next_loot += 1
-		var extra := maxi(bug.def.chitin_drop, 1) + int(bug.def.size)
+		var extra := EconomyLedger.shell_pay(bug.def.chitin_drop, bug.def.size)
 		var at := bug.global_position
 		if was != Bug.State.FLYING:
 			at.y = Bug.cliffs.ground_height_at(bug.cliff_id, at) if Bug.cliffs != null else at.y
@@ -301,7 +302,7 @@ func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 			_stolen_loot[_next_loot] = [bug.cliff_id, bug.stolen]
 			_mark_stolen.rpc(_next_loot, bug.stolen)
 	_pop.rpc(bug.global_position, bug.def.shell_color, float(bug.spec["scale"]))
-	_announce_kill.rpc(bug.def.display_name, bug.cliff_id, source, source_cliff, bug.def.scrap_drop)
+	_announce_kill.rpc(bug.def.display_name, bug.cliff_id, source, source_cliff, int(EconomyLedger.kill_pay(bug.def.scrap_drop, bug.def.chitin_drop)[&"scrap"]))
 	bug.queue_free()
 
 

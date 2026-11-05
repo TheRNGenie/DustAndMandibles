@@ -807,9 +807,11 @@ static func shown(node: CanvasItem) -> bool:
 	return node != null and node.visible and not node.has_meta(&"_closing")
 
 
-## "60 Scrap", "1 Part", "5 Chitin": a count and its resource, the same everywhere.
+## "60 Chitin", "1 Part", "5 Scrap": a count and its resource, the same everywhere.
+## `resource` is the internal id ("scrap" = the team pot, "chitin" = your own),
+## shown under its player-facing name (ResNames: they read swapped).
 static func cost(n: float, resource: String) -> String:
-	var word := tc(resource.replace("_", " "))
+	var word := tc(ResNames.word(resource.replace("_", " ")))
 	var num := str(int(n)) if is_equal_approx(n, roundf(n)) else ("%.1f" % n)
 	return "%s %s" % [num, word]
 
@@ -886,7 +888,7 @@ static func chip_flat() -> StyleBoxFlat:
 
 ## The swatch colour of each currency (the HUD counters, stock chips and price tags).
 static func resource_color(resource: StringName) -> Color:
-	match resource:
+	match ResNames.icon_key(resource): # the team pot wears chitin's colour, your own stock scrap's
 		&"scrap": return Palette.METAL.lightened(0.2)
 		&"chitin": return Palette.BEETLE_TEAL.lightened(0.15)
 		&"amber": return AmberRules.COLOR
@@ -897,7 +899,7 @@ static func resource_color(resource: StringName) -> Color:
 ## A painted icon (assets/icons, AI-made with fal.ai) for a resource or item,
 ## or null if there isn't one.
 static func painted_icon(id: StringName) -> Texture2D:
-	var key := {&"notches": &"brands", &"medicine": &"herbs"}.get(id, id) as StringName
+	var key := {&"notches": &"brands", &"medicine": &"herbs"}.get(id, ResNames.icon_key(id)) as StringName
 	var path := "res://assets/icons/%s.png" % key
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
 
@@ -1003,7 +1005,7 @@ static func stock_chip(resource: StringName, amount: int) -> PanelContainer:
 	h.add_theme_constant_override("separation", 7)
 	p.add_child(h)
 	h.add_child(resource_chip(resource, 14))
-	# Scrap is the team's shared pot: say so ("150 Team Scrap").
+	# The team's shared pot: say so ("150 Team Chitin").
 	var l := strap_text(cost(amount, ("team " if EconomyLedger.is_shared(resource) else "") + String(resource)), 16)
 	l.name = "Text"
 	h.add_child(l)

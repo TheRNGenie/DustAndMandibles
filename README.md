@@ -58,14 +58,14 @@ Regenerate sounds and music: `python tools/audio/make_sfx.py` and `python tools/
 | Reload | R |
 | Interact / hold to repair | E |
 | Build menu | B: pick a category (Farming, Cliff Turrets, Tactical, Last Resorts) and an item, click to place. B reopens the menu, wheel cycles, X demolishes, right click leaves |
-| Upgrade the turret you look at | U (chitin) |
+| Upgrade the turret you look at | U (scrap: your own stock) |
 | Hotbar | 1-3 any weapons, 4-6 carried harvest, 7 medicine (herbs, heal), 8 water bucket |
 | Q | Drop the weapon in your hand (E picks a dropped weapon up) |
 | Pick seed / shop item / vegetable to sell / house upgrade | F |
 | Ready / skip build phase | G |
 | Skip phase (with --debug) | F6 |
 | Pause menu (settings, remapping, invite) | Esc |
-| Debug cheats (with --debug) | F6 skip phase, F7 +500 scrap, F8 spawn bug, F9 god mode, F10 show lanes |
+| Debug cheats (with --debug) | F6 skip phase, F7 +500 team chitin, F8 spawn bug, F9 god mode, F10 show lanes |
 | Debug overlay | F3 |
 
 ## Layout

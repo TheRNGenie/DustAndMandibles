@@ -2,8 +2,7 @@ class_name LootDrop
 extends StaticBody3D
 ## What a bug leaves behind when it's killed up on the plateau (it made it off
 ## the cliff wall): a little heap of glinting chitin shards and a broken leg or
-## two. E to loot it. For now it's just bonus chitin; crafting drops and a
-## backpack will come later. Spawned on every peer by BugManager; the host pays
+## two. E to loot it: its shells pay the team pot (shown as chitin; see ResNames). Spawned on every peer by BugManager; the host pays
 ## out and tells everyone to remove it. Fades away if nobody bothers.
 
 const LIFETIME := 90.0
@@ -70,8 +69,8 @@ func _process(delta: float) -> void:
 
 func interact_prompt() -> String:
 	if not stolen.is_empty():
-		return "E: Take back the stolen %s (+%d chitin)" % [Economy.describe(stolen), chitin]
-	return "E: Loot the %s (+%d chitin)" % [bug_name.to_lower(), chitin]
+		return "E: Take back the stolen %s (+%s to the team pot)" % [Economy.describe(stolen), UiStyle.cost(chitin, ResNames.TEAM_ID)]
+	return "E: Loot the %s (+%s to the team pot)" % [bug_name.to_lower(), UiStyle.cost(chitin, ResNames.TEAM_ID)]
 
 
 func local_interact(holding: bool) -> void:

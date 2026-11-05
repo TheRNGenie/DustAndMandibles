@@ -307,7 +307,7 @@
       ]
     },
     "dynamite_lobber": {
-      "lore": "Arcs dynamite for a big splash. Each stick costs 1 scrap.",
+      "lore": "Arcs dynamite for a big splash. Each stick costs 1 chitin from the team pot.",
       "tips": [
         "Best on crowded lanes."
       ]
@@ -374,7 +374,7 @@
       "lore": "A rack of skyrockets with very short fuses.",
       "tips": [
         "Long range, big bursts, punches through armour.",
-        "Each rocket costs 1 scrap.",
+        "Each rocket costs 1 chitin from the team pot.",
         "Expensive: save it for blood moons."
       ]
     },
@@ -463,7 +463,7 @@
     "twin_mortar": {
       "lore": "Two tubes on one carriage. Each salvo drops a blast shell on the pack and a chili fire shell just above it, so whatever lives through the bang climbs into the flames.",
       "tips": [
-        "Eats a chili and a scrap every salvo.",
+        "Eats a chili and a chitin every salvo.",
         "Slow shells: fast bugs are gone before they land.",
         "Can't touch fliers."
       ]
@@ -480,7 +480,7 @@
       "lore": "A squat brick furnace mortar from the railroad's own smelting sheds, fed hive amber instead of coal. It lobs gobbets of molten resin that set harder than iron in seconds: anything it leaves below half health is sealed on the wall as an amber statue.",
       "tips": [
         "Statues block the climb: bugs behind one must step round it or stall. Bosses aren't entombed, only slowed while the amber sets.",
-        "Any other hit (your guns, other turrets' blasts) shatters a statue for a little scrap and chitin. The amber turrets' own shots never break one.",
+        "Any other hit (your guns, other turrets' blasts) shatters a statue for a little chitin for the team pot. The amber turrets' own shots never break one.",
         "A statue crumbles by itself after about 24 s, and the bug inside dies with it.",
         "Craft it at your Workshop's Amber tab: 10 hive amber, a Tripod mount, a Cannon barrel and a Fire load. The team fields only one."
       ]
@@ -507,7 +507,7 @@
     "corn": {
       "lore": "Sweet canyon corn. Grows like a weed and keeps a rancher fed.",
       "tips": [
-        "Plant it between waves for quick scrap at the market.",
+        "Plant it between waves for quick chitin for the team pot at the market.",
         "Left click with corn out to eat it when your belly growls."
       ]
     },
@@ -522,14 +522,14 @@
       "lore": "Hot enough to light a fuse. The Chili Mortar won't fire without it.",
       "tips": [
         "Keep a stock before building a Chili Mortar: every shot burns one.",
-        "The market pays chitin for chilies, the only crop that does."
+        "The market pays your own scrap for chilies, the only crop that does."
       ]
     },
     "herbs": {
       "lore": "Desert sage, dried and bundled. Better than any snake-oil tonic.",
       "tips": [
         "Carry a few into every wave: a dose heals 50 HP.",
-        "Herbs fetch the most scrap per unit at the market."
+        "Herbs fetch the most chitin per unit at the market."
       ]
     },
     "sarsaparilla": {
@@ -552,22 +552,22 @@
       ]
     },
     "team_scrap": {
-      "title": "Scrap: The Team Pot",
+      "title": "Chitin: The Team Pot",
       "icon": "scrap",
-      "lore": "Scrap is shared. Everyone builds turrets, scaffolds, farm plots and house repairs from one team pot, and every kill, town bounty, sale and salvage pays back into it.",
+      "lore": "Chitin is shared: bug pieces, and every bug pays in. Everyone builds turrets, scaffolds, farm plots and house repairs from one team pot, and every kill, shell heap, town bounty and crop sale pays back into it.",
       "tips": [
-        "The Team Scrap counter (bottom left) is the same number on every screen.",
-        "Talk it over before a big build: it's everyone's scrap.",
+        "The Team Chitin counter (bottom left) is the same number on every screen.",
+        "Talk it over before a big build: it's everyone's chitin.",
         "Breaching bugs steal from the pot, so keep them off the plateau.",
-        "A CPU teammate only ever spends its fair share of the team's scrap."
+        "A CPU teammate only ever spends its fair share of the team's chitin."
       ]
     },
     "your_chitin": {
-      "title": "Chitin: Yours Alone",
+      "title": "Scrap: Yours Alone",
       "icon": "chitin",
-      "lore": "Chitin is personal. It pays for your own gun upgrades, turret upgrades and house upgrades, and comes from your kills, chilies sold at the market and the casino.",
+      "lore": "Scrap is personal. It pays for your own guns, gun mods, turret upgrades and house upgrades, and comes from the junk heap by your house (salvage it every build phase; it pays more as the waves grow), chilies sold at the market, railroad wrecks on the canyon floor and the casino.",
       "tips": [
-        "Your Chitin (bottom left) is only yours: your partner can't spend it.",
+        "Your Scrap (bottom left) is only yours: your partner can't spend it.",
         "Water, crops, seeds, parts and crafted turrets are personal too."
       ]
     },
@@ -594,7 +594,7 @@
       "title": "The Grapple's Dynamite",
       "icon": "grapple",
       "lore": "The gunsmith's Powder Satchel: a bundle of three sticks, twine and a fuse in your free hand, and a match strip riveted down the grapple launcher. Strike it, throw it, cover your ears. Pell's Toes says no barrel shall dip below thirty degrees; it says nothing about a man's arm.",
-      "stats": "50 chitin at the gunsmith (Upgrades)  ·  160 damage in 6.5 m, less at the edge  ·  3 bundles, one back every 40 s up top",
+      "stats": "50 scrap at the gunsmith (Upgrades)  ·  160 damage in 6.5 m, less at the edge  ·  3 bundles, one back every 40 s up top",
       "tips": [
         "Grapple out (0), then R raises a bundle and R again strikes and throws it. It lands where you aim, out to 60 m, far enough for the far wall.",
         "Fuse lit means it's going: switching away won't put it out.",
@@ -607,7 +607,7 @@
   },
   "sites": {
     "mouth": {
-      "lore": "Where a bug tunnel opens onto the canyon floor, behind old mine shoring somebody nailed up years back. Shed husks, chitin, the odd turret part, and pages Doc Whitlow dropped on his way in.",
+      "lore": "Where a bug tunnel opens onto the canyon floor, behind old mine shoring somebody nailed up years back. Shed husks and chitin for the team pot, the odd turret part, and pages Doc Whitlow dropped on his way in.",
       "tips": [
         "A few mites sleep in heaps here. Walk soft: they wake if you get close.",
         "Gunfire carries. Every sleeper nearby comes to see who rang the bell."
@@ -642,13 +642,13 @@
       ]
     },
     "egg": {
-      "lore": "A clutch of bug eggs, warm and humming. Sells for scrap at the airship market (the price drops as you sell).",
+      "lore": "A clutch of bug eggs, warm and humming. Sells for team chitin at the airship market (the price drops as you sell).",
       "tips": [
         "Or smash them at the nest to thin that tunnel's next wave."
       ]
     },
     "specimen": {
-      "lore": "A glass jar with something curled up and glowing inside. Doc Whitlow pays chitin for them through the airship market.",
+      "lore": "A glass jar with something curled up and glowing inside. Doc Whitlow pays scrap for them through the airship market.",
       "tips": []
     },
     "journal_page": {
@@ -661,7 +661,7 @@
       "lore": "Hive amber: the resin the bugs build their nests from, set into glowing honey-gold lumps. It burns hotter than coal and sets harder than iron, and the railroad's board has been mining it in secret since '89.",
       "tips": [
         "Found only on the canyon floor: a few chips at some raid sites after each refill, more at bug nests and railroad wrecks.",
-        "Heavy: 4 backpack weight a chip. Yours alone, like chitin (never the team pot).",
+        "Heavy: 4 backpack weight a chip. Yours alone, like scrap (never the team pot).",
         "Lucky Moreau on the airship takes nothing else; the amber turrets are made of it."
       ]
     }
