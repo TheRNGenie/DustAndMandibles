@@ -479,9 +479,9 @@ func interact_prompt() -> String:
 	text += TurretTallies.prompt_suffix(self) # kill tally (scenes/ui/turret_tallies.gd)
 	if tier > 0:
 		text += "  - %s" % TurretDef.TIER_NAMES[tier]
-	if level > 0:
+	if level > 1: # (the bottom deck: no scaffold bonus to show)
 		text += "\nScaffold level %d: +%d deg look-down, +%d%% range" % [level, int(look_down_bonus(level)),
-				roundi(TurretDef.RANGE_PER_LEVEL * 100.0 * level)]
+				roundi(TurretDef.RANGE_PER_LEVEL * 100.0 * maxi(level - 1, 0))]
 	if def.guards_plateau and (not def.guards_house or def.yard_wide):
 		text += "\nStands by until bugs reach your plateau"
 	if def.has_upkeep():

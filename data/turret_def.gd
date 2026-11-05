@@ -155,7 +155,7 @@ func range_at(upgrade: int, level: int = 0) -> float:
 
 
 static func range_mult(upgrade: int, level: int) -> float:
-	return TIER_RANGE[clampi(upgrade, 0, MAX_TIER)] + RANGE_PER_LEVEL * maxi(level, 0)
+	return TIER_RANGE[clampi(upgrade, 0, MAX_TIER)] + RANGE_PER_LEVEL * maxi(level - 1, 0) # (the bottom deck gets no scaffold bonus, Logan)
 
 
 func interval_at(upgrade: int) -> float:

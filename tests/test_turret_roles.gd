@@ -62,6 +62,7 @@ func test_two_upgrade_tiers_each_better() -> void:
 
 func test_scaffold_levels_add_modest_range() -> void:
 	var d := Defs.turret(&"buffalo_rifle")
-	assert_true(d.range_at(0, 1) > d.range_at(0, 0))
+	assert_true(d.range_at(0, 2) > d.range_at(0, 1))
+	assert_almost(d.range_at(0, 1), d.range_at(0, 0), 0.001, "the bottom deck gets no scaffold bonus (Logan)")
 	assert_true(d.range_at(0, 3) < d.range * 1.2, "three levels stay modest")
 	assert_eq(TurretDef.range_mult(0, 0), 1.0)
