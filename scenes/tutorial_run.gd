@@ -249,7 +249,8 @@ func _enter(s: int) -> void:
 		Step.SHOOT:
 			_kills = 0
 			_spawned = 0
-			_spawn_practice(PRACTICE)
+			if _have.has(&"revolver"):
+				_spawn_practice(PRACTICE)
 		Step.IDEA:
 			_show_cone()
 		Step.SELL:
@@ -332,8 +333,11 @@ func _check(delta: float) -> void:
 			if bool(player.get("_sliding")):
 				_tasks[3] = true
 		Step.SHOOT:
-			if _have.has(&"revolver"):
-				_tasks[0] = true
+			if not _have.has(&"revolver"):
+				return # (Logan: no mites until the revolver's in hand)
+			_tasks[0] = true
+			if _spawned == 0:
+				_spawn_practice(PRACTICE)
 			if _kills >= PRACTICE:
 				_tasks[1] = true
 			elif _practice_alive() == 0 and _t > 3.0 and _spawned - _kills < PRACTICE:
@@ -507,7 +511,7 @@ func accept_pressed() -> void:
 func _task_words() -> Array:
 	var words: Array = (STEPS[step]["tasks"] as Array).duplicate()
 	if step == Step.SHOOT:
-		words[0] = "Dust Mites Shot: 0 / %d" % PRACTICE
+		words[1] = "Dust Mites Shot: 0 / %d" % PRACTICE
 	return words
 
 
