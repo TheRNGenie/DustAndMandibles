@@ -12,6 +12,8 @@ const SLOW_MITE := &"dust_mite@slow"
 const WAVE_MITES := 24
 const WAVE_PULSES := 4
 const WAVE_GAP := 6.0
+## The farm step's starting seeds, waiting in the house chest.
+const CHEST_SEEDS := {&"seed_corn": 2}
 
 enum Step { PAPER, MOVE, SHOOT, GUNS, PELL, IDEA, BUILD, SELL, TURRETS, LEVER, WAVE, WEATHER, FARM, GRAPPLE,
 	AIRSHIP, ECONOMY, UPGRADES, SALVAGE, HOUSE, WORKSHOP, DONE }
@@ -82,10 +84,10 @@ const STEPS: Array[Dictionary] = [
 	{"title": "Weather", "voice": "stroud", "line": "Every wave brings its own sky. Rain feeds the crops. Heat slows your turrets. Wind spoils your aim. Fog and dust blind the guns, so hang a lantern. Lightning wrecks turrets. Snow kills crops, but it slows the bugs too.",
 		"body": "Each wave brings its own sky. Rain waters crops and grows them faster. Heat slows turrets and dries crops. Wind throws shots off. Fog and dust storms cut how far turrets see (lanterns help). Lightning can wreck a turret; snow kills crops but slows bugs.",
 		"tasks": [], "keys": [["accept", "Continue"]], "read": true},
-	{"title": "Plant a Crop", "voice": "stroud", "line": "Now, supper. Fill your bucket at the well, plant that corn, water it, and pick it. I've hurried it along for you, just this once.",
-		"body": "Plots grow food. Plant a seed, water it from your bucket and it grows (fast, just this once), then harvest it. The well trough and the water tower tap fill the bucket.",
-		"tasks": ["Fill Your Bucket", "Plant the Corn", "Water the Seedling", "Harvest the Corn"],
-		"keys": [["select_8", "Bucket"], ["interact", "Fill, Plant, Water, Pick"], ["cycle_option", "Change Seed"]], "marker": "Well"},
+	{"title": "Plant a Crop", "voice": "stroud", "line": "Now, supper. Your seed corn's in the chest inside the house. Fetch it, fill your bucket at the well, plant that corn, water it, and pick it. I've hurried it along for you, just this once.",
+		"body": "Plots grow food. Your starting seeds wait in the chest inside your house: take them, plant one, water it from your bucket and it grows (fast, just this once), then harvest it. The well trough and the water tower tap fill the bucket.",
+		"tasks": ["Take the Seeds from the House Chest", "Fill Your Bucket", "Plant the Corn", "Water the Seedling", "Harvest the Corn"],
+		"keys": [["interact", "Open Chest, Fill, Plant, Water, Pick"], ["select_8", "Bucket"], ["cycle_option", "Change Seed"]], "marker": "House Chest"},
 	{"title": "The Grappling Hook", "voice": "stroud", "line": "Your grapple. Right click hooks on and swings you. Left click reels you in, and holding it on a swing climbs the rope. There's a toggle in your settings if your finger tires, and Silas sells dynamite for it.",
 		"body": "Aim at anything solid. Right click hooks on and swings you; let go to drop. Left click hooks and reels you in, or hold it on a swing to climb the rope. Settings > Controls can make right click a toggle. The gunsmith sells dynamite for it.",
 		"tasks": ["Take Out the Grapple", "Swing (Right Click)", "Reel In (Left Click)"],

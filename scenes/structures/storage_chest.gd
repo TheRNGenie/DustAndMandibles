@@ -9,7 +9,8 @@ signal menu_changed
 
 const ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili", &"herbs", &"water", &"sarsaparilla"]
 const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Prickly Pear", &"chili": "Firecracker Chili",
-	&"herbs": "Medicine (sage)", &"water": "Water", &"sarsaparilla": "Sarsaparilla Root"}
+	&"herbs": "Medicine (sage)", &"water": "Water", &"sarsaparilla": "Sarsaparilla Root",
+	&"seed_corn": "Corn Seeds", &"seed_chili": "Chili Seeds", &"seed_herbs": "Sage Seeds"}
 const MAX_WEAPONS := 6
 
 var home: Homestead
@@ -143,11 +144,15 @@ func menu_items(tab: int) -> Array:
 			out.append({"id": "w:" + String(id), "name": Gun.weapon(id).display_name + (" +%d" % lvl if lvl > 0 else ""), "icon": id,
 					"desc": "Stored in the chest." + (" Mods: %s." % fitted if fitted != "" else ""), "price": "", "price_ok": true, "disabled": "",
 					"buttons": [[&"take", "Take"]]})
-		for item: StringName in ITEMS:
+		var stored: Array = ITEMS.duplicate()
+		for item: StringName in items: # seeds and the like (the tutorial's starting seeds)
+			if not stored.has(item):
+				stored.append(item)
+		for item: StringName in stored:
 			var n := int(items.get(item, 0))
 			if n <= 0:
 				continue
-			out.append({"id": "i:" + String(item), "name": NAMES[item], "icon": item, "desc": "%d in the chest." % n,
+			out.append({"id": "i:" + String(item), "name": NAMES.get(item, String(item).capitalize()), "icon": item, "desc": "%d in the chest." % n,
 					"price": "", "price_ok": true, "disabled": "", "buttons": [[&"take1", "Take 1"], [&"takeall", "Take all"]]})
 		if out.is_empty():
 			out.append({"id": "", "name": "The chest is empty", "icon": &"planks", "desc": "Store something from the other tab.",

@@ -370,20 +370,24 @@ func _check(delta: float) -> void:
 
 
 func _check_farm(delta: float) -> void:
+	# The seeds come out of the house chest first (Logan).
+	if Economy.amount(me, CropPlot.seed_res(&"corn")) > 0:
+		_tasks[0] = true
 	var water := Economy.amount(me, &"water")
 	if water > _water0:
-		_tasks[0] = true
+		_tasks[1] = true
 	_water0 = mini(_water0, water) # watering spends some first: still counts the fill
 	if _plot == null or not is_instance_valid(_plot):
 		return
 	var g := _plot.growth
 	if g.stage != CropGrowth.Stage.EMPTY:
-		_tasks[1] = true
-	if g.stage >= CropGrowth.Stage.GROWING:
-		_tasks[0] = true # (had water to spare: that counts as filled)
+		_tasks[0] = true
 		_tasks[2] = true
-	if _tasks[2] and g.stage == CropGrowth.Stage.EMPTY:
-		_tasks[3] = true # picked
+	if g.stage >= CropGrowth.Stage.GROWING:
+		_tasks[1] = true # (had water to spare: that counts as filled)
+		_tasks[3] = true
+	if _tasks[3] and g.stage == CropGrowth.Stage.EMPTY:
+		_tasks[4] = true # picked
 	# Just this once, the corn shoots up.
 	if g.stage == CropGrowth.Stage.GROWING and multiplayer.is_server():
 		g.tick(delta * (GROW_FAST - 1.0))
@@ -537,8 +541,24 @@ func _prepare_farm() -> void:
 		_plot.growth.clear() # a fresh plot to plant
 		_plot._broadcast()
 	CropPlot.selected_seed = 0 # corn first on F
-	if Economy.amount(me, CropPlot.seed_res(&"corn")) <= 0:
-		Economy.earn(me, {CropPlot.seed_res(&"corn"): 1})
+	# The starting seeds wait in the house chest, not in your pockets.
+	var seed := CropPlot.seed_res(&"corn")
+	var have := Economy.amount(me, seed)
+	if have > 0:
+		Economy.spend(me, {seed: have})
+	var chest := _chest()
+	if chest != null and multiplayer.is_server():
+		for k: StringName in TutorialPlan.CHEST_SEEDS:
+			chest.items[k] = maxi(int(chest.items.get(k, 0)), int(TutorialPlan.CHEST_SEEDS[k]))
+		chest._sync.rpc(chest.items, chest.weapons)
+	elif chest == null:
+		Economy.earn(me, {seed: 1}) # (no house chest: hand it over as before)
+
+
+## The chest inside your house.
+func _chest() -> StorageChest:
+	var home := Homestead.of(me)
+	return home.get_node_or_null("Chest") as StorageChest if home != null else null
 
 
 func _well() -> WaterSource:
@@ -659,6 +679,9 @@ func _marker() -> Variant:
 			return gen.global_position + Vector3.UP * 1.6 if gen != null else null
 		Step.FARM:
 			if _tasks.size() > 0 and not _tasks[0]:
+				var c := _chest()
+				return c.global_position + Vector3.UP * 1.0 if c != null else null
+			if _tasks.size() > 1 and not _tasks[1]:
 				var w := _well()
 				return w.global_position + Vector3.UP * 1.5 if w != null else null
 			return _plot.global_position + Vector3.UP * 0.8 if _plot != null and is_instance_valid(_plot) else null
@@ -697,8 +720,10 @@ func caption() -> String:
 		words = "Your Lip" # sold: the marker now points at where the new turret goes
 	match step:
 		Step.FARM:
-			if _tasks.size() > 0 and _tasks[0]:
+			if _tasks.size() > 1 and _tasks[1]:
 				return "Farm Plot"
+			if _tasks.size() > 0 and _tasks[0]:
+				return "Well"
 		Step.AIRSHIP:
 			if not _aboard():
 				return "Airship Ring"
@@ -836,7 +861,10 @@ func _auto_step() -> void:
 			_auto_t = -4.0
 		Step.FARM:
 			var w := _well()
-			if not _tasks[0] and w != null:
+			var chest := _chest()
+			if not _tasks[0] and chest != null:
+				chest._host(uid, &"take_item", CropPlot.seed_res(&"corn"), 99)
+			elif not _tasks[1] and w != null:
 				w._use(uid)
 			elif _plot != null and _plot.growth.stage != CropGrowth.Stage.GROWING:
 				_plot._use(uid, &"corn")
