@@ -117,7 +117,7 @@ const STEPS: Array[Dictionary] = [
 		"body": "Back home. The junk heap by your house is free scrap for you alone. Salvage it, and check it every morning: it fills up again each day.",
 		"tasks": ["Salvage the Scrap Heap"], "keys": [["interact", "Salvage"]], "marker": "Scrap Heap"},
 	{"title": "Upgrade the House", "voice": "stroud", "line": "Now the house. The ledger inside sells upgrades. The railroad's paying this once, so buy the lot. Upper floors mean more turret mounts, and the lookout lets your guns see further.",
-		"body": "The ledger in your house sells upgrades for chitin and scrap; this once the tutorial pays. Buy the lot: upper floors add house turret mounts, the lookout adds range.",
+		"body": "The ledger in your house sells upgrades for chitin and scrap; this once the Company pays. Buy the lot: upper floors add house turret mounts, the lookout adds range.",
 		"tasks": ["Board Up the Windows", "Reinforce the Walls", "Build the Shaded Porch", "Build the Second Floor", "Build the Lookout Floor", "Build the Zip-Line Tower"],
 		"keys": [["interact", "Open the Ledger"]], "marker": "House Ledger"},
 	{"title": "Craft a Turret", "voice": "kettle", "line": "Buy a workshop and I'll show you a trick. A mount, a barrel and a load make a turret nobody's built before. Parts come off tough bugs, and out of whatever the canyon hides. Here's three to start.",
