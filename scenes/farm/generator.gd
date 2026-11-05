@@ -36,6 +36,10 @@ static func of(cid: int) -> Generator:
 	return g as Generator if g != null and is_instance_valid(g) else null
 
 
+## Where the crankshaft's stub ends (engine-local x, both sides).
+const SHAFT_END := 1.05
+
+
 func _ready() -> void:
 	Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_YARD) # painted wood, iron, rock (assets/rustic)
 	add_to_group("generators")
@@ -64,6 +68,17 @@ func _build() -> void:
 	(_flywheel as MeshInstance3D).material_override = mat
 	_flywheel.position = Vector3(0.56, 0.55, 0.25)
 	_body.add_child(_flywheel)
+	# The crankshaft runs out past the flywheel to a knuckle each side, where the
+	# well's tumbling rod joins it (well clear of the flywheel's rim).
+	var sst := MeshKit.begin()
+	for sx: float in [1.0, -1.0]:
+		MeshKit.add_limb(sst, Vector3(sx * 0.5, 0.55, 0.25), Vector3(sx * SHAFT_END, 0.55, 0.25), 0.035, Palette.METAL, 6)
+		MeshKit.add_ellipsoid(sst, Transform3D(Basis(), Vector3(sx * SHAFT_END, 0.55, 0.25)), Vector3.ONE * 0.06, 3, 6, WaterworksBuilder.IRON)
+	var shafts := MeshInstance3D.new()
+	shafts.name = "ShaftEnds"
+	shafts.mesh = MeshKit.finish(sst)
+	shafts.material_override = mat
+	_body.add_child(shafts)
 	# The breaker on its post, at the generator's front-left, facing the yard.
 	var box := MeshInstance3D.new()
 	box.mesh = WaterworksBuilder.breaker_box(710 + cliff_id)

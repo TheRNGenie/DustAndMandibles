@@ -27,6 +27,7 @@ var style: StringName = &"timber"
 var drive_at := Vector3(0.7, 0.75, 2.6)
 var engine_at := Vector3(1.4, 0.55, 3.3)
 var drive_ground := 0.0
+var _drive_dir := 1.0
 
 var _beam: Node3D
 var _crank: Node3D
@@ -41,16 +42,6 @@ var _pivot := Vector3.ZERO
 var _phi := 0.0
 var _speed := 0.0
 
-
-const AI_BASE := "res://assets/yard/jack_base.glb"
-const AI_BEAM := "res://assets/yard/jack_beam.glb"
-## The AI jack's beam bearing in its own frame, the tilt it was modelled at, and
-## the beam's scale (its horsehead face then lands over the polished rod, the
-## bridle hanging below it as the builder beam's did), measured from the model.
-const AI_PIVOT := Vector3(0.0, 2.12, 0.0)
-const AI_BEAM_TILT := -0.255
-const AI_BEAM_SCALE := 0.9
-const AI_BEAM_LIFT := 0.12
 
 
 func _ready() -> void:
@@ -86,31 +77,16 @@ func _build() -> void:
 	_pitman = _part("Pitman", WellJackBuilder.pitman(style), mat)
 	_rod = _part("Rod", WellJackBuilder.rod(), mat)
 	# The drive at the generator: stand, pulley, belt, tumbling rod to the engine.
-	var stand := _part("DriveStand", WellJackBuilder.drive_stand(style, drive_at, drive_ground), mat)
+	# The drive shaft sticks out on the engine's side of its pulley, so the
+	# tumbling rod never passes through the pulley.
+	_drive_dir = -1.0 if engine_at.x < drive_at.x else 1.0
+	var stand := _part("DriveStand", WellJackBuilder.drive_stand(style, drive_at, drive_ground, _drive_dir), mat)
 	stand.position = Vector3.ZERO
-	_drive = _part("Drive", WellJackBuilder.drive_pulley(), mat)
+	_drive = _part("Drive", WellJackBuilder.drive_pulley(_drive_dir), mat)
 	_drive.position = drive_at
 	var belt := _part("Belt", WellJackBuilder.belt(drive_at), Materials.toon(0.0))
 	(belt as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_tumbler = _part("Tumbler", WellJackBuilder.tumbler(), mat)
-	# The AI-made jack (assets/yard): its stand in place of the builder frame (the
-	# trough and casing stay as built), its walking beam riding the animated beam
-	# node; crank, pitman, rod and drive stay as built and keep moving.
-	if AiModels.exists(AI_BASE) and AiModels.exists(AI_BEAM):
-		frame.visible = false
-		_part("TroughCasing", WellJackBuilder.trough_casing(style, 400 + cliff_id), mat)
-		var s := _pivot.y / AI_PIVOT.y
-		var jack_stand := AiModels.instance(AI_BASE, 0.015)
-		jack_stand.name = "StandAI"
-		jack_stand.transform = Transform3D(Basis.from_scale(Vector3.ONE * s), _pivot - AI_PIVOT * s)
-		add_child(jack_stand)
-		# The beam, levelled and centred on its bearing, rides the animated beam node.
-		var beam_ai := AiModels.instance(AI_BEAM, 0.015)
-		beam_ai.name = "BeamAI"
-		var level := Transform3D(Basis(Vector3.RIGHT, AI_BEAM_TILT).scaled(Vector3.ONE * AI_BEAM_SCALE), Vector3(0, AI_BEAM_LIFT, 0))
-		beam_ai.transform = level * Transform3D(Basis(), -AI_PIVOT)
-		_beam.add_child(beam_ai)
-		(_beam as MeshInstance3D).mesh = null
 	# Water: the stream from the spout, and the level in the trough.
 	var water_mat := StandardMaterial3D.new()
 	water_mat.albedo_color = Color(WaterworksBuilder.WATER.lightened(0.25), 0.75)
@@ -186,7 +162,7 @@ func _pose() -> void:
 	_pitman.transform = _span(pin, attach, 0.0)
 	_rod.position = Vector3(0, _pivot.y - 0.75 + WellJackBuilder.ARM * theta, -WellJackBuilder.ARM - 0.05)
 	_drive.rotation.x = _phi * WellJackBuilder.BULL_R / WellJackBuilder.DRIVE_R
-	_tumbler.transform = _span(drive_at + Vector3(0.44, 0, 0), engine_at, _drive.rotation.x)
+	_tumbler.transform = _span(drive_at + Vector3(0.44 * _drive_dir, 0, 0), engine_at, _drive.rotation.x)
 	# Water: a gush on the up-stroke (the rod rising), the trough's level.
 	var running := _speed > RUN_SPEED * 0.3
 	var push := maxf(0.0, sin(_phi)) if running else 0.0

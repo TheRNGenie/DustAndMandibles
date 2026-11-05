@@ -150,6 +150,30 @@ func _shoot() -> void:
 			var hb := home.global_transform.basis
 			target = spot + Vector3(0, 0.6, 0)
 			eye = spot + hb.x.normalized() * 1.9 - hb.z.normalized() * 0.9 + Vector3(0, 1.0, 0)
+	elif spec.begins_with("hats:"):
+		# --mapcam=hats:<front|side>[:old]: one dummy per hat in a row on the west
+		# plateau (rigged bodies, or the code-built ones with :old), heads close up.
+		var parts := spec.split(":")
+		var base := Bug.cliffs.plateau_point(0, 7.0, -32.0)
+		var hats: Array = ["cattleman", "ten_gallon", "gambler", "bowler", "sombrero"]
+		for i in hats.size():
+			var holder := Node3D.new()
+			world.add_child(holder)
+			holder.global_position = base + Vector3(0, 0, (i - 2) * 1.1)
+			var rig := DummyRig.new()
+			holder.add_child(rig)
+			var look := DummyLook.default_look()
+			look["hat"] = hats[i]
+			look["hair"] = "long"
+			if parts.has("old"):
+				look["outfit"] = "none"
+			rig.build(Palette.TEAM_WEST, false, look)
+			rig.rotation.y = -PI * 0.5 if not (parts.size() > 1 and parts[1] == "side") else PI # face the camera, or show it their side
+		for i in 20:
+			await get_tree().process_frame
+		var head_y := base.y + 1.72
+		eye = base + Vector3(3.0, 1.8, 0.0)
+		target = Vector3(base.x, head_y - 0.05, base.z)
 	elif spec.begins_with("well:"):
 		# --mapcam=well:<cliff>[:run][:side]: close on a cliff's pump jack (run: pumping).
 		var parts := spec.split(":")

@@ -393,7 +393,7 @@ static func flywheel() -> ArrayMesh:
 		var a := TAU * float(i) / 18.0
 		pts.append(Vector3(0, cos(a), sin(a)) * 0.37)
 	MeshKit.tube(st, pts, [0.055], 6, IRON)
-	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3.ZERO), 0.38, 0.38, 0.09, 18, IRON.lightened(0.05), false)
+	MeshKit.add_rim(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3.ZERO), 0.38, 0.31, 0.09, 18, IRON.lightened(0.05)) # solid from the side
 	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3.ZERO), 0.09, 0.09, 0.16, 8, Palette.METAL)
 	MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0.09, 0, 0)), 0.05, 0.05, 0.04, 6, BRASS)
 	# Spokes (painted, so the spin reads).

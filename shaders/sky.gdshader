@@ -12,6 +12,9 @@ uniform vec4 ground_color : source_color = vec4(0.784, 0.502, 0.353, 1.0);
 uniform vec4 fog_color : source_color = vec4(0.969, 0.851, 0.627, 1.0);
 uniform float fog_band = 0.07;
 uniform bool use_fog_color = false;
+// The painted mesa strip read as floating upside-down shapes from the airship;
+// off (the real far mesas and the fog make the horizon now).
+uniform bool use_mesa_strip = false;
 uniform vec4 sun_color : source_color = vec4(1.0, 0.95, 0.8, 1.0);
 uniform float sun_size : hint_range(0.0, 0.1) = 0.012;
 uniform float bands = 0.0; // > 0 posterises the gradient
@@ -147,7 +150,7 @@ void sky() {
 		col = mix(fog_color.rgb, col, smoothstep(-0.01, fog_band, dir.y));
 	}
 	// The distant mesas: a painted strip just above the horizon, all the way round.
-	if (use_art && dir.y > -0.005 && dir.y < 0.16) {
+	if (use_art && use_mesa_strip && dir.y > -0.005 && dir.y < 0.16) {
 		float az = atan(dir.x, dir.z) / 6.2832;
 		vec4 m = textureLod(art_mesas, vec2(az * 3.0, 1.0 - (dir.y + 0.02) / 0.18), 0.0);
 		float land = 1.0 - smoothstep(0.82, 0.9, dot(m.rgb, vec3(0.33)));

@@ -13,13 +13,14 @@ const MODELS := {
 	&"poncho": "res://assets/rigged/dummy_poncho.glb",
 	&"lawman": "res://assets/rigged/dummy_lawman.glb",
 }
-## Meshy hats (tools/rig/prep_prop.py: centred, lowest point at 0): [file, height on the head pivot].
+## Meshy hats (tools/rig/prep_prop.py: centred, lowest point at 0): [file, height on the head pivot],
+## set so the crown hugs the skull and the brim sits at the brow.
 const HATS := {
-	&"cattleman": ["res://assets/rigged/hat_cattleman.glb", 0.13],
-	&"ten_gallon": ["res://assets/rigged/hat_ten_gallon.glb", 0.13],
-	&"gambler": ["res://assets/rigged/hat_gambler.glb", 0.14],
-	&"bowler": ["res://assets/rigged/hat_bowler.glb", 0.14],
-	&"sombrero": ["res://assets/rigged/hat_sombrero.glb", 0.07],
+	&"cattleman": ["res://assets/rigged/hat_cattleman.glb", 0.07],
+	&"ten_gallon": ["res://assets/rigged/hat_ten_gallon.glb", 0.065],
+	&"gambler": ["res://assets/rigged/hat_gambler.glb", 0.075],
+	&"bowler": ["res://assets/rigged/hat_bowler.glb", 0.08],
+	&"sombrero": ["res://assets/rigged/hat_sombrero.glb", 0.05],
 }
 const TOON_TEX := preload("res://shaders/toon_tex.gdshader")
 ## The procedural rig's hip height at rest; the model's hips follow changes to it.

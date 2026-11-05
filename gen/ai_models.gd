@@ -25,10 +25,36 @@ static func mesh(path: String) -> Mesh:
 		var root := packed.instantiate()
 		var mis := root.find_children("*", "MeshInstance3D", true, false)
 		if not mis.is_empty():
-			m = (mis[0] as MeshInstance3D).mesh
+			m = _with_smooth_normals((mis[0] as MeshInstance3D).mesh)
 		root.free()
 	_meshes[path] = m
 	return m
+
+
+## A copy of the mesh with each vertex's normal averaged over every vertex at
+## the same spot (welded across UV seams), stored in the vertex colour for the
+## ink outline (outline_surface.gdshaderinc normal_from_color).
+static func _with_smooth_normals(src: Mesh) -> Mesh:
+	if src == null:
+		return null
+	var out := ArrayMesh.new()
+	for si in src.get_surface_count():
+		var arrays := src.surface_get_arrays(si)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var norms: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var sums := {}
+		for i in verts.size():
+			var key := (verts[i] * 2000.0).round()
+			sums[key] = sums.get(key, Vector3.ZERO) + (norms[i] if i < norms.size() else Vector3.UP)
+		var cols := PackedColorArray()
+		cols.resize(verts.size())
+		for i in verts.size():
+			var n: Vector3 = (sums[(verts[i] * 2000.0).round()] as Vector3).normalized()
+			cols[i] = Color(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5, 1.0)
+		arrays[Mesh.ARRAY_COLOR] = cols
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		out.surface_set_material(si, src.surface_get_material(si))
+	return out
 
 
 ## A cel-shaded material with the model's own colour map and an outline
@@ -53,7 +79,16 @@ static func material(path: String, outline: float = 0.012, brightness: float = 1
 		if sm != null and sm.albedo_texture != null:
 			m.set_shader_parameter("albedo_tex", sm.albedo_texture)
 	if outline > 0.0:
-		m.next_pass = Materials.outline(outline)
+		# The smooth-normal hull, a little thinner and capped nearer (no black halos
+		# round small or far models).
+		var key2 := "ai_outline_%.3f" % outline
+		if not _mats.has(key2):
+			var ol := Materials.outline(outline).duplicate() as ShaderMaterial
+			ol.set_shader_parameter("normal_from_color", true)
+			ol.set_shader_parameter("boldness", 1.0)
+			ol.set_shader_parameter("max_scale", 1.8)
+			_mats[key2] = ol
+		m.next_pass = _mats[key2]
 	_mats[key] = m
 	return m
 

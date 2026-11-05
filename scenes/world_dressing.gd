@@ -258,7 +258,7 @@ func _build_waterworks(cid: int) -> void:
 	well.drive_ground = (to_local * ground(cid, drive_pc.x, drive_pc.y)).y
 	# The tumbling rod reaches whichever end of the engine's crankshaft is nearer.
 	var best := Vector3.ZERO
-	for ex: float in [0.7, -0.62]:
+	for ex: float in [Generator.SHAFT_END, -Generator.SHAFT_END]: # the crankshaft's stub ends, clear of the flywheel
 		var p := to_local * (gen.transform * Vector3(ex, 0.55, 0.25))
 		if best == Vector3.ZERO or p.distance_to(drive) < best.distance_to(drive):
 			best = p

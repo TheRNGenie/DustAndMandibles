@@ -46,6 +46,11 @@ static func ring_position() -> Vector3:
 	return ARCH_CROWN + Vector3(0, RING_ABOVE_ARCHES, 0)
 
 
+## Propeller turn rates (radians a second): idling on station, and driving.
+const PROP_IDLE := 1.1
+const PROP_DRIVE := 11.0
+var prop_speed := PROP_IDLE
+
 const AI_ENVELOPE := "res://assets/airship/envelope.glb"
 const AI_KEEL := "res://assets/airship/keel.glb"
 const AI_ENGINE := "res://assets/airship/engine.glb"
@@ -145,6 +150,7 @@ func _ready() -> void:
 				blades.position = -hub
 				spin.add_child(blades)
 				add_child(spin)
+				_exhaust(eng, turn)
 				continue
 			var p2 := Spin.new()
 			p2.mesh = AirshipBuilder.propeller()
@@ -229,6 +235,9 @@ func _ready() -> void:
 		var table := t[0] as CasinoTable
 		table.name = t[1]
 		table.position = t[2]
+		# Players stand on a table's -Z side: turned round, every table faces the
+		# bow and the market (the way you walk in from the boarding ring).
+		table.rotation.y = PI
 		add_child(table)
 	var bar := MeshInstance3D.new()
 	bar.mesh = _bar_mesh()
@@ -310,6 +319,14 @@ func _add_market() -> void:
 	lucky.position = Vector3(6.55, 0, 4.4)
 	lucky.rotation.y = PI * 0.5
 	add_child(lucky)
+	# Lucky himself, always aboard: leaning on the starboard rail just forward of
+	# his booth, smoking, looking out over the canyon (his shop opens from him).
+	var lucky_npc := LuckyNpc.new()
+	lucky_npc.name = "LuckyMoreau"
+	lucky_npc.stall = lucky
+	lucky_npc.position = Vector3(AirshipBuilder.DECK_W * 0.5 - 0.62, 0, 2.0)
+	lucky_npc.rotation.y = -PI * 0.5
+	add_child(lucky_npc)
 	# Painted wooden signboards hung from the canopy on ropes, facing the boarding ring.
 	for sx: float in [-1.0, 1.0]:
 		_signboard(Vector3(sx * 4.2, AirshipBuilder.ROOF_Y - 0.95, 9.5),
@@ -448,6 +465,10 @@ func _set_deck_active(on: bool) -> void:
 func _process(delta: float) -> void:
 	if _state == 0:
 		return
+	# Propellers: a lazy idle turn while she holds station, spun up to drive her
+	# in and out (eased between the two).
+	var want := PROP_IDLE if _state == 2 else PROP_DRIVE
+	prop_speed = move_toward(prop_speed, want, delta * (PROP_DRIVE - PROP_IDLE) / 2.5)
 	_t += delta
 	_animate_grandeur()
 	var bob := Vector3(0, sin(_t * 0.7) * 0.25, 0)
@@ -468,6 +489,51 @@ func _process(delta: float) -> void:
 			if _t >= ARRIVE_TIME:
 				_state = 0
 				visible = false
+
+
+## A thin plume from an engine's stack: it hangs on station, so the smoke rises
+## (a little drift and spread), painted puffs that swell and fade. Off on Low.
+func _exhaust(eng: Node3D, turn: Basis) -> void:
+	if GraphicsQuality.level(Settings.effects) == 0:
+		return
+	var p := CPUParticles3D.new()
+	p.name = "Exhaust"
+	p.amount = 10
+	p.lifetime = 3.2
+	p.local_coords = false
+	p.direction = Vector3.UP
+	p.spread = 10.0
+	p.gravity = Vector3(0.12, 0.35, 0.0)
+	p.initial_velocity_min = 0.5
+	p.initial_velocity_max = 0.8
+	p.damping_min = 0.1
+	p.damping_max = 0.2
+	p.scale_amount_min = 0.7
+	p.scale_amount_max = 1.2
+	var curve := Curve.new()
+	curve.add_point(Vector2(0, 0.35))
+	curve.add_point(Vector2(1, 1.8))
+	p.scale_amount_curve = curve
+	var grad := Gradient.new()
+	grad.set_color(0, Color(1, 1, 1, 0.0))
+	grad.add_point(0.12, Color(1, 1, 1, 0.55))
+	grad.set_color(grad.get_point_count() - 1, Color(1, 1, 1, 0.0))
+	p.color_ramp = grad
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.9, 0.9)
+	var sm := StandardMaterial3D.new()
+	sm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	sm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	sm.vertex_color_use_as_albedo = true
+	sm.albedo_color = Color(0.82, 0.78, 0.74)
+	if ResourceLoader.exists("res://assets/fx/smoke.png"):
+		sm.albedo_texture = load("res://assets/fx/smoke.png")
+	quad.material = sm
+	p.mesh = quad
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.position = eng.position + turn * Vector3(0, 1.0, 0.6)
+	add_child(p)
 
 
 ## A soft shadow cast down the sun's direction onto the canyon below
@@ -548,4 +614,5 @@ func _engine_drone() -> void:
 ## Spins a propeller.
 class Spin extends MeshInstance3D:
 	func _process(delta: float) -> void:
-		rotate_z(delta * 9.0)
+		var ship := get_parent() as Airship
+		rotate_z(delta * (ship.prop_speed if ship != null else 9.0))
