@@ -22,6 +22,10 @@ var _role: Label
 var _text: Label
 var _dot: Panel
 var _queue: Array = []
+## Seconds of quiet before a different character speaks (Logan).
+const SPEAKER_GAP := 2.0
+var _cur_who := ""
+var _gapping := false
 var _showing := false
 var _t := 0.0
 var _hold := 0.0
@@ -194,8 +198,12 @@ static func line_seconds(line: String, who: String = "") -> float:
 ## Seconds until everything queued has been said.
 func queued_seconds() -> float:
 	var t := maxf(_hold, 0.0) if _showing else 0.0
+	var prev := _cur_who
 	for l: Array in _queue:
 		t += line_seconds(str(l[1]), str(l[0]))
+		if prev != "" and str(l[0]) != prev:
+			t += SPEAKER_GAP
+		prev = str(l[0])
 	return t
 
 
@@ -209,6 +217,8 @@ func say(who: String, line: String) -> void:
 
 func _next() -> void:
 	if _queue.is_empty():
+		_gapping = false
+		_cur_who = "" # (a fresh conversation later starts without a gap)
 		_showing = false
 		_slide(false)
 		var fade := create_tween()
@@ -216,8 +226,18 @@ func _next() -> void:
 		fade.tween_callback(func() -> void: _sub.visible = false)
 		return
 	_showing = true
+	# A different character next: a beat of quiet on the wire first.
+	if not _gapping and _cur_who != "" and str((_queue[0] as Array)[0]) != _cur_who:
+		_gapping = true
+		_hold = SPEAKER_GAP
+		_voice.stop()
+		var hush := create_tween()
+		hush.tween_property(_sub, "modulate:a", 0.0, 0.25)
+		return
+	_gapping = false
 	var l: Array = _queue.pop_front()
 	var who := str(l[0])
+	_cur_who = who
 	_pic.texture = StoryPortrait.face_texture(self, who)
 	_name.text = StoryChapter.speaker_name(who)
 	_role.text = StoryChapter.speaker_role(who)

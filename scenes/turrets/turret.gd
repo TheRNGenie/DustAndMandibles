@@ -299,7 +299,13 @@ func _sight_point() -> Vector3:
 
 ## Look-down limit in degrees: the turret's own, plus 5 per scaffold level.
 func pitch_limit() -> float:
-	return def.pitch_limit_deg + LOOK_DOWN_PER_LEVEL * level
+	return def.pitch_limit_deg + look_down_bonus(level)
+
+
+## Scaffold look-down: +5 deg per storey above the first. The bottom deck
+## (level 1) keeps the plain 30 deg, like the ground (Logan).
+static func look_down_bonus(lvl: int) -> float:
+	return LOOK_DOWN_PER_LEVEL * maxi(lvl - 1, 0)
 
 
 ## How far the weather lets this turret see (fog: unless a lantern is near).
@@ -474,7 +480,7 @@ func interact_prompt() -> String:
 	if tier > 0:
 		text += "  - %s" % TurretDef.TIER_NAMES[tier]
 	if level > 0:
-		text += "\nScaffold level %d: +%d deg look-down, +%d%% range" % [level, int(LOOK_DOWN_PER_LEVEL * level),
+		text += "\nScaffold level %d: +%d deg look-down, +%d%% range" % [level, int(look_down_bonus(level)),
 				roundi(TurretDef.RANGE_PER_LEVEL * 100.0 * level)]
 	if def.guards_plateau and (not def.guards_house or def.yard_wide):
 		text += "\nStands by until bugs reach your plateau"

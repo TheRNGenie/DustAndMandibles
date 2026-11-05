@@ -2,7 +2,8 @@
 lines at audio/voice/<speaker>_<key>.ogg: a light wireless filter (band-passed,
 compressed, levelled) and the cast's tempo (voice_cast.json "tempo", pitch kept).
 
-usage: python tools/audio/voice_import.py <raw_dir>
+usage: python tools/audio/voice_import.py <raw_dir> [--force]
+(--force re-filters lines that are already imported, e.g. after a filter change)
 """
 import glob, json, os, subprocess, sys
 
@@ -19,11 +20,14 @@ for src in sorted(glob.glob(os.path.join(sys.argv[1], "*.mp3"))):
     name = os.path.splitext(os.path.basename(src))[0]
     who = name.split("_")[0]
     dst = os.path.join(OUT, name + ".ogg")
-    if os.path.exists(dst) or who not in CAST:
+    if who not in CAST or (os.path.exists(dst) and "--force" not in sys.argv):
         continue
     tempo = float(CAST[who].get("tempo", 1.0))
-    af = "silenceremove=start_periods=1:start_threshold=-45dB,highpass=f=240,lowpass=f=4200," \
-         "acompressor=threshold=-20dB:ratio=3,loudnorm=I=-17:TP=-1.5"
+    # A field radio (Logan: heavier): a narrow 400-3000 Hz band with a nasal
+    # bump, hard compression and a little bit-crush grit, then levelled.
+    af = "silenceremove=start_periods=1:start_threshold=-45dB,highpass=f=400,highpass=f=400,lowpass=f=3000,lowpass=f=3000," \
+         "equalizer=f=1700:t=q:w=1.1:g=6,acompressor=threshold=-24dB:ratio=6:attack=4:release=80," \
+         "acrusher=bits=9:mix=0.22:mode=log:aa=1,loudnorm=I=-17:TP=-1.5"
     if abs(tempo - 1.0) > 0.001:
         af = "atempo=%.3f," % tempo + af
     subprocess.run([FF, "-y", "-v", "error", "-i", src, "-af", af, "-ar", "44100", "-ac", "1",

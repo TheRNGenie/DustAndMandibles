@@ -69,7 +69,7 @@ func show_for(id: StringName, cid: int, base: Vector3, level: int, ok: bool) -> 
 	if not _head_y.has(id):
 		_head_y[id] = float(TurretBuilder.build(id, Color.WHITE)["head_y"])
 	var muzzle := base + Vector3(0, float(_head_y[id]), 0)
-	var pitch := def.pitch_limit_deg + Turret.LOOK_DOWN_PER_LEVEL * level
+	var pitch := def.pitch_limit_deg + Turret.look_down_bonus(level)
 	_far_patch(cid, muzzle, pitch, def.range_at(0, level))
 	if GameState.has_flag("--coverlog"):
 		print("[cover] %s cliff %d muzzle %s pitch %.0f -> patch %s" % [id, cid, str(muzzle.snapped(Vector3.ONE * 0.1)), pitch, str(_patch.mesh.get_aabb() if _patch.mesh else null)])
