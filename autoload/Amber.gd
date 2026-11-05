@@ -204,6 +204,8 @@ func craft_block(id: StringName) -> String:
 # ------------------------------------------------------------------ Lucky Moreau
 
 func lucky_open() -> bool:
+	if GameState.unlock_all:
+		return true
 	if GameState.has_flag("--lucky") and GameState.debug_enabled():
 		return true
 	var ch := Story.chapter() if Story.active() else null

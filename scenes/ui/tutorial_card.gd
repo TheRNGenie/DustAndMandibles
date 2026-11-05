@@ -457,7 +457,7 @@ func show_finish() -> void:
 	# Captain Stroud's word on the canyon (a hint, not a task).
 	col.add_child(UiStyle.note("Capt. Stroud: \"The canyon floor isn't the bottom of anything, ranchers. If you know what's good for you, you'll stay topside.\"", 14))
 	col.add_child(UiStyle.divider(420))
-	col.add_child(UiStyle.note("Host a game from the main menu and send your invite code to a partner. Keep Playing gives you 10,000 of every resource to try things out, and a CPU partner on the other cliff. The waves keep coming until your homestead falls; nothing here is saved.", 14))
+	col.add_child(UiStyle.note("Host a game from the main menu and send your invite code to a partner. Keep Playing hands you plenty of resources to try whatever you like, and unlocks every item for the rest of the run. The waves keep coming until your homestead falls; nothing here is saved.", 14))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", UiStyle.GAP_ROW)
 	col.add_child(row)

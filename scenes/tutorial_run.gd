@@ -935,6 +935,11 @@ func _finish() -> void:
 		Settings.set_value("tutorial_done", true)
 	card.show_finish()
 	_snap("finish", 1.2)
+	if GameState.has_flag("--tutorialkeep"): # (test: press Keep Playing and log what it gave)
+		get_tree().create_timer(1.5).timeout.connect(func() -> void:
+			keep_playing()
+			print("[tutorial] keep playing: scrap %d chitin %d, tier wave %d, lucky %s, cpu %s, share %.2f" % [Economy.amount(me, &"scrap"),
+					Economy.amount(me, &"chitin"), GameState.tier_wave(), str(Amber.lucky_open()), str(world.get_node_or_null("CPU") != null), Economy.cpu_share]))
 	if _auto and not GameState.has_flag("--tutorialstay"):
 		print("[tutorial] smoke run complete: every step done")
 		get_tree().create_timer(3.0).timeout.connect(func() -> void: get_tree().quit())
@@ -961,6 +966,12 @@ func keep_playing() -> void:
 	for r: StringName in EconomyLedger.RESOURCES:
 		gift[r] = KEEP_PLAYING_GIFT
 	Economy.earn(me, gift)
+	# ...and every item unlocked for the rest of the run: all turret tiers, Lucky's
+	# stall, and the amber blueprints.
+	GameState.unlock_all = true
+	if multiplayer.is_server():
+		for id: StringName in AmberRules.IDS:
+			Amber.unlock_blueprint(id, false)
 	for k: StringName in [&"revolver", &"lighter", &"grapple", &"bucket", &"herbs"]:
 		_give(k)
 	if multiplayer.is_server() and world.get_node_or_null("CPU") == null:
