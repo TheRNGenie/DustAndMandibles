@@ -193,23 +193,33 @@ func _build_ui() -> void:
 	_connect_box = VBoxContainer.new()
 	_connect_box.add_theme_constant_override("separation", 10)
 	col.add_child(_connect_box)
-	# [Foundation] Continue the autosaved run (host it; start alone, with a CPU, or wait for a partner).
-	var saved := RunSave.read()
-	if not saved.is_empty():
-		var cont := _button("Continue Last Run (Wave %d)" % int(saved["wave"]))
-		cont.pressed.connect(func() -> void: _on_continue())
-		_connect_box.add_child(cont)
-	# Story: chapter select (StoryScreen), next to a normal run.
-	var story_btn := _button("Story")
-	story_btn.tooltip_text = "Chapters of the Dry Gulch story, solo or with friends."
-	story_btn.pressed.connect(func() -> void: _story.open())
-	_connect_box.add_child(story_btn)
-	var host_btn := _button("Host Game")
+	# Game modes: Endless (the original run), Story and Tutorial, then joining a friend.
+	_connect_box.add_child(UiStyle.section("Game Modes"))
+	var host_btn := _button("Endless")
+	host_btn.tooltip_text = "The original game: hold the canyon wave after wave for as long as you can. Solo, with a CPU partner or with friends."
 	host_btn.pressed.connect(func() -> void:
 		RunSave.pending = {}
 		Story.chapter_id = ""
 		_on_host())
 	_connect_box.add_child(host_btn)
+	# [Foundation] Continue the autosaved Endless run (host it; start alone, with a CPU, or wait for a partner).
+	var saved := RunSave.read()
+	if not saved.is_empty():
+		var cont := _button("Continue Endless (Wave %d)" % int(saved["wave"]))
+		cont.pressed.connect(func() -> void: _on_continue())
+		_connect_box.add_child(cont)
+	# Story: chapter select (StoryScreen).
+	var story_btn := _button("Story")
+	story_btn.tooltip_text = "Chapters of the Dry Gulch story, solo or with friends."
+	story_btn.pressed.connect(func() -> void: _story.open())
+	_connect_box.add_child(story_btn)
+	# Tutorial: a short guided solo run on the canyon (TutorialRun).
+	var tut_btn := _button("Tutorial")
+	tut_btn.tooltip_text = "A guided practice game that teaches the basics. Not saved."
+	tut_btn.pressed.connect(_on_tutorial)
+	_connect_box.add_child(tut_btn)
+	# Join a friend's game, whatever mode they're hosting.
+	_connect_box.add_child(UiStyle.section("Play With Friends"))
 	# Online (Epic lobby, works anywhere) or Direct (IP/LAN): the way out when online misbehaves.
 	if NetworkManager.online != null:
 		var via := OptionButton.new()
@@ -232,11 +242,7 @@ func _build_ui() -> void:
 	var join_btn := _button("Join Game")
 	join_btn.pressed.connect(_on_join)
 	_connect_box.add_child(join_btn)
-	# Tutorial: a short guided solo run on the canyon (TutorialRun).
-	var tut_btn := _button("Tutorial")
-	tut_btn.tooltip_text = "A short guided game: the core loop in about five minutes. Not saved."
-	tut_btn.pressed.connect(_on_tutorial)
-	_connect_box.add_child(tut_btn)
+	_connect_box.add_child(UiStyle.section("Ranch"))
 	_connect_box.add_child(_ledger_button()) # Perk
 	var secrets_btn := _button("Secrets") # Theme: code entry for secret cosmetics
 	secrets_btn.pressed.connect(func() -> void: _secrets.open())
