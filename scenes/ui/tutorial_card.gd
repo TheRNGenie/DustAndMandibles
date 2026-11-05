@@ -35,6 +35,8 @@ var _finish: Control
 var _tip: PanelContainer ## a small note under the card (Logan: settings, hotbar)
 var _tip_label: Label
 var _tip_left := 0.0
+var _count: Label ## the finish countdown in the corner
+var _count_left := -1.0
 var _step := 0
 var _total := 1
 var _def: Dictionary = {}
@@ -261,6 +263,7 @@ func _rebuild() -> void:
 	var body := KeyHints.text(str(_def.get("body", "")), 14, UiStyle.c("hud").darkened(0.12))
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.custom_minimum_size.x = WIDTH - 32.0
+	body.visible = body.text != "" # (voiced steps: the radio says it, the card keeps the tasks)
 	_col.add_child(body)
 	_tasks_box = VBoxContainer.new()
 	_tasks_box.add_theme_constant_override("separation", 3)
@@ -329,6 +332,35 @@ func show_tip(text: String, seconds: float = 14.0) -> void:
 	_tip.reset_size()
 
 
+## The last step done: "Wrapping up in N" in the top-right corner, then the
+## finish screen takes over (TutorialRun).
+func show_countdown(seconds: float) -> void:
+	_card.visible = false
+	_tip.visible = false
+	if _count == null:
+		_count = KeyHints.text("", 18, UiStyle.c("hud"))
+		_count.set_anchor_and_offset(SIDE_RIGHT, 1.0, -28.0)
+		_count.set_anchor_and_offset(SIDE_LEFT, 1.0, -360.0)
+		_count.set_anchor_and_offset(SIDE_TOP, 0.22, 0.0)
+		_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		_count.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+		_count.add_theme_constant_override("outline_size", 6)
+		add_child(_count)
+	_count_left = seconds
+	_count.visible = true
+
+
+func _tick_countdown(delta: float) -> void:
+	if _count == null or _count_left < 0.0:
+		return
+	_count_left -= delta
+	if _count_left <= 0.0:
+		_count.visible = false
+		_count_left = -1.0
+		return
+	_count.text = "Tutorial complete in %d" % int(ceil(_count_left))
+
+
 func _place_tip(delta: float) -> void:
 	if not _tip.visible:
 		return
@@ -344,6 +376,7 @@ func _place_tip(delta: float) -> void:
 func _process(delta: float) -> void:
 	_bob += delta
 	_place_tip(delta)
+	_tick_countdown(delta)
 	if _wait_row != null and _wait_row.visible:
 		_wait_row.modulate.a = 0.55 + 0.45 * sin(_bob * 5.0) # a pulse, like a live wire
 	_place_marker()

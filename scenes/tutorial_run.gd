@@ -43,6 +43,8 @@ const SWAP_TURRET := &"gatling_post"
 const FIRST_TURRET := &"buffalo_rifle"
 ## Keep Playing: this much of every resource, and the CPU partner's share of the pot.
 const KEEP_PLAYING_GIFT := 10000
+## Seconds of quiet before a different character speaks (Logan).
+const SPEAKER_GAP := 2.0
 const KEEP_PLAYING_CPU_SHARE := 0.2
 ## The farm step's crop grows this many times faster (corn in about eight seconds).
 const GROW_FAST := 15.0
@@ -81,6 +83,7 @@ var _swing_t := 0.0
 var _reel_t := 0.0
 var _rope0 := INF
 var _swing_reel_t := 0.0 ## seconds reeled in while swinging (its own task, Logan)
+var _last_voice := "" ## who spoke last (a new speaker waits SPEAKER_GAP)
 var _picked := 0 ## pieces of gear picked up (the second brings the hotbar tip)
 var _corn0 := 0
 var _gear: Dictionary = {} ## kind -> TutorialPickup still lying in the house
@@ -227,7 +230,11 @@ func _enter(s: int) -> void:
 		_preview.queue_free()
 		_preview = null
 	if s >= Step.DONE:
-		_finish()
+		# Logan: a short countdown in the corner first, then the finish screen.
+		card.set_marker(null, "")
+		var wait := 3.0 if _auto else TutorialPlan.FINISH_DELAY
+		card.show_countdown(wait)
+		get_tree().create_timer(wait).timeout.connect(_finish)
 		return
 	if STEPS[s].has("tip"):
 		card.show_tip(str(STEPS[s]["tip"]), 30.0)
@@ -287,12 +294,23 @@ func _enter(s: int) -> void:
 				Economy.earn(me, got)
 	var said := TutorialPlan.line_of(STEPS[s])
 	_line_end = TutorialPlan.line_time(said[0], said[1])
+	# Logan: at least SPEAKER_GAP s of quiet when a different character takes over.
+	var gap := SPEAKER_GAP if _last_voice != "" and said[0] != "" and said[0] != _last_voice else 0.0
+	if said[0] != "":
+		_last_voice = said[0]
+	_line_end += gap
 	print("[tutorial] step %d: %s (line %.1f s)" % [s, STEPS[s]["title"], _line_end])
 	if STEPS[s].get("paper", false):
 		card.show_paper()
 	else:
 		card.show_step(s - 1, Step.DONE - 1, STEPS[s], _task_words()) # (the paper isn't counted as a step)
-	card.say(said[0], said[1])
+	if gap > 0.0:
+		var at_step := s
+		get_tree().create_timer(gap).timeout.connect(func() -> void:
+			if step == at_step:
+				card.say(said[0], said[1]))
+	else:
+		card.say(said[0], said[1])
 	_snap("card", 1.0)
 
 
@@ -384,12 +402,23 @@ func _check(delta: float) -> void:
 						_tasks[i] = true
 		Step.WORKSHOP:
 			var home := Homestead.of(me)
+			# Logan: build the workshop, open the bench, craft, open the build
+			# menu, place it.
 			if home != null and home.workshop:
 				_tasks[0] = true
-			if _crafted() != null:
-				_tasks = [true, true, true]
-			elif home != null and home.workshop and Economy.amount(me, _craft_id) > 0:
+			var bench := home.get_node_or_null("Workshop") if home != null else null
+			if bench != null and MenuScreen.instance != null and MenuScreen.instance.visible and MenuScreen.instance.provider == bench:
+				_tasks[0] = true
 				_tasks[1] = true
+			if home != null and home.workshop and Economy.amount(me, _craft_id) > 0:
+				_tasks[0] = true
+				_tasks[1] = true
+				_tasks[2] = true
+			var wb := player.build_mode
+			if _tasks[2] and wb != null and (wb.menu_open or wb.active):
+				_tasks[3] = true
+			if _crafted() != null:
+				_tasks = [true, true, true, true, true]
 	if _tasks != before:
 		card.set_tasks(_tasks)
 		if not _tasks.has(false):
@@ -861,7 +890,7 @@ func _marker() -> Variant:
 			if home == null:
 				return null
 			if step == Step.WORKSHOP and home.workshop:
-				if _tasks.size() > 1 and _tasks[1]:
+				if _tasks.size() > 2 and _tasks[2]:
 					return Buildable.footprint_center(cliffs, me, _craft_id, _free_lip_cell(_craft_id)) + Vector3.UP * 1.2
 				var bench := home.get_node_or_null("Workshop") as Node3D
 				return bench.global_position + Vector3.UP * 1.2 if bench != null else null
@@ -1126,10 +1155,14 @@ func _auto_step() -> void:
 				return
 			if not home.workshop:
 				home.buy(uid, _upgrade_index(&"workshop"))
+			elif not _tasks[1]:
+				_tasks[1] = true # (a test: the bench was opened)
 			elif Economy.amount(me, _craft_id) <= 0 and _crafted() == null:
 				var bench := home.get_node_or_null("Workshop") as Workshop
 				if bench != null:
 					bench._craft(uid, _craft_id)
+			elif not _tasks[3]:
+				_tasks[3] = true # (a test: the build menu was opened)
 			elif _crafted() == null:
 				BuildManager.instance.build(_craft_id, me, _free_lip_cell(_craft_id))
 			_auto_t = -0.5

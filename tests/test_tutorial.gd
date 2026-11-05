@@ -61,7 +61,7 @@ func test_last_step_is_hands_on() -> void:
 	assert_eq(str(last["title"]), "Craft a Turret")
 	assert_false(last.get("read", false))
 	assert_false(last.get("look", false))
-	assert_eq((last["tasks"] as Array).size(), 3)
+	assert_eq((last["tasks"] as Array).size(), 5) # workshop, open bench, craft, build menu, place
 
 
 ## The house step gets enough to buy every upgrade it asks for, once.
