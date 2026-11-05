@@ -37,6 +37,8 @@ const SKIP_AFTER := 45.0
 const TICK_HOLD := 1.3
 ## Scrap the tutorial makes sure you have (two Gatling Posts and change).
 const SCRAP_FLOOR := 160
+## What --tutorialrun puts up in the Gatling Post's place on the sell step.
+const SWAP_TURRET := &"scattergun_post"
 ## The farm step's crop grows this many times faster (corn in about eight seconds).
 const GROW_FAST := 15.0
 ## Seconds on the rope that count as a swing or a reel.
@@ -314,13 +316,14 @@ func _check(delta: float) -> void:
 			if _my_gatling() != null:
 				_tasks = [true, true, true]
 		Step.SELL:
+			# Sell the Gatling Post, then put up a different kind of turret (Logan).
 			var g := _my_gatling()
 			var gid := g.get_instance_id() if g != null else 0
 			if _gatling_id == 0:
 				_gatling_id = gid # (it went up a moment after the step began)
 			elif not _tasks[0] and gid != _gatling_id:
 				_tasks[0] = true
-			if _tasks[0] and gid != 0 and gid != _gatling_id:
+			if _tasks[0] and _my_other_turret() != null:
 				_tasks[1] = true
 		Step.LEVER:
 			if GameState.lever_thrown(me) or GameState.phase != GameState.Phase.BUILD:
@@ -487,6 +490,21 @@ func _my_gatling() -> Node3D:
 	return _my_turret(&"gatling_post")
 
 
+## Any of your turrets that isn't the Gatling Post (the sell step's swap).
+func _my_other_turret() -> Node3D:
+	for n: Node in get_tree().get_nodes_in_group("turrets"):
+		var t := n as Turret
+		if t != null and not t.is_queued_for_deletion() and t.cliff_id == me and t.def != null 				and t.def.id != &"gatling_post" and t.def.id != _craft_id:
+			return t
+	return null
+
+
+## The turret on your lip after the swap (or the Gatling Post if there's no other).
+func _main_turret() -> Node3D:
+	var t := _my_other_turret()
+	return t if t != null else _my_gatling()
+
+
 ## The crafted turret placed on your cliff, if it's up.
 func _crafted() -> Node3D:
 	return _my_turret(_craft_id)
@@ -632,7 +650,7 @@ func _marker() -> Variant:
 		Step.BUILD:
 			return _lip_point() + Vector3.UP * 1.2
 		Step.SELL, Step.TURRETS:
-			var g := _my_gatling()
+			var g := _my_gatling() if step == Step.SELL else _main_turret()
 			if g != null and (step == Step.TURRETS or (_tasks.size() > 0 and not _tasks[0])):
 				return g.global_position + Vector3.UP * 2.0
 			return _lip_point() + Vector3.UP * 1.2 if step == Step.SELL else null
@@ -675,6 +693,8 @@ func _marker() -> Variant:
 ## The marker's caption for this step (some move on as the step goes).
 func caption() -> String:
 	var words := str(STEPS[step].get("marker", "")) if step >= 0 and step < Step.DONE else ""
+	if step == Step.SELL and _tasks.size() > 0 and _tasks[0]:
+		words = "Your Lip" # sold: the marker now points at where the new turret goes
 	match step:
 		Step.FARM:
 			if _tasks.size() > 0 and _tasks[0]:
@@ -799,15 +819,15 @@ func _auto_step() -> void:
 			var g := _my_gatling()
 			if not _tasks[0] and g != null:
 				BuildManager.instance.demolish_node(g)
-			elif _tasks[0]:
-				_build_gatling()
+			elif _tasks[0] and _my_other_turret() == null:
+				BuildManager.instance.build(SWAP_TURRET, me, _cell)
 			_auto_t = -1.0
 		Step.LEVER:
 			if not GameState.lever_thrown(me):
 				GameState.toggle_ready()
 			_auto_t = -5.0
 		Step.WAVE:
-			# Let the Gatling Post do the work; after two minutes, finish the stragglers.
+			# Let the turret do the work; after two minutes, finish the stragglers.
 			if _t > 120.0:
 				for c: Node in WaveDirector.bug_manager.get_children():
 					var b := c as Bug
