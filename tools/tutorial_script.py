@@ -56,7 +56,7 @@ def main(out):
     lines.append("")
     lines.append("## Finish card")
     lines.append("- Capt. Stroud: \"The canyon floor isn't the bottom of anything, ranchers. If you know what's good for you, you'll stay topside.\"")
-    lines.append("- Keep Playing: 10,000 of every resource to try things out, a CPU partner on the other cliff (spends at most 20% of the pot), waves until the homestead falls. Nothing is saved.")
+    lines.append("- Keep Playing (card): \"Keep Playing hands you plenty of resources to try whatever you like, and unlocks every item for the rest of the run.\" (Behind the scenes: 10,000 of each resource, a CPU partner on the other cliff, all tiers, Lucky and the blueprints unlocked.)")
     open(out, "w", encoding="utf-8", newline="\n").write("\n".join(lines) + "\n")
     print("wrote %s (%d steps)" % (out, len(blocks)))
 
