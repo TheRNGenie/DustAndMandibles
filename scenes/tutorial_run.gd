@@ -817,14 +817,11 @@ func _marker() -> Variant:
 		var c := _chest()
 		return c.global_position + Vector3.UP * 1.0 if c != null else null
 	match step:
-		Step.SHOOT, Step.WAVE:
+		Step.SHOOT:
 			var b := _nearest_bug()
-			if b != null:
-				return b.global_position + Vector3.UP * 0.8
-			if step == Step.WAVE:
-				var tower := WaterTower.of(me)
-				return tower.global_position + Vector3.UP * 6.0 if tower != null else null
-			return null
+			return b.global_position + Vector3.UP * 0.8 if b != null else null
+		Step.WAVE:
+			return null # (Logan: only the first three practice mites get the circle)
 		Step.IDEA:
 			return cliffs.face_point(other, WorldLayout.CLIFF_HEIGHT - 5.0, _lip_point().z)
 		Step.BUILD:
