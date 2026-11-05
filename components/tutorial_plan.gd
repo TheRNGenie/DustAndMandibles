@@ -8,6 +8,10 @@ extends RefCounted
 
 ## A Dust Mite at 60% speed with the same look and name (Defs.bug "@slow").
 const SLOW_MITE := &"dust_mite@slow"
+## The tutorial's wave: this many slow mites, in this many pulses this far apart.
+const WAVE_MITES := 24
+const WAVE_PULSES := 4
+const WAVE_GAP := 6.0
 
 enum Step { PAPER, MOVE, SHOOT, GUNS, PELL, IDEA, BUILD, SELL, TURRETS, LEVER, WAVE, WEATHER, FARM, GRAPPLE,
 	AIRSHIP, ECONOMY, UPGRADES, SALVAGE, HOUSE, WORKSHOP, DONE }
@@ -64,7 +68,7 @@ const STEPS: Array[Dictionary] = [
 		"tasks": ["Open the Build Menu", "Pick the Gatling Post", "Place It on Your Lip"],
 		"keys": [["build_menu", "Build Menu"], ["fire", "Place"], ["alt_fire", "Cancel"]], "marker": "Your Lip"},
 	{"title": "Sell It, Try Another", "voice": "stroud", "line": "Changed your mind? Sell it back for half the scrap, then put a different kind of turret up in its place.",
-		"body": "Changed your mind? Aim at a build and sell it for half its scrap back, then place a different kind of turret on your lip.",
+		"body": "Changed your mind? Aim at a build and sell it for half its scrap back, then place a different kind of turret on your lip (not an anti-air gun: these bugs climb).",
 		"tasks": ["Sell the Gatling Post", "Place a Different Turret"], "keys": [["demolish", "Sell"], ["build_menu", "Build Menu"]], "marker": "Gatling Post"},
 	{"title": "Kinds of Turret", "voice": "stroud", "line": "Turrets come in kinds. Gatlings for swarms. Rifle nests for the big, armoured brutes. Mortars for crowds. Water knocks them off the wall, lassos pin them, and Duck Guns and flak take the fliers. Better turrets come at wave five and wave ten, and Y steps one up a tier.",
 		"body": "Gatlings spray small bugs. Rifle nests land one heavy shot on big, armoured ones. Mortars splash crowds. Water cannons knock climbers off; lassos and bolas pin them. Duck Guns and flak shoot fliers. Mid turrets unlock at wave 5, Late at wave 10.",
@@ -115,11 +119,16 @@ static func wave(partner: int) -> Dictionary:
 	var shares: Array = []
 	for cid in 2:
 		shares.append(1.0 if cid == partner else 0.0)
-	return {"groups": [
-				{"bug": SLOW_MITE, "count": 3, "cliff": partner, "lane": 2, "pulse": 0},
-				{"bug": SLOW_MITE, "count": 3, "cliff": partner, "lane": 1, "pulse": 1}],
-			"pulses": 2, "pulse_times": [0.0, 9.0], "shape": WavePlanner.STEADY,
-			"west_share": shares[0], "shares": shares, "spent": 6}
+	# A spectacle (Logan): 24 slow Dust Mites in four pulses, all on the two
+	# lanes your turret covers, so it gets to mow them down.
+	var groups: Array = []
+	var times: Array = []
+	for p in WAVE_PULSES:
+		times.append(p * WAVE_GAP)
+		for lane: int in [1, 2]:
+			groups.append({"bug": SLOW_MITE, "count": WAVE_MITES / (WAVE_PULSES * 2), "cliff": partner, "lane": lane, "pulse": p})
+	return {"groups": groups, "pulses": WAVE_PULSES, "pulse_times": times, "shape": WavePlanner.STEADY,
+			"west_share": shares[0], "shares": shares, "spent": WAVE_MITES}
 
 
 ## --tutorialstep: a number or a step's name ("house", "grapple").

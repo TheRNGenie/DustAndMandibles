@@ -494,7 +494,7 @@ func _my_gatling() -> Node3D:
 func _my_other_turret() -> Node3D:
 	for n: Node in get_tree().get_nodes_in_group("turrets"):
 		var t := n as Turret
-		if t != null and not t.is_queued_for_deletion() and t.cliff_id == me and t.def != null 				and t.def.id != &"gatling_post" and t.def.id != _craft_id:
+		if t != null and not t.is_queued_for_deletion() and t.cliff_id == me and t.def != null 				and t.def.id != &"gatling_post" and t.def.id != _craft_id and not t.def.anti_air:
 			return t
 	return null
 
