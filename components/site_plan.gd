@@ -217,10 +217,10 @@ static func item_name(key: StringName) -> String:
 			return AmberRules.NAME
 	if CraftTable.is_part(key):
 		return CraftTable.part_name(key)
-	return String(key).replace("_", " ").capitalize()
+	return ResNames.of(key).capitalize()
 
 
-## Scrap and chitin on the floor beat what the cliff pays: these are per pile.
+## Floor piles beat what the cliff pays: team-pot (shell) piles and personal (junk) piles.
 static func _scrap_pile(wave: int, rng: RandomNumberGenerator) -> int:
 	return rng.randi_range(14, 22) + 3 * wave
 
@@ -253,9 +253,11 @@ static func loot_for(site_kind: int, site_seed: int, wave: int) -> Array[Loot]:
 		l.walk = walk
 		out.append(l)
 	match site_kind:
+		# Bug pieces (shed shells) pay the team pot; train junk pays your own
+		# stock (DECISIONS 162: internal &"scrap" = team, shown as chitin).
 		Kind.MOUTH:
 			for i in 2:
-				add.call({&"chitin": _chitin_pile(wave, rng)}, &"chitin", "Chitin", true)
+				add.call({&"scrap": _scrap_pile(wave, rng)}, &"chitin", "Chitin", true)
 			for i in rng.randi_range(1, 2):
 				var p := CraftTable.random_part(rng)
 				add.call({p: 1}, &"part", CraftTable.part_name(p), false)
@@ -263,7 +265,7 @@ static func loot_for(site_kind: int, site_seed: int, wave: int) -> Array[Loot]:
 				add.call({JOURNAL_PAGE: 1}, &"page", "Doc Whitlow's Journal Page", false)
 		Kind.BONEYARD:
 			for i in 3:
-				add.call({&"chitin": _chitin_pile(wave, rng) + 4}, &"chitin", "Chitin", true)
+				add.call({&"scrap": _scrap_pile(wave, rng) + 10}, &"chitin", "Chitin", true)
 			var rare := _rare_part(rng)
 			add.call({rare: 1}, &"part", CraftTable.part_name(rare), false)
 			add.call({&"upgrade_token": 1, &"chitin": 10 + wave}, &"trophy", "Boss Trophy", false)
@@ -277,11 +279,11 @@ static func loot_for(site_kind: int, site_seed: int, wave: int) -> Array[Loot]:
 		Kind.NEST:
 			for i in rng.randi_range(3, 4):
 				add.call({NEST_EGG: rng.randi_range(2, 3)}, &"egg", "Nest Eggs", false)
-			add.call({&"chitin": _chitin_pile(wave, rng)}, &"chitin", "Chitin", true)
+			add.call({&"scrap": _scrap_pile(wave, rng)}, &"chitin", "Chitin", true)
 		Kind.WRECK:
 			for i in 3:
-				add.call({&"scrap": _scrap_pile(wave, rng) * 2}, &"scrap", "Cartload of Scrap", false)
-			add.call({&"scrap": _scrap_pile(wave, rng)}, &"scrap", "Scrap", true)
+				add.call({&"chitin": _chitin_pile(wave, rng) * 2}, &"scrap", "Cartload of Scrap", false)
+			add.call({&"chitin": _chitin_pile(wave, rng)}, &"scrap", "Scrap", true)
 			if rng.randf() < 0.6:
 				var p := CraftTable.random_part(rng)
 				add.call({p: 1}, &"part", CraftTable.part_name(p), false)

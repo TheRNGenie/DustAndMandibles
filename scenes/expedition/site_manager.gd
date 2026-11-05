@@ -298,7 +298,7 @@ func _take(peer: int, site_index: int, slot: int) -> bool:
 	elif l.look == &"specimen":
 		Economy.notify(peer, "A specimen jar for Doc. The airship market pays well for them.")
 	elif l.look == &"trophy":
-		Economy.notify(peer, "A boss trophy: an upgrade token tied to its horn, and %d chitin." % int(l.items.get(&"chitin", 0)))
+		Economy.notify(peer, "A boss trophy: an upgrade token tied to its horn, and %s." % UiStyle.cost(int(l.items.get(&"chitin", 0)), ResNames.PERSONAL_ID))
 	return true
 
 

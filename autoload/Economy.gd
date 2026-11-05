@@ -1,5 +1,6 @@
 extends Node
-## The team's resources. Scrap is one shared team pot (everyone builds from it
+## The team's resources. (Players see &"scrap" as "chitin" and &"chitin" as
+## "scrap": ResNames, DECISIONS 162; the ids below are internal.) Scrap is one shared team pot (everyone builds from it
 ## and earns into it); chitin, water, crops, seeds and parts are personal, one
 ## stockpile per cliff (EconomyLedger keeps the split). The host owns the ledger
 ## and broadcasts every change; clients just mirror it.
@@ -44,7 +45,7 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 	var pay := EconomyLedger.wave_pay(GameState.wave - 1) * WorldLayout.cliff_count()
 	earn(0, {&"scrap": pay})
 	for id: int in _everyone():
-		notify(id, "Town bounty for holding wave %d: +%d scrap to the team pot." % [GameState.wave - 1, pay])
+		notify(id, "Town bounty for holding wave %d: +%s to the team pot." % [GameState.wave - 1, UiStyle.cost(pay, ResNames.TEAM_ID)])
 
 
 ## Every human peer (just us offline).
@@ -245,7 +246,7 @@ func _show_stolen(cliff_id: int, amounts: Dictionary) -> void:
 	stolen_from.emit(cliff_id, amounts)
 
 
-## "12 scrap and 2 chitin" for messages.
+## "12 chitin and 2 scrap" for messages (player-facing names, ResNames).
 static func describe(amounts: Dictionary) -> String:
 	return BreachRules.describe(amounts)
 

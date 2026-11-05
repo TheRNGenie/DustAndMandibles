@@ -77,7 +77,7 @@ func show_run(won: bool, reason: String) -> void:
 		var tb := RunStats.top_bug()
 		if int(tb[1]) > 0:
 			_story("Pest of the Season", "%s, killed %s." % [str(tb[0]), "once" if int(tb[1]) == 1 else "%d times" % int(tb[1])])
-	_story("Scrap Hauled", "%d scrap came off the dead. Smiths report a busy week." % RunStats.scrap)
+	_story("Chitin Hauled", "%s came off the dead. Smiths report a busy week." % UiStyle.cost(RunStats.scrap, ResNames.TEAM_ID))
 	if not won and reason != "":
 		_story("How It Ended", reason)
 

@@ -311,6 +311,6 @@ func _on_phase(p: GameState.Phase) -> void:
 		var line := "Lucky's favour: %s (%s)." % [fav["name"], Economy.describe(fav["gives"])]
 		if f["favour"] == &"bounty":
 			for pid: int in Economy._everyone():
-				Economy.notify(pid, "Lucky's bounty top-up: +%d scrap to the team pot." % int(fav["gives"][&"scrap"]))
+				Economy.notify(pid, "Lucky's bounty top-up: +%s to the team pot." % UiStyle.cost(int(fav["gives"][&"scrap"]), ResNames.TEAM_ID))
 		else:
 			Economy.notify(int(f["peer"]), line)

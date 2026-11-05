@@ -201,7 +201,7 @@ func test_entomb_rule() -> void:
 	assert_false(AmberRules.should_entomb(true, true, 0.1), "bosses never")
 	assert_false(AmberRules.should_entomb(false, false, 0.1), "the dead never")
 	var loot := AmberRules.shatter_loot(1.0)
-	assert_true(int(loot[&"scrap"]) > 0 and int(loot[&"chitin"]) > 0, "a small loot burst")
+	assert_true(int(loot[&"scrap"]) > AmberRules.SHATTER_CHITIN and not loot.has(&"chitin"), "a small loot burst, all to the team pot")
 	assert_true(int(AmberRules.shatter_loot(3.0)[&"scrap"]) > int(loot[&"scrap"]), "bigger bugs, bigger burst")
 	assert_true(AmberRules.STATUE_TIME >= 15.0 and AmberRules.STATUE_TIME <= 40.0)
 

@@ -254,11 +254,11 @@ func _on_bug_killed(bug_name: String, bug_cliff: int, source: String, source_cli
 	var saved := _cliff_owner_name(bug_cliff)
 	var text: String
 	if source_cliff >= 0 and source_cliff != bug_cliff:
-		text = "%s saved %s from %s (+%d scrap to %s)" % [source, saved, _a(bug_name), scrap, saved]
+		text = "%s saved %s from %s (+%s to %s)" % [source, saved, _a(bug_name), UiStyle.cost(scrap, ResNames.TEAM_ID), saved]
 	elif source != "":
-		text = "%s got %s (+%d scrap)" % [source, _a(bug_name), scrap]
+		text = "%s got %s (+%s)" % [source, _a(bug_name), UiStyle.cost(scrap, ResNames.TEAM_ID)]
 	else:
-		text = "%s went down (+%d scrap)" % [bug_name if bug_name.begins_with("The ") else "A " + bug_name, scrap]
+		text = "%s went down (+%s)" % [bug_name if bug_name.begins_with("The ") else "A " + bug_name, UiStyle.cost(scrap, ResNames.TEAM_ID)]
 	var mine := source_cliff == cliff_id or bug_cliff == cliff_id
 	add_line(text, UiStyle.c("title") if mine else UiStyle.c("hud"))
 

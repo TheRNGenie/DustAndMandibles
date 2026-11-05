@@ -45,7 +45,7 @@ func _ready() -> void:
 	col.add_theme_constant_override("separation", 10)
 	_panel.add_child(col)
 
-	# Header: title and how much scrap you have.
+	# Header: title and how much is in the team pot (shown as chitin).
 	var head := HBoxContainer.new()
 	col.add_child(head)
 	var title := UiStyle.title("Build", 30, true) # Theme

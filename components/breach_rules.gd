@@ -23,9 +23,9 @@ static func steal_amounts(d: BugDef) -> Dictionary:
 	return {&"scrap": 4 + int(round(3.0 * d.size)), &"chitin": 1}
 
 
-## "12 scrap and 2 chitin" for messages.
+## "12 chitin and 2 scrap" for messages (player-facing names, see ResNames).
 static func describe(amounts: Dictionary) -> String:
 	var parts: PackedStringArray = []
 	for r: StringName in amounts:
-		parts.append("%d %s" % [int(amounts[r]), String(r)])
+		parts.append("%d %s" % [int(amounts[r]), ResNames.of(r)])
 	return " and ".join(parts)

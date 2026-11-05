@@ -3,7 +3,7 @@ extends RefCounted
 ## The brands a rider takes at the start of each run (pure data and rules, unit
 ## tested; the Brand autoload keeps who chose what and applies them).
 ##   The Sheaf          - farming: bigger harvests, faster growth, fuller buckets, cheaper seeds
-##   The Crossed Irons  - combat: faster reloads, more scrap/chitin per kill, richer bug loot
+##   The Crossed Irons  - combat: faster reloads, more team chitin per kill, richer bug loot
 ##   The Snake Eyes     - gambling: harder hits on bosses, and casino cheats (with a risk of a ban)
 ##   No Brand           - ride clean: no bonuses, the Frontier look
 ## Numbers stay modest (10-25%). Each brand also re-themes the local player's UI
@@ -23,9 +23,9 @@ const WATER_FILL := 0.25 # +25% water per bucket fill (at least +1)
 const SEED_DISCOUNT := 0.20 # seeds cost 20% less scrap
 # --- The Crossed Irons
 const RELOAD := 0.15 # reloads take 15% less time
-const KILL_LOOT := 0.20 # +20% scrap and chitin from bugs you (or your turrets) kill
-const HEAP_LOOT := 0.25 # +25% chitin from bug loot heaps you pick over...
-const HEAP_SCRAP := 3 # ...and a little scrap pried off the shell
+const KILL_LOOT := 0.20 # +20% team-pot pay from bugs you (or your turrets) kill
+const HEAP_LOOT := 0.25 # +25% from bug shell heaps you pick over...
+const HEAP_SCRAP := 3 # ...and a little more pried off the shell
 # --- The Snake Eyes
 const BOSS_DAMAGE := 0.20 # +20% gun and whip damage on bosses
 ## Chance the pit boss catches a cheat, per game; each earlier cheat this wave adds HEAT.
@@ -39,7 +39,7 @@ const BRANDS: Dictionary = {
 	SHEAF: {"name": "The Sheaf", "short": "Sheaf", "motto": "Feed the posse.",
 		"lines": ["+20% crop harvest", "Crops grow 15% faster", "+25% water per bucket fill", "Seeds cost 20% less"]},
 	IRONS: {"name": "The Crossed Irons", "short": "Crossed Irons", "motto": "Shoot first, loot after.",
-		"lines": ["Reload 15% faster", "+20% scrap and chitin per kill", "+25% chitin from bug loot heaps, plus scrap"]},
+		"lines": ["Reload 15% faster", "+20% team chitin per kill", "+25% team chitin from bug shell heaps, plus 3"]},
 	SNAKE: {"name": "The Snake Eyes", "short": "Snake Eyes", "motto": "The house always loses.",
 		"lines": ["+20% damage to bosses", "Cheat at the airship casino: peek, nudge, load the ball, palm an ace, dope a beetle",
 			"Get caught and you're barred from the tables for a wave"]},
@@ -106,7 +106,7 @@ static func reload_mult(id: StringName) -> float:
 	return 1.0 - RELOAD if valid(id) == IRONS else 1.0
 
 
-## A kill's loot {scrap, chitin} when the killer wears the Crossed Irons.
+## A kill's loot (team pot) when the killer wears the Crossed Irons.
 static func kill_loot(loot: Dictionary, killer: StringName) -> Dictionary:
 	if valid(killer) != IRONS:
 		return loot
@@ -119,11 +119,12 @@ static func kill_loot(loot: Dictionary, killer: StringName) -> Dictionary:
 	return out
 
 
-## What looting a bug heap of `chitin` pays: {chitin, scrap}.
-static func heap_loot(chitin: int, id: StringName) -> Dictionary:
+## What looting a bug's shell heap of `shells` pays: all into the team pot
+## (internal &"scrap", shown as chitin: bug pieces, see ResNames).
+static func heap_loot(shells: int, id: StringName) -> Dictionary:
 	if valid(id) != IRONS:
-		return {&"chitin": chitin}
-	return {&"chitin": int(ceil(chitin * (1.0 + HEAP_LOOT))), &"scrap": HEAP_SCRAP}
+		return {&"scrap": shells}
+	return {&"scrap": int(ceil(shells * (1.0 + HEAP_LOOT))) + HEAP_SCRAP}
 
 
 # ------------------------------------------------------------------ gambling

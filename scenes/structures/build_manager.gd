@@ -257,7 +257,7 @@ func _do_build(peer_id: int, id: StringName, cid: int, cell: Vector2i) -> void:
 			return
 	var cost := Perks.build_cost(peer_id, id) # Perk: Bulk Lumber / Barn Raising
 	if _cpu_builder == "" and not Economy.spend(cid, {&"scrap": cost}):
-		Economy.notify(peer_id, "Not enough scrap for a %s (%d)." % [Defs.name_of(id), cost])
+		Economy.notify(peer_id, "Not enough %s for a %s (%d)." % [ResNames.team(), Defs.name_of(id), cost])
 		return
 	if _cpu_builder == "" and not CraftTable.is_item_turret(id):
 		Perks.note_built(peer_id, id) # Perk: Barn Raising used up
@@ -440,7 +440,7 @@ func _do_tier_up(peer_id: int, n: Node3D) -> void:
 	var cost := Defs.tier_up_cost(t.def.id)
 	var payer := Economy.payer_cliff(peer_id, cid)
 	if not Economy.spend(payer, {&"scrap": cost}):
-		Economy.notify(peer_id, "Not enough scrap to step up to a %s (%d)." % [Defs.name_of(next), cost])
+		Economy.notify(peer_id, "Not enough %s to step up to a %s (%d)." % [ResNames.team(), Defs.name_of(next), cost])
 		return
 	var upg := t.tier
 	var frac := t.health.fraction()
@@ -468,7 +468,7 @@ func _do_upgrade(peer_id: int, n: Node3D) -> void:
 	var paid := Economy.amount(payer, Turret.UPGRADE_TOKEN) > 0 and Economy.spend(payer, {Turret.UPGRADE_TOKEN: 1})
 	var chitin := Perks.discount(peer_id, &"chitin_smith", t.upgrade_cost()) # Perk: Chitin Smith
 	if not paid and not Economy.spend(payer, {&"chitin": chitin}):
-		Economy.notify(peer_id, "Upgrading needs %d chitin (armoured bugs and the airship market give it)." % chitin)
+		Economy.notify(peer_id, "Upgrading needs %s (the junk heap by your house and chilies at the airship market give it)." % UiStyle.cost(chitin, ResNames.PERSONAL_ID))
 		return
 	t.upgrade()
 	Economy.notify(peer_id, "%s upgraded: %s." % [t.def.display_name, TurretDef.TIER_NAMES[t.tier]])

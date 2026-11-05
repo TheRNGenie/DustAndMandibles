@@ -38,8 +38,9 @@ func test_irons_combat() -> void:
 	assert_eq(loot[&"scrap"], 6)
 	assert_almost(loot[&"chitin"], 2.4)
 	assert_eq(BrandTable.kill_loot({&"scrap": 5}, BrandTable.SNAKE), {&"scrap": 5})
-	assert_eq(BrandTable.heap_loot(4, BrandTable.IRONS), {&"chitin": 5, &"scrap": BrandTable.HEAP_SCRAP})
-	assert_eq(BrandTable.heap_loot(4, BrandTable.NONE), {&"chitin": 4})
+	# Shell heaps pay the team pot (DECISIONS 162).
+	assert_eq(BrandTable.heap_loot(4, BrandTable.IRONS), {&"scrap": 5 + BrandTable.HEAP_SCRAP})
+	assert_eq(BrandTable.heap_loot(4, BrandTable.NONE), {&"scrap": 4})
 
 
 func test_snake_bosses_and_cheats() -> void:

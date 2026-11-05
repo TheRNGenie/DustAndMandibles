@@ -136,11 +136,11 @@ func has_upkeep() -> bool:
 	return not ammo_cost.is_empty()
 
 
-## "1 chili" / "1 scrap" per shot, for prompts and the catalog.
+## "1 chili" / "1 chitin" (the team pot, ResNames) per shot, for prompts and the catalog.
 func upkeep_text() -> String:
 	var parts: PackedStringArray = []
 	for k: Variant in ammo_cost.keys():
-		parts.append("%d %s" % [int(ammo_cost[k]), String(k).replace("_", " ")])
+		parts.append("%d %s" % [int(ammo_cost[k]), ResNames.of(StringName(k))])
 	return ", ".join(parts)
 
 

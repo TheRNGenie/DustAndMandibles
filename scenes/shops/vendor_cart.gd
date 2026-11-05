@@ -98,7 +98,7 @@ func _refresh_sign() -> void:
 		var trend := "  (high!)" if p > base * 1.15 else ("  (low)" if p < base * 0.85 else "")
 		lines.append("%s ... %s%s" % [NAMES[k], _price_text(k, p), trend])
 	lines.append("")
-	lines.append("SEEDS SOLD (scrap)")
+	lines.append("SEEDS SOLD (team %s)" % ResNames.team())
 	for s: StringName in SEEDS:
 		lines.append("%s ... %d" % [str((SEEDS[s] as Array)[0]), seed_cost(s)])
 	_label.text = "\n".join(lines)
@@ -123,7 +123,7 @@ func menu_title() -> String:
 
 
 func menu_tagline() -> String:
-	return "Chilies and specimen jars sell for chitin, other produce and nest eggs for scrap (prices drop as you sell and recover over time). Seeds cost scrap."
+	return "Chilies and specimen jars sell for your own scrap, other produce and nest eggs for team chitin (prices drop as you sell and recover over time). Seeds cost team chitin."
 
 
 static func _price_text(item: StringName, p: float) -> String:
@@ -201,7 +201,7 @@ func _sell(peer_id: int, item: StringName) -> bool:
 		var info: Array = SEEDS[item]
 		var cost := seed_cost(item)
 		if not Economy.spend(payer, {&"scrap": cost}):
-			Economy.notify(peer_id, "%s cost %d scrap each." % [str(info[0]), cost])
+			Economy.notify(peer_id, "%s cost %s each." % [str(info[0]), UiStyle.cost(cost, ResNames.TEAM_ID)])
 			return false
 		Economy.earn(payer, {item: 1})
 		_ka_ching.rpc()

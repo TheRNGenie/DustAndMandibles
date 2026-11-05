@@ -811,7 +811,7 @@ func hail_airship() -> void:
 		return
 	if not Expedition.is_down(get_multiplayer_authority()):
 		return
-	Economy.notice.emit("You fire a flare at the airship (%d chitin for the haul)..." % ExpeditionRules.AIRSHIP_FARE)
+	Economy.notice.emit("You fire a flare at the airship (%s for the haul)..." % UiStyle.cost(ExpeditionRules.AIRSHIP_FARE, ResNames.PERSONAL_ID))
 	Expedition.request_hail()
 
 

@@ -91,7 +91,7 @@ func test_stat_lines_name_the_special() -> void:
 	var bola := Defs.turret(&"bola_launcher").stat_line()
 	assert_true(bola.contains("Tangles 2 Bugs 3.5 s"), bola)
 	assert_false(bola.contains("Pins"), bola)
-	assert_true(Defs.turret(&"twin_mortar").role_line().contains("Upkeep: 1 chili, 1 scrap a shot"), Defs.turret(&"twin_mortar").role_line())
+	assert_true(Defs.turret(&"twin_mortar").role_line().contains("Upkeep: 1 chili, 1 chitin a shot"), Defs.turret(&"twin_mortar").role_line())
 	# Older turrets keep their plain lines.
 	assert_true(Defs.turret(&"water_cannon").stat_line().contains("Knocks Bugs Off"))
 	assert_true(Defs.turret(&"chili_mortar").stat_line().contains("Burning Patch 3 m"))

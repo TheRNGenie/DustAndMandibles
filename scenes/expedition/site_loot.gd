@@ -61,7 +61,7 @@ func describe() -> String:
 	for k: StringName in loot.items:
 		var n := int(loot.items[k])
 		if k == &"scrap" or k == &"chitin":
-			parts.append("%d %s" % [n, k])
+			parts.append(UiStyle.cost(n, k).to_lower())
 		elif n > 1:
 			parts.append("%d %s" % [n, SitePlan.item_name(k)])
 		else:

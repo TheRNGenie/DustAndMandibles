@@ -140,7 +140,7 @@ func _act(peer_id: int, action: StringName, choice: int, bet: int) -> void:
 		_pay_later(peer_id, {&"scrap": won} if won > 0 else {}, 0.5)
 		var names := ["left", "middle", "right"]
 		_broadcast({"kind": "shell", "phase": "reveal", "peer": peer_id, "pick": pick, "pea": pea, "bet": bet_r, "win": won,
-				"result": ("Under the %s cup! You win %d scrap" % [names[pea], won]) if won > 0 else ("Nope, it was under the %s cup" % names[pea])})
+				"result": ("Under the %s cup! You win %s" % [names[pea], UiStyle.cost(won, ResNames.TEAM_ID)]) if won > 0 else ("Nope, it was under the %s cup" % names[pea])})
 		_round = {}
 		return
 	if action != &"play" and action != &"cheat":

@@ -18,7 +18,7 @@ const TREE_NAMES: Dictionary = {&"gun": "Gunslinger", &"home": "Homesteader", &"
 const TREE_BLURBS: Dictionary = {
 	&"gun": "Irons, aim and the gunsmith.",
 	&"home": "Crops, water, the house and your hide.",
-	&"eng": "Turrets, scaffolds and scrap.",
+	&"eng": "Turrets, scaffolds and the team pot.",
 }
 
 const PERKS: Array[Dictionary] = [
@@ -42,7 +42,7 @@ const PERKS: Array[Dictionary] = [
 	{"id": &"whip_hand", "tree": &"gun", "name": "Whip Hand", "glyph": "whip",
 		"desc": "Bullwhip lashes do {v} more damage.", "per_rank": 0.15, "fmt": "pct", "costs": [15, 30], "owner": "host"},
 	{"id": &"gunsmiths_friend", "tree": &"gun", "name": "Gunsmith's Friend", "glyph": "tag",
-		"desc": "Everything at the gunsmith costs {v} less Chitin.", "per_rank": 0.10, "fmt": "pct",
+		"desc": "Everything at the gunsmith costs {v} less Scrap.", "per_rank": 0.10, "fmt": "pct",
 		"costs": [20, 40], "owner": "host"},
 	{"id": &"starting_iron", "tree": &"gun", "name": "Starting Iron", "glyph": "item:lever_rifle",
 		"desc": "Start every run with a Lever-Action Rifle.", "per_rank": 1.0, "fmt": "", "costs": [30], "owner": "host"},
@@ -81,9 +81,9 @@ const PERKS: Array[Dictionary] = [
 	{"id": &"barn_raising", "tree": &"eng", "name": "Barn Raising", "glyph": "star",
 		"desc": "The first turret you build each run is free.", "per_rank": 1.0, "fmt": "", "costs": [40], "owner": "host"},
 	{"id": &"bulk_lumber", "tree": &"eng", "name": "Bulk Lumber", "glyph": "planks",
-		"desc": "Turrets and structures cost {v} less Scrap.", "per_rank": 0.05, "fmt": "pct", "costs": [20, 40, 65], "owner": "host"},
-	{"id": &"chitin_smith", "tree": &"eng", "name": "Chitin Smith", "glyph": "chevrons",
-		"desc": "Turret upgrades cost {v} less Chitin.", "per_rank": 0.10, "fmt": "pct", "costs": [20, 40], "owner": "host"},
+		"desc": "Turrets and structures cost {v} less Chitin.", "per_rank": 0.05, "fmt": "pct", "costs": [20, 40, 65], "owner": "host"},
+	{"id": &"chitin_smith", "tree": &"eng", "name": "Scrap Smith", "glyph": "chevrons",
+		"desc": "Turret upgrades cost {v} less Scrap.", "per_rank": 0.10, "fmt": "pct", "costs": [20, 40], "owner": "host"},
 	{"id": &"old_scaffolds", "tree": &"eng", "name": "Old Scaffolds", "glyph": "scaffold",
 		"desc": "Start every run with 2 Scaffolds standing on your cliff line.", "per_rank": 1.0, "fmt": "",
 		"costs": [35], "owner": "host"},
@@ -94,18 +94,18 @@ const PERKS: Array[Dictionary] = [
 	{"id": &"reinforced_frames", "tree": &"eng", "name": "Reinforced Frames", "glyph": "bolts",
 		"desc": "Turrets you build have {v} more HP.", "per_rank": 0.10, "fmt": "pct", "costs": [20, 40], "owner": "host"},
 	{"id": &"tinker", "tree": &"eng", "name": "Tinker", "glyph": "wrench",
-		"desc": "Each repair patches {v} more HP for the same Scrap.", "per_rank": 0.20, "fmt": "pct",
+		"desc": "Each repair patches {v} more HP for the same Chitin.", "per_rank": 0.20, "fmt": "pct",
 		"costs": [15, 30], "owner": "host"},
 	{"id": &"salvager", "tree": &"eng", "name": "Salvager", "glyph": "hammer",
-		"desc": "Tearing down gives back {v} more Scrap to the team pot.", "per_rank": 0.15, "fmt": "pct", "costs": [10, 25], "owner": "host"},
+		"desc": "Tearing down gives back {v} more Chitin to the team pot.", "per_rank": 0.15, "fmt": "pct", "costs": [10, 25], "owner": "host"},
 	{"id": &"overtime", "tree": &"eng", "name": "Overtime", "glyph": "moon",
 		"desc": "When a wave ends, turrets you built patch {v} of their HP.", "per_rank": 0.15, "fmt": "pct",
 		"costs": [20, 40], "owner": "host"},
-	{"id": &"scrap_scavenger", "tree": &"eng", "name": "Scrap Scavenger", "glyph": "magnet",
-		"desc": "Kills by turrets you built drop {v} more Scrap for the team pot.", "per_rank": 0.15, "fmt": "pct",
+	{"id": &"scrap_scavenger", "tree": &"eng", "name": "Chitin Scavenger", "glyph": "magnet",
+		"desc": "Kills by turrets you built drop {v} more Chitin for the team pot.", "per_rank": 0.15, "fmt": "pct",
 		"costs": [20, 40], "owner": "host"},
-	{"id": &"scrap_stash", "tree": &"eng", "name": "Scrap Stash", "glyph": "crate",
-		"desc": "Start every run with {v} extra Scrap in the team pot.", "per_rank": 20.0, "fmt": "int", "costs": [15, 30], "owner": "host"},
+	{"id": &"scrap_stash", "tree": &"eng", "name": "Chitin Stash", "glyph": "crate",
+		"desc": "Start every run with {v} extra Chitin in the team pot.", "per_rank": 20.0, "fmt": "int", "costs": [15, 30], "owner": "host"},
 ]
 
 ## Wardrobe items bought with Brands: slot -> {option id: price}. Options not

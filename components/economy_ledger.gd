@@ -3,9 +3,10 @@ extends RefCounted
 ## Pure resource bookkeeping, with no networking, so it can be unit-tested. The
 ## Economy autoload wraps it and syncs it.
 ##
-## Scrap is one shared team pot (kept under the TEAM key): everyone builds from
-## it and every kill, bounty and sale pays into it. Everything else (chitin,
-## water, crops, seeds, parts, crafted turrets) is personal: one stockpile per
+## Scrap (players call it chitin, see ResNames) is one shared team pot (kept
+## under the TEAM key): everyone builds from it and every kill, bounty and sale
+## pays into it. Everything else (chitin, shown as scrap; water, crops, seeds,
+## parts, crafted turrets) is personal: one stockpile per
 ## cliff (one player per cliff). Callers never need to know which is which:
 ## amount / spend / earn on a cliff read and write the right pile.
 
@@ -28,6 +29,34 @@ const WAVE_PAY_PER_WAVE := 5
 ## Scrap each cliff earns the team for holding wave `held` (paid as the next build phase starts).
 static func wave_pay(held: int) -> int:
 	return WAVE_PAY_BASE + WAVE_PAY_PER_WAVE * maxi(held, 0) if held >= 1 else 0
+
+
+# ---- Where the money comes from (DECISIONS 162: players see the team pot as
+# "chitin" and their own stock as "scrap", see ResNames). Bugs are bug pieces:
+# every kill and every shell left on a plateau pays the TEAM pot. The junk heap
+# by the house pays YOUR stock.
+
+## A kill's pay: all of it into the team pot (the bug's base drop plus its shell
+## bonus, which used to be personal chitin; `shell_mult` = weather, e.g. blood moon x2).
+static func kill_pay(scrap_drop: int, chitin_drop: int, shell_mult: float = 1.0) -> Dictionary:
+	return {&"scrap": maxi(scrap_drop, 0) + maxi(roundi(chitin_drop * shell_mult), 0)}
+
+
+## What a shell heap left on the plateau holds (team pot): its shell bonus and size.
+static func shell_pay(chitin_drop: int, size: float) -> int:
+	return maxi(chitin_drop, 1) + int(size)
+
+
+## The junk heap by the house: personal stock for whoever salvages it in the
+## build phase before the next wave. It grows with the waves the way the bugs'
+## shell bonus used to (measured ~0.32-0.45 per bug of wave count per cliff), so
+## a player's own income per wave stays about where it was.
+const HEAP_MIN := 15
+const HEAP_PER_BUG := 0.4
+static func heap_pay(held: int, cfg: WaveConfig = null) -> int:
+	if held < 1 or cfg == null:
+		return HEAP_MIN
+	return maxi(HEAP_MIN, roundi(HEAP_PER_BUG * cfg.bug_count(held)))
 
 
 static func is_shared(res: StringName) -> bool:
