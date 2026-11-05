@@ -78,6 +78,15 @@ vec3 toon_paint(vec3 c, vec3 vcol, float glow) {
 	// their dark strokes inked, so they read at playing distance.
 	float st = paint_strength * ((paint_mode == 1 && ch >= 1) ? 1.7 : 1.0);
 	float ink_at = (paint_mode == 1 && ch >= 1) ? 0.3 : 0.12;
+	if (paint_mode == 1 && paint_skin == 1) {
+		// The Hive Queen: her dark brown lifted to warm gilt, the filigree's
+		// raised scrolls bright gold and its grooves inked, so it reads on the wall.
+		float lum = dot(c, vec3(0.299, 0.587, 0.114));
+		vec3 gilt = mix(vec3(0.55, 0.30, 0.06), vec3(1.0, 0.78, 0.22), smoothstep(0.35, 0.75, l));
+		c = mix(c, gilt * (0.85 + lum * 0.5), 0.8);
+		c = mix(c, vec3(0.169, 0.106, 0.090), smoothstep(0.32, 0.18, l) * 0.6);
+		return c;
+	}
 	c *= max(1.0 + (l * 2.0 - 1.0) * st, 0.3);
 	c = mix(c, vec3(0.169, 0.106, 0.090), smoothstep(ink_at, ink_at - 0.12, l) * min(0.4 * st, 0.75));
 	return c;

@@ -193,7 +193,10 @@ func _item(id: StringName, title: String, icon: Variant, lore: String, stats: St
 		lines.append(UiStyle.keep_together(stats)) # wraps only between stat chunks
 	for t: Variant in tips:
 		lines.append("•  " + str(t))
-	return {"id": id, "name": title, "icon": icon, "desc": "\n".join(lines), "price": price, "price_ok": true}
+	var d := {"id": id, "name": title, "icon": icon, "desc": "\n".join(lines), "price": price, "price_ok": true}
+	if icon is Texture2D and (icon as Texture2D).resource_path.begins_with("res://assets/plates/"):
+		d["icon_px"] = 150.0 # the painted plate, big enough to see
+	return d
 
 
 func menu_press(_id: Variant, _action: StringName) -> void:

@@ -34,6 +34,7 @@ var _snow := 0.0
 ## Weather colour cast (alpha = strength) and fog thickness, eased.
 var _tint := Color(1, 1, 1, 0)
 var _fog_mult := 1.0
+var _base_curve := 1.0
 var _base_fog := -1.0
 ## Lightning: a brief flash added on top of everything.
 var flash := 0.0
@@ -136,7 +137,14 @@ func _process(delta: float) -> void:
 	if env != null:
 		if _base_fog < 0.0:
 			_base_fog = env.fog_density
-		env.fog_density = _base_fog * (1.0 + _storm * 1.6) * _fog_mult * clarity_fog
+			_base_curve = env.fog_depth_curve
+		var thick := (1.0 + _storm * 1.6) * _fog_mult * clarity_fog
+		if env.fog_mode == Environment.FOG_MODE_DEPTH:
+			# Depth fog (World: fully fogged by the far plane): weather thickens it
+			# by bending the curve (a lower power fogs nearer).
+			env.fog_depth_curve = float(env.get_meta(&"base_curve", _base_curve)) / pow(maxf(thick, 0.01), 0.6)
+		else:
+			env.fog_density = _base_fog * thick
 	_apply_now()
 
 
@@ -197,6 +205,7 @@ func _apply_now() -> void:
 	# Golden hour: the haze stays a soft dusty peach, so the low sun reads as
 	# warm light and long violet shadows rather than flooding everything orange.
 	env.fog_light_color = horizon.lerp(Color("#C89A9A"), golden_amount() * 0.45 * (1.0 - _storm))
+	sky.set_shader_parameter("fog_color", env.fog_light_color) # the far ground melts into the sky
 	sky.set_shader_parameter("top_color", top)
 	sky.set_shader_parameter("horizon_color", horizon)
 	# Clouds pick up the light: white by day, warm at dusk, dim blue-grey at night.

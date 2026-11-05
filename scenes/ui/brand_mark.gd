@@ -31,8 +31,32 @@ static func make(id: StringName, px: float = 22.0, ink: Color = Color("#3A2416")
 	return m
 
 
+## The painted brand iron (assets/brands, AI-made with fal.ai nano-banana), or null.
+static func painted(id: StringName) -> Texture2D:
+	var path := "res://assets/brands/%s.png" % BrandTable.valid(id)
+	return load(path) as Texture2D if ResourceLoader.exists(path) else null
+
+
 func _draw() -> void:
 	if brand == &"":
+		return
+	var tex := painted(brand)
+	if tex != null:
+		# The painted iron as a child image (textures drawn straight from _draw came
+		# out blank here), with a hot glow behind it when it's fresh from the fire.
+		var pic := get_node_or_null("Painted") as TextureRect
+		if pic == null:
+			pic = TextureRect.new()
+			pic.name = "Painted"
+			pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			pic.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			add_child(pic)
+		pic.texture = tex
+		pic.modulate = Color.WHITE.lerp(Color(0.8, 0.72, 0.66), 1.0 - clampf(heat + 0.6, 0.0, 1.0))
+		if heat > 0.0:
+			draw_circle(size * 0.5, minf(size.x, size.y) * 0.5, Color(1.0, 0.45, 0.1, 0.22 * heat))
 		return
 	var s := minf(size.x, size.y) / 100.0
 	var o := (size - Vector2.ONE * 100.0 * s) * 0.5
