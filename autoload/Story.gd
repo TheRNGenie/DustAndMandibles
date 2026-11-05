@@ -147,7 +147,7 @@ func _restart_world(cid: String, map: String) -> void:
 	GameState.reset()
 	NetworkManager.map_id = StringName(map)
 	MapDef.select(NetworkManager.map_id)
-	get_tree().change_scene_to_file.call_deferred(NetworkManager.WORLD_SCENE)
+	SceneFade.go(NetworkManager.WORLD_SCENE)
 
 
 ## Every peer, when a chapter ends: books it in this player's own progress and

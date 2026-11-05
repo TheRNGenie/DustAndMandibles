@@ -33,6 +33,9 @@ var map_id: StringName = MapDef.CANYON
 ## CPU teammate quality: -1 off, 0 Low, 1 Medium, 2 High. Host sets it in the
 ## lobby; CPUs fill every empty cliff when there's room (see has_cpu).
 var cpu_quality := -1
+## Solo (main menu: Story/Endless > Solo): hosted directly, nobody can join,
+## and the lobby starts as soon as you ready up.
+var solo := false
 const CPU_QUALITY_NAMES := ["Low", "Medium", "High"]
 var local_name: String = "Rancher"
 var _peer: MultiplayerPeer
@@ -133,7 +136,9 @@ func host(port: int = DEFAULT_PORT) -> Error:
 	_host_port = port
 	var peer: MultiplayerPeer = null
 	direct.fallback_note = _offline_note
-	if online != null and not wants_online():
+	if solo:
+		direct.fallback_note = ""
+	elif online != null and not wants_online():
 		direct.fallback_note = "Direct game (Host via: Direct). Pick Online in the menu for an Epic lobby."
 	elif online != null:
 		online.player_name = local_name
@@ -154,6 +159,8 @@ func host(port: int = DEFAULT_PORT) -> Error:
 		_backend = direct
 	_peer = peer
 	multiplayer.multiplayer_peer = peer
+	if solo:
+		peer.refuse_new_connections = true # a solo game: no riders join
 	players = {1: {"name": local_name, "cliff": 0, "ready": false}}
 	players_changed.emit()
 	invite_changed.emit()
@@ -529,6 +536,8 @@ func _apply_ready(id: int, value: bool) -> void:
 	var need := max_players()
 	if GameState.flag_value("--players") != "":
 		need = clampi(int(GameState.flag_value("--players")), 1, max_players())
+	if solo:
+		need = 1 # solo: readying up rides out
 	if all_ready() and players.size() >= need:
 		start_game()
 
@@ -564,7 +573,7 @@ func _start_game(id: String = "canyon") -> void:
 	LoadTimes.begin("world")
 	map_id = StringName(id)
 	MapDef.select(map_id)
-	get_tree().change_scene_to_file.call_deferred(WORLD_SCENE)
+	SceneFade.go(WORLD_SCENE) # fade to black, then load the world
 
 
 # ------------------------------------------------------------------ client side

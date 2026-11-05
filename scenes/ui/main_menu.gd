@@ -34,6 +34,12 @@ var _cinematic: MenuCinematic
 var _brand_row: HBoxContainer
 var _roster_box: VBoxContainer
 var _story: StoryScreen
+## Menu pages inside the connect box: &"home", &"mode", &"coop".
+var _pages: Dictionary = {}
+var _mode := &"" ## &"story" or &"endless": what Solo / Co-op start
+var _mode_title: Label
+var _mode_note: Label
+var _run_pick: OptionButton ## Endless lobby: a new run, or the saved one
 
 
 func _ready() -> void:
@@ -43,6 +49,7 @@ func _ready() -> void:
 	WorldPreload.release() # (back from a game: it has let go of what it used)
 	GameState.tutorial = false # back from the tutorial (or never in it)
 	Story.chapter_id = "" # Story: back from a chapter (a lobby's host picks again)
+	NetworkManager.solo = false # (picked again on the Solo / Co-op page)
 	# [Foundation] --continue (tests): resume the saved run on the automatic start.
 	if GameState.has_flag("--continue"):
 		RunSave.pending = RunSave.read()
@@ -94,6 +101,7 @@ func _ready() -> void:
 	else:
 		_show_connect(NetworkManager.menu_message) # e.g. why the last game ended
 		NetworkManager.menu_message = ""
+	_debug_page()
 	LoadTimes.mark("menu _ready done")
 	LoadTimes.watch_frames(20)
 	if LoadTimes.auto and (first or LoadTimes.again): # --loadtest: host after the menu settles, start a moment later
@@ -193,66 +201,12 @@ func _build_ui() -> void:
 	_connect_box = VBoxContainer.new()
 	_connect_box.add_theme_constant_override("separation", 10)
 	col.add_child(_connect_box)
-	# Game modes: Endless (the original run), Story and Tutorial, then joining a friend.
-	_connect_box.add_child(UiStyle.section("Game Modes"))
-	var host_btn := _button("Endless")
-	host_btn.tooltip_text = "The original game: hold the canyon wave after wave for as long as you can. Solo, with a CPU partner or with friends."
-	host_btn.pressed.connect(func() -> void:
-		RunSave.pending = {}
-		Story.chapter_id = ""
-		_on_host())
-	_connect_box.add_child(host_btn)
-	# [Foundation] Continue the autosaved Endless run (host it; start alone, with a CPU, or wait for a partner).
-	var saved := RunSave.read()
-	if not saved.is_empty():
-		var cont := _button("Continue Endless (Wave %d)" % int(saved["wave"]))
-		cont.pressed.connect(func() -> void: _on_continue())
-		_connect_box.add_child(cont)
-	# Story: chapter select (StoryScreen).
-	var story_btn := _button("Story")
-	story_btn.tooltip_text = "Chapters of the Dry Gulch story, solo or with friends."
-	story_btn.pressed.connect(func() -> void: _story.open())
-	_connect_box.add_child(story_btn)
-	# Tutorial: a short guided solo run on the canyon (TutorialRun).
-	var tut_btn := _button("Tutorial")
-	tut_btn.tooltip_text = "A guided practice game that teaches the basics. Not saved."
-	tut_btn.pressed.connect(_on_tutorial)
-	_connect_box.add_child(tut_btn)
-	# Join a friend's game, whatever mode they're hosting.
-	_connect_box.add_child(UiStyle.section("Play With Friends"))
-	# Online (Epic lobby, works anywhere) or Direct (IP/LAN): the way out when online misbehaves.
-	if NetworkManager.online != null:
-		var via := OptionButton.new()
-		via.focus_mode = Control.FOCUS_NONE
-		via.add_item("Online (%s)" % NetworkManager.online.backend_name())
-		via.add_item("Direct (IP/LAN)")
-		via.selected = 0 if Settings.host_online else 1
-		via.item_selected.connect(func(i: int) -> void:
-			Settings.host_online = i == 0
-			Settings.save_settings())
-		_connect_box.add_child(UiStyle.row("Host via", via))
-	var row := HBoxContainer.new()
-	_ip_edit = _line_edit("Invite code (DUST-...) or host IP", "")
-	_ip_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_port_edit = _line_edit("Port", str(NetworkManager.DEFAULT_PORT))
-	_port_edit.custom_minimum_size.x = 90
-	row.add_child(_ip_edit)
-	row.add_child(_port_edit)
-	_connect_box.add_child(row)
-	var join_btn := _button("Join Game")
-	join_btn.pressed.connect(_on_join)
-	_connect_box.add_child(join_btn)
-	_connect_box.add_child(UiStyle.section("Ranch"))
-	_connect_box.add_child(_ledger_button()) # Perk
-	var secrets_btn := _button("Secrets") # Theme: code entry for secret cosmetics
-	secrets_btn.pressed.connect(func() -> void: _secrets.open())
-	_connect_box.add_child(secrets_btn)
-	var settings_btn := _button("Settings")
-	settings_btn.pressed.connect(func() -> void: _settings.open())
-	_connect_box.add_child(settings_btn)
-	var quit_btn := _button("Quit")
-	quit_btn.pressed.connect(func() -> void: get_tree().quit())
-	_connect_box.add_child(quit_btn)
+	# The menu's pages (Logan): Home (Story, Endless, Tutorial, Settings, Secrets),
+	# then for Story/Endless: Solo or Co-op, then Co-op: host or join a friend.
+	_build_home()
+	_build_mode_page()
+	_build_coop_page()
+	_page(&"home")
 
 	_lobby_box = VBoxContainer.new()
 	_lobby_box.add_theme_constant_override("separation", 6)
@@ -315,6 +269,11 @@ func _build_ui() -> void:
 	_map_label.theme_type_variation = "SoftInkLabel"
 	map_col.add_child(_map_label)
 	_lobby_box.add_child(_map_card)
+	# Endless: a new run, or carry on with the saved one ([Foundation] RunSave).
+	_run_pick = OptionButton.new()
+	_run_pick.focus_mode = Control.FOCUS_NONE
+	_run_pick.item_selected.connect(_on_run_pick)
+	_lobby_box.add_child(_run_pick)
 	_map_pick = OptionButton.new()
 	_map_pick.focus_mode = Control.FOCUS_NONE
 	for id: StringName in MapDef.IDS:
@@ -407,6 +366,164 @@ func _build_ui() -> void:
 			get_tree().quit())
 
 
+# ------------------------------------------------------------------ menu pages
+
+## Debug screenshots of the menu pages: --menupage=story|endless|coop|solo
+## (solo = Endless > Solo's lobby), --pageshot=<png> saves after 3 s and quits.
+func _debug_page() -> void:
+	if not GameState.debug_enabled():
+		return
+	match GameState.flag_value("--menupage"):
+		"story", "endless":
+			_open_mode(StringName(GameState.flag_value("--menupage")))
+		"coop":
+			_open_mode(&"endless")
+			_page(&"coop")
+		"solo":
+			_open_mode(&"endless")
+			await _on_solo()
+			if GameState.has_flag("--soloready"): # ready up: the solo game should start (and fade)
+				_brands.visible = false
+				_ready_btn.button_pressed = true
+	var shot := GameState.flag_value("--pageshot")
+	if shot != "":
+		get_tree().create_timer(3.0).timeout.connect(func() -> void:
+			get_viewport().get_texture().get_image().save_png(shot)
+			get_tree().quit())
+
+
+func _new_page(id: StringName) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	_connect_box.add_child(v)
+	_pages[id] = v
+	return v
+
+
+func _page(id: StringName) -> void:
+	for k: StringName in _pages:
+		(_pages[k] as Control).visible = k == id
+
+
+## Home: the five choices, top to bottom (then Quit).
+func _build_home() -> void:
+	var home := _new_page(&"home")
+	var story_btn := _button("Story")
+	story_btn.tooltip_text = "Chapters of the Dry Gulch story, solo or with friends."
+	story_btn.pressed.connect(_open_mode.bind(&"story"))
+	home.add_child(story_btn)
+	var endless_btn := _button("Endless")
+	endless_btn.tooltip_text = "Hold the canyon wave after wave for as long as you can."
+	endless_btn.pressed.connect(_open_mode.bind(&"endless"))
+	home.add_child(endless_btn)
+	var tut_btn := _button("Tutorial")
+	tut_btn.tooltip_text = "A guided practice game that teaches the basics. Not saved."
+	tut_btn.pressed.connect(_on_tutorial)
+	home.add_child(tut_btn)
+	var settings_btn := _button("Settings")
+	settings_btn.pressed.connect(func() -> void: _settings.open())
+	home.add_child(settings_btn)
+	var secrets_btn := _button("Secrets") # Theme: code entry for secret cosmetics
+	secrets_btn.pressed.connect(func() -> void: _secrets.open())
+	home.add_child(secrets_btn)
+	var quit_btn := _button("Quit")
+	quit_btn.custom_minimum_size.y = 40
+	quit_btn.add_theme_font_size_override("font_size", UiStyle.ts(17))
+	quit_btn.pressed.connect(func() -> void: get_tree().quit())
+	home.add_child(quit_btn)
+
+
+## Story or Endless: Solo or Co-op.
+func _build_mode_page() -> void:
+	var page := _new_page(&"mode")
+	_mode_title = UiStyle.title("", 30)
+	page.add_child(_mode_title)
+	_mode_note = _label("", 15, Color(0, 0, 0, 0))
+	_mode_note.theme_type_variation = "SoftInkLabel"
+	_mode_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_mode_note.custom_minimum_size.x = 1
+	page.add_child(_mode_note)
+	var solo_btn := _button("Solo")
+	solo_btn.tooltip_text = "Just you (Endless can add CPU partners)."
+	solo_btn.pressed.connect(_on_solo)
+	page.add_child(solo_btn)
+	var coop_btn := _button("Co-op")
+	coop_btn.tooltip_text = "Host a game for friends, or join theirs."
+	coop_btn.pressed.connect(func() -> void:
+		NetworkManager.solo = false
+		_page(&"coop"))
+	page.add_child(coop_btn)
+	page.add_child(_back_button(&"home"))
+
+
+## Co-op: host (Online or Direct) or join a friend's game.
+func _build_coop_page() -> void:
+	var page := _new_page(&"coop")
+	page.add_child(UiStyle.section("Host a Game"))
+	# Online (Epic lobby, works anywhere) or Direct (IP/LAN): the way out when online misbehaves.
+	if NetworkManager.online != null:
+		var via := OptionButton.new()
+		via.focus_mode = Control.FOCUS_NONE
+		via.add_item("Online (%s)" % NetworkManager.online.backend_name())
+		via.add_item("Direct (IP/LAN)")
+		via.selected = 0 if Settings.host_online else 1
+		via.item_selected.connect(func(i: int) -> void:
+			Settings.host_online = i == 0
+			Settings.save_settings())
+		page.add_child(UiStyle.row("Host via", via))
+	var host_btn := _button("Host")
+	host_btn.tooltip_text = "Open a lobby and send your invite code to friends."
+	host_btn.pressed.connect(_start_mode)
+	page.add_child(host_btn)
+	page.add_child(UiStyle.section("Join a Friend"))
+	var row := HBoxContainer.new()
+	_ip_edit = _line_edit("Invite code (DUST-...) or host IP", "")
+	_ip_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_port_edit = _line_edit("Port", str(NetworkManager.DEFAULT_PORT))
+	_port_edit.custom_minimum_size.x = 90
+	row.add_child(_ip_edit)
+	row.add_child(_port_edit)
+	page.add_child(row)
+	var join_btn := _button("Join Game")
+	join_btn.tooltip_text = "Join whatever your friend is hosting, Story or Endless."
+	join_btn.pressed.connect(_on_join)
+	page.add_child(join_btn)
+	page.add_child(_back_button(&"mode"))
+
+
+func _back_button(to: StringName) -> Button:
+	var b := _button("Back")
+	b.custom_minimum_size.y = 40
+	b.add_theme_font_size_override("font_size", UiStyle.ts(17))
+	b.pressed.connect(func() -> void:
+		_status.text = ""
+		_page(to))
+	return b
+
+
+func _open_mode(mode: StringName) -> void:
+	_mode = mode
+	_mode_title.text = "Story" if mode == &"story" else "Endless"
+	_mode_note.text = "The Dry Gulch story, chapter by chapter." if mode == &"story" 			else "Hold the canyon wave after wave for as long as you can."
+	_status.text = ""
+	_page(&"mode")
+
+
+func _on_solo() -> void:
+	NetworkManager.solo = true
+	await _start_mode()
+
+
+## Solo or Co-op host: Story picks a chapter first; Endless goes to its lobby.
+func _start_mode() -> void:
+	if _mode == &"story":
+		_story.open()
+		return
+	RunSave.pending = {}
+	Story.chapter_id = ""
+	await _on_host()
+
+
 # Perk: opens the Rancher's Ledger (perks, loadout, wardrobe items).
 func _ledger_button() -> Button:
 	var b := _button("Rancher's Ledger")
@@ -422,7 +539,7 @@ func _on_tutorial() -> void:
 	NetworkManager.cpu_quality = -1
 	NetworkManager.map_id = MapDef.CANYON
 	GameState.tutorial = true
-	get_tree().change_scene_to_file(NetworkManager.WORLD_SCENE)
+	SceneFade.go(NetworkManager.WORLD_SCENE)
 
 
 ## --tutorialrun / --tutorialstep=N (tests, screenshots) start the tutorial at once.
@@ -472,6 +589,39 @@ func _on_story(cid: String) -> void:
 	var ch := Story.chapter()
 	_status.text = "Chapter %d: %s. Start alone, or send your invite code to your posse." % [ch.number, ch.title]
 	_refresh()
+
+
+## Endless lobby (host): New Run, or Continue Run (Wave N) when there's a save.
+func _refresh_run_pick() -> void:
+	var saved := RunSave.read()
+	_run_pick.visible = multiplayer.is_server() and NetworkManager.is_online() and not Story.active() 			and not saved.is_empty()
+	if not _run_pick.visible:
+		return
+	_run_pick.clear()
+	_run_pick.add_item("New Run")
+	_run_pick.add_item("Continue Run (Wave %d)" % int(saved["wave"]))
+	_run_pick.selected = 0 if RunSave.pending.is_empty() else 1
+
+
+func _on_run_pick(i: int) -> void:
+	if i == 1:
+		_use_saved_run()
+	else:
+		RunSave.pending = {}
+		_status.text = "A new run. Ready up when you're set."
+	_refresh()
+
+
+## Host: the lobby will start the saved run from its saved wave.
+func _use_saved_run() -> void:
+	var saved := RunSave.read()
+	if saved.is_empty():
+		return
+	RunSave.pending = saved
+	NetworkManager.set_map(StringName(str(saved.get("map", "canyon")))) # Maps: the saved run's map
+	if int(saved["cpu_quality"]) >= 0:
+		NetworkManager.set_cpu(int(saved["cpu_quality"]))
+	_status.text = "Continuing your run at wave %d." % int(saved["wave"])
 
 
 ## [Foundation] Host the saved run: the lobby starts it from its saved wave.
@@ -548,7 +698,7 @@ func _show_lobby(message: String) -> void:
 func _refresh_invite() -> void:
 	if _invite_card == null:
 		return
-	_invite_card.visible = NetworkManager.is_online() and multiplayer.is_server()
+	_invite_card.visible = NetworkManager.is_online() and multiplayer.is_server() and not NetworkManager.solo
 	var code := NetworkManager.invite_code()
 	var pending := code == "..." # the online lobby is still being made
 	if NetworkManager.in_online_lobby():
@@ -580,7 +730,9 @@ func _refresh() -> void:
 		lines.append("(waiting for a partner...)" if waiting == 1 else "(room for %d more...)" % waiting)
 	_roster.text = "\n".join(lines)
 	_fill_roster()
-	_solo_btn.visible = multiplayer.is_server() and NetworkManager.is_online()
+	_solo_btn.visible = multiplayer.is_server() and NetworkManager.is_online() and not NetworkManager.solo
+	_ready_btn.text = "Ready Up and Ride Out" if NetworkManager.solo else "Ready"
+	_refresh_run_pick()
 	var cpus := NetworkManager.cpu_cliffs().size() if NetworkManager.has_cpu() else 0
 	_solo_btn.text = ("Start With CPU Partner" if cpus == 1 else "Start With %d CPU Teammates" % cpus) if cpus > 0 else "Start Alone (Testing)"
 	_cpu_pick.visible = multiplayer.is_server()
