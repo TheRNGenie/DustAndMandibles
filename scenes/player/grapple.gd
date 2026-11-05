@@ -160,6 +160,8 @@ func physics(delta: float) -> bool:
 			_launch(Mode.PULL)
 		elif Input.is_action_just_pressed("alt_fire"):
 			_launch(Mode.SWING)
+	if mode != Mode.NONE and not _follow_bird(delta):
+		return false
 	match mode:
 		Mode.PULL:
 			return _pull(delta)
@@ -197,6 +199,14 @@ func _launch(new_mode: Mode) -> void:
 	Audio.play_at(&"harpoon", from, -6.0)
 	_cd = COOLDOWN
 	_fresh_hook = true
+	_bird = null
+	# Logan: a circling vulture can be hooked too, if it's nearer than the rock.
+	var life := _canyon_life()
+	if life != null:
+		var v: Array = life.call("hook_vulture", from, from - cam.global_transform.basis.z * RANGE)
+		if not v.is_empty() and (hit.is_empty() or float(v[1]) < from.distance_to(hit["position"])):
+			_bird = v[0]
+			hit = {"position": (_bird as Node3D).global_position, "collider": null}
 	if hit.is_empty():
 		Economy.notice.emit("Nothing to hook onto there (range %d m)." % int(RANGE))
 		return
@@ -214,6 +224,33 @@ func _launch(new_mode: Mode) -> void:
 	# Hooked on the way down into the canyon: the rope's got you, no more fall.
 	player.cancel_fall()
 	_show_rope.rpc(anchor)
+
+
+## The vulture the hook is in (it flies off with you), or null.
+var _bird: Node3D = null
+var _bird_sync := 0.0
+
+
+func _canyon_life() -> Node:
+	var v: Node = Turret.vfx
+	return v.get("canyon_life") as Node if v != null and is_instance_valid(v) else null
+
+
+## Hooked on a vulture: the anchor rides with it; it's shot down, the rope lets go.
+func _follow_bird(delta: float) -> bool:
+	if _bird == null:
+		return true
+	var life := _canyon_life()
+	if not is_instance_valid(_bird) or life == null or not bool(life.call("vulture_flying", _bird)):
+		_bird = null
+		_release()
+		return false
+	anchor = _bird.global_position
+	_bird_sync -= delta
+	if _bird_sync <= 0.0:
+		_bird_sync = 0.2
+		_show_rope.rpc(anchor) # (partners see the rope follow the bird)
+	return true
 
 
 static func _on_airship(n: Node) -> bool:
@@ -297,6 +334,7 @@ func _swing(delta: float) -> bool:
 
 func _release() -> void:
 	_harpoon = false
+	_bird = null
 	if mode == Mode.NONE:
 		return
 	mode = Mode.NONE

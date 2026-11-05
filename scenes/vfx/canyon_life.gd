@@ -64,12 +64,36 @@ func _process(delta: float) -> void:
 			_test_t = -1.0
 			var at := (_vultures[0]["node"] as Node3D).global_position
 			print("[birds] test shot hit: ", shoot(at + Vector3(0, -30, 0), at + Vector3(0, 30, 0)))
+	if GameState.has_flag("--hookbird") and _test_t >= 0.0 and not GameState.has_flag("--shootbird"):
+		_test_t += delta # (debug: hook the first vulture with the local grapple, log the ride)
+		if _test_t > 4.0 and not _vultures.is_empty():
+			_test_t = -1.0
+			_hook_test()
 	if cliffs == null:
 		return
 	_update_weeds(delta)
 	_update_vultures(delta)
 	_update_devil(delta)
 	_update_birds(delta)
+
+
+func _hook_test() -> void:
+	var me: Node = null
+	for p: Node in get_tree().get_nodes_in_group("players"):
+		if p.is_multiplayer_authority():
+			me = p
+	if me == null:
+		return
+	var g: Node = me.get("grapple")
+	var bird := _vultures[0]["node"] as Node3D
+	me.call("hotbar_use_grapple")
+	g.set("test_mode", true)
+	g.set("_bird", bird)
+	g.call("attach", 1, bird.global_position) # Mode.PULL (test_mode holds it)
+	var start: Vector3 = (me as Node3D).global_position
+	for i in 6:
+		await get_tree().create_timer(0.5).timeout
+		print("[birds] hooked: mode %s, player moved %.1f m, rope to bird %.1f m" % [str(g.get("mode")), (me as Node3D).global_position.distance_to(start), (me as Node3D).global_position.distance_to(bird.global_position)])
 
 
 static func _wind() -> float:
@@ -274,6 +298,36 @@ func _update_falling_vulture(v: Dictionary, delta: float) -> bool:
 		root.visible = true
 		root.rotation = Vector3.ZERO
 	return true
+
+
+## Grapple (Logan): the first circling vulture the hook's line passes close to,
+## as [node, distance along the line], or [] if none. Each player's sky is
+## their own, so this is local, like shooting them.
+func hook_vulture(from: Vector3, to: Vector3) -> Array:
+	var seg := to - from
+	var seg_len := seg.length()
+	if seg_len < 0.5:
+		return []
+	var dir := seg / seg_len
+	var best := seg_len
+	var got: Node3D = null
+	for v in _vultures:
+		if v.has("down_t"):
+			continue
+		var at := (v["node"] as Node3D).global_position
+		var t := clampf((at - from).dot(dir), 0.0, seg_len)
+		if t < best and (from + dir * t).distance_to(at) < 2.2:
+			best = t
+			got = v["node"] as Node3D
+	return [got, best] if got != null else []
+
+
+## Is this vulture still up in the sky (not shot down)?
+func vulture_flying(node: Node3D) -> bool:
+	for v in _vultures:
+		if v["node"] == node:
+			return not v.has("down_t") and node.visible
+	return false
 
 
 ## A shot along from -> to: knocks down the first vulture or bird it passes
