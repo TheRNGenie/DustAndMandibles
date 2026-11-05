@@ -450,7 +450,7 @@ func show_finish() -> void:
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 4)
 	for line: String in ["Your Turrets Fire Across the Canyon", "Your Lever Starts the Pumps and the Wave",
-			"Plant, Water and Harvest; Sell Crops Up on the Airship", "Scrap for the Team, Chitin for Your Guns",
+			"Plant, Water and Harvest; Sell Crops Up on the Airship", "Chitin for the Team, Scrap for Your Guns",
 			"House Upgrades at the Ledger, Turrets Crafted at the Workshop"]:
 		list.add_child(UiStyle.status(line, "good", 15))
 	col.add_child(list)
