@@ -132,3 +132,10 @@ func test_rope_ride_eases_in_and_out() -> void:
 	assert_almost(ExpeditionRules.ride_ease(0.5), 0.5)
 	assert_true(ExpeditionRules.ride_ease(0.1) < 0.1, "a gentle start")
 	assert_almost(ExpeditionRules.RIDE_TIME, 8.0, 0.001, "about eight seconds on the rope")
+
+
+func test_only_story_opens_the_canyon_floor() -> void:
+	assert_true(ExpeditionApi.floor_open_for(true, false), "a Story chapter has the floor")
+	assert_false(ExpeditionApi.floor_open_for(false, false), "Endless has no floor")
+	assert_false(ExpeditionApi.floor_open_for(false, true), "the Tutorial has no floor")
+	assert_false(ExpeditionApi.floor_open(), "no autoloads (tests): closed")

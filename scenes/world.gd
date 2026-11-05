@@ -85,10 +85,13 @@ func _ready() -> void:
 	LoadTimes.mark("add ambience")
 	# Canyon Expeditions: the raid sites on the canyon floor (a Story chapter's
 	# own set piece keeps its tunnel to itself).
-	SitePlan.skip_tunnels = StoryDirector.reserved_tunnels(cliffs)
-	var sites := SiteManager.new()
-	sites.name = "Sites"
-	add_child(sites)
+	# Endless and the Tutorial have no canyon floor to raid (Logan): no sites,
+	# no floor loot, no sleepers; only a Story chapter opens it.
+	if ExpeditionApi.floor_open():
+		SitePlan.skip_tunnels = StoryDirector.reserved_tunnels(cliffs)
+		var sites := SiteManager.new()
+		sites.name = "Sites"
+		add_child(sites)
 	LoadTimes.mark("add sites")
 	var pickups := PickupManager.new()
 	pickups.name = "Pickups"

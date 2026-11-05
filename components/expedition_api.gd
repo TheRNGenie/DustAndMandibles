@@ -27,6 +27,25 @@ class NoiseRelay:
 	signal noise(pos: Vector3, radius: float)
 
 
+## Rule (Logan): only a Story chapter opens the canyon floor. Endless and the
+## Tutorial have no rope winch, no raid sites, no floor loot and no floor bugs.
+static func floor_open_for(story_active: bool, tutorial: bool) -> bool:
+	return story_active and not tutorial
+
+
+## The rule for this run, read from the Story and GameState autoloads by name
+## (closed when they aren't there, e.g. unit tests).
+static func floor_open() -> bool:
+	var loop := Engine.get_main_loop() as SceneTree
+	if loop == null or loop.root == null:
+		return false
+	var story := loop.root.get_node_or_null("Story")
+	var gs := loop.root.get_node_or_null("GameState")
+	var active := story != null and bool(story.call("active"))
+	var tut := gs != null and bool(gs.get("tutorial"))
+	return floor_open_for(active, tut)
+
+
 static func core() -> Node:
 	var loop := Engine.get_main_loop() as SceneTree
 	if loop == null or loop.root == null:

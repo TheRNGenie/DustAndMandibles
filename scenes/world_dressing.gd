@@ -203,7 +203,8 @@ func _build_homestead_area(cid: int) -> void:
 	parent.add_child(home)
 
 	_build_waterworks(cid)
-	_build_rope_anchor(cid)
+	if ExpeditionApi.floor_open():
+		_build_rope_anchor(cid) # no winch where there is no floor to go down to
 
 	# Starter farm field beside the house: 3 x 4 plots on the grid (2 x 2 cells each),
 	# the 3-plot side along the house front, rows running toward the canyon.
