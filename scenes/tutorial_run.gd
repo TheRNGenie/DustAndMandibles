@@ -1,64 +1,58 @@
 class_name TutorialRun
 extends Node
 ## The tutorial (main menu > Tutorial): an offline solo run on the canyon that
-## walks through the core loop in about five minutes, one short card at a time
-## (TutorialCard), with a marker on the thing to look at and a tick when each
-## step is done. Steps: find your feet, shoot practice Dust Mites on your
-## partner's wall, the cross-cliff idea (a coverage cone), build a Gatling Post,
-## sell it and build it again, throw your lever, hold a tiny scripted wave, fill
-## your bucket and water a seedling, the airship's gunsmith and market, the
-## Workshop. Then "You're Ready": Back to Menu or Keep Playing.
+## walks through the game one short card at a time (TutorialCard), with a marker
+## on the thing to look at and a tick when each step is done. Hands-on steps
+## (move, shoot, build, sell, the lever, the wave, farming, the grapple, the
+## market, the house upgrades, the Workshop) tick off from what you actually do;
+## reading cards (guns, turret kinds, weather, scrap and chitin, gun upgrades)
+## carry on with Enter once they've been up a moment. Then "You're Ready": Back
+## to Menu or Keep Playing.
 ##
 ## Safe by design: Homesteads take no damage while it runs (GameState.god_mode),
 ## the first wave is six slow Dust Mites (wave_plan), and with GameState.tutorial
 ## set the run is never saved (RunSaver) and pays no Notches (Perks). Finishing
-## marks Settings.tutorial_done so the first-wave hint cards stay away.
+## marks Settings.tutorial_done so the first-wave hint cards stay away. The
+## tutorial hands out what its steps need (scrap, a seed, corn, the house money,
+## three turret parts), and grows its one crop fast.
 ##
-## Test flags: --tutorialstep=N starts at step N (screenshots), --tutorialrun
-## does every step by itself and quits at the end (smoke test), and
-## --tutorialshot=<png> saves a screenshot --seconds (default 5) after the
-## starting step shows, then quits.
+## Test flags: --tutorialstep=N (or a step's name, e.g. =house) starts at that
+## step, --tutorialrun does every step by itself (from that step) and quits at
+## the end (smoke test; --tutorialstay keeps the game open after),
+## --tutorialshots=<dir> saves a screenshot of every card and every tick along
+## the way, and --tutorialshot=<png> saves one screenshot --seconds (default 5)
+## after the starting step shows, then quits (--tutorialaim points the camera
+## near the step's marker for it).
 
-enum Step { MOVE, SHOOT, IDEA, BUILD, SELL, LEVER, WAVE, WATER, AIRSHIP, WORKSHOP, DONE }
-
-## The practice bug and the wave's bug: a Dust Mite at 60% speed (Defs.bug).
+const Step := TutorialPlan.Step
+const STEPS := TutorialPlan.STEPS
 const SLOW_MITE := TutorialPlan.SLOW_MITE
 const PRACTICE := 3
-## Seconds a "look at it" step needs the marker near the middle of the screen.
-const DWELL := 1.2
+const DWELL := TutorialPlan.DWELL
+const LOOK_MIN := TutorialPlan.LOOK_MIN
+const READ_MIN := TutorialPlan.READ_MIN
 ## Seconds before a stuck step offers a skip.
 const SKIP_AFTER := 45.0
 ## Seconds the finished card stays (all ticked) before the next one.
 const TICK_HOLD := 1.3
 ## Scrap the tutorial makes sure you have (two Gatling Posts and change).
 const SCRAP_FLOOR := 160
+## What --tutorialrun puts up in the Gatling Post's place on the sell step.
+const SWAP_TURRET := &"gatling_post"
+## Logan: the first turret is a rifle nest, sold for the Gatling Post.
+const FIRST_TURRET := &"buffalo_rifle"
+## Keep Playing: this much of every resource, and the CPU partner's share of the pot.
+const KEEP_PLAYING_GIFT := 10000
+## Seconds of quiet before a different character speaks (Logan).
+const SPEAKER_GAP := 2.0
+const KEEP_PLAYING_CPU_SHARE := 0.2
+## The farm step's crop grows this many times faster (corn in about eight seconds).
+const GROW_FAST := 15.0
+## Seconds on the rope that count as a swing or a reel.
+const ROPE_TIME := 0.35
+const HOUSE_UPGRADES := TutorialPlan.HOUSE_UPGRADES
+const PARTS := TutorialPlan.PARTS
 
-## Per step: card title and body (short), the sub-tasks ticked off one by one,
-## the keys shown ([action, words]; "accept" is Enter / pad A), the marker's
-## caption, and whether looking at the marker finishes it.
-const STEPS: Array[Dictionary] = [
-	{"title": "Find Your Feet", "body": "This is your homestead on the West Cliff. Walk about and have a look round.",
-		"tasks": ["Walk a Few Steps", "Look Around"], "keys": [["move", "Move"], ["jump", "Jump"], ["sprint", "Sprint"]]},
-	{"title": "Shoot the Dust Mites", "body": "Practice bugs are climbing the far wall across the canyon. Step up to your edge and pop them.",
-		"tasks": ["Dust Mites Shot"], "keys": [["fire", "Shoot"], ["reload", "Reload"]], "marker": "Dust Mite"},
-	{"title": "Across the Canyon", "body": "Turrets on your lip can't dip below thirty degrees, so they shoot across the canyon. The green patch is the wall one would cover.",
-		"tasks": ["Look at the Covered Wall"], "keys": [["accept", "Continue"]], "marker": "Covered Wall", "look": true},
-	{"title": "Build a Gatling Post", "body": "Open the build menu, pick the Gatling Post and place it on the marked lip. Turrets cost scrap from the team pot you share with your partner.",
-		"tasks": ["Open the Build Menu", "Pick the Gatling Post", "Place It on Your Lip"],
-		"keys": [["build_menu", "Build Menu"], ["fire", "Place"], ["alt_fire", "Cancel"]], "marker": "Your Lip"},
-	{"title": "Sell It and Build Again", "body": "Changed your mind? Aim at a build and sell it for half its scrap back, then put it up again.",
-		"tasks": ["Sell the Gatling Post", "Place It Again"], "keys": [["demolish", "Sell"], ["build_menu", "Build Menu"]], "marker": "Gatling Post"},
-	{"title": "Throw Your Lever", "body": "The breaker on your generator is how you ready up. Once every lever is thrown the engines start, the pump fills your water tower and the wave comes.",
-		"tasks": ["Throw the Lever"], "keys": [["interact", "Throw Lever"]], "marker": "Generator"},
-	{"title": "Hold the Wave", "body": "A few slow Dust Mites climb the far wall: your Gatling Post has it covered, so help it out. While the engine runs, the pump fills your tower.",
-		"tasks": ["Wave Held"], "keys": [["fire", "Shoot"]], "marker": "Dust Mite"},
-	{"title": "Water Your Crops", "body": "The well trough and the water tower tap fill your bucket. Water a seedling and it grows into food.",
-		"tasks": ["Fill Your Bucket", "Water the Seedling"], "keys": [["select_8", "Bucket"], ["interact", "Fill or Water"]], "marker": "Well"},
-	{"title": "The Lucky Mandible", "body": "The airship over the canyon holds the gunsmith (guns and upgrades for chitin) and the market (sell crops, buy seeds). Climb an arch and grapple its ring.",
-		"tasks": ["Look at the Airship"], "keys": [["select_10", "Grapple"], ["accept", "Continue"]], "marker": "Gunsmith and Market", "look": true},
-	{"title": "Workshop and Crafted Turrets", "body": "Buy a Workshop at the ledger in your house. Its bench joins parts from big bugs into crafted turrets, placed from the build menu's Crafted tab.",
-		"tasks": ["Look at the House Ledger"], "keys": [["accept", "Continue"]], "marker": "House Ledger", "look": true},
-]
 
 static var instance: TutorialRun
 
@@ -83,10 +77,27 @@ var _turned := 0.0
 var _last_yaw := 0.0
 var _water0 := 0
 var _plot: CropPlot
+var _grow_sync := 0.0
 var _gatling_id := 0 # the first Gatling Post (the one to sell)
+var _swing_t := 0.0
+var _reel_t := 0.0
+var _rope0 := INF
+var _swing_reel_t := 0.0 ## seconds reeled in while swinging (its own task, Logan)
+var _last_voice := "" ## who spoke last (a new speaker waits SPEAKER_GAP)
+var _picked := 0 ## pieces of gear picked up (the second brings the hotbar tip)
+var _corn0 := 0
+var _gear: Dictionary = {} ## kind -> TutorialPickup still lying in the house
+var _have: Dictionary = {} ## gear taken: &"revolver", &"lighter", &"grapple", &"bucket", &"herbs"
+## The design the Workshop step's three parts make.
+var _craft_id: StringName = &""
 var _auto := false
 var _frozen := false
 var _auto_t := 0.0
+## Seconds into this step when its line has been said (voice gating).
+var _line_end := 0.0
+var _waiting := false
+var _shots := "" # --tutorialshots: a folder for a picture of every card and tick
+var _shot_n := 0
 
 
 func _enter_tree() -> void:
@@ -97,10 +108,15 @@ func _exit_tree() -> void:
 	if instance == self:
 		instance = null
 	GameState.god_mode = false
+	Hotbar.locked.clear() # (the real game: every slot as normal)
 
 
 func _ready() -> void:
 	_auto = GameState.has_flag("--tutorialrun")
+	_shots = GameState.flag_value("--tutorialshots")
+	if _shots != "":
+		DirAccess.make_dir_recursive_absolute(_shots)
+	_craft_id = CraftTable.design_id(&"swivel", &"scatter", &"fire")
 	cliffs = world.get("cliffs") as CliffBuilder
 	var bugs := world.get("bugs") as BugManager
 	bugs.bug_killed.connect(_on_bug_killed)
@@ -123,20 +139,32 @@ func _process(delta: float) -> void:
 		return
 	_t += delta
 	if _frozen: # --tutorialshot: hold the starting step for the picture
-		card.set_marker(_marker(), str(STEPS[step].get("marker", "")))
+		var at: Variant = _marker()
+		if at != null and GameState.has_flag("--tutorialaim"): # (a little above the marker, so it shows)
+			_aim_at((at as Vector3) + Vector3.UP * 2.5)
+		card.set_marker(at, caption())
 		return
 	if _hold >= 0.0:
-		_hold -= delta
-		if _hold < 0.0:
-			_enter(step + 1)
+		_hold = maxf(_hold - delta, 0.0)
+		if _hold <= 0.0:
+			# Done, but the radio's still talking: show it ticked and wait for the line.
+			var talking := _t < _line_end
+			if talking != _waiting:
+				_waiting = talking
+				card.set_waiting(talking)
+				if talking:
+					print("[tutorial] step %d done, waiting on the radio (%.1f s)" % [step, _line_end - _t])
+					_snap("waiting", 0.3)
+			if not talking:
+				_enter(step + 1)
 		return
 	_check(delta)
 	if _auto:
 		_auto_t += delta
 		if _auto_t > 1.0:
 			_auto_step()
-	card.set_marker(_marker(), str(STEPS[step].get("marker", "")))
-	card.show_skip(_t > SKIP_AFTER and not STEPS[step].get("look", false))
+	card.set_marker(_marker(), caption())
+	card.show_skip(_t > SKIP_AFTER and not STEPS[step].get("read", false))
 
 
 func _try_begin() -> void:
@@ -150,15 +178,14 @@ func _try_begin() -> void:
 	var short := SCRAP_FLOOR - Economy.amount(me, &"scrap")
 	if short > 0:
 		Economy.earn(me, {&"scrap": short})
-	for c: Vector2i in [Vector2i(0, 10), Vector2i(0, 9), Vector2i(0, 11), Vector2i(0, 8), Vector2i(0, 12), Vector2i(0, 7)]:
-		if Buildable.cell_ok_for(&"gatling_post", c) and BuildManager.instance.is_free_for(&"gatling_post", me, c):
-			_cell = c
-			break
-	var first := clampi(int(GameState.flag_value("--tutorialstep")), 0, Step.DONE)
+	_cell = _free_lip_cell(FIRST_TURRET)
+	var first := TutorialPlan.step_from_flag(GameState.flag_value("--tutorialstep"))
+	_stash_supplies()
+	_lay_out_gear(first)
 	if first > Step.SELL and first <= Step.WAVE:
 		_build_gatling() # later steps want the turret standing
 	if first == Step.SELL:
-		_build_gatling()
+		BuildManager.instance.build(FIRST_TURRET, me, _cell)
 	print("[tutorial] begin on cliff %d, Gatling Post cell %s, starting at step %d" % [me, str(_cell), first])
 	_enter(first)
 	if first == Step.WAVE:
@@ -181,6 +208,15 @@ func _try_begin() -> void:
 			get_tree().quit())
 
 
+## A free lip cell for `id`, near the middle of the plateau.
+func _free_lip_cell(id: StringName) -> Vector2i:
+	for c: Vector2i in [Vector2i(0, 10), Vector2i(0, 9), Vector2i(0, 11), Vector2i(0, 8), Vector2i(0, 12), Vector2i(0, 7),
+			Vector2i(0, 13), Vector2i(0, 6), Vector2i(0, 14), Vector2i(0, 5)]:
+		if Buildable.cell_ok_for(id, c) and BuildManager.instance.is_free_for(id, me, c):
+			return c
+	return Vector2i(0, 10)
+
+
 # ------------------------------------------------------------------ steps
 
 func _enter(s: int) -> void:
@@ -189,12 +225,19 @@ func _enter(s: int) -> void:
 	_hold = -1.0
 	_dwell = 0.0
 	_auto_t = 0.0
+	_waiting = false
 	if _preview != null and s != Step.IDEA:
 		_preview.queue_free()
 		_preview = null
 	if s >= Step.DONE:
-		_finish()
+		# Logan: a short countdown in the corner first, then the finish screen.
+		card.set_marker(null, "")
+		var wait := 3.0 if _auto else TutorialPlan.FINISH_DELAY
+		card.show_countdown(wait)
+		get_tree().create_timer(wait).timeout.connect(_finish)
 		return
+	if STEPS[s].has("tip"):
+		card.show_tip(str(STEPS[s]["tip"]), 30.0)
 	_tasks.clear()
 	for i in (STEPS[s]["tasks"] as Array).size():
 		_tasks.append(false)
@@ -210,13 +253,65 @@ func _enter(s: int) -> void:
 		Step.IDEA:
 			_show_cone()
 		Step.SELL:
-			var g := _my_gatling()
+			var g := _my_turret(FIRST_TURRET)
 			_gatling_id = g.get_instance_id() if g != null else 0
-		Step.WATER:
+		Step.FARM:
 			_water0 = Economy.amount(me, &"water")
-			_prepare_water()
-	print("[tutorial] step %d: %s" % [s, STEPS[s]["title"]])
-	card.show_step(s, Step.DONE, STEPS[s], _task_words())
+			_prepare_farm()
+		Step.GRAPPLE:
+			_swing_t = 0.0
+			_reel_t = 0.0
+			_swing_reel_t = 0.0
+			_rope0 = INF
+		Step.AIRSHIP:
+			if Economy.amount(me, &"corn") <= 0:
+				Economy.earn(me, {&"corn": 4}) # (started here, or the corn got eaten)
+			_corn0 = Economy.amount(me, &"corn")
+		Step.ECONOMY, Step.UPGRADES:
+			if not _aboard():
+				_board() # (started here by --tutorialstep)
+		Step.SALVAGE:
+			if _aboard():
+				player.respawn() # off the ship and back on your porch
+			var pile := _salvage()
+			if pile != null and not pile.available and multiplayer.is_server():
+				pile._set_available.rpc(true) # (picked over earlier: a fresh heap for the lesson)
+		Step.HOUSE:
+			if _aboard():
+				player.respawn()
+			_fund(_house_cost())
+		Step.WORKSHOP:
+			if _aboard():
+				player.respawn()
+			var home := Homestead.of(me)
+			if home != null and not home.workshop:
+				_fund(Homestead.UPGRADES[_upgrade_index(&"workshop")]["cost"])
+			var got := {}
+			for p: StringName in PARTS:
+				if Economy.amount(me, p) <= 0:
+					got[p] = 1
+			if not got.is_empty() and Economy.amount(me, _craft_id) <= 0:
+				Economy.earn(me, got)
+	var said := TutorialPlan.line_of(STEPS[s])
+	_line_end = TutorialPlan.line_time(said[0], said[1])
+	# Logan: at least SPEAKER_GAP s of quiet when a different character takes over.
+	var gap := SPEAKER_GAP if _last_voice != "" and said[0] != "" and said[0] != _last_voice else 0.0
+	if said[0] != "":
+		_last_voice = said[0]
+	_line_end += gap
+	print("[tutorial] step %d: %s (line %.1f s)" % [s, STEPS[s]["title"], _line_end])
+	if STEPS[s].get("paper", false):
+		card.show_paper()
+	else:
+		card.show_step(s - 1, Step.DONE - 1, STEPS[s], _task_words()) # (the paper isn't counted as a step)
+	if gap > 0.0:
+		var at_step := s
+		get_tree().create_timer(gap).timeout.connect(func() -> void:
+			if step == at_step:
+				card.say(said[0], said[1]))
+	else:
+		card.say(said[0], said[1])
+	_snap("card", 1.0)
 
 
 ## Ticks this step's sub-tasks off from what's happening in the world.
@@ -232,34 +327,42 @@ func _check(delta: float) -> void:
 			_last_yaw = player.rotation.y
 			if _turned > deg_to_rad(100.0):
 				_tasks[1] = true
+			if not player.is_on_floor() and player.velocity.y > 1.0 and player.ladder_count == 0:
+				_tasks[2] = true # (a jump: rising off the ground)
+			if bool(player.get("_sliding")):
+				_tasks[3] = true
 		Step.SHOOT:
-			if _kills >= PRACTICE:
+			if _have.has(&"revolver"):
 				_tasks[0] = true
+			if _kills >= PRACTICE:
+				_tasks[1] = true
 			elif _practice_alive() == 0 and _t > 3.0 and _spawned - _kills < PRACTICE:
 				_spawn_practice(PRACTICE - _kills) # one got away: send another
-			card.set_task_text(0, "Dust Mites Shot: %d / %d" % [mini(_kills, PRACTICE), PRACTICE])
-		Step.IDEA, Step.AIRSHIP, Step.WORKSHOP:
-			if _looking_at(_marker()) and _t > 1.5:
-				_dwell += delta
-			if _dwell >= DWELL:
+			card.set_task_text(1, "Dust Mites Shot: %d / %d" % [mini(_kills, PRACTICE), PRACTICE])
+		Step.IDEA:
+			# A deliberate look: held on the wall (looking away starts it over),
+			# and never before the card has had time to be read.
+			_dwell = _dwell + delta if _looking_at(_marker()) else 0.0
+			if TutorialPlan.look_done(_dwell, _t):
 				_tasks[0] = true
 		Step.BUILD:
 			var bm := player.build_mode
 			if bm != null and (bm.menu_open or bm.active):
 				_tasks[0] = true
-			if bm != null and bm.active and bm.selected_id() == &"gatling_post":
+			if bm != null and bm.active and bm.selected_id() == FIRST_TURRET:
 				_tasks[0] = true
 				_tasks[1] = true
-			if _my_gatling() != null:
+			if _my_turret(FIRST_TURRET) != null:
 				_tasks = [true, true, true]
 		Step.SELL:
-			var g := _my_gatling()
+			# Sell the rifle nest, then put up a Gatling Post (Logan).
+			var g := _my_turret(FIRST_TURRET)
 			var gid := g.get_instance_id() if g != null else 0
 			if _gatling_id == 0:
 				_gatling_id = gid # (it went up a moment after the step began)
 			elif not _tasks[0] and gid != _gatling_id:
 				_tasks[0] = true
-			if _tasks[0] and gid != 0 and gid != _gatling_id:
+			if _tasks[0] and _my_gatling() != null:
 				_tasks[1] = true
 		Step.LEVER:
 			if GameState.lever_thrown(me) or GameState.phase != GameState.Phase.BUILD:
@@ -267,26 +370,130 @@ func _check(delta: float) -> void:
 		Step.WAVE:
 			if GameState.phase == GameState.Phase.BUILD and GameState.wave >= 2:
 				_tasks[0] = true
-		Step.WATER:
-			if Economy.amount(me, &"water") > _water0:
+		Step.FARM:
+			_check_farm(delta)
+		Step.MEDICINE:
+			if _have.has(&"herbs"):
 				_tasks[0] = true
-			_water0 = mini(_water0, Economy.amount(me, &"water")) # watering spends some first: still counts the fill
-			if _plot != null and is_instance_valid(_plot) and (_plot.growth.watered or _plot.growth.stage >= CropGrowth.Stage.GROWING):
+		Step.WEATHER:
+			if _have.has(&"lighter"):
+				_tasks[0] = true
+			if player.lighter != null and player.lighter.lit:
+				_tasks[0] = true
 				_tasks[1] = true
+		Step.GRAPPLE:
+			_check_grapple(delta)
+		Step.AIRSHIP:
+			if _aboard():
+				_tasks[0] = true
+			var corn := Economy.amount(me, &"corn")
+			if corn < _corn0:
+				_tasks[1] = true
+			_corn0 = maxi(_corn0, corn)
+		Step.SALVAGE:
+			var pile := _salvage()
+			if pile != null and not pile.available and _t > 0.5:
+				_tasks[0] = true
+		Step.HOUSE:
+			var home := Homestead.of(me)
+			if home != null:
+				for i in HOUSE_UPGRADES.size():
+					if _house_has(home, HOUSE_UPGRADES[i]):
+						_tasks[i] = true
+		Step.WORKSHOP:
+			var home := Homestead.of(me)
+			# Logan: build the workshop, open the bench, craft, open the build
+			# menu, place it.
+			if home != null and home.workshop:
+				_tasks[0] = true
+			var bench := home.get_node_or_null("Workshop") if home != null else null
+			if bench != null and MenuScreen.instance != null and MenuScreen.instance.visible and MenuScreen.instance.provider == bench:
+				_tasks[0] = true
+				_tasks[1] = true
+			if home != null and home.workshop and Economy.amount(me, _craft_id) > 0:
+				_tasks[0] = true
+				_tasks[1] = true
+				_tasks[2] = true
+			var wb := player.build_mode
+			if _tasks[2] and wb != null and (wb.menu_open or wb.active):
+				_tasks[3] = true
+			if _crafted() != null:
+				_tasks = [true, true, true, true, true]
 	if _tasks != before:
 		card.set_tasks(_tasks)
 		if not _tasks.has(false):
 			_hold = TICK_HOLD
 			card.tick()
 			print("[tutorial] step %d done (%.1f s)" % [step, _t])
+			_snap("done", 0.4)
 
 
-## Enter / pad A: carries on from a "look at it" card, or skips a stuck step.
+func _check_farm(delta: float) -> void:
+	# The bucket and seeds come out of the house chest first (Logan).
+	if _have.has(&"bucket") and Economy.amount(me, CropPlot.seed_res(&"corn")) > 0:
+		_tasks[0] = true
+	var water := Economy.amount(me, &"water")
+	if water > _water0:
+		_tasks[1] = true
+	_water0 = mini(_water0, water) # watering spends some first: still counts the fill
+	if _plot == null or not is_instance_valid(_plot):
+		return
+	var g := _plot.growth
+	if g.stage != CropGrowth.Stage.EMPTY:
+		_tasks[2] = true
+	if g.stage >= CropGrowth.Stage.GROWING:
+		_tasks[1] = true # (had water to spare: that counts as filled)
+		_tasks[3] = true
+	if _tasks[3] and g.stage == CropGrowth.Stage.EMPTY:
+		_tasks[4] = true # picked
+	# Just this once, the corn shoots up.
+	if g.stage == CropGrowth.Stage.GROWING and multiplayer.is_server():
+		g.tick(delta * (GROW_FAST - 1.0))
+		_grow_sync -= delta
+		if _grow_sync <= 0.0 or g.stage == CropGrowth.Stage.RIPE:
+			_grow_sync = 0.5
+			_plot._broadcast()
+
+
+func _check_grapple(delta: float) -> void:
+	var g := player.grapple
+	if _have.has(&"grapple"):
+		_tasks[0] = true
+	if player.gun.holding == &"grapple":
+		_tasks[0] = true
+		_tasks[1] = true
+	if g == null:
+		return
+	match g.mode:
+		Grapple.Mode.SWING:
+			_swing_t += delta
+			if g._rope_len < _rope0 - 0.01: # reeling in on the swing (left click held)
+				_swing_reel_t += delta
+			_rope0 = g._rope_len
+		Grapple.Mode.PULL:
+			_reel_t += delta
+			_rope0 = INF
+		_:
+			_rope0 = INF
+	if _swing_t >= ROPE_TIME:
+		_tasks[2] = true
+	if _reel_t >= ROPE_TIME:
+		_tasks[3] = true
+	if _swing_reel_t >= ROPE_TIME * 0.5:
+		_tasks[4] = true
+
+
+## Enter / pad A: carries on from a reading card (once it has been up a
+## moment), takes you aboard the airship, or skips a stuck step. A "look at it"
+## step only finishes from the look itself.
 func accept_pressed() -> void:
 	if step < 0 or step >= Step.DONE or _hold >= 0.0:
 		return
-	var look: bool = STEPS[step].get("look", false)
-	if (look and _t > 1.0) or _t > SKIP_AFTER:
+	if step == Step.AIRSHIP and not _tasks[0] and _t > 0.5:
+		_board()
+		return
+	var read: bool = STEPS[step].get("read", false)
+	if (read and _t > READ_MIN) or _t > SKIP_AFTER:
 		for i in _tasks.size():
 			_tasks[i] = true
 		card.set_tasks(_tasks)
@@ -338,12 +545,36 @@ func _lip_point() -> Vector3:
 	return Buildable.footprint_center(cliffs, me, &"gatling_post", _cell) + Vector3.UP * ScaffoldNode.turret_height(0)
 
 
-func _my_gatling() -> Node3D:
+func _my_turret(id: StringName) -> Node3D:
 	for n: Node in get_tree().get_nodes_in_group("turrets"):
 		var t := n as Turret
-		if t != null and not t.is_queued_for_deletion() and t.cliff_id == me and t.def != null and t.def.id == &"gatling_post":
+		if t != null and not t.is_queued_for_deletion() and t.cliff_id == me and t.def != null and t.def.id == id:
 			return t
 	return null
+
+
+func _my_gatling() -> Node3D:
+	return _my_turret(&"gatling_post")
+
+
+## Any of your turrets that isn't the Gatling Post (the sell step's swap).
+func _my_other_turret() -> Node3D:
+	for n: Node in get_tree().get_nodes_in_group("turrets"):
+		var t := n as Turret
+		if t != null and not t.is_queued_for_deletion() and t.cliff_id == me and t.def != null 				and t.def.id != &"gatling_post" and t.def.id != _craft_id and not t.def.anti_air:
+			return t
+	return null
+
+
+## The turret on your lip after the swap (or the Gatling Post if there's no other).
+func _main_turret() -> Node3D:
+	var t := _my_gatling()
+	return t if t != null else _my_other_turret()
+
+
+## The crafted turret placed on your cliff, if it's up.
+func _crafted() -> Node3D:
+	return _my_turret(_craft_id)
 
 
 func _build_gatling() -> void:
@@ -351,9 +582,9 @@ func _build_gatling() -> void:
 		BuildManager.instance.build(&"gatling_post", me, _cell)
 
 
-## Water step: a corn seedling planted on the plot nearest the well, and some
+## Farm step: an empty plot near the well with a corn seed to plant, and some
 ## water in the trough (the wave's pumping usually filled it already).
-func _prepare_water() -> void:
+func _prepare_farm() -> void:
 	var well := _well()
 	if well != null and multiplayer.is_server() and well.stored < WaterSource.BUCKET:
 		well.stored = maxi(well.capacity, WaterSource.BUCKET)
@@ -369,10 +600,145 @@ func _prepare_water() -> void:
 		if d < best:
 			best = d
 			_plot = p
-	if _plot != null and multiplayer.is_server() and _plot.growth.stage == CropGrowth.Stage.EMPTY:
-		_plot.crop_def = Defs.crop(&"corn")
-		_plot.growth.plant(_plot.crop_def)
+	if _plot != null and multiplayer.is_server() and _plot.has_crop():
+		_plot.growth.clear() # a fresh plot to plant
 		_plot._broadcast()
+	CropPlot.selected_seed = 0 # corn first on F
+	# The starting seeds wait in the house chest, not in your pockets.
+	var seed := CropPlot.seed_res(&"corn")
+	var have := Economy.amount(me, seed)
+	if have > 0:
+		Economy.spend(me, {seed: have})
+	var chest := _chest()
+	if chest != null and multiplayer.is_server():
+		for k: StringName in TutorialPlan.CHEST_SEEDS:
+			chest.items[k] = maxi(int(chest.items.get(k, 0)), int(TutorialPlan.CHEST_SEEDS[k]))
+		chest._sync.rpc(chest.items, chest.weapons)
+	elif chest == null:
+		Economy.earn(me, {seed: 1}) # (no house chest: hand it over as before)
+
+
+## Logan: the tutorial starts with empty pockets. Every starting item (medicine,
+## water, seeds, food) waits in the house chest; guns and tools stay in hand,
+## scrap and chitin stay in the pot.
+func _stash_supplies() -> void:
+	var chest := _chest()
+	if chest == null or not multiplayer.is_server():
+		return
+	var kinds: Array = StorageChest.ITEMS.duplicate()
+	for k: StringName in TutorialPlan.CHEST_SEEDS:
+		kinds.append(k)
+	for k: StringName in [&"seed_chili", &"seed_herbs"]:
+		kinds.append(k)
+	for k: StringName in kinds:
+		var n := Economy.amount(me, k)
+		if n > 0 and Economy.spend(me, {k: n}):
+			chest.items[k] = int(chest.items.get(k, 0)) + n
+	for k: StringName in TutorialPlan.CHEST_START:
+		chest.items[k] = maxi(int(chest.items.get(k, 0)), int(TutorialPlan.CHEST_START[k]))
+	chest._sync.rpc(chest.items, chest.weapons)
+	if not chest.took.is_connected(_on_chest_took):
+		chest.took.connect(_on_chest_took)
+
+
+## Logan: you start with empty hands. The revolver, zippo and grapple lie in the
+## house; the bucket and medicine are in the chest. Gear for steps before
+## `first` (a --tutorialstep start) is handed straight over.
+func _lay_out_gear(first: int) -> void:
+	for k: StringName in [&"lighter", &"grapple", &"water", &"herbs"]:
+		Hotbar.locked[k] = true
+	player.gun.remove_weapon(&"revolver")
+	if GunShop.loadouts.has(multiplayer.get_unique_id()):
+		(GunShop.loadouts[multiplayer.get_unique_id()] as Dictionary).erase(&"revolver")
+	var home := Homestead.of(me)
+	var due := {&"lighter": Step.WEATHER, &"revolver": Step.SHOOT, &"bucket": Step.FARM, &"herbs": Step.MEDICINE, &"grapple": Step.GRAPPLE}
+	for k: StringName in due:
+		if first > int(due[k]):
+			_give(k)
+	if home == null:
+		for g: Array in TutorialPlan.GEAR:
+			_give(g[0]) # (no house: just hand it over)
+		return
+	for g: Array in TutorialPlan.GEAR:
+		var kind: StringName = g[0]
+		if _have.has(kind):
+			continue
+		var p := TutorialPickup.make(kind, g[1], g[2], g[3])
+		p.taken.connect(_give)
+		home.add_child(p)
+		_gear[kind] = p
+
+
+## Hands over a piece of gear (picked up, taken from the chest, or skipped past).
+func _give(kind: StringName) -> void:
+	if _have.has(kind):
+		return
+	_have[kind] = true
+	_count_pickup()
+	if _gear.has(kind) and is_instance_valid(_gear[kind]):
+		(_gear[kind] as Node).queue_free()
+	_gear.erase(kind)
+	match kind:
+		&"revolver":
+			var uid := multiplayer.get_unique_id()
+			if GunShop.loadouts.has(uid):
+				(GunShop.loadouts[uid] as Dictionary)[&"revolver"] = 0
+			player.gun.grant(&"revolver", 0)
+			player.gun.equip(&"revolver")
+		&"lighter":
+			Hotbar.locked.erase(&"lighter")
+		&"grapple":
+			Hotbar.locked.erase(&"grapple")
+		&"bucket":
+			Hotbar.locked.erase(&"water")
+			var chest := _chest()
+			if chest != null and multiplayer.is_server() and int(chest.items.get(&"bucket", 0)) > 0:
+				chest.items.erase(&"bucket")
+				chest._sync.rpc(chest.items, chest.weapons)
+		&"herbs":
+			Hotbar.locked.erase(&"herbs")
+			if Economy.amount(me, &"herbs") <= 0:
+				var chest := _chest()
+				var n := int(chest.items.get(&"herbs", 0)) if chest != null else 0
+				if chest != null and n > 0 and multiplayer.is_server():
+					chest.items.erase(&"herbs")
+					chest._sync.rpc(chest.items, chest.weapons)
+				Economy.earn(me, {&"herbs": maxi(n, 3)})
+	_hotbar_changed()
+
+
+func _on_chest_took(_peer: int, what: StringName, _n: int) -> void:
+	if what == &"bucket" or what == &"herbs":
+		if not _have.has(what):
+			_count_pickup()
+		_have[what] = true
+		Hotbar.locked.erase(&"water" if what == &"bucket" else &"herbs")
+		_hotbar_changed()
+
+
+## Logan: after the second piece of gear, a tip about moving along the hotbar.
+func _count_pickup() -> void:
+	_picked += 1
+	if _picked == 2 and card != null:
+		card.show_tip("Your hotbar: scroll the mouse wheel to move along it, or press a slot's number key (1 to 0) to jump straight to it.", 16.0)
+
+
+func _hotbar_changed() -> void:
+	var hb := player.get_node_or_null("Hotbar") as Hotbar
+	if hb != null:
+		hb.changed.emit()
+
+
+## Where a piece of gear lies (for the marker), or null once it's taken.
+func _gear_at(kind: StringName) -> Variant:
+	var p: Node3D = _gear.get(kind)
+	return p.global_position + Vector3.UP * 0.35 if p != null and is_instance_valid(p) else null
+
+
+## The chest inside your house.
+func _chest() -> StorageChest:
+	var home := Homestead.of(me)
+	return home.get_node_or_null("Chest") as StorageChest if home != null else null
 
 
 func _well() -> WaterSource:
@@ -382,47 +748,182 @@ func _well() -> WaterSource:
 	return null
 
 
+## Your cliff's scrap heap (WorldDressing puts one by each house).
+func _salvage() -> SalvagePile:
+	for n: Node in world.find_children("Salvage*", "SalvagePile", true, false):
+		var p := n as SalvagePile
+		if p != null and p.cliff_id == me:
+			return p
+	return null
+
+
+func _airship() -> Node3D:
+	return world.get_node_or_null("Airship") as Node3D
+
+
+## On the airship's deck?
+func _aboard() -> bool:
+	var ship := _airship()
+	if ship == null:
+		return false
+	var local := ship.to_local(player.global_position)
+	return absf(local.x) < AirshipBuilder.DECK_W * 0.5 + 1.0 and absf(local.z) < AirshipBuilder.DECK_L * 0.5 + 2.5 \
+			and local.y > -1.5 and local.y < 8.0
+
+
+## Up onto the deck between the market and the gunsmith, facing them.
+func _board() -> void:
+	var ship := _airship()
+	if ship == null:
+		return
+	if player.grapple != null:
+		player.grapple._release()
+	player.global_position = ship.to_global(Vector3(0, 0.3, 6.0))
+	player.velocity = Vector3.ZERO
+	player.cancel_fall()
+	_aim_at(ship.to_global(Vector3(0, 1.4, 9.5)))
+	print("[tutorial] aboard the airship")
+
+
+func _upgrade_index(id: StringName) -> int:
+	for i in Homestead.UPGRADES.size():
+		if Homestead.UPGRADES[i]["id"] == id:
+			return i
+	return -1
+
+
+static func _house_has(home: Homestead, id: StringName) -> bool:
+	match id:
+		&"board":
+			return home.boarded
+		&"reinforce":
+			return home.reinforced
+		&"porch":
+			return home.porch
+		&"floor2":
+			return home.floors >= 2
+		&"floor3":
+			return home.floors >= 3
+		&"tower":
+			return home.tower
+		&"workshop":
+			return home.workshop
+	return false
+
+
+## What the house upgrades still to buy cost, all told.
+func _house_cost() -> Dictionary:
+	var home := Homestead.of(me)
+	var owned: Array[StringName] = []
+	for id: StringName in HOUSE_UPGRADES:
+		if home != null and _house_has(home, id):
+			owned.append(id)
+	return TutorialPlan.house_cost(Homestead.UPGRADES, owned)
+
+
+## Tops your stock up so `cost` is affordable (the tutorial pays).
+func _fund(cost: Dictionary) -> void:
+	var add := {}
+	for k: StringName in cost:
+		var short := int(cost[k]) - Economy.amount(me, k)
+		if short > 0:
+			add[k] = short
+	if not add.is_empty():
+		Economy.earn(me, add)
+
+
 # ------------------------------------------------------------------ the marker
 
 ## Where this step's marker points (null: no marker).
 func _marker() -> Variant:
+	# Gear still lying in the house is the marker until it's taken (Logan).
+	var gear_kind: StringName = {Step.WEATHER: &"lighter", Step.SHOOT: &"revolver", Step.GRAPPLE: &"grapple"}.get(step, &"")
+	if gear_kind != &"" and not _have.has(gear_kind):
+		var at: Variant = _gear_at(gear_kind)
+		if at != null:
+			return at
+	if step == Step.MEDICINE and not _have.has(&"herbs"):
+		var c := _chest()
+		return c.global_position + Vector3.UP * 1.0 if c != null else null
 	match step:
-		Step.SHOOT, Step.WAVE:
+		Step.SHOOT:
 			var b := _nearest_bug()
-			if b != null:
-				return b.global_position + Vector3.UP * 0.8
-			if step == Step.WAVE:
-				var tower := WaterTower.of(me)
-				return tower.global_position + Vector3.UP * 6.0 if tower != null else null
-			return null
+			return b.global_position + Vector3.UP * 0.8 if b != null else null
+		Step.WAVE:
+			return null # (Logan: only the first three practice mites get the circle)
 		Step.IDEA:
 			return cliffs.face_point(other, WorldLayout.CLIFF_HEIGHT - 5.0, _lip_point().z)
 		Step.BUILD:
 			return _lip_point() + Vector3.UP * 1.2
-		Step.SELL:
-			var g := _my_gatling()
-			if _tasks.size() > 0 and not _tasks[0] and g != null:
+		Step.SELL, Step.TURRETS:
+			var g := _my_turret(FIRST_TURRET) if step == Step.SELL else _main_turret()
+			if g != null and (step == Step.TURRETS or (_tasks.size() > 0 and not _tasks[0])):
 				return g.global_position + Vector3.UP * 2.0
-			return _lip_point() + Vector3.UP * 1.2
+			return _lip_point() + Vector3.UP * 1.2 if step == Step.SELL else null
 		Step.LEVER:
 			var gen := Generator.of(me)
 			return gen.global_position + Vector3.UP * 1.6 if gen != null else null
-		Step.WATER:
+		Step.FARM:
 			if _tasks.size() > 0 and not _tasks[0]:
+				var c := _chest()
+				return c.global_position + Vector3.UP * 1.0 if c != null else null
+			if _tasks.size() > 1 and not _tasks[1]:
 				var w := _well()
 				return w.global_position + Vector3.UP * 1.5 if w != null else null
 			return _plot.global_position + Vector3.UP * 0.8 if _plot != null and is_instance_valid(_plot) else null
-		Step.AIRSHIP:
-			var ship := world.get_node_or_null("Airship")
-			var shop := ship.get_node_or_null("GunShop") as Node3D if ship != null else null
-			if shop != null:
-				return shop.global_position + Vector3.UP * 2.0
-			return Airship.ring_position()
-		Step.WORKSHOP:
+		Step.GRAPPLE:
+			var tower := WaterTower.of(me)
+			return tower.global_position + Vector3.UP * 7.0 if tower != null else null
+		Step.AIRSHIP, Step.ECONOMY, Step.UPGRADES:
+			var ship := _airship()
+			if ship == null:
+				return null
+			if step == Step.AIRSHIP and not _aboard():
+				return Airship.ring_position()
+			var shop := ship.get_node_or_null("GunShop" if step == Step.UPGRADES else "Vendor") as Node3D
+			return shop.global_position + Vector3.UP * 2.0 if shop != null else null
+		Step.SALVAGE:
+			var pile := _salvage()
+			return pile.global_position + Vector3.UP * 3.0 if pile != null else null
+		Step.HOUSE, Step.WORKSHOP:
 			var home := Homestead.of(me)
-			var ledger := home.get_node_or_null("Ledger") as Node3D if home != null else null
+			if home == null:
+				return null
+			if step == Step.WORKSHOP and home.workshop:
+				if _tasks.size() > 2 and _tasks[2]:
+					return Buildable.footprint_center(cliffs, me, _craft_id, _free_lip_cell(_craft_id)) + Vector3.UP * 1.2
+				var bench := home.get_node_or_null("Workshop") as Node3D
+				return bench.global_position + Vector3.UP * 1.2 if bench != null else null
+			var ledger := home.get_node_or_null("Ledger") as Node3D
 			return ledger.global_position + Vector3.UP * 1.2 if ledger != null else null
 	return null
+
+
+## The marker's caption for this step (some move on as the step goes).
+func caption() -> String:
+	var words := str(STEPS[step].get("marker", "")) if step >= 0 and step < Step.DONE else ""
+	if step == Step.SELL and _tasks.size() > 0 and _tasks[0]:
+		words = "Your Lip" # sold: the marker now points at where the new turret goes
+	if step == Step.SHOOT and not _have.has(&"revolver"):
+		return "Revolver"
+	if step == Step.GRAPPLE and not _have.has(&"grapple"):
+		return "Grapple"
+	if step == Step.WEATHER and _have.has(&"lighter"):
+		return ""
+	match step:
+		Step.FARM:
+			if _tasks.size() > 1 and _tasks[1]:
+				return "Farm Plot"
+			if _tasks.size() > 0 and _tasks[0]:
+				return "Well"
+		Step.AIRSHIP:
+			if not _aboard():
+				return "Airship Ring"
+		Step.WORKSHOP:
+			var home := Homestead.of(me)
+			if home != null and home.workshop:
+				return "Your Lip" if _tasks.size() > 1 and _tasks[1] else "Workshop Bench"
+	return words
 
 
 func _nearest_bug() -> Node3D:
@@ -461,10 +962,16 @@ func _finish() -> void:
 	card.set_marker(null, "")
 	if not GameState.has_flag("--debug") and not Settings.tutorial_done:
 		Settings.set_value("tutorial_done", true)
-	if _auto:
-		print("[tutorial] smoke run complete: every step done")
-		get_tree().create_timer(2.0).timeout.connect(func() -> void: get_tree().quit())
 	card.show_finish()
+	_snap("finish", 1.2)
+	if GameState.has_flag("--tutorialkeep"): # (test: press Keep Playing and log what it gave)
+		get_tree().create_timer(1.5).timeout.connect(func() -> void:
+			keep_playing()
+			print("[tutorial] keep playing: scrap %d chitin %d, tier wave %d, lucky %s, cpu %s, share %.2f" % [Economy.amount(me, &"scrap"),
+					Economy.amount(me, &"chitin"), GameState.tier_wave(), str(Amber.lucky_open()), str(world.get_node_or_null("CPU") != null), Economy.cpu_share]))
+	if _auto and not GameState.has_flag("--tutorialstay"):
+		print("[tutorial] smoke run complete: every step done")
+		get_tree().create_timer(3.0).timeout.connect(func() -> void: get_tree().quit())
 
 
 ## Back to Menu (the finish card).
@@ -481,52 +988,181 @@ func to_menu() -> void:
 func keep_playing() -> void:
 	GameState.god_mode = false
 	card.set_marker(null, "")
+	card.show_tip("")
+	# Logan: stay and try things out: 10,000 of everything, a CPU partner on the
+	# other cliff (spending at most 20% of the pot), waves until the homestead falls.
+	var gift := {}
+	for r: StringName in EconomyLedger.RESOURCES:
+		gift[r] = KEEP_PLAYING_GIFT
+	Economy.earn(me, gift)
+	# ...and every item unlocked for the rest of the run: all turret tiers, Lucky's
+	# stall, and the amber blueprints.
+	GameState.unlock_all = true
+	if multiplayer.is_server():
+		for id: StringName in AmberRules.IDS:
+			Amber.unlock_blueprint(id, false)
+	for k: StringName in [&"revolver", &"lighter", &"grapple", &"bucket", &"herbs"]:
+		_give(k)
+	if multiplayer.is_server() and world.get_node_or_null("CPU") == null:
+		NetworkManager.cpu_quality = 1
+		var cpu := CpuTeammate.new()
+		cpu.name = "CPU"
+		cpu.setup(1, other, cliffs, world.get("vfx"), 0)
+		world.add_child(cpu)
+		Economy.enable_cpu_budget(2, 1)
+		Economy.cpu_share = KEEP_PLAYING_CPU_SHARE
+		Economy.call("_push")
+	_hotbar_changed()
+
+
+## --tutorialshots: a picture of the screen a moment from now.
+func _snap(what: String, after: float) -> void:
+	if _shots == "":
+		return
+	_shot_n += 1
+	var path := "%s/%02d_s%02d_%s.png" % [_shots, _shot_n, step, what]
+	get_tree().create_timer(after).timeout.connect(func() -> void:
+		get_viewport().get_texture().get_image().save_png(path)
+		print("[tutorial] saved ", path))
 
 
 # ------------------------------------------------------------------ --tutorialrun
 
+## Points the camera at `pos`.
+func _aim_at(pos: Vector3) -> void:
+	var to := pos - player.camera.global_position
+	player.rotation.y = atan2(-to.x, -to.z)
+	player.head.rotation.x = atan2(to.y, Vector2(to.x, to.z).length())
+
+
 ## Does the current step by itself (smoke test).
 func _auto_step() -> void:
+	var uid := multiplayer.get_unique_id()
 	match step:
 		Step.MOVE:
 			player.global_position += -player.global_basis.z * 5.0
 			player.rotation.y += PI * 0.7
+			if not _tasks[2]:
+				player.velocity.y = 6.0
+			elif not _tasks[3]:
+				player.call("_start_slide")
 			_auto_t = 0.0
 		Step.SHOOT:
+			_give(&"revolver")
 			for c: Node in WaveDirector.bug_manager.get_children():
 				var b := c as Bug
 				if b != null and b.is_alive():
 					b.receive_hit(999.0, b.global_position, Vector3.FORWARD, true, 1.0, "revolver", me)
 					break
 			_auto_t = 0.5
-		Step.IDEA, Step.AIRSHIP, Step.WORKSHOP:
-			accept_pressed()
+		Step.PAPER, Step.GUNS, Step.PELL, Step.TURRETS, Step.ECONOMY, Step.UPGRADES:
+			if _t > READ_MIN + 1.0:
+				accept_pressed()
+		Step.IDEA:
+			# Look at the wall, the way a player would (the key alone doesn't do it).
+			var at: Variant = _marker()
+			if at != null:
+				_aim_at(at as Vector3)
+			_auto_t = 0.8
 		Step.BUILD:
-			_build_gatling()
+			if _my_turret(FIRST_TURRET) == null:
+				BuildManager.instance.build(FIRST_TURRET, me, _cell)
 			_auto_t = -2.0
 		Step.SELL:
-			var g := _my_gatling()
+			var g := _my_turret(FIRST_TURRET)
 			if not _tasks[0] and g != null:
 				BuildManager.instance.demolish_node(g)
-			elif _tasks[0]:
-				_build_gatling()
+			elif _tasks[0] and _my_gatling() == null:
+				BuildManager.instance.build(SWAP_TURRET, me, _cell)
 			_auto_t = -1.0
 		Step.LEVER:
 			if not GameState.lever_thrown(me):
 				GameState.toggle_ready()
 			_auto_t = -5.0
 		Step.WAVE:
-			# Let the Gatling Post do the work; after two minutes, finish the stragglers.
+			# Let the turret do the work; after two minutes, finish the stragglers.
 			if _t > 120.0:
 				for c: Node in WaveDirector.bug_manager.get_children():
 					var b := c as Bug
 					if b != null and b.is_alive():
 						b.receive_hit(999.0, b.global_position, Vector3.FORWARD, true, 1.0, "revolver", me)
 			_auto_t = -4.0
-		Step.WATER:
+		Step.FARM:
 			var w := _well()
-			if not _tasks[0] and w != null:
-				w._use(1)
-			elif _plot != null:
-				_plot._use(1, &"corn")
+			var chest := _chest()
+			if not _tasks[0] and chest != null:
+				for k: StringName in [&"bucket", CropPlot.seed_res(&"corn")]:
+					chest._host(uid, &"take_item", k, 99)
+			elif not _tasks[1] and w != null:
+				w._use(uid)
+			elif _plot != null and _plot.growth.stage != CropGrowth.Stage.GROWING:
+				_plot._use(uid, &"corn")
 			_auto_t = 0.0
+		Step.WEATHER:
+			if not _tasks[0]:
+				_give(&"lighter")
+			elif player.lighter != null:
+				player.lighter.call("_set_state", true, true)
+			_auto_t = -1.0
+		Step.MEDICINE:
+			var mc := _chest()
+			if mc != null:
+				mc._host(uid, &"take_item", &"herbs", 99)
+			_auto_t = 0.0
+		Step.GRAPPLE:
+			var g := player.grapple
+			var tower := WaterTower.of(me)
+			if g == null or tower == null:
+				return
+			if not _tasks[0]:
+				_give(&"grapple")
+			elif not _tasks[1]:
+				player.hotbar_use_grapple()
+			elif not _tasks[2]:
+				g.attach(Grapple.Mode.SWING, tower.global_position + Vector3.UP * 7.0)
+				_swing_t = ROPE_TIME # (a test can't hold right click; the hook did go on)
+			elif not _tasks[3]:
+				g.test_mode = true # (holds the pull without a held left click)
+				g.attach(Grapple.Mode.PULL, tower.global_position + Vector3.UP * 7.0)
+			elif not _tasks[4]:
+				_swing_reel_t = ROPE_TIME # (a test can't hold both buttons on a swing)
+			_auto_t = 0.0
+		Step.AIRSHIP:
+			if not _tasks[0]:
+				accept_pressed()
+			else:
+				var ship := _airship()
+				var v := ship.get_node_or_null("Vendor") as VendorCart if ship != null else null
+				if v != null:
+					v._sell(uid, &"corn")
+			_auto_t = 0.0
+		Step.SALVAGE:
+			var pile := _salvage()
+			if pile != null and _t > 1.0:
+				pile._collect(uid)
+		Step.HOUSE:
+			if player.grapple != null:
+				player.grapple.test_mode = false
+			var home := Homestead.of(me)
+			for i in HOUSE_UPGRADES.size():
+				if not _tasks[i] and home != null:
+					home.buy(uid, _upgrade_index(HOUSE_UPGRADES[i]))
+					break
+			_auto_t = 0.2
+		Step.WORKSHOP:
+			var home := Homestead.of(me)
+			if home == null:
+				return
+			if not home.workshop:
+				home.buy(uid, _upgrade_index(&"workshop"))
+			elif not _tasks[1]:
+				_tasks[1] = true # (a test: the bench was opened)
+			elif Economy.amount(me, _craft_id) <= 0 and _crafted() == null:
+				var bench := home.get_node_or_null("Workshop") as Workshop
+				if bench != null:
+					bench._craft(uid, _craft_id)
+			elif not _tasks[3]:
+				_tasks[3] = true # (a test: the build menu was opened)
+			elif _crafted() == null:
+				BuildManager.instance.build(_craft_id, me, _free_lip_cell(_craft_id))
+			_auto_t = -0.5

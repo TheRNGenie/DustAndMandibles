@@ -39,6 +39,9 @@ var god_mode: bool = false
 ## never saved and never pays Notches. Not cleared by reset() (start_run calls
 ## it); the main menu clears it.
 var tutorial := false
+## Tutorial "Keep Playing" (Logan): every tier, stall and blueprint is open for
+## the rest of the run.
+var unlock_all := false
 ## Story mode (StoryDirector sets these while a chapter runs, and clears them):
 ## the chapter's last wave (0 = the config's), what the host calls instead of
 ## finishing when that wave is cleared, and weather forced per wave {wave: kind}.
@@ -83,7 +86,7 @@ func debug_enabled() -> bool:
 ## Tiers: the wave that decides which Mid / Late turrets are unlocked
 ## (Defs.is_unlocked). Debug: --alltiers unlocks everything.
 func tier_wave() -> int:
-	if flags.has("--alltiers") and debug_enabled():
+	if unlock_all or (flags.has("--alltiers") and debug_enabled()):
 		return 999
 	return wave
 
@@ -101,6 +104,7 @@ func config() -> WaveConfig:
 
 
 func reset() -> void:
+	unlock_all = false
 	phase = Phase.LOBBY
 	wave = 0
 	time_left = 0.0

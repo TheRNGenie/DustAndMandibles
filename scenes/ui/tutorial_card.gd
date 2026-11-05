@@ -7,14 +7,24 @@ extends Control
 ## when it's behind you), and at the end the "You're Ready" card with Back to
 ## Menu / Keep Playing. Keys come from the live input map (KeyHints); Enter or a
 ## controller's A carries on, and the prompt shows whichever you used last.
+## Each step's voice line plays when it's recorded (say); a step that's done
+## while the line is still running shows ticked with a pulsing "Waiting on the Radio"
+## row until it ends (set_waiting).
 
 const WIDTH := 340.0
+## The marker on the spot: the ring's radius (px) and how opaque its lines are.
+const RING_R := 24.0
+const MARKER_ALPHA := 0.5
 
 var run: TutorialRun
 var _card: PanelContainer
 var _col: VBoxContainer
 var _tasks_box: VBoxContainer
 var _skip_row: Control
+var _wait_row: Control
+var _waiting := false
+var _voice: AudioStreamPlayer
+var _paper: TutorialGazette
 var _pips: HBoxContainer
 var _head_mark: Control
 var _chip: PanelContainer
@@ -22,6 +32,11 @@ var _chip_label: Label
 var _marker: Variant = null
 var _bob := 0.0
 var _finish: Control
+var _tip: PanelContainer ## a small note under the card (Logan: settings, hotbar)
+var _tip_label: Label
+var _tip_left := 0.0
+var _count: Label ## the finish countdown in the corner
+var _count_left := -1.0
 var _step := 0
 var _total := 1
 var _def: Dictionary = {}
@@ -52,7 +67,19 @@ func _ready() -> void:
 	_chip_label = UiStyle.strap_text("", 14)
 	_chip.add_child(_chip_label)
 	add_child(_chip)
+	_tip = PanelContainer.new()
+	_tip.add_theme_stylebox_override("panel", KeyHints.card_style())
+	_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tip.visible = false
+	_tip_label = KeyHints.text("", 14, UiStyle.c("hud").darkened(0.12))
+	_tip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_tip_label.custom_minimum_size.x = WIDTH - 32.0
+	_tip.add_child(_tip_label)
+	add_child(_tip)
 	UiStyle.notifier.changed.connect(_restyle)
+	_voice = AudioStreamPlayer.new()
+	_voice.bus = &"Voice" if AudioServer.get_bus_index("Voice") >= 0 else &"Master"
+	add_child(_voice)
 
 
 func _restyle() -> void:
@@ -85,8 +112,33 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## The opening front page (TutorialGazette), over the game; turning it is
+## the step's Continue.
+func show_paper() -> void:
+	_card.visible = false
+	_paper = TutorialGazette.new()
+	_paper.name = "Gazette"
+	add_child(_paper)
+	GameState.menu_open = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_paper.turned.connect(func() -> void:
+		if run != null:
+			run.accept_pressed())
+
+
+func _close_paper() -> void:
+	if _paper == null:
+		return
+	if is_instance_valid(_paper):
+		_paper.close()
+	_paper = null
+	GameState.menu_open = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
 ## A new step's card.
 func show_step(index: int, total: int, def: Dictionary, words: Array) -> void:
+	_close_paper()
 	_step = index
 	_total = total
 	_def = def
@@ -94,6 +146,7 @@ func show_step(index: int, total: int, def: Dictionary, words: Array) -> void:
 	_done.clear()
 	for w in _words:
 		_done.append(false)
+	_waiting = false
 	_rebuild()
 	_card.visible = true
 	_card.offset_bottom = _card.offset_top # shrink to the new card's height
@@ -125,11 +178,31 @@ func tick() -> void:
 	for i in _done.size():
 		_done[i] = true
 	_fill_tasks()
-	_head_mark.visible = true
+	if _head_mark != null:
+		_head_mark.visible = true
 	_refresh_pips(true)
 	var tw := create_tween()
 	tw.tween_property(_card, "modulate", Color(1.25, 1.2, 1.0), 0.12)
 	tw.tween_property(_card, "modulate", Color.WHITE, 0.35)
+
+
+## The step's voice line: plays the recording if there is one (none yet: the
+## run holds the step for a reading-time stand-in instead).
+func say(who: String, line: String) -> void:
+	_voice.stop()
+	var stream := VoiceLines.stream_for(who, line)
+	if stream != null:
+		_voice.stream = stream
+		_voice.play()
+
+
+## Done, but still waiting on the radio line (or not any more).
+func set_waiting(on: bool) -> void:
+	_waiting = on
+	if _paper != null and is_instance_valid(_paper):
+		_paper.set_waiting(on)
+	if _wait_row != null:
+		_wait_row.visible = on
 
 
 func show_skip(on: bool) -> void:
@@ -164,7 +237,9 @@ func _rebuild() -> void:
 	head.add_theme_constant_override("separation", 6)
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_col.add_child(head)
-	var tag := KeyHints.text("Tutorial  ·  Step %d of %d" % [_step + 1, _total], 12, UiStyle.c("gold"))
+	var who := str(_def.get("voice", TutorialPlan.VOICE))
+	var on_air := "  ·  %s" % StoryChapter.speaker_short(who) if who != "" else ""
+	var tag := KeyHints.text("Tutorial  ·  Step %d of %d%s" % [_step + 1, _total, on_air], 12, UiStyle.c("gold"))
 	tag.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(tag)
 	_pips = HBoxContainer.new()
@@ -188,6 +263,7 @@ func _rebuild() -> void:
 	var body := KeyHints.text(str(_def.get("body", "")), 14, UiStyle.c("hud").darkened(0.12))
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.custom_minimum_size.x = WIDTH - 32.0
+	body.visible = body.text != "" # (voiced steps: the radio says it, the card keeps the tasks)
 	_col.add_child(body)
 	_tasks_box = VBoxContainer.new()
 	_tasks_box.add_theme_constant_override("separation", 3)
@@ -206,6 +282,9 @@ func _rebuild() -> void:
 	_skip_row = KeyHints.hint(_key("accept"), "Skip This Step", UiStyle.c("hud").darkened(0.3))
 	_skip_row.visible = false
 	_col.add_child(_skip_row)
+	_wait_row = UiStyle.status("Waiting on the Radio", "info", 13, true)
+	_wait_row.visible = _waiting
+	_col.add_child(_wait_row)
 
 
 func _fill_tasks() -> void:
@@ -245,8 +324,61 @@ static func _key(action: String) -> String:
 
 # ------------------------------------------------------------------ the marker
 
+## A tip in a small panel under the card for `seconds` (0 = until the step changes).
+func show_tip(text: String, seconds: float = 14.0) -> void:
+	_tip_label.text = text
+	_tip_left = seconds if seconds > 0.0 else INF
+	_tip.visible = text != ""
+	_tip.reset_size()
+
+
+## The last step done: "Wrapping up in N" in the top-right corner, then the
+## finish screen takes over (TutorialRun).
+func show_countdown(seconds: float) -> void:
+	_card.visible = false
+	_tip.visible = false
+	if _count == null:
+		_count = KeyHints.text("", 18, UiStyle.c("hud"))
+		_count.set_anchor_and_offset(SIDE_RIGHT, 1.0, -28.0)
+		_count.set_anchor_and_offset(SIDE_LEFT, 1.0, -360.0)
+		_count.set_anchor_and_offset(SIDE_TOP, 0.22, 0.0)
+		_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		_count.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+		_count.add_theme_constant_override("outline_size", 6)
+		add_child(_count)
+	_count_left = seconds
+	_count.visible = true
+
+
+func _tick_countdown(delta: float) -> void:
+	if _count == null or _count_left < 0.0:
+		return
+	_count_left -= delta
+	if _count_left <= 0.0:
+		_count.visible = false
+		_count_left = -1.0
+		return
+	_count.text = "Tutorial complete in %d" % int(ceil(_count_left))
+
+
+func _place_tip(delta: float) -> void:
+	if not _tip.visible:
+		return
+	_tip_left -= delta
+	if _tip_left <= 0.0 or not _card.visible:
+		_tip.visible = false
+		return
+	_tip.size.x = _card.size.x
+	_tip.position = Vector2(_card.position.x, _card.position.y + _card.size.y + 10.0)
+	_tip.modulate.a = clampf(_tip_left, 0.0, 1.0)
+
+
 func _process(delta: float) -> void:
 	_bob += delta
+	_place_tip(delta)
+	_tick_countdown(delta)
+	if _wait_row != null and _wait_row.visible:
+		_wait_row.modulate.a = 0.55 + 0.45 * sin(_bob * 5.0) # a pulse, like a live wire
 	_place_marker()
 	queue_redraw()
 
@@ -277,7 +409,7 @@ func _place_marker() -> void:
 	_chip.reset_size()
 	if _on_spot:
 		_spot = s
-		_chip.position = Vector2(s.x - _chip.size.x * 0.5, s.y + 18.0)
+		_chip.position = Vector2(s.x - _chip.size.x * 0.5, s.y + RING_R + 8.0)
 		return
 	# Off screen or behind you: an arrow on the edge, pointing the way to turn.
 	var c := area.get_center()
@@ -300,12 +432,15 @@ func _draw() -> void:
 	var gold := UiStyle.c("gold")
 	var ink := Palette.OUTLINE
 	if _on_spot:
-		# A pointer bobbing over the spot and a ring on it.
-		var tip := _spot - Vector2(0, 26.0 + sin(_bob * 4.0) * 5.0)
-		draw_colored_polygon(PackedVector2Array([tip + Vector2(0, 3), tip + Vector2(-16, -22), tip + Vector2(16, -22)]), ink)
-		draw_colored_polygon(PackedVector2Array([tip, tip + Vector2(-13, -20), tip + Vector2(13, -20)]), gold)
-		draw_arc(_spot, 11.0, 0.0, TAU, 32, ink, 5.0, true)
-		draw_arc(_spot, 11.0, 0.0, TAU, 32, gold, 2.5, true)
+		# A pointer bobbing over the spot and a thin, half-clear ring framing it
+		# (wide enough to frame a bug, not hug it, and not clutter the view).
+		var faint_gold := Color(gold, MARKER_ALPHA)
+		var faint_ink := Color(ink, MARKER_ALPHA)
+		var tip := _spot - Vector2(0, RING_R + 14.0 + sin(_bob * 4.0) * 5.0)
+		draw_colored_polygon(PackedVector2Array([tip + Vector2(0, 2), tip + Vector2(-12, -17), tip + Vector2(12, -17)]), faint_ink)
+		draw_colored_polygon(PackedVector2Array([tip, tip + Vector2(-10, -15), tip + Vector2(10, -15)]), faint_gold)
+		draw_arc(_spot, RING_R, 0.0, TAU, 48, faint_ink, 3.0, true)
+		draw_arc(_spot, RING_R, 0.0, TAU, 48, faint_gold, 1.5, true)
 		return
 	var at := _spot
 	var o := _dir.orthogonal()
@@ -321,6 +456,8 @@ func show_finish() -> void:
 	_card.visible = false
 	_chip.visible = false
 	_marker = null
+	_voice.stop()
+	_close_paper()
 	GameState.menu_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_finish = Control.new()
@@ -343,15 +480,17 @@ func show_finish() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
 	paper.add_child(col)
-	col.add_child(UiStyle.note("That's the loop. Each day: build, farm, throw your lever. Each night: hold the wave together.", 16))
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 4)
 	for line: String in ["Your Turrets Fire Across the Canyon", "Your Lever Starts the Pumps and the Wave",
-			"Water From the Well and Tower Grows Food", "Guns and Seeds Up on the Airship", "Crafted Turrets From the Workshop"]:
+			"Plant, Water and Harvest; Sell Crops Up on the Airship", "Chitin for the Team, Scrap for Your Guns",
+			"House Upgrades at the Ledger, Turrets Crafted at the Workshop"]:
 		list.add_child(UiStyle.status(line, "good", 15))
 	col.add_child(list)
+	# Captain Stroud's word on the canyon (a hint, not a task).
+	col.add_child(UiStyle.note("Capt. Stroud: \"The canyon floor isn't the bottom of anything, ranchers. If you know what's good for you, you'll stay topside.\"", 14))
 	col.add_child(UiStyle.divider(420))
-	col.add_child(UiStyle.note("Host a game from the main menu and send your invite code to a partner. Keep Playing carries on with practice waves; nothing here is saved.", 14))
+	col.add_child(UiStyle.note("Host a game from the main menu and send your invite code to a partner. Keep Playing hands you plenty of resources to try whatever you like, a partner across the canyon to help, and every item unlocked for the rest of the run. The waves keep coming until your homestead falls; nothing here is saved.", 14))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", UiStyle.GAP_ROW)
 	col.add_child(row)
