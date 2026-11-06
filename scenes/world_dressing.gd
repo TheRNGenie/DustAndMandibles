@@ -302,7 +302,7 @@ func _build_rope_anchor(cid: int) -> void:
 ## tunnels, so nobody on an expedition walks off the end of the world.
 func _build_floor_ends() -> void:
 	for sgn: float in [-1.0, 1.0]:
-		_add_wall(Vector3(0, 10.0, sgn * (WorldLayout.WORLD_HALF_Z - 3.0)), Vector3(80.0, 24.0, 1.0))
+		_add_wall(Vector3(0, 10.0, sgn * (WorldLayout.PLAY_HALF_Z - 3.0)), Vector3(80.0, 24.0, 1.0))
 
 
 ## Yaw that turns a node's +Z from plateau spot `from` toward `to` (d, z).

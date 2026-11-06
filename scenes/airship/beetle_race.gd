@@ -164,7 +164,7 @@ func _act(peer_id: int, action: StringName, choice: int, bet: int) -> void:
 	var wname := str(CasinoRules.RACE_BEETLES[winner][0])
 	_broadcast({"kind": "race", "peer": peer_id, "pick": pick, "bet": bet, "winner": winner, "seed": _rng.randi(), "spinning": true,
 			"ticket": 1000 + _ticket * 7 % 9000, "win": won,
-			"result": ("%s wins! You collect %s" % [wname, UiStyle.cost(won, ResNames.TEAM_ID)]) if won > 0 else ("%s by a whisker. Your beetle lost" % wname)})
+			"result": ("%s wins! You collect %s" % [wname, UiStyle.cost(won, ResNames.PERSONAL_ID)]) if won > 0 else ("%s by a whisker. Your beetle lost" % wname)})
 
 
 func _on_view() -> void:
@@ -381,8 +381,8 @@ class RaceBoard extends CasinoBoard:
 		text(Vector2(lr.end.x - 12, lr.position.y + 20), "No. %04d" % no if no > 0 else "No. ----", 12, INK, 1)
 		draw_line(lr.position + Vector2(12, 34), Vector2(lr.end.x - 12, lr.position.y + 34), Color(0, 0, 0, 0.3), 1.0)
 		text(lr.position + Vector2(14, 52), "To Win:  #%d %s" % [pick + 1, CasinoRules.RACE_BEETLES[pick][0]], 15, INK, -1)
-		text(lr.position + Vector2(14, 74), "Stake:  %s" % UiStyle.cost(bet, ResNames.TEAM_ID), 14, INK, -1)
-		text(lr.position + Vector2(14, 94), "Returns:  %s" % UiStyle.cost(CasinoRules.race_payout(pick, pick, bet), ResNames.TEAM_ID), 14, INK, -1)
+		text(lr.position + Vector2(14, 74), "Stake:  %d in chips" % bet, 14, INK, -1)
+		text(lr.position + Vector2(14, 94), "Returns:  %s" % UiStyle.cost(CasinoRules.race_payout(pick, pick, bet), ResNames.PERSONAL_ID), 14, INK, -1)
 		if _running() and not game.ui_busy() and mine():
 			var won := int(game.view.get("win", 0)) > 0
 			draw_set_transform(r.get_center() + Vector2(90, 18), -0.3, Vector2.ONE)

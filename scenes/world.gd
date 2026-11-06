@@ -47,6 +47,17 @@ func _ready() -> void:
 	LoadTimes.mark("add dressing")
 	StoryDirector.reserve_story_ground(cliffs) # Story: chapters 9-10 keep their floor clear
 	WorldDressing.new(cliffs, dressing, WORLD_SEED + 1).build()
+	var slides := WallSlides.new()
+	slides.name = "WallSlides"
+	add_child(slides)
+	slides.build(cliffs)
+	var latches := LatchDirector.new()
+	latches.name = "LatchDirector"
+	add_child(latches)
+	var threats := MovementThreats.new()
+	threats.name = "MovementThreats"
+	threats.cliffs = cliffs
+	add_child(threats)
 	LoadTimes.mark("WorldDressing.build")
 	vfx = VfxPool.new()
 	vfx.name = "Vfx"
@@ -284,8 +295,27 @@ func _on_peer_loaded(id: int) -> void:
 	var resume := RunSave.pending
 	RunSave.pending = {}
 	if not saver.resume(resume):
-		GameState.start_run(StoryDirector.instance.start_wave() if StoryDirector.instance != null else 1)
+		if StoryDirector.instance != null:
+			GameState.start_run(StoryDirector.instance.start_wave())
+		else:
+			_start_endless(1 if GameState.tutorial else NetworkManager.start_wave)
 	LoadTimes.mark("  spawn: start run")
+
+
+## Host: a new Endless run from wave `w`; past wave 1 everyone arrives with
+## what a team would have earned by then, and a quarter more (EndlessStart).
+func _start_endless(w: int) -> void:
+	w = clampi(w, 1, EndlessStart.MAX_WAVE)
+	GameState.start_run(w)
+	if w <= 1:
+		return
+	var got := EndlessStart.resources(w, WorldLayout.cliff_count())
+	var extra := int(got["team"]) - Economy.team_scrap()
+	if extra > 0:
+		Economy.earn(0, {&"scrap": extra})
+	for cid in WorldLayout.cliff_count():
+		Economy.earn(cid, {ResNames.PERSONAL_ID: int(got["personal"])})
+	print("[endless] starting at wave %d: %d team %s, %d %s each" % [w, int(got["team"]), ResNames.team(), int(got["personal"]), ResNames.personal()])
 
 
 ## CPU teammates take every empty cliff; each may spend 1 / team size of the

@@ -109,6 +109,8 @@ func _exit_tree() -> void:
 		instance = null
 	GameState.god_mode = false
 	Hotbar.locked.clear() # (the real game: every slot as normal)
+	StorageChest.held.clear()
+	GlowRing.keys.clear()
 
 
 func _ready() -> void:
@@ -142,7 +144,7 @@ func _process(delta: float) -> void:
 		var at: Variant = _marker()
 		if at != null and GameState.has_flag("--tutorialaim"): # (a little above the marker, so it shows)
 			_aim_at((at as Vector3) + Vector3.UP * 2.5)
-		card.set_marker(at, caption())
+		card.set_marker(at, caption(), not _marker_on_bug())
 		return
 	if _hold >= 0.0:
 		_hold = maxf(_hold - delta, 0.0)
@@ -163,7 +165,7 @@ func _process(delta: float) -> void:
 		_auto_t += delta
 		if _auto_t > 1.0:
 			_auto_step()
-	card.set_marker(_marker(), caption())
+	card.set_marker(_marker(), caption(), not _marker_on_bug())
 	card.show_skip(_t > SKIP_AFTER and not STEPS[step].get("read", false))
 
 
@@ -178,6 +180,10 @@ func _try_begin() -> void:
 	var short := SCRAP_FLOOR - Economy.amount(me, &"scrap")
 	if short > 0:
 		Economy.earn(me, {&"scrap": short})
+	# Logan: 200 of your own scrap to start (internally &"chitin", see ResNames).
+	var own_short := TutorialPlan.START_SCRAP - Economy.amount(me, ResNames.PERSONAL_ID)
+	if own_short > 0:
+		Economy.earn(me, {ResNames.PERSONAL_ID: own_short})
 	_cell = _free_lip_cell(FIRST_TURRET)
 	var first := TutorialPlan.step_from_flag(GameState.flag_value("--tutorialstep"))
 	_stash_supplies()
@@ -221,6 +227,17 @@ func _free_lip_cell(id: StringName) -> Vector2i:
 
 func _enter(s: int) -> void:
 	step = s
+	# Logan: the medicine sits greyed out in the chest until its own step.
+	if s < Step.MEDICINE:
+		StorageChest.held[&"herbs"] = "Save it for later. The Captain will tell you when."
+	else:
+		StorageChest.held.erase(&"herbs")
+	# Logan: a glow on the tab to click (the gunsmith's Upgrades, the build menu's Crafted).
+	GlowRing.keys.clear()
+	if s == Step.UPGRADES:
+		GlowRing.keys.append("Upgrades")
+	elif s == Step.WORKSHOP:
+		GlowRing.keys.append("Crafted")
 	_t = 0.0
 	_hold = -1.0
 	_dwell = 0.0
@@ -903,6 +920,11 @@ func _marker() -> Variant:
 	return null
 
 
+## The marker is on a bug (kept faint so it frames the target, not hides it).
+func _marker_on_bug() -> bool:
+	return (step == Step.SHOOT and _have.has(&"revolver")) or step == Step.WAVE
+
+
 ## The marker's caption for this step (some move on as the step goes).
 func caption() -> String:
 	var words := str(STEPS[step].get("marker", "")) if step >= 0 and step < Step.DONE else ""
@@ -1168,5 +1190,10 @@ func _auto_step() -> void:
 			elif not _tasks[3]:
 				_tasks[3] = true # (a test: the build menu was opened)
 			elif _crafted() == null:
-				BuildManager.instance.build(_craft_id, me, _free_lip_cell(_craft_id))
+				# Through the build menu's pick, as a player would (the Crafted tab).
+				player.build_mode.choose(_craft_id)
+				var picked := player.build_mode.selected_id()
+				if picked != _craft_id:
+					push_error("[tutorial] the Crafted tab picked %s, not %s" % [picked, _craft_id])
+				BuildManager.instance.build(picked, me, _free_lip_cell(_craft_id))
 			_auto_t = -0.5

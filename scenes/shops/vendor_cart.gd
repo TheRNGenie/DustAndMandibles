@@ -123,7 +123,7 @@ func menu_title() -> String:
 
 
 func menu_tagline() -> String:
-	return "Chilies and specimen jars sell for your own scrap, other produce and nest eggs for team chitin (prices drop as you sell and recover over time). Seeds cost team chitin."
+	return StyleCombo.streak_note() + "Chilies and specimen jars sell for your own scrap, other produce and nest eggs for team chitin (prices drop as you sell and recover over time). Seeds cost team chitin."
 
 
 static func _price_text(item: StringName, p: float) -> String:
@@ -199,11 +199,15 @@ func _sell(peer_id: int, item: StringName) -> bool:
 	var payer := Economy.payer_cliff(peer_id, cliff_id)
 	if SEEDS.has(item):
 		var info: Array = SEEDS[item]
-		var cost := seed_cost(item)
+		var streak := StyleCombo.streak_for(peer_id) # Hot Streak: off this one purchase
+		var cost := ComboRules.cut_price(seed_cost(item), streak)
 		if not Economy.spend(payer, {&"scrap": cost}):
 			Economy.notify(peer_id, "%s cost %s each." % [str(info[0]), UiStyle.cost(cost, ResNames.TEAM_ID)])
 			return false
 		Economy.earn(payer, {item: 1})
+		if streak > 0.0:
+			StyleCombo.use_streak(peer_id)
+			Economy.notify(peer_id, "Hot Streak: %d%% off those seeds." % roundi(streak * 100.0))
 		_ka_ching.rpc()
 		return true
 	if not ITEMS.has(item):

@@ -108,7 +108,7 @@ static func generate(tunnels: Array, run_seed: int) -> Array[Site]:
 		for slide: float in ([0.0] if kind == Kind.MOUTH else SLIDES):
 			var p := mouth + way * (4.5 if kind == Kind.MOUTH else OUT_FROM_MOUTH) + side * slide
 			# Clear of the invisible walls at the canyon's ends (z +-90).
-			var clear := absf(p.z) <= WorldLayout.WORLD_HALF_Z - RADIUS - 1.5
+			var clear := absf(p.z) <= WorldLayout.PLAY_HALF_Z - RADIUS - 1.5
 			for s in out:
 				if Vector2(s.pos.x - p.x, s.pos.z - p.z).length() < MIN_SEPARATION:
 					clear = false

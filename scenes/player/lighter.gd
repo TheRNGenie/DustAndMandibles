@@ -7,7 +7,7 @@ extends Node3D
 ## turrets near it see as if a lantern stood there, and bugs near it can be seen
 ## by turrets through fog and dust. Owner drives it; every peer sees the flame.
 
-const LIGHT_RANGE := 11.0
+const LIGHT_RANGE := 22.0
 ## Turrets within this distance of a lit lighter shrug off fog and most dust.
 const TURRET_RADIUS := 14.0
 ## Bugs within this distance of a lit lighter can be targeted at full range.

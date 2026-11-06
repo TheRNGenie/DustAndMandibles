@@ -69,14 +69,14 @@ static func build(parent: Node3D, cliffs: CliffBuilder, seed_value: int) -> void
 			if Vector2(p.x - mo.x, p.z - mo.z).length() < r and p.y < mo.y + 9.0:
 				return true
 		return false
-	var span := m.span_v - 3.0 if not canyon else WorldLayout.WORLD_HALF_Z - 2.0
+	var span := m.span_v - 3.0 if not canyon else WorldLayout.PLAY_HALF_Z - 2.0
 	for cid in m.count():
 		# Walls: more tries than props; each is kept with a chance that grows
 		# with depth and near the tunnels.
 		for i in (520 if canyon else 260):
 			var z := rng.randf_range(-span, span)
 			if canyon and rng.randf() < 0.25:
-				z = rng.randf_range(WorldLayout.WORLD_HALF_Z, 220.0) * (1.0 if rng.randf() < 0.5 else -1.0)
+				z = rng.randf_range(WorldLayout.PLAY_HALF_Z, 220.0) * (1.0 if rng.randf() < 0.5 else -1.0)
 			var y := pow(rng.randf(), 1.6) * (top - 8.0) + 0.6
 			var p := cliffs.face_point(cid, y, z)
 			if by_mouth.call(p, 6.5):
@@ -116,7 +116,7 @@ static func build(parent: Node3D, cliffs: CliffBuilder, seed_value: int) -> void
 				continue
 			if by_mouth.call(p, 8.0) or SitePlan.in_site_zone(p, 2.5) or (canyon and absf(z - Buildable.ROPE_ANCHOR_Z) < 6.0 and out < 9.0):
 				continue
-			if canyon and absf(z) > WorldLayout.WORLD_HALF_Z - 4.0:
+			if canyon and absf(z) > WorldLayout.PLAY_HALF_Z - 4.0:
 				continue
 			var keep: float = 0.4 + hive_at.call(p) * 0.8 - out * 0.015
 			if rng.randf() > keep:
@@ -134,7 +134,7 @@ static func build(parent: Node3D, cliffs: CliffBuilder, seed_value: int) -> void
 			var t := rng.randf_range(0.15, 0.85)
 			var p := cliffs.face_point(0, 0.0, z).lerp(cliffs.face_point(1, 0.0, z), t)
 			p.y = cliffs.floor_height(p.x, p.z)
-			if by_mouth.call(p, 8.0) or SitePlan.in_site_zone(p, 2.5) or absf(z) > WorldLayout.WORLD_HALF_Z - 4.0:
+			if by_mouth.call(p, 8.0) or SitePlan.in_site_zone(p, 2.5) or absf(z) > WorldLayout.PLAY_HALF_Z - 4.0:
 				continue
 			var near_rope := false
 			for f: Vector3 in foot:

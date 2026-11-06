@@ -75,7 +75,7 @@ func _on_died(_bug: Bug, _source: String, _source_cliff: int, b: Bug) -> void:
 	var was := b.died_in
 	if was != Bug.State.CLIMBING and was != Bug.State.CROSSING:
 		return
-	var z := clampf(b.lane_z if was == Bug.State.CLIMBING else b.global_position.z, -WorldLayout.WORLD_HALF_Z + 4.0, WorldLayout.WORLD_HALF_Z - 4.0)
+	var z := clampf(b.lane_z if was == Bug.State.CLIMBING else b.global_position.z, -WorldLayout.PLAY_HALF_Z + 4.0, WorldLayout.PLAY_HALF_Z - 4.0)
 	var s := clampf(float(b.spec.get("scale", 1.0)), 0.4, 3.0)
 	_pending.append_array([float(b.cliff_id), z, s, b.def.shell_color.r, b.def.shell_color.g, b.def.shell_color.b])
 

@@ -28,7 +28,7 @@ const GROUND_NRM: Texture2D = preload("res://assets/terrain/ground_normal.png")
 const RESIN_ATLAS: Texture2D = preload("res://assets/terrain/resin_atlas.png")
 const RESIN_NRM: Texture2D = preload("res://assets/terrain/resin_normal.png")
 const INFEST_MASK: Texture2D = preload("res://assets/terrain/infest_mask.png")
-const MAX_HIVE_SPOTS := 12
+const MAX_HIVE_SPOTS := 24
 
 static var _cache: Dictionary = {}
 ## Terrain texture detail (GraphicsQuality level: 0 Low, 1 Medium, 2 High) and the

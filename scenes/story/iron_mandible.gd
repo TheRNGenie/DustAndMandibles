@@ -96,7 +96,7 @@ static func route_for(cl: CliffBuilder) -> PackedVector3Array:
 		# car alongside the main tunnel's mouth.
 		var sgn := -1.0 if mouth_at.z < 0.0 else 1.0
 		var stop_z := mouth_at.z + sgn * (_nose_to("charges", CANYON_CONSIST) - ReckoningRules.STOP_PAST_MOUTH)
-		stop_z = clampf(stop_z, -WorldLayout.WORLD_HALF_Z + 4.0, WorldLayout.WORLD_HALF_Z - 4.0)
+		stop_z = clampf(stop_z, -WorldLayout.PLAY_HALF_Z + 4.0, WorldLayout.PLAY_HALF_Z - 4.0)
 		var cx := func(z: float) -> float: return cl.center_x(z)
 		return ReckoningRules.line_route(-sgn * ReckoningRules.CANYON_START_Z, stop_z, 2.0, cx, fy)
 	# A ring map: round the basin, ending beside the main tunnel.

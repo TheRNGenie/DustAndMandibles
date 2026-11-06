@@ -15,6 +15,9 @@ const WIDTH := 340.0
 ## The marker on the spot: the ring's radius (px) and how opaque its lines are.
 const RING_R := 24.0
 const MARKER_ALPHA := 0.5
+## A marker on a place or thing (not a bug): bigger, solid and pulsing, so it
+## reads at a glance (Logan).
+const STRONG_RING_R := 34.0
 
 var run: TutorialRun
 var _card: PanelContainer
@@ -28,6 +31,8 @@ var _paper: TutorialGazette
 var _pips: HBoxContainer
 var _head_mark: Control
 var _chip: PanelContainer
+var _sub: Subtitle
+var _sub_n := 0
 var _chip_label: Label
 var _marker: Variant = null
 var _bob := 0.0
@@ -49,6 +54,8 @@ static var pad := false
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sub = Subtitle.new()
+	add_child(_sub)
 	_card = PanelContainer.new()
 	_card.add_theme_stylebox_override("panel", KeyHints.card_style())
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -190,10 +197,20 @@ func tick() -> void:
 ## run holds the step for a reading-time stand-in instead).
 func say(who: String, line: String) -> void:
 	_voice.stop()
+	_sub_n += 1
+	if who == "" or line == "":
+		_sub.clear()
+		return
 	var stream := VoiceLines.stream_for(who, line)
 	if stream != null:
 		_voice.stream = stream
 		_voice.play()
+	# The words at the bottom of the screen for as long as the line runs.
+	_sub.show_line(who, line, stream != null)
+	var n := _sub_n
+	get_tree().create_timer(TutorialPlan.line_time(who, line)).timeout.connect(func() -> void:
+		if n == _sub_n:
+			_sub.fade_out())
 
 
 ## Done, but still waiting on the radio line (or not any more).
@@ -210,8 +227,9 @@ func show_skip(on: bool) -> void:
 		_skip_row.visible = on
 
 
-func set_marker(pos: Variant, caption: String) -> void:
+func set_marker(pos: Variant, caption: String, strong: bool = false) -> void:
 	_marker = pos
+	_strong = strong
 	if _chip_label.text != caption:
 		_chip_label.text = caption
 
@@ -389,6 +407,7 @@ var _on_spot := false
 var _spot := Vector2.ZERO
 var _dir := Vector2.ZERO
 var _shown := false
+var _strong := false
 
 
 func _place_marker() -> void:
@@ -409,7 +428,7 @@ func _place_marker() -> void:
 	_chip.reset_size()
 	if _on_spot:
 		_spot = s
-		_chip.position = Vector2(s.x - _chip.size.x * 0.5, s.y + RING_R + 8.0)
+		_chip.position = Vector2(s.x - _chip.size.x * 0.5, s.y + (STRONG_RING_R if _strong else RING_R) + 8.0)
 		return
 	# Off screen or behind you: an arrow on the edge, pointing the way to turn.
 	var c := area.get_center()
@@ -431,6 +450,19 @@ func _draw() -> void:
 		return
 	var gold := UiStyle.c("gold")
 	var ink := Palette.OUTLINE
+	if _on_spot and _strong:
+		var r := STRONG_RING_R
+		var tip := _spot - Vector2(0, r + 16.0 + sin(_bob * 4.0) * 6.0)
+		draw_colored_polygon(PackedVector2Array([tip + Vector2(0, 3), tip + Vector2(-16, -23), tip + Vector2(16, -23)]), ink)
+		draw_colored_polygon(PackedVector2Array([tip, tip + Vector2(-13, -20), tip + Vector2(13, -20)]), gold)
+		draw_arc(_spot, r, 0.0, TAU, 64, ink, 6.0, true)
+		draw_arc(_spot, r, 0.0, TAU, 64, gold, 3.0, true)
+		# A ripple spreading out from the ring and fading.
+		var k := fmod(_bob * 0.8, 1.0)
+		draw_arc(_spot, r + k * 22.0, 0.0, TAU, 64, Color(gold, 0.7 * (1.0 - k)), 2.5, true)
+		draw_circle(_spot, 4.0, ink)
+		draw_circle(_spot, 2.5, gold)
+		return
 	if _on_spot:
 		# A pointer bobbing over the spot and a thin, half-clear ring framing it
 		# (wide enough to frame a bug, not hug it, and not clutter the view).
@@ -457,6 +489,8 @@ func show_finish() -> void:
 	_chip.visible = false
 	_marker = null
 	_voice.stop()
+	_sub_n += 1
+	_sub.clear()
 	_close_paper()
 	GameState.menu_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

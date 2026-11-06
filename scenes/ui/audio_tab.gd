@@ -1,7 +1,8 @@
 class_name AudioTab
 extends VBoxContainer
 ## Audio tab: the overall volume, then bugs, music, weapons (guns, turrets, the
-## dynamite, the whip), speech (the voiced radio) and every other sound effect.
+## dynamite, the whip), speech (the voiced radio) and every other sound effect,
+## then the subtitles switch.
 
 
 func _ready() -> void:
@@ -12,6 +13,8 @@ func _ready() -> void:
 	_slider("Weapon Volume", "weapon_volume", Settings.weapon_volume)
 	_slider("Speech Volume", "speech_volume", Settings.speech_volume)
 	_slider("Other Effects", "sfx_volume", Settings.sfx_volume)
+	add_child(UiStyle.row("Subtitles", UiStyle.check(Settings.subtitles,
+			func(on: bool) -> void: Settings.set_value("subtitles", on))))
 
 
 func _slider(label: String, key: String, value: float) -> void:

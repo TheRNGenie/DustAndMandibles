@@ -93,7 +93,8 @@ func pulse_times(shape: StringName) -> Array[float]:
 	return times
 
 
-## Returns {"groups": Array of {"bug": StringName, "count": int, "cliff": int, "lane": int, "pulse": int},
+## Returns {"groups": Array of {"bug": StringName, "count": int, "cliff": int, "lane": int, "pulse": int,
+##          "tier": int (canyon: 0 near, 1 mid, 2 deep tunnels)},
 ##          "pulses": int, "pulse_times": Array[float], "shape": StringName,
 ##          "west_share": float, "shares": [one per cliff], "spent": [one per cliff]}
 func plan(w: int) -> Dictionary:
@@ -134,8 +135,92 @@ func plan(w: int) -> Dictionary:
 		_fill(groups, spent, cid, pools[cid], options, pulses)
 	_mix_variants(groups)
 	_scale_counts(groups, config.bug_count(w))
+	assign_tiers(groups, tier_shares(w, config.last_wave) if _is_canyon() else [1.0, 0.0, 0.0])
 	return {"groups": groups, "pulses": pulses, "pulse_times": times, "shape": shape,
 			"west_share": west_share, "shares": shares, "spent": spent}
+
+
+func _is_canyon() -> bool:
+	return (_map if _map != null else MapDef.get_current()).is_canyon()
+
+
+## Canyon Extension: each tunnel tier's share (near, mid, deep) of wave w's bugs.
+## The mid tunnels open at WorldLayout.MID_WAVE, the deep ones at DEEP_WAVE,
+## and the deep ones take more of each wave from then on.
+static func tier_shares(w: int, last_wave: int = 20) -> Array[float]:
+	var out: Array[float] = []
+	if w < WorldLayout.MID_WAVE:
+		out.assign([1.0, 0.0, 0.0])
+	elif w < WorldLayout.DEEP_WAVE:
+		out.assign([0.6, 0.4, 0.0])
+	elif w <= 15:
+		out.assign([0.3, 0.4, 0.3])
+	elif w <= last_wave:
+		out.assign([0.2, 0.3, 0.5])
+	else:
+		out.assign([0.15, 0.25, 0.6])
+	return out
+
+
+## Gives each group a tunnel tier so the bugs split by `shares` (biggest groups
+## first, each to the tier furthest below its share). Bosses keep the near tier.
+static func assign_tiers(groups: Array, shares: Array) -> void:
+	var order := range(groups.size())
+	order.sort_custom(func(a: int, b: int) -> bool:
+		var ca := int(groups[a]["count"])
+		var cb := int(groups[b]["count"])
+		return ca > cb or (ca == cb and a < b))
+	var got: Array[float] = [0.0, 0.0, 0.0]
+	var total := 0.0
+	for i: int in order:
+		var g: Dictionary = groups[i]
+		var d := Defs.bug(StringName(g["bug"]))
+		if d != null and d.behavior == BugDef.Behavior.BOSS:
+			g["tier"] = 0
+			continue
+		var c := float(g["count"])
+		total += c
+		var best := 0
+		var best_gap := -INF
+		for t in 3:
+			if float(shares[t]) <= 0.0:
+				continue
+			var gap := float(shares[t]) * total - got[t]
+			if gap > best_gap:
+				best_gap = gap
+				best = t
+		g["tier"] = best
+		got[best] += c
+
+
+## Wave 15 on (canyon): the deep tunnels' bugs come as a steady trickle instead
+## of with the pulses. Splits the deep groups into [bug, count, cliff, lane]
+## chunks, one every `gap` seconds across `span` seconds (at least one chunk per group).
+static func trickle_chunks(groups: Array, span: float, gap: float = 2.5) -> Array:
+	var deep: Array = groups.filter(func(g: Dictionary) -> bool: return int(g.get("tier", 0)) == 2)
+	var total := 0
+	for g: Dictionary in deep:
+		total += int(g["count"])
+	if total <= 0:
+		return []
+	var slots := maxi(int(span / gap), 1)
+	var per := maxi(ceili(float(total) / slots), 1)
+	# Round the groups in turn, so both cliffs' deep bugs keep coming.
+	var left: Array[int] = []
+	for g: Dictionary in deep:
+		left.append(int(g["count"]))
+	var out: Array = []
+	var more := true
+	while more:
+		more = false
+		for i in deep.size():
+			if left[i] <= 0:
+				continue
+			var n := mini(per, left[i])
+			out.append([StringName(deep[i]["bug"]), n, int(deep[i]["cliff"]), int(deep[i]["lane"])])
+			left[i] -= n
+			more = true
+	return out
 
 
 ## Maps: each cliff's share of the wave's budget. Two cliffs: the configured

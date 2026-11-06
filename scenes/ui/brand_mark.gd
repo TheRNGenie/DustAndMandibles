@@ -93,6 +93,8 @@ static func paint(ci: CanvasItem, id: StringName, o: Vector2, s: float, col: Col
 			_irons(ci, o, s, col, lw)
 		BrandTable.SNAKE:
 			_snake(ci, o, s, col, lw)
+		BrandTable.MANDIBLES:
+			_mandibles(ci, o, s, col, lw)
 		_:
 			ci.draw_arc(o + Vector2(50, 50) * s, 36.0 * s, 0.0, TAU, 40, col, lw * 0.8, true)
 			ci.draw_line(o + Vector2(34, 50) * s, o + Vector2(66, 50) * s, col, lw * 0.8, true)
@@ -131,6 +133,20 @@ static func _irons(ci: CanvasItem, o: Vector2, s: float, col: Color, lw: float) 
 			var a := k / 8.0 * PI
 			guard.append(Vector2(-side * (3.0 + sin(a) * 6.0), 4.0 + (1.0 - cos(a)) * 4.5))
 		ci.draw_polyline(_tx(xf, guard, s), col, lw * 0.35, true)
+
+
+## Attack on Mandibles: a pair of curved mandibles closing on a point.
+static func _mandibles(ci: CanvasItem, o: Vector2, s: float, col: Color, lw: float) -> void:
+	for side: float in [-1.0, 1.0]:
+		var pts := PackedVector2Array()
+		for i in 13:
+			var t := float(i) / 12.0
+			var a := lerpf(PI * 0.62, PI * 1.32, t)
+			pts.append(o + (Vector2(50.0 + side * (34.0 * cos(a) + 30.0), 58.0 - 34.0 * sin(a))) * s)
+		ci.draw_polyline(pts, col, lw, true)
+		# The inner tooth on each blade.
+		ci.draw_line(o + Vector2(50.0 + side * 14.0, 40.0) * s, o + Vector2(50.0 + side * 6.0, 46.0) * s, col, lw * 0.8, true)
+	ci.draw_circle(o + Vector2(50, 78) * s, 6.0 * s, col)
 
 
 static func _snake(ci: CanvasItem, o: Vector2, s: float, col: Color, lw: float) -> void:

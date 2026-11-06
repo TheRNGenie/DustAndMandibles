@@ -1,7 +1,8 @@
 extends RefCounted
 ## The warning before a big bug leaves its tunnel: dust boils out of the mouth for
 ## a few seconds and the ground rumbles. One emitter per warning (only brutes and
-## the boss get one), freed once the dust settles.
+## the boss get one, and the deep tunnels as the swarm pours out), freed once
+## the dust settles. The more tunnels rumble at once, the thicker and louder each.
 ## Load with preload("res://scenes/bugs/tunnel_rumble.gd").
 
 const PUFF_SHADER := """
@@ -21,6 +22,13 @@ void fragment() {
 
 static var _mesh: QuadMesh
 static var _process: ParticleProcessMaterial
+## Rumbles still going (each makes the next thicker and louder).
+static var live := 0
+
+
+## How much more dust and noise with `n` other rumbles going (1 alone, up to 2).
+static func crowd_scale(n: int) -> float:
+	return 1.0 + 0.25 * clampi(n, 0, 4)
 
 
 ## Dust at `mouth` (a tunnel whose bugs come out along `way_out`) for `seconds`; bigger bugs, more dust.
@@ -28,8 +36,10 @@ static func play(parent: Node, mouth: Vector3, way_out: Vector3, size: float, se
 	if parent == null or not parent.is_inside_tree():
 		return
 	_ensure()
+	var k := crowd_scale(live)
+	live += 1
 	var e := GPUParticles3D.new()
-	e.amount = clampi(int(24.0 * size), 24, 72)
+	e.amount = clampi(int(24.0 * size * k), 24, 120)
 	e.lifetime = 1.8
 	e.local_coords = false
 	e.process_material = _process
@@ -41,10 +51,11 @@ static func play(parent: Node, mouth: Vector3, way_out: Vector3, size: float, se
 	e.global_transform = Transform3D(Basis.looking_at(out, Vector3.UP), mouth + Vector3(0, 1.2, 0))
 	e.emitting = true
 	if sound: # (the pumps' ground rumble plays its own, once)
-		Audio.play_at(&"thunder", mouth, -6.0)
+		Audio.play_at(&"thunder", mouth, -6.0 + linear_to_db(k))
 	var tree := parent.get_tree()
 	var ref: WeakRef = weakref(e) # weak: the world can be freed before the timers run
 	tree.create_timer(seconds).timeout.connect(func() -> void:
+		live = maxi(live - 1, 0)
 		var em := ref.get_ref() as GPUParticles3D
 		if em != null:
 			em.emitting = false)

@@ -9,6 +9,7 @@ var _status: Label
 var _roster: Label
 var _ready_btn: CheckButton
 var _cpu_pick: OptionButton
+var _wave_row: HBoxContainer
 ## Maps: the host picks the map in the lobby (everyone sees it).
 var _map_pick: OptionButton
 var _map_label: Label
@@ -88,6 +89,9 @@ func _ready() -> void:
 		# --startafter=S: start the hosted game after S seconds on the menu (crash repro of a normal start).
 		if GameState.flag_value("--startafter") != "":
 			get_tree().create_timer(GameState.flag_value("--startafter").to_float()).timeout.connect(NetworkManager.start_game)
+		# --endlesswave=N: the lobby's Starting Wave slider set to N (tests).
+		if GameState.flag_value("--endlesswave") != "":
+			NetworkManager.start_wave = clampi(int(GameState.flag_value("--endlesswave")), 1, EndlessStart.MAX_WAVE)
 		# --cpu=low|medium|high: start with a CPU partner (tests).
 		var cq := ["low", "medium", "high"].find(GameState.flag_value("--cpu").to_lower())
 		if cq >= 0:
@@ -293,6 +297,11 @@ func _build_ui() -> void:
 	_cpu_pick.item_selected.connect(func(i: int) -> void: NetworkManager.set_cpu(i - 1))
 	_cpu_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_map_row.add_child(_cpu_pick)
+	# Endless (host): start a new run at a later wave, with the resources to match.
+	_wave_row = UiStyle.row("Starting Wave", UiStyle.slider(1, EndlessStart.MAX_WAVE, 1, NetworkManager.start_wave, "Wave %d",
+			func(v: float) -> void: NetworkManager.start_wave = int(v)))
+	_wave_row.tooltip_text = "Skip ahead: start a new run at this wave with a quarter more chitin and scrap than a team would have earned by then."
+	_lobby_box.add_child(_wave_row)
 	_solo_btn = _button("Start Alone (Testing)")
 	_solo_btn.custom_minimum_size.y = 46
 	_solo_btn.pressed.connect(func() -> void: NetworkManager.start_game())
@@ -747,17 +756,20 @@ func _refresh() -> void:
 	_cpu_pick.visible = multiplayer.is_server()
 	_cpu_pick.selected = NetworkManager.cpu_quality + 1
 	_map_row.visible = multiplayer.is_server()
+	_wave_row.visible = multiplayer.is_server() and Story.chapter() == null and RunSave.pending.is_empty()
+	_map_pick.visible = true
 	_map_pick.selected = MapDef.IDS.find(NetworkManager.map_id)
 	_map_title.text = "%s  ·  %d Cliffs" % [map.display_name, map.count()]
 	_map_label.text = map.blurb
-	# Story: the chapter card instead of the map pick; no CPU teammates in story.
+	# Story: the chapter card instead of the map pick (the CPU pick stays: a CPU
+	# partner can hold the other cliff while you do the chapter).
 	var ch := Story.chapter()
 	if ch != null:
-		_map_row.visible = false
+		_map_pick.visible = false
 		_map_title.text = "Chapter %d: %s" % [ch.number, ch.title]
 		_map_label.text = "%s  ·  %s  ·  %s\n%s" % [map.display_name, ch.waves_text(), ch.objective_text(), ch.blurb]
 		if multiplayer.is_server() and NetworkManager.is_online():
-			_solo_btn.text = "Start Chapter Alone" if NetworkManager.players.size() <= 1 else "Start Chapter"
+			_solo_btn.text = ("Start Chapter With CPU Partner" if cpus == 1 else "Start Chapter With %d CPU Teammates" % cpus) if cpus > 0 					else ("Start Chapter Alone" if NetworkManager.players.size() <= 1 else "Start Chapter")
 
 
 # ------------------------------------------------------------------ styling helpers

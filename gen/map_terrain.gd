@@ -151,6 +151,52 @@ func rock_material(cid: int) -> ShaderMaterial:
 	return mat
 
 
+## Mesa wall i's rock: Red Gate (red-orange), Pale Ridge (cream Navajo bands),
+## Iron Wall (dark iron-stained purples).
+func wall_material(i: int) -> ShaderMaterial:
+	var key := "mesa_wall_%d" % i
+	if Materials._cache.has(key):
+		return Materials._cache[key]
+	var mat := Materials.strata(Palette.SAND).duplicate() as ShaderMaterial
+	var bands: Array = []
+	var band_h := 2.6
+	match i:
+		0:
+			bands = ["#B8452C", "#8E3424", "#C9603A", "#A04020", "#6E2A22", "#D98060", "#E0A27A"]
+			band_h = 3.2
+		1:
+			bands = ["#F6EBD8", "#E6D2B0", "#FFF8EA", "#D0B890", "#F0E0C4", "#B8A078", "#FFFFFF"]
+			band_h = 1.3
+			mat.set_shader_parameter("varnish", Color("#8A7058"))
+			mat.set_shader_parameter("top_color", Color("#E6D2B0"))
+		_:
+			bands = ["#4A3040", "#3A2830", "#5A3848", "#483040", "#2E2028", "#604050", "#6A4A3A"]
+			band_h = 2.4
+			mat.set_shader_parameter("varnish", Color("#1E1820"))
+			mat.set_shader_parameter("scrub_color", Color("#8A6848"))
+			mat.set_shader_parameter("top_color", Color("#B08A60"))
+	_set_bands(mat, bands, band_h)
+	Materials._cache[key] = mat
+	return mat
+
+
+## A plain strata rock in its own band colours (cached by `key`).
+func banded(key: String, top: Color, bands: Array, band_h: float) -> ShaderMaterial:
+	if Materials._cache.has(key):
+		return Materials._cache[key]
+	var mat := Materials.strata(top).duplicate() as ShaderMaterial
+	_set_bands(mat, bands, band_h)
+	Materials._cache[key] = mat
+	return mat
+
+
+func _set_bands(mat: ShaderMaterial, bands: Array, band_h: float) -> void:
+	var names := ["band_a", "band_b", "band_c", "band_f", "band_e", "band_c", "band_d"]
+	for i in names.size():
+		mat.set_shader_parameter(names[i], Color(bands[i]))
+	mat.set_shader_parameter("band_height", band_h)
+
+
 func _floor_mesh(half: float, step: float) -> ArrayMesh:
 	var grid: Array = []
 	var x := -half
@@ -174,11 +220,16 @@ func _ring_mesh(r0: float, r1: float, h: Callable, first_step: float = 6.0) -> A
 		r += step
 		step = minf(step * 1.12, 90.0)
 	rs.append(r1)
+	return ring_rows(rs, 96, h)
+
+
+## A polar ring of ground through the given radii, `cols` steps round (visual only).
+func ring_rows(rs: Array[float], cols: int, h: Callable) -> ArrayMesh:
 	var grid: Array = []
 	for rr in rs:
 		var row: Array[Vector3] = []
-		for i in 97:
-			var a := TAU * float(i) / 96.0
+		for i in cols + 1:
+			var a := TAU * float(i) / float(cols)
 			var x := map.center.x + cos(a) * rr
 			var z := map.center.z + sin(a) * rr
 			row.append(Vector3(x, float(h.call(x, z, rr)), z))
@@ -246,7 +297,8 @@ func _add_visual(parent: Node3D, node_name: String, mesh: ArrayMesh, mat: Materi
 
 func _build_mesa(parent: Node3D) -> void:
 	var span := Vector2(-map.span_v, map.span_v)
-	var floor_mat := Materials.strata(Color("#D9A35E"))
+	# The basin floor a touch warmer than the plateaus (a sun-baked bowl).
+	var floor_mat := Materials.strata(Color("#DC9C55"))
 	for cid in map.count():
 		var rock := rock_material(cid)
 		cb._add_static(parent, "Plateau%d" % cid, cb._build_plateau(cid, span, CliffBuilder.PLATEAU_Z_STEP, CliffBuilder.PLATEAU_D_STEP, MESA_DEPTH), rock)
@@ -254,66 +306,119 @@ func _build_mesa(parent: Node3D) -> void:
 	cb._add_static(parent, "BasinFloor", _floor_mesh(58.0, 1.5), floor_mat)
 	var wall_rock := Materials.strata(Palette.SAND)
 	for i in map.count():
-		cb._add_static(parent, "BasinWall%d" % i, _mesa_wall(i), wall_rock)
+		# Collides as drawn: its notches and wind windows are open to walk and swing through.
+		cb._add_static(parent, "BasinWall%d" % i, _mesa_wall(i, true), wall_material(i))
 	_add_visual(parent, "BugTunnels", cb._bug_tunnels(), Materials.toon(0.03))
-	# High desert all round, level with the walls behind the homesteads.
-	var hills := FastNoiseLite.new()
-	hills.seed = 777
-	hills.frequency = 0.004
-	hills.fractal_octaves = 3
-	var top := WorldLayout.CLIFF_HEIGHT
-	var land := func(x: float, z: float, r: float) -> float:
-		return lerpf(top + 30.0, top + 40.0 + hills.get_noise_2d(x, z) * 16.0, smoothstep(90.0, 220.0, r))
-	_add_visual(parent, "Hinterland", _ring_mesh(84.0, CliffBuilder.HINTER, land), wall_rock, false)
-	_far_scenery(parent, land, 300.0, wall_rock)
+	LoadTimes.mark("  mesa: plateaus, floor, walls")
+	var dress := MesaDressing.new(self)
+	dress.build(parent)
+	_far_scenery(parent, dress.land, 300.0, wall_rock)
 
 
 ## The rock wall between mesa cliff i and the next one round: a ridge that
 ## rises from the basin floor (a near-sheer wall with tunnels in its foot) and
-## fills the wedge between the two plateaus, higher than both.
-func _mesa_wall(i: int) -> ArrayMesh:
+## fills the wedge between the two plateaus, higher than both. `detail` (the
+## visual mesh; the collider keeps the plain ridge) adds the jagged crest notches
+## and cuts the wind windows, on a finer grid.
+func _mesa_wall(i: int, detail: bool = false) -> ArrayMesh:
+	var rs: Array[float] = [-4.5, -3.4, -2.9, -2.4, -1.9, -1.4, -0.9, -0.4, 0.3, 1.2, 2.5, 4.0, 6.0, 9.0, 13.0, 18.0, 24.0, 31.0, 40.0, 50.0, 62.0]
+	var cols := 57 if detail else 29
+	var grid: Array = []
+	for r in rs:
+		var row: Array[Vector3] = []
+		for k in cols:
+			row.append(wall_at(i, r, lerpf(-0.14, 1.14, float(k) / float(cols - 1)), detail))
+		grid.append(row)
 	var a := i
 	var b := (i + 1) % map.count()
-	var ca := map.cliffs[a]
-	var cbl := map.cliffs[b]
-	var side_a := signf((cbl.origin - ca.origin).dot(ca.along))
-	var side_b := signf((ca.origin - cbl.origin).dot(cbl.along))
-	var va := side_a * (map.span_v - 2.0)
-	var vb := side_b * (map.span_v - 2.0)
-	var n := cb._noise[3]
-	var c := map.center
-	var rs: Array[float] = [-4.5, -3.4, -2.9, -2.4, -1.9, -1.4, -0.9, -0.4, 0.3, 1.2, 2.5, 4.0, 6.0, 9.0, 13.0, 18.0, 24.0, 31.0, 40.0, 50.0, 62.0]
-	var grid: Array = []
-	var top := WorldLayout.CLIFF_HEIGHT
-	for r in rs:
-		var pa := map.to_world(a, -r, va)
-		var pb := map.to_world(b, -r, vb)
-		var a0 := atan2(pa.z - c.z, pa.x - c.x)
-		var a1 := atan2(pb.z - c.z, pb.x - c.x)
-		var da := wrapf(a1 - a0, -PI, PI)
-		var r0 := Vector2(pa.x - c.x, pa.z - c.z).length()
-		var r1 := Vector2(pb.x - c.x, pb.z - c.z).length()
-		var row: Array[Vector3] = []
-		for k in 29:
-			var s := lerpf(-0.14, 1.14, float(k) / 28.0)
-			var ang := a0 + da * s
-			var rad := lerpf(r0, r1, s)
-			var dir := Vector3(cos(ang), 0.0, sin(ang))
-			var p := c + dir * rad
-			var wob := n.get_noise_2d(ang * 40.0, r * 0.3)
-			# A little in-and-out on the wall so it never reads as a sheet.
-			p += dir * wob * 1.4 * (1.0 - smoothstep(0.0, 4.0, r))
-			var crest := pow(sin(clampf(s, 0.0, 1.0) * PI), 0.6) * (22.0 + 10.0 * n.get_noise_2d(s * 6.0, 9.0)) + r * 0.25
-			var rise := smoothstep(-0.13, 0.06, s) * smoothstep(1.13, 0.94, s)
-			var peak := lerpf(top - 3.0, top + 3.0 + crest + wob * 3.0, rise)
-			var face := smoothstep(-3.6, -0.3, r)
-			var fy := floor_at(cb, p.x, p.z) - 0.4
-			p.y = lerpf(fy, peak, face)
-			row.append(p)
-		grid.append(row)
-	var mid_dir := (map.to_world(a, 0.0, va) + map.to_world(b, 0.0, vb)) * 0.5 - c
+	var mid_dir := (map.to_world(a, 0.0, _wall_v(a, b)) + map.to_world(b, 0.0, _wall_v(b, a))) * 0.5 - map.center
 	mid_dir.y = 0.0
 	return cb._grid_mesh(grid, (Vector3.UP - mid_dir.normalized()).normalized())
+
+
+var _crest_cache := {}
+var _len_cache := {}
+
+
+## Mesa wall i's wind windows: [s along the wall, half width m, depth below the crest m].
+const WALL_WINDOWS := [
+	[[0.25, 3.6, 8.0], [0.5, 4.6, 10.0], [0.75, 3.2, 7.0]],
+	[[0.34, 5.5, 9.0], [0.67, 4.8, 8.0]],
+	[[0.57, 1.8, 13.0]],
+]
+
+
+## The lip offset (v) where cliff a's lip meets the wall towards cliff b.
+func _wall_v(a: int, b: int) -> float:
+	return signf((map.cliffs[b].origin - map.cliffs[a].origin).dot(map.cliffs[a].along)) * (map.span_v - 2.0)
+
+
+## A point on mesa wall i: `r` metres back from the face line (negative = out on
+## the basin floor), `s` 0..1 from cliff i's end to the next cliff's.
+func wall_at(i: int, r: float, s: float, detail: bool = false) -> Vector3:
+	var a := i
+	var b := (i + 1) % map.count()
+	var n := cb._noise[3]
+	var c := map.center
+	var top := WorldLayout.CLIFF_HEIGHT
+	var pa := map.to_world(a, -r, _wall_v(a, b))
+	var pb := map.to_world(b, -r, _wall_v(b, a))
+	var a0 := atan2(pa.z - c.z, pa.x - c.x)
+	var a1 := atan2(pb.z - c.z, pb.x - c.x)
+	var da := wrapf(a1 - a0, -PI, PI)
+	var r0 := Vector2(pa.x - c.x, pa.z - c.z).length()
+	var r1 := Vector2(pb.x - c.x, pb.z - c.z).length()
+	var ang := a0 + da * s
+	var rad := lerpf(r0, r1, s)
+	var dir := Vector3(cos(ang), 0.0, sin(ang))
+	var p := c + dir * rad
+	var wob := n.get_noise_2d(ang * 40.0, r * 0.3)
+	# A little in-and-out on the wall so it never reads as a sheet.
+	p += dir * wob * 1.4 * (1.0 - smoothstep(0.0, 4.0, r))
+	var crest := pow(sin(clampf(s, 0.0, 1.0) * PI), 0.6) * (22.0 + 10.0 * n.get_noise_2d(s * 6.0, 9.0)) + r * 0.25
+	var rise := smoothstep(-0.13, 0.06, s) * smoothstep(1.13, 0.94, s)
+	if detail:
+		# Jagged notches in the crest, deepest mid-wall.
+		var mid := smoothstep(0.1, 0.3, s) * smoothstep(0.9, 0.7, s)
+		crest += n.get_noise_2d(s * 18.0 + i * 100.0, 5.0) * 6.0 * rise * mid
+	var peak := lerpf(top - 3.0, top + 3.0 + crest + wob * 3.0, rise)
+	var face := smoothstep(-3.6, -0.3, r)
+	var fy := floor_at(cb, p.x, p.z) - 0.4
+	p.y = lerpf(fy, peak, face)
+	if detail:
+		p.y = minf(p.y, _window_floor(i, s, p.y))
+	return p
+
+
+## Wall i's crest height at s (the front of the ridge, notches included).
+func wall_crest(i: int, s: float) -> float:
+	return wall_at(i, 0.3, s, true).y
+
+
+## The floor of any wind window at s on wall i (or `y` where there is none): the
+## lower half of an ellipse cut down from the crest, right through the ridge.
+func _window_floor(i: int, s: float, y: float) -> float:
+	var length := wall_length(i)
+	for w: Array in WALL_WINDOWS[i]:
+		var ds := (s - float(w[0])) * length / float(w[1])
+		if absf(ds) < 1.0:
+			var key := Vector2i(i, int(float(w[0]) * 1000.0))
+			if not _crest_cache.has(key):
+				_crest_cache[key] = _plain_crest(i, float(w[0]))
+			y = minf(y, float(_crest_cache[key]) - float(w[2]) * sqrt(1.0 - ds * ds))
+	return y
+
+
+## The crest height at the front of the ridge without notches or windows.
+func _plain_crest(i: int, s: float) -> float:
+	return wall_at(i, 0.3, s, false).y
+
+
+## Mesa wall i's length along its face (metres).
+func wall_length(i: int) -> float:
+	if not _len_cache.has(i):
+		_len_cache[i] = wall_at(i, -0.3, 0.0).distance_to(wall_at(i, -0.3, 1.0))
+	return _len_cache[i]
 
 
 # ------------------------------------------------------------------ Pinwheel Buttes
@@ -331,21 +436,25 @@ func _build_buttes(parent: Node3D) -> void:
 		cb._add_static(parent, "Plateau%d" % cid, cb._build_plateau(cid, top_span, 1.0, 1.0, BUTTE_BACK + 0.5), rock)
 		cb._add_static(parent, "CliffFace%d" % cid, cb._build_face(cid, span, CliffBuilder.FACE_Z_STEP, CliffBuilder.FACE_Y_STEP), rock)
 		_butte_dressing(parent, cid, rock)
-	_add_visual(parent, "LakeCracks", _cracks(), Materials.toon(0.0), false)
+	LoadTimes.mark("  buttes: buttes")
+	var dress := ButtesDressing.new(self)
+	_add_visual(parent, "LakeCracks", _cracks(dress.on_trail), Materials.toon(0.0), false)
 	_add_visual(parent, "BugFissures", _fissures(), Materials.toon(0.02))
+	dress.build(parent)
 	var desert := func(x: float, z: float, _r: float) -> float: return floor_at(cb, x, z) - 0.05
-	_add_visual(parent, "Desert", _ring_mesh(LAKE_R, CliffBuilder.HINTER, desert), Materials.strata(Color("#D9A35E")), false)
 	_far_scenery(parent, desert, 260.0, Materials.strata(Palette.SAND))
 
 
 func _lake_material() -> ShaderMaterial:
-	var mat := Materials.strata(Color("#E6CFA6")).duplicate() as ShaderMaterial
+	# A shade cooler than the desert round it (the buttes shade the basin).
+	var mat := Materials.strata(Color("#E3CFAA")).duplicate() as ShaderMaterial
 	mat.set_shader_parameter("scrub_color", Color("#CDB28A"))
 	return mat
 
 
-## Mud cracks across the lakebed: thin dark seams in a rough polygon net.
-func _cracks() -> ArrayMesh:
+## Mud cracks across the lakebed: thin dark seams in a rough polygon net
+## (none where `skip(midpoint)` says so: worn away under the animal trails).
+func _cracks(skip: Callable = Callable()) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4040
 	var st := MeshKit.begin()
@@ -357,7 +466,9 @@ func _cracks() -> ArrayMesh:
 		for k in rng.randi_range(2, 4):
 			dir = dir.rotated(rng.randf_range(-0.6, 0.6))
 			var q := p + Vector3(dir.x, 0.0, dir.y) * seg_len
-			_seam(st, p, q, rng.randf_range(0.05, 0.12), col)
+			var w := rng.randf_range(0.05, 0.12)
+			if not skip.is_valid() or not bool(skip.call((p + q) * 0.5)):
+				_seam(st, p, q, w, col)
 			p = q
 	return MeshKit.finish(st)
 
@@ -446,7 +557,9 @@ func _butte_dressing(parent: Node3D, cid: int, rock: Material) -> void:
 				var out := _rim_out(cid, p)
 				var at := Vector3(p.x, y, p.z) + out * 1.5
 				var basis := Basis(Vector3.UP, atan2(out.x, out.z))
-				MeshKit.add_box(st, Transform3D(basis, at), Vector3(rng.randf_range(6.0, 12.0), rng.randf_range(1.2, 2.2), rng.randf_range(3.0, 5.5)), Color.WHITE, 0.4, rng)
+				var size := Vector3(rng.randf_range(6.0, 12.0), rng.randf_range(1.2, 2.2), rng.randf_range(3.0, 5.5))
+				MeshKit.add_box(st, Transform3D(basis, at), size, Color.WHITE, 0.4, rng)
+				_log(cid, [at, size, out])
 			# A toppled windmill lying on the rim behind the fence.
 			var base := cb.plateau_point(cid, 37.0, 9.0)
 			var fallen := Basis(Vector3.UP, map.facing_yaw(cid) + 0.6) * Basis(Vector3.BACK, PI * 0.5 - 0.12)
@@ -481,6 +594,7 @@ func _butte_dressing(parent: Node3D, cid: int, rock: Material) -> void:
 				var r := rng.randf_range(0.9, 1.6)
 				var at := Vector3(p.x, floor_at(cb, p.x, p.z) + h * 0.5 - 1.0, p.z) + out * rng.randf_range(0.0, 2.5)
 				MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at), r, r * 0.95, h, 6, Color.WHITE)
+				_log(cid, [at, r, h, out])
 			# A mine dug into a rock knoll behind the fence: timber portal over a black hole.
 			var knoll := cb.plateau_point(cid, 37.5, -12.0)
 			var yaw := map.facing_yaw(cid) + PI
@@ -506,6 +620,7 @@ func _butte_dressing(parent: Node3D, cid: int, rock: Material) -> void:
 				var out := _rim_out(cid, p)
 				var basis := Basis(Vector3.UP, atan2(out.x, out.z))
 				var fy := floor_at(cb, p.x, p.z)
+				_log(cid, [p, out, fy])
 				for tier in 3:
 					var h := 54.0 - tier * 16.0
 					var depth := 4.0 + tier * 3.5
@@ -523,6 +638,17 @@ func _butte_dressing(parent: Node3D, cid: int, rock: Material) -> void:
 ## The scree slope round a butte's outer walls: a grid running round the walls
 ## (rows) and out from them (columns), from well up the wall down to the
 ## lakebed, lumpy, and tapering away at both ends by the climbing face.
+## Shelves (ledges), columns (basalt) and fins (buttress) as they were placed,
+## for ButtesDressing to build on: cid -> list of entries.
+var butte_log := {}
+
+
+func _log(cid: int, entry: Array) -> void:
+	if not butte_log.has(cid):
+		butte_log[cid] = []
+	(butte_log[cid] as Array).append(entry)
+
+
 func _talus(cid: int, rng: RandomNumberGenerator) -> ArrayMesh:
 	var n := cb._noise[2]
 	var rows := 120

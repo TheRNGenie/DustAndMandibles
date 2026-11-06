@@ -1,5 +1,11 @@
 class_name Grapple
 extends Node3D
+
+## Owner: the hook bit (hooked) or the rope came free (let_go): style combo actions.
+signal hooked
+signal let_go
+## Owner: let go near the swing's top speed and got flung (the slingshot): the launch velocity.
+signal slung(velocity: Vector3)
 ## The grappling hook launcher every player carries (hotbar slot 9).
 ##   Hold left:   fire the hook at what you're aiming at and get reeled in fast;
 ##                let go of the button and the rope lets go at once.
@@ -29,6 +35,11 @@ const ARRIVE_DIST := 2.2
 const MIN_ROPE := 2.0
 ## Seconds after a miss or letting go before the hook can fly again (ring on the crosshair).
 const COOLDOWN := 0.4
+const ROPE_COLOR := Color("#B8955A")
+## Slingshot: let go at this share of the swing's top speed (and at least this fast) to be flung on, this much faster.
+const SLING_PEAK := 0.7
+const SLING_MIN_SPEED := 9.0
+const SLING_BOOST := 1.35
 const SWING_EXTRA_GRAVITY := 1.2
 ## Reeling in while swinging (hold left click): metres of rope per second, and
 ## the extra pull toward the hook.
@@ -69,7 +80,7 @@ func _ready() -> void:
 	cyl.rings = 1
 	_rope.mesh = cyl
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color("#B8955A")
+	mat.albedo_color = ROPE_COLOR
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_rope.material_override = mat
 	_rope.top_level = true
@@ -144,6 +155,8 @@ func _latched() -> bool:
 ## The click that hooked on mustn't also let go (toggle swing): set when the
 ## hook bites, cleared on the swing's first tick.
 var _fresh_hook := false
+## The swing's top speed so far (the slingshot compares the let-go against it).
+var _peak_speed := 0.0
 
 
 ## Called by Player._physics_process (owner only) after normal movement maths
@@ -178,8 +191,10 @@ func attach(new_mode: Mode, point: Vector3) -> void:
 	_rope_len = maxf((player.global_position + Vector3.UP * 0.9).distance_to(anchor), MIN_ROPE)
 	_pull_limit = maxf(PULL_MAX_TIME, _rope_len / PULL_SPEED * 1.5 + 0.6)
 	_fresh_hook = true
+	_peak_speed = 0.0
 	player.cancel_fall()
 	_show_rope.rpc(anchor)
+	hooked.emit()
 
 
 ## Harpoon Pistol: the dart bit into rock or a big bug at `point`; reel the
@@ -224,6 +239,8 @@ func _launch(new_mode: Mode) -> void:
 	# Hooked on the way down into the canyon: the rope's got you, no more fall.
 	player.cancel_fall()
 	_show_rope.rpc(anchor)
+	_peak_speed = 0.0
+	hooked.emit()
 
 
 ## The vulture the hook is in (it flies off with you), or null.
@@ -283,7 +300,7 @@ func _pull(delta: float) -> bool:
 		player.velocity = flat * 0.5 + Vector3.UP * 4.5
 		_release()
 		return true
-	var want := to.normalized() * PULL_SPEED
+	var want := to.normalized() * PULL_SPEED * _speed() # Attack on Mandibles: +15%
 	player.velocity = player.velocity.move_toward(want, PULL_ACCEL * delta)
 	return true
 
@@ -296,6 +313,14 @@ func _swing(delta: float) -> bool:
 		# Let go: keep the momentum, with a small upward pop if jumping.
 		if jumped:
 			player.velocity.y += 3.0
+		# Slingshot (movement plan #16): let go near the swing's top speed and
+		# the rope flings you on along the arc.
+		var speed := player.velocity.length()
+		if speed >= SLING_MIN_SPEED and speed >= _peak_speed * SLING_PEAK:
+			player.velocity = player.velocity * SLING_BOOST + Vector3.UP * 2.0
+			_release()
+			slung.emit(player.velocity)
+			return false
 		_release()
 		return false
 	_fresh_hook = false
@@ -303,13 +328,14 @@ func _swing(delta: float) -> bool:
 	# (only with the launcher in hand: otherwise left click is your gun's).
 	var reeling := (_holding() and Input.is_action_pressed("fire")) or reel_test
 	if reeling:
-		_rope_len = maxf(_rope_len - REEL_SPEED * delta, MIN_ROPE)
+		_rope_len = maxf(_rope_len - REEL_SPEED * _speed() * delta, MIN_ROPE)
 		var up_rope := (anchor - (player.global_position + Vector3.UP * 0.9)).normalized()
 		player.velocity += up_rope * REEL_PULL * delta
 	else:
 		# Snappier, game-feel swings: extra pull downward while on the rope, so
 		# long ropes don't swing in slow motion.
-		player.velocity.y -= 9.8 * SWING_EXTRA_GRAVITY * delta
+		player.velocity.y -= 9.8 * SWING_EXTRA_GRAVITY * _speed() * delta # (a heavier pull: quicker swings)
+	_peak_speed = maxf(_peak_speed, player.velocity.length())
 	# Gravity and air control already ran; now keep the rope taut.
 	var pos := player.global_position + Vector3.UP * 0.9
 	var off := pos - anchor
@@ -332,6 +358,11 @@ func _swing(delta: float) -> bool:
 	return true
 
 
+## The rider's brand's grapple speed (Attack on Mandibles swings and reels 15% faster).
+func _speed() -> float:
+	return BrandTable.grapple_speed(Brand.local_id())
+
+
 func _release() -> void:
 	_harpoon = false
 	_bird = null
@@ -340,6 +371,7 @@ func _release() -> void:
 	mode = Mode.NONE
 	_cd = COOLDOWN
 	_show_rope.rpc(null)
+	let_go.emit()
 
 
 # Reliable: it's a one-shot state change (hooked / let go). Unreliable could drop
@@ -364,3 +396,7 @@ func _process(_delta: float) -> void:
 		return
 	_rope.global_transform = Transform3D(MeshKit.basis_from_y(v / length) * Basis.from_scale(Vector3(1, length, 1)), (from + a) * 0.5)
 	_hook.global_transform = Transform3D(MeshKit.basis_from_y(v / length), a)
+	# From S, your rope glows in your brand's colours (style combo).
+	var mat := _rope.material_override as StandardMaterial3D
+	var c := player.combo.count if player != null and player.combo != null else 0
+	mat.albedo_color = ComboRules.color(Brand.local_id(), c).lightened(0.3) if ComboRules.rank(c) >= 4 else ROPE_COLOR

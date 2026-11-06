@@ -13,7 +13,8 @@ func test_every_id_has_a_brand_and_junk_is_no_brand() -> void:
 	assert_eq(BrandTable.valid(&"nonsense"), BrandTable.NONE)
 	assert_eq(BrandTable.valid(null), BrandTable.NONE)
 	assert_eq(BrandTable.valid(3), BrandTable.NONE)
-	assert_eq(BrandTable.IDS.size(), BrandTable.BRANDS.size(), "pick screen shows every brand")
+	assert_eq(BrandTable.IDS.size(), BrandTable.BRANDS.size() - 1, "pick screen shows every brand but No Brand (an unpicked rider)")
+	assert_false(BrandTable.IDS.has(BrandTable.NONE))
 
 
 func test_theme_of() -> void:
@@ -82,19 +83,19 @@ func test_irons_loot() -> void:
 
 
 func test_cheat_odds() -> void:
-	for game: String in BrandTable.CHEAT_RISK:
-		var base := BrandTable.catch_chance(game, 0)
-		assert_almost(base, float(BrandTable.CHEAT_RISK[game]), 0.0001, game)
-		assert_true(base > 0.0 and base < 0.5, "%s first cheat should usually work" % game)
-		var prev := base
+	# Logan: 70% at first, +5% per cheat that gets past him, up to certain.
+	for game: String in ["shell", "slots", "roulette", "blackjack", "race"]:
+		assert_almost(BrandTable.catch_chance(game, 0), 0.70, 0.0001, game)
+		var prev := 0.70
 		for heat in range(1, 15):
 			var c := BrandTable.catch_chance(game, heat)
 			assert_true(c >= prev, "heat never lowers the risk")
-			assert_true(c <= BrandTable.MAX_RISK + 0.0001, "capped")
+			assert_true(c <= 1.0001, "capped")
 			prev = c
-		assert_almost(BrandTable.catch_chance(game, 100), BrandTable.MAX_RISK)
-	assert_almost(BrandTable.catch_chance("shell", -3), float(BrandTable.CHEAT_RISK["shell"]), 0.0001, "negative heat is no heat")
-	assert_true(BrandTable.catch_chance("no_such_game", 0) > 0.0, "unknown game still risky")
+	assert_almost(BrandTable.catch_chance("shell", 1), 0.75)
+	assert_almost(BrandTable.catch_chance("shell", 6), 1.0)
+	assert_almost(BrandTable.catch_chance("shell", 100), 1.0)
+	assert_almost(BrandTable.catch_chance("shell", -3), 0.70, 0.0001, "negative heat is no heat")
 
 
 func test_ban_covers_the_next_wave() -> void:
@@ -127,3 +128,14 @@ func test_cpu_pick_is_a_real_brand() -> void:
 		assert_true(b != BrandTable.NONE and BrandTable.BRANDS.has(b))
 		got[b] = true
 	assert_eq(got.size(), 3, "all three brands come up")
+
+
+func test_attack_on_mandibles() -> void:
+	for id in BrandTable.IDS:
+		var m := id == BrandTable.MANDIBLES
+		assert_almost(BrandTable.combo_gain(id), 1.25 if m else 1.0)
+		assert_almost(BrandTable.sling_mult(id), 1.2 if m else 1.0)
+		assert_almost(BrandTable.grapple_speed(id), 1.15 if m else 1.0)
+		assert_almost(BrandTable.zip_cost_mult(id), 0.8 if m else 1.0)
+	assert_eq(BrandTable.theme_of(BrandTable.MANDIBLES), BrandTable.MANDIBLES)
+	assert_eq(int(ZipRules.recipe(BrandTable.zip_cost_mult(BrandTable.MANDIBLES))[ResNames.PERSONAL_ID]), 12)

@@ -239,6 +239,12 @@ func _ready() -> void:
 		# bow and the market (the way you walk in from the boarding ring).
 		table.rotation.y = PI
 		add_child(table)
+	# Pearl's cashier cage against the port rail, by the card tables: chips for the games.
+	var cage := ChipCage.new()
+	cage.name = "ChipCage"
+	cage.position = Vector3(-AirshipBuilder.DECK_W * 0.5 + 0.9, 0, -6.2)
+	cage.rotation.y = -PI * 0.5 # (customers on its -Z side, so that faces the deck)
+	add_child(cage)
 	var bar := MeshInstance3D.new()
 	bar.mesh = _bar_mesh()
 	bar.material_override = Materials.toon(0.02)

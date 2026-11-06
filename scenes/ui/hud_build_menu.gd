@@ -70,6 +70,7 @@ func _ready() -> void:
 		b.add_theme_font_size_override("font_size", 14)
 		b.pressed.connect(func() -> void: build_mode.show_category(c))
 		tabs.add_child(b)
+		GlowRing.attach(b, str(Defs.BUILD_CATEGORIES[c]["name"]))
 		_tabs.append(b)
 	col.add_child(_rule())
 

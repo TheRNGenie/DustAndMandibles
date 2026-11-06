@@ -22,7 +22,7 @@ static var notifier := Notifier.new()
 ## The set on screen now.
 static var current: StringName = &""
 
-const SET_IDS: Array[StringName] = [&"base", &"sheaf", &"irons", &"snake"]
+const SET_IDS: Array[StringName] = [&"base", &"sheaf", &"irons", &"snake", &"mandibles"]
 const DIR := "res://assets/ui/theme/%s/%s.png"
 
 ## Per set: text colours for each surface, the display font and its treatment.
@@ -64,6 +64,16 @@ const SETS: Dictionary = {
 		"bad": "#B3261E", "dim": "#06140A99", "hud": "#F4ECDA", "bg": "#123B1E",
 		"hud_bg": "#123A20E6", "hud_rim": "#E9C46A", "radius": 10,
 		"decorative": true, "file": "res://assets/fonts/Ewert-Regular.ttf", "fonts": ["Palatino Linotype", "Book Antiqua", "Georgia"], "weight": 700, "italic": true, "spacing": 1, "wdth": 0,
+	},
+	# Attack on Mandibles: the Frontier parts re-dyed as beetle shell (tools/ui/make_theme.py mandibles).
+	&"mandibles": {
+		"name": "Attack on Mandibles", "ink": "#0F2623", "ink_soft": "#3E5E58", "title": "#B9F06E", "outline": "#06140F",
+		"warn": "#7F5500", "good_hud": "#B9F06E", "bad_hud": "#FF8A73", "warn_hud": "#FFC857", "focus": "#E8A13A",
+		"btn": "#EAF7E0", "btn_hover": "#FFFFFF", "btn_off": "#A9BFB8", "btn_outline": "#06140F",
+		"tab": "#0F2623", "tab_sel": "#B9F06E", "accent": "#2E8C7E", "gold": "#E8A13A", "good": "#3F7A2A",
+		"bad": "#A33A2A", "dim": "#06140F99", "hud": "#E6F4EC", "bg": "#123A34",
+		"hud_bg": "#0F2A26E6", "hud_rim": "#E8A13A", "radius": 6,
+		"file": "res://assets/fonts/Rye-Regular.ttf", "fonts": ["Georgia", "Cambria", "Times New Roman"], "weight": 700, "italic": false, "spacing": 1, "wdth": 0,
 	},
 }
 

@@ -14,6 +14,9 @@ const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Prickly Pear", &"c
 	&"herbs": "Medicine (sage)", &"water": "Water", &"sarsaparilla": "Sarsaparilla Root",
 	&"seed_corn": "Corn Seeds", &"seed_chili": "Chili Seeds", &"seed_herbs": "Sage Seeds", &"bucket": "Water Bucket"}
 const MAX_WEAPONS := 6
+## Stacks that can't be taken yet: item -> the reason shown greyed out (the
+## tutorial keeps the medicine back until its step).
+static var held: Dictionary = {}
 
 var home: Homestead
 ## Stored stacks: item -> count.
@@ -155,7 +158,7 @@ func menu_items(tab: int) -> Array:
 			if n <= 0:
 				continue
 			out.append({"id": "i:" + String(item), "name": NAMES.get(item, String(item).capitalize()), "icon": item, "desc": "%d in the chest." % n,
-					"price": "", "price_ok": true, "disabled": "", "buttons": [[&"take1", "Take 1"], [&"takeall", "Take all"]]})
+					"price": "", "price_ok": true, "disabled": str(held.get(item, "")), "buttons": [[&"take1", "Take 1"], [&"takeall", "Take all"]]})
 		if out.is_empty():
 			out.append({"id": "", "name": "The chest is empty", "icon": &"planks", "desc": "Store something from the other tab.",
 					"price": "", "price_ok": true, "disabled": "Nothing stored yet.", "buttons": []})
@@ -238,7 +241,7 @@ func _host(peer_id: int, op: StringName, what: StringName, n: int) -> void:
 			items[what] = int(items.get(what, 0)) + n
 		&"take_item":
 			n = mini(n, int(items.get(what, 0)))
-			if n <= 0:
+			if n <= 0 or held.has(what):
 				return
 			items[what] = int(items[what]) - n
 			if what != &"bucket": # (the tutorial's bucket is gear, not a stockpile)

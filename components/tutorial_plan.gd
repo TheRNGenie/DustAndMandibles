@@ -14,6 +14,8 @@ const WAVE_PULSES := 6
 const WAVE_GAP := 5.0
 ## After the last step: a countdown in the corner, then the finish screen (Logan).
 const FINISH_DELAY := 15.0
+## Your own scrap at the start (players see it as scrap; ResNames.PERSONAL_ID).
+const START_SCRAP := 200
 ## The farm step's starting seeds, waiting in the house chest.
 const CHEST_SEEDS := {&"seed_corn": 2}
 ## What starts in the house chest (Logan): the bucket and three doses of medicine.
@@ -26,8 +28,8 @@ const GEAR: Array = [
 	[&"grapple", "grapple", Vector3(-1.2, 0.86, -0.65), -0.5]]
 
 
-enum Step { PAPER, MOVE, SHOOT, GUNS, PELL, IDEA, BUILD, SELL, TURRETS, LEVER, WAVE, WEATHER, FARM, MEDICINE, GRAPPLE,
-	AIRSHIP, ECONOMY, UPGRADES, SALVAGE, HOUSE, WORKSHOP, DONE }
+enum Step { PAPER, MOVE, SHOOT, GUNS, PELL, IDEA, SALVAGE, BUILD, SELL, TURRETS, LEVER, WAVE, WEATHER, FARM, MEDICINE, GRAPPLE,
+	AIRSHIP, ECONOMY, UPGRADES, HOUSE, WORKSHOP, DONE }
 
 ## A "look at it" step: the marker held near the middle of the screen this long
 ## (looking away starts it over), and never before the card has been up LOOK_MIN s.
@@ -68,14 +70,17 @@ const STEPS: Array[Dictionary] = [
 		"body": "",
 		"tasks": ["Grab Your Revolver", "Dust Mites Shot"], "keys": [["fire", "Shoot"], ["reload", "Reload"]], "marker": "Dust Mite"},
 	{"title": "Pick Your Iron", "voice": "kettle", "line": "Silas Kettle, gunsmith. That revolver's six honest shots. I sell rifles that punch through a shell, shotguns for close work, and a few odd ones that do tricks. You can carry three.",
-		"body": "",
-		"tasks": [], "keys": [["select_1", "Your Guns (1 to 3)"], ["accept", "Continue"]], "read": true},
+		"body": "You carry three guns, one in each of slots 1, 2 and 3. Press 1, 2 or 3 to switch to that slot, or roll the mouse wheel to cycle through what you carry.",
+		"tasks": [], "keys": [["select_1", "Slot 1"], ["select_2", "Slot 2"], ["select_3", "Slot 3"], ["next_item", "Cycle"], ["accept", "Continue"]], "read": true},
 	{"title": "Pell's Toes", "voice": "stroud", "line": "Now, the law. No barrel dips more than thirty degrees below the horizon. In seventy-one Governor Pell fired down from the rim at a rattlesnake and shot off three of his own toes. If a Governor can't shoot downhill safely, no man can. Pell's Toes, folks call it.",
 		"body": "",
 		"tasks": [], "keys": [["accept", "Continue"]], "read": true},
 	{"title": "Across the Canyon", "voice": "stroud", "line": "Which leaves you in a fix. Your turrets can't touch your own wall, so they shoot across the canyon and cover your partner's. Your partner's guns cover you. Your life and your living are in their hands, and theirs in yours.",
 		"body": "",
 		"tasks": ["Look at the Covered Wall"], "keys": [], "marker": "Covered Wall", "look": true},
+	{"title": "The Scrap Heap", "voice": "stroud", "line": "That heap of junk by your house is free scrap, yours to keep, and it piles up again every morning. Pick it over each day.",
+		"body": "Scrap is yours alone. It pays for turret upgrades and Silas's gun work.",
+		"tasks": ["Salvage the Scrap Heap"], "keys": [["interact", "Salvage"]], "marker": "Scrap Heap"},
 	{"title": "Build a Rifle Nest", "voice": "stroud", "line": "Open the build menu, pick a Buffalo Rifle Nest and set it on the marked lip. It's paid from the chitin pot you share.",
 		"body": "",
 		"tasks": ["Open the Build Menu", "Pick the Rifle Nest", "Place It on Your Lip"],
@@ -115,9 +120,6 @@ const STEPS: Array[Dictionary] = [
 	{"title": "Gun Upgrades", "voice": "kettle", "line": "Bring me a gun and some scrap. I can outfit these fine pieces of weaponry however you like, from making 'em harder hitting and quicker to load, to some more... custom modifications. The work stays with the gun.",
 		"body": "",
 		"tasks": [], "keys": [["cycle_option", "Pick"], ["interact", "Buy"], ["accept", "Continue"]], "marker": "Gunsmith", "read": true},
-	{"title": "The Scrap Heap", "voice": "stroud", "line": "Back home. That heap of junk by your house is free scrap, yours to keep, and it piles up again every morning. Pick it over each day.",
-		"body": "",
-		"tasks": ["Salvage the Scrap Heap"], "keys": [["interact", "Salvage"]], "marker": "Scrap Heap"},
 	{"title": "Upgrade the House", "voice": "stroud", "line": "Now the house. The ledger inside sells upgrades. The railroad's paying this once, so buy the lot. Upper floors mean more turret mounts, and the lookout lets your guns see further.",
 		"body": "",
 		"tasks": ["Board Up the Windows", "Reinforce the Walls", "Build the Shaded Porch", "Build the Second Floor", "Build the Lookout Floor", "Build the Zip-Line Tower"],

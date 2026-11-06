@@ -4,6 +4,8 @@ extends CharacterBody3D
 ## Falling into the canyon hauls you back home after a short delay.
 
 signal fell_into_canyon(delay: float)
+## Owner: a slide began (a style combo action).
+signal slide_started
 signal respawned
 
 const WALK_SPEED := 6.0
@@ -62,6 +64,11 @@ const ROCK_COOLDOWN := 0.8
 var cigarette: Cigarette
 ## World height of the ladder's top (the deck): you step off forward once above it.
 var ladder_top_y := 0.0
+## Wall slide zones the player is inside (WallSlides), and that face's outward normal.
+var wall_slide_count := 0
+var wall_slide_normal := Vector3.ZERO
+var wall_sliding := false
+const WALL_SLIDE_SPEED := 3.0
 const CLIMB_SPEED := 4.5
 
 @onready var head: Node3D = $Head
@@ -84,6 +91,9 @@ var whip: Whip
 ## The grapple's dynamite (left hand, R with the launcher out once the gunsmith's
 ## Powder Satchel is bought).
 var dynamite: Dynamite
+var combo: StyleCombo
+var slingshot: Slingshot
+var zipper: ZipDeployer
 ## Set by the world for the local player.
 var build_mode: BuildMode
 
@@ -106,6 +116,18 @@ func _ready() -> void:
 	whip.name = "Whip"
 	whip.player = self
 	camera.add_child(whip)
+	combo = StyleCombo.new()
+	combo.name = "StyleCombo"
+	add_child(combo)
+	combo.setup(self)
+	slingshot = Slingshot.new()
+	slingshot.name = "Slingshot"
+	add_child(slingshot)
+	slingshot.setup(self)
+	zipper = ZipDeployer.new()
+	zipper.name = "ZipDeployer"
+	add_child(zipper)
+	zipper.setup(self)
 	dynamite = Dynamite.new()
 	dynamite.name = "Dynamite"
 	dynamite.player = self
@@ -353,7 +375,10 @@ func _physics_process(delta: float) -> void:
 		input_dir *= 0.25
 	var wish := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 	var on_floor := is_on_floor()
-	if ladder_count > 0 and not blocked:
+	# Standing at a ladder's foot only climbs while you push forward; otherwise you
+	# walk as normal, so backing or strafing away never sticks you there (Logan).
+	var at_foot := on_floor and input_dir.y > -0.1
+	if ladder_count > 0 and not blocked and not at_foot:
 		# On a ladder: forward/back climbs, sideways shuffles, no gravity.
 		velocity.y = -input_dir.y * CLIMB_SPEED
 		if global_position.y > ladder_top_y + 1.0:
@@ -373,6 +398,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if not on_floor:
 		velocity.y -= _gravity * delta
+	_wall_slide(on_floor, blocked)
 	if _fall_left >= 0.0:
 		input_dir = Vector2.ZERO # flat on the canyon floor
 
@@ -426,9 +452,62 @@ func _physics_process(delta: float) -> void:
 			velocity.z = horiz.z
 
 	_step_up(delta)
+	var falling := velocity.y < -1.0
 	move_and_slide()
+	if falling and not on_floor and is_on_floor():
+		_turret_bounce()
 	_update_camera(delta, sprinting)
 	_handle_weapon()
+
+
+## Movement plan #18: in a wall slide zone, airborne and dropping, you slide
+## slowly down the face (hugging it), guns free. Jump kicks you off and out.
+## Starting a slide and kicking off are style combo actions.
+func _wall_slide(on_floor: bool, blocked: bool) -> void:
+	var grappling := grapple != null and grapple.is_active()
+	var can := wall_slide_count > 0 and not on_floor and not grappling and not _falling and velocity.y < 0.0
+	if not can:
+		wall_sliding = false
+		return
+	if not wall_sliding:
+		wall_sliding = true
+		combo.add()
+		Audio.play_at(&"slide", global_position, -6.0, 0.8)
+	velocity.y = maxf(velocity.y, -WALL_SLIDE_SPEED)
+	# Stay on the face: no drifting out into the canyon while you slide.
+	var out := velocity.dot(wall_slide_normal)
+	if out > 0.0:
+		velocity -= wall_slide_normal * out
+	if not blocked and Input.is_action_just_pressed("jump"):
+		velocity = Vector3(velocity.x, 0.0, velocity.z) * 0.6 + wall_slide_normal * 7.0 + Vector3.UP * 6.5
+		wall_sliding = false
+		combo.add()
+		Audio.play_at(&"jump", global_position, -6.0)
+
+
+## Movement plan #19: dropping onto any turret's top bounces you up half again
+## as high as a jump (a style combo action). The turret takes nothing.
+const TURRET_BOUNCE := 1.5
+
+
+func _turret_bounce() -> void:
+	for i in get_slide_collision_count():
+		var col := get_slide_collision(i)
+		if col.get_normal().y < 0.7:
+			continue
+		var n := col.get_collider() as Node
+		while n != null and not (n is Turret):
+			n = n.get_parent()
+		if n == null:
+			continue
+		velocity.y = JUMP_VELOCITY * sqrt(TURRET_BOUNCE)
+		Audio.play_at(&"jump", global_position, -2.0, 0.6)
+		Audio.play_at(&"hammer_hit", global_position, -10.0, 1.8) # the metal's boing
+		add_shake(0.06)
+		combo.add()
+		if GameState.has_flag("--combolog"):
+			print("[bounce] off the %s" % (n as Turret).def.display_name)
+		return
 
 
 func _handle_weapon() -> void:
@@ -506,6 +585,7 @@ func _slide_hop() -> void:
 
 func _start_slide() -> void:
 	_sliding = true
+	slide_started.emit()
 	Audio.play_at(&"slide", global_position, -6.0)
 	_slide_left = SLIDE_TIME
 	var horiz := Vector3(velocity.x, 0.0, velocity.z)
@@ -600,7 +680,7 @@ func _update_fall(delta: float) -> void:
 	if not _falling:
 		# Swinging or reeling on the grapple dips below the lip: that's not a fall.
 		# Nor is anything on a canyon expedition (you went down on purpose).
-		if global_position.y < WorldLayout.CANYON_FALL_Y and not (grapple != null and grapple.is_active()) and not _trip and not ExpeditionApi.debug_floor:
+		if global_position.y < WorldLayout.CANYON_FALL_Y and not (grapple != null and grapple.is_active()) and not wall_sliding and not is_ziplining() and not _trip and not ExpeditionApi.debug_floor:
 			_falling = true
 			_fall_t = 0.0
 			fell_into_canyon.emit(0.0)
@@ -652,14 +732,18 @@ var _zip_t := 0.0
 var _zip_dir := 1.0
 var _zip_speed := 0.0
 var _zip_land := Vector3.ZERO
+var _zip_max := ZIP_SPEED
 
 
-## Grab the trolley and slide to the far tower (jump lets go mid-way).
-func start_zip(line: ZipLine, from_west: bool, land: Vector3) -> void:
+## Grab the trolley and slide to the far tower (jump lets go mid-way). A
+## deployed rope is grabbed anywhere (`t0`) and drops you at its end with your
+## momentum (`land` = INF).
+func start_zip(line: ZipLine, from_west: bool, land: Vector3, t0: float = -1.0, top_speed: float = ZIP_SPEED) -> void:
 	_zip_line = line
 	_zip_dir = 1.0 if from_west else -1.0
-	_zip_t = 0.0 if from_west else 1.0
+	_zip_t = t0 if t0 >= 0.0 else (0.0 if from_west else 1.0)
 	_zip_speed = 4.0
+	_zip_max = top_speed
 	_zip_land = land
 	_end_slide()
 	Audio.play_at(&"zip_start", global_position + Vector3.UP * 2.0, -4.0)
@@ -670,7 +754,7 @@ func _ride_zip(delta: float) -> void:
 		_zip_line = null # the tower went away mid-ride: drop with the momentum we had
 		return
 	var length := _zip_line.a.distance_to(_zip_line.b)
-	_zip_speed = move_toward(_zip_speed, ZIP_SPEED, 14.0 * delta)
+	_zip_speed = move_toward(_zip_speed, _zip_max, 14.0 * delta)
 	var before := global_position
 	_zip_t += _zip_dir * _zip_speed * delta / maxf(length, 1.0)
 	var done := _zip_t <= 0.0 or _zip_t >= 1.0
@@ -678,7 +762,9 @@ func _ride_zip(delta: float) -> void:
 	global_position = _zip_line.point(_zip_t) + Vector3.DOWN * ZIP_HANG
 	velocity = (global_position - before) / maxf(delta, 0.001)
 	var let_go := not GameState.menu_open and Input.is_action_just_pressed("jump") and is_multiplayer_authority()
-	if done:
+	if done and _zip_land == Vector3.INF:
+		_zip_line = null # a deployed rope's end: drop off with the ride's speed
+	elif done:
 		global_position = _zip_land
 		velocity = Vector3.ZERO
 		_zip_line = null

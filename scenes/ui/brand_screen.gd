@@ -49,8 +49,6 @@ func _process(delta: float) -> void:
 	for i in _irons.size():
 		var iron := _irons[i]
 		var target := 1.0 if iron.hovered or BrandTable.IDS[i] == Brand.local else 0.55
-		if BrandTable.IDS[i] == BrandTable.NONE:
-			target *= 0.0 # the cold iron never glows
 		iron.mark.heat = lerpf(iron.mark.heat, target * (0.9 + 0.1 * sin(_t * 5.0 + i)), minf(delta * 6.0, 1.0))
 
 
@@ -165,7 +163,7 @@ func _column(id: StringName) -> Control:
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(spacer)
 	var b := Button.new()
-	b.text = "Ride Unbranded" if id == BrandTable.NONE else "Take %s" % BrandTable.name_of(id)
+	b.text = "Take %s" % BrandTable.name_of(id)
 	b.custom_minimum_size = Vector2(0, 46)
 	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_font_size_override("font_size", 18)

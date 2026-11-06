@@ -93,6 +93,10 @@ func ui_currency() -> StringName:
 	return &"chitin"
 
 
+func uses_chips() -> bool:
+	return false
+
+
 func ui_actions() -> Array:
 	return [] if _t < SPIN_TIME else [[&"spin", "Spin (%s)" % UiStyle.cost(COST, ResNames.PERSONAL_ID)], [&"spin_scrap", "Spin (%s)" % UiStyle.cost(COST_SCRAP, ResNames.TEAM_ID)]]
 

@@ -19,6 +19,8 @@ var menu_open := false
 ## Open category in the menu (-1 = category list).
 var category := 1
 var selected := 0
+## A crafted turret picked from the Crafted tab (not in Defs.BUILD_ORDER, so no index).
+var _picked := &""
 var _ghost: MeshInstance3D
 var _ghost_frame: MeshInstance3D
 var _ghost_mat: StandardMaterial3D
@@ -80,7 +82,7 @@ func _ready() -> void:
 
 
 func selected_id() -> StringName:
-	return Defs.BUILD_ORDER[selected]
+	return _picked if _picked != &"" else Defs.BUILD_ORDER[selected]
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -184,7 +186,7 @@ func choose(id: StringName) -> void:
 	for c in Defs.BUILD_CATEGORIES.size():
 		if category_items(c).has(id):
 			category = c
-	_select(Defs.BUILD_ORDER.find(id))
+	_select_id(id)
 	close_menu()
 
 
@@ -207,12 +209,25 @@ func _cycle(step: int) -> void:
 	for k in items.size():
 		var next: StringName = items[(i + step * (k + 1) + items.size() * (k + 1)) % items.size()]
 		if unlocked(next):
-			_select(Defs.BUILD_ORDER.find(next))
+			_select_id(next)
 			return
+
+
+## Picks `id`: a catalogue item by its index, a crafted turret by its id.
+func _select_id(id: StringName) -> void:
+	var i := Defs.BUILD_ORDER.find(id)
+	if i >= 0:
+		_select(i)
+		return
+	_picked = id
+	_grid_t = 0.0
+	_refresh_ghost_mesh()
+	changed.emit()
 
 
 func _select(i: int) -> void:
 	selected = i
+	_picked = &""
 	_grid_t = 0.0
 	_refresh_ghost_mesh()
 	changed.emit()

@@ -599,7 +599,7 @@ func _ensure_tunnels() -> bool:
 	if Bug.cliffs == null:
 		return false
 	var mat := puff_material(Color("#E9C08A"), Color("#B07E62"))
-	for ti in Bug.cliffs.tunnel_count(): # Maps: any map's tunnels
+	for ti in Bug.cliffs.all_tunnel_count(): # Maps: any map's tunnels (the canyon: every tier)
 		var tn := Bug.cliffs.tunnel(ti)
 		var out: Vector3 = tn[1]
 		var e := GPUParticles3D.new()

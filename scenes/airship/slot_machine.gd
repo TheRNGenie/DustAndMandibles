@@ -6,7 +6,7 @@ extends CasinoGame
 ## in scrap. The screen is the cabinet's face: three reels that spin and thunk
 ## to a stop one by one, a lever to drag, the payline, a coin tray and paytable.
 
-const BETS: Array = [10, 25, 50]
+const BETS: Array = [10, 20, 50]
 ## Reel symbols and prizes live in CasinoRules (unit tested).
 const SYMBOLS: Array[Array] = CasinoRules.SLOT_SYMBOLS
 ## The printed reel strips (20 stops each, weighted like the roll: 6 bugs, 5 cacti,

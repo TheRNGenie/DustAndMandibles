@@ -192,6 +192,20 @@ func _ready() -> void:
 		_zip_test()
 	elif GameState.has_flag("--grappletest"):
 		_grapple_test()
+	elif GameState.has_flag("--slingtest"):
+		_sling_test()
+	elif GameState.has_flag("--bouncetest"):
+		_bounce_test()
+	elif GameState.has_flag("--walltest"):
+		_wall_test()
+	elif GameState.has_flag("--deployzip"):
+		_deploy_zip_test()
+	elif GameState.has_flag("--latchtest"):
+		_latch_test()
+	elif GameState.has_flag("--threattest"):
+		_threat_test()
+	elif GameState.has_flag("--streaktest"):
+		_streak_test()
 	elif GameState.has_flag("--grappleprobe"):
 		_grapple_probe()
 	elif GameState.has_flag("--grapplewall"):
@@ -1356,7 +1370,7 @@ func _take_screenshot(path: String) -> void:
 		player.build_mode.toggle()
 		player.build_mode.show_category(int(GameState.flag_value("--buildmenu")))
 		if GameState.flag_value("--buildpick") != "": # Tiers: --buildpick=<id> highlights (and scrolls to) that tile
-			player.build_mode._select(Defs.BUILD_ORDER.find(StringName(GameState.flag_value("--buildpick"))))
+			player.build_mode._select_id(StringName(GameState.flag_value("--buildpick")))
 		player.build_mode.open_menu()
 	if GameState.flag_value("--gameover") != "": # the end-of-run screen in a shot (win / lose)
 		GameState._finish(GameState.flag_value("--gameover") == "win", "Debug view of the end of the run.")
@@ -1595,14 +1609,20 @@ func _stress(count: int) -> void:
 	if GameState.has_flag("--autobuild") and multiplayer.is_server():
 		_autobuild()
 	var bm := world.get("bugs") as BugManager
+	# --maxbugs=N lifts the live-bug cap for capacity tests (the game's is max_active_bugs).
+	if GameState.flag_value("--maxbugs") != "":
+		var cfg: WaveConfig = Defs.WAVE_CONFIG
+		cfg.max_active_bugs = int(GameState.flag_value("--maxbugs"))
 	var ids: Array = Defs.active_bug_ids()
 	ids = ids.filter(func(id: StringName) -> bool: return Defs.bug(id).behavior != BugDef.Behavior.BOSS and not [&"locust", &"hive_drone"].has(id)) # every boss (and their minions) out: the same mix as before the bosses
 	# Look across at the far wall so the bugs are on screen.
 	var pl := world.call("local_player") as Player
 	if pl != null:
 		pl.head.rotation.x = -0.35
+	# --stresscross: they all come out of the tunnels and walk the floor first (FloorSwarm).
+	var cross := GameState.has_flag("--stresscross")
 	for i in count:
-		bm.spawn_group(ids[i % ids.size()], 1, i % WorldLayout.cliff_count(), i % 5, float(i % 7) * 4.0)
+		bm.spawn_group(ids[i % ids.size()], 1, i % WorldLayout.cliff_count(), i % 5, 0.0 if cross else float(i % 7) * 4.0)
 	await get_tree().create_timer(1.0).timeout
 	var pic := GameState.flag_value("--stressshot")
 	if pic != "":
@@ -1637,6 +1657,7 @@ func _stress(count: int) -> void:
 		# Worst frame and the 1%-low frame time (the slowest 1% of frames).
 		print("[stress]   frame ms: median %.1f  1%%-low %.1f  worst %.1f  bug update %.0f us" % [
 			gaps[gaps.size() / 2], gaps[int(gaps.size() * 0.99)], gaps[gaps.size() - 1], BugManager._avg_us])
+		print("[stress] swarm walkers %d" % bm.swarm.count())
 		print("[stress] bugs %d  fps %.0f  process %.2f ms  physics %.2f ms  draw calls %d  objects %d  nodes %d" % [
 			get_tree().get_nodes_in_group("bugs").size(), fps if fps > 0 else float(n) / 2.0, proc / n * 1000.0, phys / n * 1000.0,
 			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
@@ -1664,6 +1685,233 @@ func _stress(count: int) -> void:
 
 ## --grappletest: pulls the player to a point 18 m away and 6 m up, then swings
 ## them from an anchor 12 m overhead; prints where they end up. Works headless.
+## --streaktest: end a wave at combo 20 and buy a revolver upgrade at the gunsmith.
+func _streak_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	GameState.wave = 2
+	player.combo._on_phase(GameState.Phase.WAVE)
+	player.combo._set_count(20, false)
+	player.combo._still = -1e9
+	player.combo._on_phase(GameState.Phase.BUILD)
+	var me := multiplayer.get_unique_id()
+	print("[streak] peak %d -> cut %.0f%% (host has %.0f%%), banner: '%s'" % [player.combo.peak, ComboRules.streak_cut(20) * 100.0, StyleCombo.streak_for(me) * 100.0, StyleCombo.streak_note()])
+	var shop := world.get_node("Airship/GunShop") as GunShop
+	Economy.earn(player.cliff_id, {&"chitin": 200})
+	var before := Economy.amount(player.cliff_id, &"chitin")
+	shop._buy(me, "upgrade", &"revolver")
+	var paid := before - Economy.amount(player.cliff_id, &"chitin")
+	before = Economy.amount(player.cliff_id, &"chitin")
+	shop._buy(me, "upgrade", &"revolver")
+	var paid2 := before - Economy.amount(player.cliff_id, &"chitin")
+	print("[streak] revolver upgrade 1 paid %d (list %d), upgrade 2 paid %d (list %d); streak left %.0f%%, banner '%s'" % [paid, int(Gun.weapon(&"revolver").upgrade_costs[0]), paid2, int(Gun.weapon(&"revolver").upgrade_costs[1]), StyleCombo.streak_for(me) * 100.0, StyleCombo.streak_note()])
+	get_tree().quit()
+
+
+## --threattest: an acid nest under a Gatling Post's lip, and a Glint Beetle.
+func _threat_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	BuildManager.instance.build(&"gatling_post", player.cliff_id, Vector2i(0, 10))
+	await get_tree().create_timer(0.5).timeout
+	var t: Turret = null
+	for c: Node in BuildManager.instance.get_children():
+		if c is Turret:
+			t = c
+	var mt := world.get_node("MovementThreats") as MovementThreats
+	mt._place_nest()
+	await get_tree().process_frame
+	var nest := get_tree().get_first_node_in_group("acid_nests") as MovementThreats.AcidNest
+	var hp0 := t.health.hp
+	await get_tree().create_timer(MovementThreats.NEST_BUILD + 3.0).timeout
+	print("[threat] nest %.1f m from the %s; turret hp %.0f -> %.0f after 3 s built" % [nest.global_position.distance_to(t.global_position), t.def.display_name, hp0, t.health.hp])
+	mt.hit(nest, 999.0, "%s's Gatling Post" % player.display_name(), player.cliff_id)
+	await get_tree().process_frame
+	print("[threat] after a turret hit: nest standing %s" % str(is_instance_valid(nest) and not nest.is_queued_for_deletion()))
+	mt.hit(nest, 60.0, player.display_name(), player.cliff_id)
+	await get_tree().process_frame
+	print("[threat] after a rider's 60 damage: nest standing %s" % str(is_instance_valid(nest) and not nest.is_queued_for_deletion()))
+	mt._place_glint()
+	await get_tree().process_frame
+	var g := get_tree().get_first_node_in_group("glint_beetles") as Node3D
+	var p0 := g.global_position
+	await get_tree().create_timer(1.0).timeout
+	var pot := Economy.team_scrap()
+	print("[threat] glint moved %.1f m in 1 s" % g.global_position.distance_to(p0))
+	mt.hit(g, 25.0, player.display_name(), player.cliff_id)
+	await get_tree().process_frame
+	print("[threat] glint caught: team pot %d -> %d, combo %d" % [pot, Economy.team_scrap(), player.combo.count])
+	get_tree().quit()
+
+
+## --latchtest: a Gatling Post, a mite clamped under it, then far and point-blank shots.
+func _latch_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	BuildManager.instance.build(&"gatling_post", player.cliff_id, Vector2i(0, 10))
+	WaveDirector.bug_manager.spawn_group(&"dust_mite", 3, player.cliff_id, 2, 10.0)
+	await get_tree().create_timer(1.0).timeout
+	var director := world.get_node("LatchDirector") as LatchDirector
+	director._latch_one()
+	await get_tree().create_timer(0.5).timeout
+	LatchDirector._prune()
+	if LatchDirector.latched.is_empty():
+		print("[latch] nothing latched")
+		get_tree().quit()
+		return
+	var b := LatchDirector.latched[0]
+	var t: Turret = null
+	for c: Node in BuildManager.instance.get_children():
+		if c is Turret:
+			t = c
+	print("[latch] a %s clamped %.1f m from the %s: jam x%.1f, turrets can target it: %s" % [b.def.display_name, b.global_position.distance_to(t.global_position), t.def.display_name, LatchDirector.jam_mult(t.cliff_id, t.global_position), str(not b.untargetable())])
+	b.receive_hit(999.0, b.global_position, Vector3.DOWN, true, 1.0, "%s's Gatling Post" % player.display_name(), player.cliff_id)
+	b.receive_hit(999.0, b.global_position, Vector3.DOWN, true, 1.0, player.display_name(), player.cliff_id)
+	print("[latch] after a turret hit and a shot from %.0f m: alive %s" % [player.global_position.distance_to(b.global_position), str(b.is_alive())])
+	player.global_position = b.global_position + Vector3(0, 1.0, 0) + (Vector3.RIGHT if player.cliff_id == 1 else Vector3.LEFT) * 2.0
+	await get_tree().physics_frame
+	b.receive_hit(10.0, b.global_position, Vector3.DOWN, true, 1.0, player.display_name(), player.cliff_id)
+	await get_tree().physics_frame
+	print("[latch] point-blank hit: alive %s, jam now x%.1f" % [str(is_instance_valid(b) and b.is_alive()), LatchDirector.jam_mult(t.cliff_id, t.global_position)])
+	get_tree().quit()
+
+
+## --deployzip: make three... four anchors, string them across the canyon and ride one.
+func _deploy_zip_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	var cliffs := world.get("cliffs") as CliffBuilder
+	Economy.earn(player.cliff_id, {ZipRules.ITEM: 4})
+	var start := player.global_position + Vector3.UP * 2.3
+	for k in 4:
+		var end := cliffs.face_point(player.cliff_id, WorldLayout.CLIFF_HEIGHT - 14.0, player.global_position.z + 18.0 + k * 3.0) # (the canyon is wider than an anchor flies: down your own face)
+		player.zipper._deploy(multiplayer.get_unique_id(), start, end)
+		await get_tree().process_frame
+	await get_tree().process_frame
+	var lines := DeployZip.of_rider(get_tree(), multiplayer.get_unique_id())
+	print("[dzip] anchors left %d, ropes standing %d (cap %d), first rope %.1f m" % [Economy.amount(player.cliff_id, ZipRules.ITEM), lines.size(), ZipRules.MAX_PER_RIDER, lines[0].a.distance_to(lines[0].b) if not lines.is_empty() else 0.0])
+	# Face along the newest rope and grab it from where you stand.
+	var z := lines[lines.size() - 1]
+	player.look_at(player.global_position + Vector3(z.b.x - z.a.x, 0.0, z.b.z - z.a.z), Vector3.UP)
+	var grabbed := player.zipper._grab()
+	var t := 0.0
+	var top := 0.0
+	while player.is_ziplining() and t < 6.0:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		top = maxf(top, player.velocity.length())
+	print("[dzip] grabbed %s, rode %.1f s at up to %.1f m/s, now %.1f m from the anchor, combo %d" % [str(grabbed), t, top, player.global_position.distance_to(z.b), player.combo.count])
+	get_tree().quit()
+
+
+## --walltest: drop into a wall slide zone on your own face and log the slide.
+func _wall_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	var cliffs := world.get("cliffs") as CliffBuilder
+	var y := WallSlides.TOP - 1.0
+	var n := cliffs.face_normal(player.cliff_id, y, 8.0)
+	player.global_position = cliffs.face_point(player.cliff_id, y, 8.0) + n * 1.0
+	player.velocity = Vector3.DOWN * 2.0
+	var speeds: Array = []
+	for i in 90:
+		await get_tree().physics_frame
+		if i % 15 == 0:
+			speeds.append("%.1f%s@%s" % [player.velocity.y, "s" if player.wall_sliding else "", str(player.global_position.snapped(Vector3.ONE * 0.1))])
+	print("[wall] zones %d, sliding %s, fall speeds %s, height %.1f, falling into canyon %s, combo %d" % [player.wall_slide_count, str(player.wall_sliding), str(speeds), player.global_position.y, str(player.get("_falling")), player.combo.count])
+	Input.action_press("jump")
+	await get_tree().physics_frame
+	Input.action_release("jump")
+	await get_tree().physics_frame
+	print("[wall] kicked off: velocity %s, out along the face normal %.1f m/s, combo %d" % [str(player.velocity), player.velocity.dot(n), player.combo.count])
+	get_tree().quit()
+
+
+## --bouncetest: build a Gatling Post, drop onto it and watch the bounce.
+func _bounce_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	BuildManager.instance.build(&"gatling_post", player.cliff_id, Vector2i(0, 10))
+	await get_tree().create_timer(1.0).timeout
+	var t: Turret = null
+	for c: Node in BuildManager.instance.get_children():
+		if c is Turret:
+			t = c
+	if t == null:
+		print("[bounce] no turret built")
+		get_tree().quit()
+		return
+	player.global_position = t.global_position + Vector3.UP * 6.0
+	player.velocity = Vector3.ZERO
+	var top := -INF
+	var landed := false
+	for i in 150:
+		await get_tree().physics_frame
+		if player.velocity.y > 0.5:
+			landed = true
+		if landed:
+			top = maxf(top, player.global_position.y - t.global_position.y)
+	print("[bounce] after landing on the %s: rose to %.1f m above its base, combo %d" % [t.def.display_name, top, player.combo.count])
+	get_tree().quit()
+
+
+## --slingtest: swing, let go at the bottom of the arc (top speed) and see
+## the slingshot fling you into a dust mite placed in your path.
+func _sling_test() -> void:
+	for i in 30:
+		await get_tree().physics_frame
+	var player := world.call("local_player") as Player
+	var g := player.grapple
+	g.test_mode = true
+	player.hotbar_use_grapple()
+	var fwd := -player.global_basis.z
+	# Hang back off the lip of a jump: the rope swings you down and through.
+	player.global_position += Vector3.UP * 6.0
+	var anchor := player.global_position + Vector3.UP * 6.0 + fwd * 12.0
+	player.velocity = Vector3.ZERO
+	Input.action_press("alt_fire")
+	g.attach(Grapple.Mode.SWING, anchor)
+	var slung := [false]
+	g.slung.connect(func(_v: Vector3) -> void: slung[0] = true)
+	var prev_vy := -1.0
+	for i in 240:
+		await get_tree().physics_frame
+		if i > 10 and prev_vy < 0.0 and player.velocity.y >= 0.0:
+			break # the bottom of the arc: top speed
+		prev_vy = player.velocity.y
+	var speed := player.velocity.length()
+	Input.action_release("alt_fire")
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	print("[sling] let go at %.1f m/s (peak %.1f): slung %s, combo %d" % [speed, g._peak_speed, str(slung[0]), player.combo.count])
+	var bm := WaveDirector.bug_manager
+	bm.spawn_group(&"dust_mite", 1, player.cliff_id, 1, 1.0)
+	await get_tree().physics_frame
+	var bug: Bug = null
+	for c: Node in bm.get_children():
+		if c is Bug and (c as Bug).is_alive():
+			bug = c
+	if bug != null:
+		var hp0: float = bug.health.hp
+		bug.global_position = player.global_position + Vector3.UP * 0.9 + player.velocity.normalized() * 1.0
+		# (bugs drive their own position: put the flying rider just short of the mite instead)
+		for i in 6:
+			if not is_instance_valid(bug):
+				break
+			player.global_position = bug.global_position - Vector3.UP * 0.9 - player.velocity.normalized() * 1.0
+			await get_tree().physics_frame
+			if is_instance_valid(bug):
+				print("[sling] frame %d: mite %.1f m away, flying %s" % [i, bug.global_position.distance_to(player.global_position + Vector3.UP * 0.9), str(player.slingshot.flying())])
+		print("[sling] mite in the path: hp %.0f -> %s (sling damage at combo %d: %.0f)" % [hp0, "dead" if not is_instance_valid(bug) or not bug.is_alive() else "%.0f" % bug.health.hp, player.combo.count, ComboRules.sling_damage(player.combo.count)])
+	get_tree().quit()
+
+
 func _grapple_test() -> void:
 	for i in 30:
 		await get_tree().physics_frame

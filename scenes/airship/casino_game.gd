@@ -38,6 +38,12 @@ func ui_currency() -> StringName:
 	return &"scrap"
 
 
+## Staked in Pearl's chips and paid out in your own scrap (Logan). The prize
+## wheel keeps its own prices and prizes.
+func uses_chips() -> bool:
+	return true
+
+
 ## Bet types to pick from (Player / Banker / Tie, Red / Black...), or empty.
 func ui_choices() -> Array:
 	return []
@@ -181,14 +187,14 @@ func menu_build_body(body: Control, _screen: MenuScreen) -> void:
 	var bets := ui_bets()
 	if not bets.is_empty():
 		var col := VBoxContainer.new()
-		col.add_child(_caption("Stake (%s)" % UiStyle.tc(String(ui_currency()))))
+		col.add_child(_caption("Stake (Chips)" if uses_chips() else "Stake (%s)" % UiStyle.tc(String(ui_currency()))))
 		var chips := HBoxContainer.new()
 		chips.add_theme_constant_override("separation", 6)
 		for i in bets.size():
 			var b := ChipButton.new()
 			b.value = int(bets[i])
 			b.selected = i == ui_bet_index
-			b.tooltip_text = "Bet %d %s" % [int(bets[i]), String(ui_currency())]
+			b.tooltip_text = ("Bet %d in chips" % int(bets[i])) if uses_chips() else "Bet %d %s" % [int(bets[i]), String(ui_currency())]
 			var index := i
 			b.pressed.connect(func() -> void:
 				ui_bet_index = index
@@ -248,7 +254,7 @@ func _cheat_row(body: Control, _bets: Array) -> void:
 	var risk := Brand.local_risk(str(cheat[1]))
 	var b := MenuScreen.wood_button("%s  (%d%% Risk)" % [str(cheat[0]), roundi(risk * 100.0)])
 	b.custom_minimum_size.x = 300
-	b.tooltip_text = "Snake Eyes: rig this one. If the pit boss catches you, you lose the stake and you're barred from the tables for a wave. Every cheat this wave makes the next likelier to be caught."
+	b.tooltip_text = "Snake Eyes: rig this one. If the pit boss catches you, you lose the stake and you're barred from the tables for a wave. He catches 70% of cheats, 5% more for each one that gets past him, and starts over once he's caught you."
 	b.disabled = ui_busy()
 	b.pressed.connect(func() -> void: ui_press(&"cheat"))
 	row.add_child(b)
@@ -260,7 +266,7 @@ func _cheat(peer_id: int, game: String, bet: int) -> int:
 	var r := Brand.cheat(peer_id, game)
 	if r < 0:
 		if bet > 0:
-			Economy.spend(_cliff(peer_id), {ui_currency(): bet})
+			_spend_stake(peer_id, bet)
 		_note.rpc("CAUGHT CHEATING! The pit boss takes the stake and shows you the door.")
 	return r
 
@@ -417,10 +423,29 @@ func _take(peer_id: int, amount: int) -> bool:
 	if Brand.is_banned(peer_id): # Brand: caught cheats are barred for a wave
 		Economy.notify(peer_id, "The pit boss won't take your bets until wave %d." % Brand.ban_wave(peer_id))
 		return false
-	if Economy.spend(_cliff(peer_id), {ui_currency(): amount}):
+	if _spend_stake(peer_id, amount):
 		return true
-	Economy.notify(peer_id, "You need %d %s for that bet." % [amount, String(ui_currency())])
+	if uses_chips():
+		Economy.notify(peer_id, "You need %d in chips for that bet. Pearl sells them at her cage." % amount)
+	else:
+		Economy.notify(peer_id, "You need %d %s for that bet." % [amount, String(ui_currency())])
 	return false
+
+
+## Host: takes `amount` from this rider's chips (or currency); false if short.
+func _spend_stake(peer_id: int, amount: int) -> bool:
+	var cid := _cliff(peer_id)
+	if not uses_chips():
+		return Economy.spend(cid, {ui_currency(): amount})
+	var held := {}
+	for id: StringName in ChipRules.ids():
+		held[id] = Economy.amount(cid, id)
+	var plan := ChipRules.pay(held, amount)
+	if plan.is_empty() or not Economy.spend(cid, plan["spend"]):
+		return false
+	if not (plan["add"] as Dictionary).is_empty():
+		Economy.earn(cid, plan["add"])
+	return true
 
 
 ## Host: a win sometimes comes with a turret part (CasinoRules.PART_CHANCE).
@@ -434,8 +459,14 @@ func _part_bonus(peer_id: int) -> String:
 
 
 func _pay(peer_id: int, amounts: Dictionary) -> void:
-	if not amounts.is_empty():
-		Economy.earn(_cliff(peer_id), amounts)
+	if amounts.is_empty():
+		return
+	var out := amounts.duplicate()
+	if uses_chips() and out.has(ui_currency()):
+		# Chip games pay winnings in your own scrap.
+		out[ResNames.PERSONAL_ID] = int(out.get(ResNames.PERSONAL_ID, 0)) + int(out[ui_currency()])
+		out.erase(ui_currency())
+	Economy.earn(_cliff(peer_id), out)
 
 
 ## A stake button drawn as a casino chip with its value; the picked one sits in a gold ring.

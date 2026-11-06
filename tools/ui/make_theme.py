@@ -1469,7 +1469,45 @@ def cowhide():
     save(img, "brand", "cowhide")
 
 
-THEMES = {"base": theme_base, "sheaf": theme_sheaf, "irons": theme_irons, "snake": theme_snake, "scatter": snake_scatter, "brand": cowhide}
+def theme_mandibles():
+    """Attack on Mandibles: the Frontier set's parts re-dyed as beetle shell:
+    browns and reds turn beetle teal and acid green, gold stays amber."""
+    import colorsys
+    T = "mandibles"
+    os.makedirs(os.path.join(ROOT, T), exist_ok=True)
+    src = os.path.join(ROOT, "base")
+    for f in sorted(os.listdir(src)):
+        if not f.endswith(".png"):
+            continue
+        im = np.asarray(Image.open(os.path.join(src, f)).convert("RGBA")).astype(np.float32) / 255.0
+        rgb = im[..., :3]
+        mx = rgb.max(-1); mn = rgb.min(-1)
+        d = mx - mn + 1e-6
+        r, g, bl = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+        h = np.where(mx == r, ((g - bl) / d) % 6, np.where(mx == g, (bl - r) / d + 2, (r - g) / d + 4)) / 6.0
+        sat = np.where(mx > 0, d / (mx + 1e-6), 0)
+        # Browns/reds (hue under ~40 deg) become teal; brighter, paler ones lean acid green.
+        brown = (h < 40 / 360.0) | (h > 340 / 360.0)
+        shift = np.where(brown & (mx < 0.72), 0.45, 0.0) # (pale paper and its stains keep their parchment tan)
+        h2 = (h + shift) % 1.0
+        sat2 = np.where(brown, np.minimum(sat * 1.1, 1.0), sat)
+        out = np.zeros_like(rgb)
+        hi = (h2 * 6.0)
+        i = np.floor(hi).astype(int) % 6
+        fpart = hi - np.floor(hi)
+        v = mx
+        p_ = v * (1 - sat2); q = v * (1 - sat2 * fpart); t = v * (1 - sat2 * (1 - fpart))
+        for k, (a1, a2, a3) in enumerate(((v, t, p_), (q, v, p_), (p_, v, t), (p_, q, v), (t, p_, v), (v, p_, q))):
+            m = i == k
+            out[..., 0] = np.where(m, a1, out[..., 0])
+            out[..., 1] = np.where(m, a2, out[..., 1])
+            out[..., 2] = np.where(m, a3, out[..., 2])
+        im[..., :3] = out
+        Image.fromarray((np.clip(im, 0, 1) * 255).astype(np.uint8), "RGBA").save(os.path.join(ROOT, T, f))
+
+
+THEMES = {"base": theme_base, "sheaf": theme_sheaf, "irons": theme_irons, "snake": theme_snake, "scatter": snake_scatter, "brand": cowhide,
+    "mandibles": theme_mandibles}
 
 if __name__ == "__main__":
     which = sys.argv[1:] or list(THEMES)

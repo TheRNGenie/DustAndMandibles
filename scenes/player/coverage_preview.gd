@@ -84,8 +84,8 @@ func _far_patch(cid: int, muzzle: Vector3, pitch: float, rng: float) -> void:
 		other = m.covered_cliff(cid, cell.y) # bigger maps: the spot decides which neighbour
 	var zs: Array[float] = []
 	# Only the far wall inside the play area (the wild canyon beyond bends away).
-	var z_lo := maxf(muzzle.z - rng, -WorldLayout.WORLD_HALF_Z + 2.0)
-	var z_hi := minf(muzzle.z + rng, WorldLayout.WORLD_HALF_Z - 2.0)
+	var z_lo := maxf(muzzle.z - rng, -WorldLayout.PLAY_HALF_Z + 2.0)
+	var z_hi := minf(muzzle.z + rng, WorldLayout.PLAY_HALF_Z - 2.0)
 	if not m.is_canyon():
 		z_lo = -m.span_v + 2.0
 		z_hi = m.span_v - 2.0

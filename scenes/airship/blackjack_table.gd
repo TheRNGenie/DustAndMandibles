@@ -184,14 +184,14 @@ func _finish() -> void:
 	var dv := CasinoRules.bj_value(_hand["dealer"])
 	var result := ""
 	if total > staked:
-		result = ("Blackjack! You win %s" if outcomes.has("BLACKJACK") else "You win %s") % UiStyle.cost(total, ResNames.TEAM_ID)
+		result = ("Blackjack! You win %s" if outcomes.has("BLACKJACK") else "You win %s") % UiStyle.cost(total, ResNames.PERSONAL_ID)
 		if dv > 21:
 			result = "Dealer busts with %d. %s" % [dv, result]
 		result += _part_bonus_later(peer)
 	elif total == staked:
-		result = "Push. Your %s comes back" % UiStyle.cost(total, ResNames.TEAM_ID)
+		result = "Push. You get %s back" % UiStyle.cost(total, ResNames.PERSONAL_ID)
 	elif total > 0:
-		result = "One hand wins, one loses: %s back" % UiStyle.cost(total, ResNames.TEAM_ID)
+		result = "One hand wins, one loses: %s back" % UiStyle.cost(total, ResNames.PERSONAL_ID)
 	elif outcomes.has("BUST") and hands.size() == 1:
 		result = "Bust! The house takes it"
 	else:

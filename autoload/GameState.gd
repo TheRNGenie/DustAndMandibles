@@ -105,6 +105,9 @@ func config() -> WaveConfig:
 
 func reset() -> void:
 	unlock_all = false
+	StyleCombo.counts.clear()
+	StyleCombo.streaks.clear()
+	StyleCombo.local_streak = 0.0
 	phase = Phase.LOBBY
 	wave = 0
 	time_left = 0.0
@@ -171,6 +174,7 @@ func start_run(first_wave: int = 1) -> void: # [Foundation hook] first_wave for 
 	GunShop.reset_loadouts()
 	_sync_homesteads_reliable.rpc(homestead_hp, homestead_max)
 	wave = maxi(first_wave, 1)
+	endless = wave > config().last_wave
 	if first_wave <= 1 and has_flag("--debug") and flag_value("--startwave") != "":
 		wave = clampi(int(flag_value("--startwave")), 1, 999)
 		endless = wave > config().last_wave

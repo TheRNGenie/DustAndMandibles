@@ -19,6 +19,7 @@ const KEY_BINDINGS: Dictionary = {
 	"field_guide": [KEY_J],
 	"smoke": [KEY_T],
 	"throw_rock": [KEY_V],
+	"deploy_zip": [KEY_L], # fire a Zipline Anchor (movement plan #17)
 	"melee": [KEY_Z],
 	"upgrade": [KEY_U],
 	"tier_up": [KEY_Y], # build mode: swap a turret for its next tech tier

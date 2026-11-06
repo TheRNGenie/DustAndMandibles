@@ -5,7 +5,9 @@ extends RefCounted
 ##   The Sheaf          - farming: bigger harvests, faster growth, fuller buckets, cheaper seeds
 ##   The Crossed Irons  - combat: faster reloads, more team chitin per kill, richer bug loot
 ##   The Snake Eyes     - gambling: harder hits on bosses, and casino cheats (with a risk of a ban)
-##   No Brand           - ride clean: no bonuses, the Frontier look
+##   Attack on Mandibles- mobility: quicker combos, harder slingshots, a faster
+##                        grapple, cheaper zipline anchors (it replaced No Brand on the
+##                        pick screen; "none" is still a rider who hasn't picked)
 ## Numbers stay modest (10-25%). Each brand also re-themes the local player's UI
 ## (UiStyle set of the same id).
 
@@ -13,8 +15,14 @@ const NONE := &"none"
 const SHEAF := &"sheaf"
 const IRONS := &"irons"
 const SNAKE := &"snake"
+const MANDIBLES := &"mandibles"
 ## In the order the branding irons stand on the pick screen.
-const IDS: Array[StringName] = [SHEAF, IRONS, SNAKE, NONE]
+const IDS: Array[StringName] = [SHEAF, IRONS, SNAKE, MANDIBLES]
+# --- Attack on Mandibles (movement plan)
+const COMBO_GAIN := 0.25 # each combo action counts 25% more
+const SLING_DAMAGE := 0.20 # slingshot hits 20% harder
+const GRAPPLE_SPEED := 0.15 # swing and reel 15% faster
+const ZIP_DISCOUNT := 0.20 # zipline anchors cost 20% less scrap
 
 # --- The Sheaf
 const CROP_YIELD := 0.20 # +20% harvest (the fraction rounds up by chance)
@@ -28,10 +36,11 @@ const HEAP_LOOT := 0.25 # +25% from bug shell heaps you pick over...
 const HEAP_SCRAP := 3 # ...and a little more pried off the shell
 # --- The Snake Eyes
 const BOSS_DAMAGE := 0.20 # +20% gun and whip damage on bosses
-## Chance the pit boss catches a cheat, per game; each earlier cheat this wave adds HEAT.
-const CHEAT_RISK: Dictionary = {"shell": 0.18, "slots": 0.15, "roulette": 0.22, "blackjack": 0.20, "race": 0.20}
-const HEAT := 0.10
-const MAX_RISK := 0.75
+## Chance the pit boss catches a cheat (Logan): CHEAT_RISK at first, HEAT more
+## for each cheat that got past him, up to certain; being caught starts it over.
+const CHEAT_RISK := 0.70
+const HEAT := 0.05
+const MAX_RISK := 1.0
 ## Waves a caught cheat is barred from the airship's tables.
 const BAN_WAVES := 1
 
@@ -43,6 +52,8 @@ const BRANDS: Dictionary = {
 	SNAKE: {"name": "The Snake Eyes", "short": "Snake Eyes", "motto": "The house always loses.",
 		"lines": ["+20% damage to bosses", "Cheat at the airship casino: peek, nudge, load the ball, palm an ace, dope a beetle",
 			"Get caught and you're barred from the tables for a wave"]},
+	MANDIBLES: {"name": "Attack on Mandibles", "short": "Mandibles", "motto": "You are the weapon.",
+		"lines": ["Style combo climbs 25% faster", "Grapple slingshot hits 20% harder", "Grapple swings and reels 15% faster", "Zipline anchors cost 20% less scrap"]},
 	NONE: {"name": "No Brand", "short": "Unbranded", "motto": "Ride clean.",
 		"lines": ["No bonuses", "The plain Frontier look"]},
 }
@@ -138,8 +149,27 @@ static func can_cheat(id: StringName) -> bool:
 
 
 ## Chance of being caught cheating at `game` after `heat` earlier cheats this wave.
-static func catch_chance(game: String, heat: int) -> float:
-	return minf(float(CHEAT_RISK.get(game, 0.2)) + HEAT * maxi(heat, 0), MAX_RISK)
+## `heat`: cheats that got past the pit boss since he last caught this rider.
+static func catch_chance(_game: String, heat: int) -> float:
+	return minf(CHEAT_RISK + HEAT * maxi(heat, 0), MAX_RISK)
+
+
+## Zipline anchors' scrap price multiplier for a brand.
+static func zip_cost_mult(brand: StringName) -> float:
+	return 1.0 - ZIP_DISCOUNT if valid(brand) == MANDIBLES else 1.0
+
+
+## Style combo gained per action.
+static func combo_gain(brand: StringName) -> float:
+	return 1.0 + COMBO_GAIN if valid(brand) == MANDIBLES else 1.0
+
+
+static func sling_mult(brand: StringName) -> float:
+	return 1.0 + SLING_DAMAGE if valid(brand) == MANDIBLES else 1.0
+
+
+static func grapple_speed(brand: StringName) -> float:
+	return 1.0 + GRAPPLE_SPEED if valid(brand) == MANDIBLES else 1.0
 
 
 ## Barred from the tables while the wave number is below the returned wave.

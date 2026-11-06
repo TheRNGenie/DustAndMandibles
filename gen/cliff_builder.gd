@@ -356,7 +356,8 @@ func tunnel_mouth(cliff_id: int, z: float) -> Vector3:
 ## Bug tunnel i: [mouth on the floor, the (horizontal) way bugs come out of it].
 func tunnel(i: int) -> Array:
 	if _canyon:
-		var tn: Array = WorldLayout.TUNNELS[i % WorldLayout.TUNNELS.size()]
+		var all := WorldLayout.all_tunnels()
+		var tn: Array = all[i % all.size()]
 		return [tunnel_mouth(int(tn[0]), float(tn[1])), map.cliffs[int(tn[0])].inward]
 	var t: Array = map.tunnels[i % map.tunnels.size()]
 	var m: Vector3 = t[0]
@@ -365,6 +366,26 @@ func tunnel(i: int) -> Array:
 
 func tunnel_count() -> int:
 	return map.tunnel_count()
+
+
+## Every tunnel bugs can come out of: on the canyon the near ones (tunnel_count,
+## what expeditions and the story use) and then the mid and deep tiers.
+func all_tunnel_count() -> int:
+	return WorldLayout.all_tunnels().size() if _canyon else tunnel_count()
+
+
+## Canyon: tunnel `k` (wrapped) of tier 0 near / 1 mid / 2 deep that isn't
+## sealed. Other maps (and the near tier) pick as open_tunnel_index does.
+func tier_tunnel_index(tier: int, k: int) -> int:
+	if not _canyon or tier <= 0:
+		return open_tunnel_index(k)
+	var n := WorldLayout.TUNNELS.size()
+	var base := clampi(tier, 0, 2) * n
+	for j in n:
+		var i := base + posmod(k + j, n)
+		if not sealed.has(i):
+			return i
+	return base + posmod(k, n)
 
 
 ## Story: tunnels blown shut (Down the Hole, and The Queen after it). Bugs never
@@ -412,8 +433,8 @@ func _bug_tunnels() -> ArrayMesh:
 	# The canyon builds the west wall's tunnels first, then the east's.
 	var order: Array[int] = []
 	for cid in map.count():
-		for i in tunnel_count():
-			if not _canyon or int(WorldLayout.TUNNELS[i][0]) == cid:
+		for i in all_tunnel_count():
+			if not _canyon or int(WorldLayout.all_tunnels()[i][0]) == cid:
 				if not order.has(i):
 					order.append(i)
 	for i in order:
@@ -427,6 +448,9 @@ func _bug_tunnels() -> ArrayMesh:
 		if i == main_tunnel(): # the main tunnel: the great arch (Down the Hole)
 			w *= 1.45
 			h *= 1.35
+		elif _canyon and WorldLayout.tunnel_tier(i) == 2: # deep tunnels: the hive's arteries
+			w *= 1.2
+			h *= 1.2
 		# The hole: nested dark arches, blackest at the back, so it reads as deep.
 		for k in 4:
 			var depth := 0.35 - k * 0.12
@@ -461,7 +485,7 @@ func _bug_tunnels() -> ArrayMesh:
 # ---------------------------------------------------------------- mesh building
 
 ## How far the canyon continues past the playable stretch (visual only, fades into fog).
-const FAR_Z := 700.0
+const FAR_Z := 900.0
 const FAR_STEP := 4.0
 
 
@@ -492,6 +516,8 @@ func build_steps(parent: Node3D) -> Array[Callable]:
 		var floor_mat := Materials.strata(Color("#D9A35E"))
 		for part in 3: # each cliff's plateau and face, then the floor
 			steps.append(_near_canyon.bind(parent, rock, floor_mat, part))
+		for part in 3: # the same out to the deep tunnels, a little coarser
+			steps.append(_corridor.bind(parent, rock, floor_mat, part))
 		for side: float in [-1.0, 1.0]:
 			steps.append(_far_canyon.bind(parent, rock, floor_mat, side))
 		steps.append(func() -> void:
@@ -506,7 +532,7 @@ func build_steps(parent: Node3D) -> Array[Callable]:
 			_add_visual(parent, "BugTunnels", _bug_tunnels(), Materials.toon(0.03))
 			LoadTimes.mark("  cliff: ridges/bones/tunnels"))
 		steps.append(func() -> void:
-			_add_hinterland(parent, rock)
+			_add_hinterland(parent)
 			LoadTimes.mark("  cliff: hinterland"))
 	steps.append(func() -> void:
 		_infest_tunnels()
@@ -548,13 +574,30 @@ static func _own(n: Node, owner_node: Node) -> void:
 ## The playable stretch: plateaus, cliff faces and floor, all collidable.
 ## `part` 0 and 1: that cliff's plateau and face; 2: the floor.
 func _near_canyon(parent: Node3D, rock: Material, floor_mat: Material, part: int) -> void:
-	var near := Vector2(-WorldLayout.WORLD_HALF_Z, WorldLayout.WORLD_HALF_Z)
+	var near := Vector2(-WorldLayout.PLAY_HALF_Z, WorldLayout.PLAY_HALF_Z)
 	if part < 2:
 		_add_static(parent, "Plateau%d" % part, _build_plateau(part, near, PLATEAU_Z_STEP, PLATEAU_D_STEP, WorldLayout.TERRAIN_DEPTH), rock)
 		_add_static(parent, "CliffFace%d" % part, _build_face(part, near, FACE_Z_STEP, FACE_Y_STEP), rock)
 	else:
 		_add_static(parent, "CanyonFloor", _build_floor(near, FLOOR_STEP), floor_mat)
 	LoadTimes.mark("  cliff: near part %d" % part)
+
+
+## The straight corridor past the play area out to the deep tunnels (still
+## collidable), at half the play area's detail along the canyon. Its rows match
+## the play area's, so the seams line up.
+func _corridor(parent: Node3D, rock: Material, floor_mat: Material, part: int) -> void:
+	for side: float in [-1.0, 1.0]:
+		var a := side * WorldLayout.PLAY_HALF_Z
+		var b := side * WorldLayout.WORLD_HALF_Z
+		var span := Vector2(minf(a, b), maxf(a, b))
+		var tag := "N" if side > 0.0 else "S"
+		if part < 2:
+			_add_static(parent, "Corridor%d%s" % [part, tag], _build_plateau(part, span, PLATEAU_Z_STEP * 2.0, PLATEAU_D_STEP, WorldLayout.TERRAIN_DEPTH), rock)
+			_add_static(parent, "CorridorFace%d%s" % [part, tag], _build_face(part, span, FACE_Z_STEP * 2.0, FACE_Y_STEP), rock)
+		else:
+			_add_static(parent, "CorridorFloor%s" % tag, _build_floor(span, FLOOR_STEP * 2.0), floor_mat)
+	LoadTimes.mark("  cliff: corridor part %d" % part)
 
 
 ## The distant canyon one way (a little overlap with the near part hides the seam).
@@ -575,104 +618,23 @@ func _far_canyon(parent: Node3D, rock: Material, floor_mat: Material, side: floa
 func _infest_tunnels() -> void:
 	var spots := PackedVector4Array()
 	var main := main_tunnel()
-	for i in mini(tunnel_count(), Materials.MAX_HIVE_SPOTS):
+	for i in mini(all_tunnel_count(), Materials.MAX_HIVE_SPOTS):
 		var m: Vector3 = tunnel(i)[0]
-		spots.append(Vector4(m.x, m.y + 2.0, m.z, 16.0 if i == main else 10.0))
+		var deep := _canyon and WorldLayout.tunnel_tier(i) == 2
+		spots.append(Vector4(m.x, m.y + 2.0, m.z, 16.0 if i == main else (12.0 if deep else 10.0)))
 	Materials.set_hive_spots(spots)
 
 
 # ---------------------------------------------------------------- hinterland
-## How far the desert runs out past the plateaus in every direction (visual only).
+## How far the desert runs out past the plateaus in every direction on the other
+## maps (visual only; the canyon's badlands reach BadlandsTerrain.REACH).
 const HINTER := 1800.0
 
 
-## Rolling high desert all round the canyon, out to the horizon, with mesas,
-## buttes and a ring of far mountains, so the view from the airship (or a
-## grapple swing) never ends at a hard edge. Visual only, no collision.
-func _add_hinterland(parent: Node3D, rock: Material) -> void:
-	var hills := FastNoiseLite.new()
-	hills.seed = 777
-	hills.frequency = 0.004
-	hills.fractal_octaves = 3
-	var top := WorldLayout.CLIFF_HEIGHT
-	var land := func(x: float, z: float) -> float:
-		# About as high as the wild plateaus out past the play area, so they meet.
-		return top + 40.0 + hills.get_noise_2d(x, z) * 16.0
-	# Rows of growing spacing: fine near the plateau edge, coarse at the horizon.
-	var ds: Array[float] = []
-	var step := 6.0
-	var dd := 0.0
-	while dd < HINTER:
-		ds.append(dd)
-		dd += step
-		step = minf(step * 1.12, 90.0)
-	ds.append(HINTER)
-	var zs := _zs(Vector2(-HINTER, HINTER), 24.0)
-	for cid in 2:
-		var s := WorldLayout.side_sign(cid)
-		var grid: Array = []
-		for d in ds:
-			var row: Array[Vector3] = []
-			for z: float in zs:
-				# Starts just inside the plateau's back edge (which is deeper outside the play area).
-				var d0 := WorldLayout.TERRAIN_DEPTH - 3.0 if absf(z) < WorldLayout.WORLD_HALF_Z else 137.0
-				if absf(z) > FAR_Z:
-					d0 = -WorldLayout.HALF_GAP # past the canyon's end: run right to the middle
-				var seam := plateau_point(cid, maxf(d0, 0.0), clampf(z, -FAR_Z, FAR_Z))
-				var x0 := seam.x if d0 >= 0.0 else 0.0
-				var p := Vector3(x0 + s * d, 0.0, z)
-				var p_end := absf(z) - FAR_Z
-				if d0 >= 0.0:
-					p.y = lerpf(seam.y - 0.6, land.call(p.x, z), smoothstep(0.0, 140.0, d))
-				else:
-					# Past the canyon's end: level with the plateaus there, easing into the hills.
-					var ref := plateau_point(cid, 60.0, signf(z) * FAR_Z).y - 0.6
-					p.y = lerpf(ref, land.call(p.x, z), maxf(smoothstep(0.0, 300.0, p_end), smoothstep(160.0, 300.0, d)))
-				row.append(p)
-			grid.append(row)
-		var mi := MeshInstance3D.new()
-		mi.name = "Hinterland%d" % cid
-		mi.mesh = _grid_mesh(grid, Vector3.UP)
-		mi.material_override = rock
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		parent.add_child(mi)
-	# Mesas and buttes out on the flats, and the mountains at the rim.
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 31337
-	var st := MeshKit.begin()
-	var cols := [Palette.ROCK_A, Palette.ROCK_B, Palette.ROCK_C, Color("#B85A3A"), Color("#D99A62")]
-	var placed := 0
-	while placed < 70:
-		var x := rng.randf_range(-HINTER * 0.85, HINTER * 0.85)
-		var z := rng.randf_range(-HINTER * 0.85, HINTER * 0.85)
-		# Keep clear of the canyon and its plateaus.
-		if absf(x) < 240.0 and absf(z) < FAR_Z + 60.0:
-			continue
-		if absf(x) < 120.0:
-			continue
-		placed += 1
-		var base := Vector3(x, land.call(x, z) - 3.0, z)
-		var butte := rng.randf() < 0.4
-		var r := rng.randf_range(10.0, 22.0) if butte else rng.randf_range(30.0, 90.0)
-		var h := rng.randf_range(35.0, 90.0) if butte else rng.randf_range(20.0, 55.0)
-		var col: Color = cols[rng.randi() % cols.size()]
-		var segs := rng.randi_range(7, 11)
-		# Talus skirt, then the cliff-sided body with a flat cap.
-		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), base + Vector3(0, h * 0.12, 0)), r * 1.45, r * 1.05, h * 0.25, segs, col.darkened(0.1))
-		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), base + Vector3(0, h * 0.6, 0)), r * 1.05, r * 0.92, h * 0.8, segs, col)
-	for i in 34:
-		var a := TAU * float(i) / 34.0 + rng.randf_range(-0.05, 0.05)
-		var dist := rng.randf_range(HINTER * 0.88, HINTER * 0.98)
-		var base := Vector3(cos(a) * dist, top + 20.0, sin(a) * dist)
-		var h := rng.randf_range(160.0, 360.0)
-		var r := rng.randf_range(160.0, 300.0)
-		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), base + Vector3(0, h * 0.5, 0)), r, r * rng.randf_range(0.05, 0.25), h, rng.randi_range(5, 8), Color("#C98A5E").darkened(rng.randf_range(0.0, 0.25)))
-	var far := MeshInstance3D.new()
-	far.name = "Mesas"
-	far.mesh = MeshKit.finish(st)
-	far.material_override = rock
-	far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(far)
+## The badlands all round the canyon out to the horizon (BadlandsTerrain:
+## layered ground, mesas, buttes, washes, scatter). Visual only, no collision.
+func _add_hinterland(parent: Node3D) -> void:
+	BadlandsTerrain.new(self).build(parent)
 
 
 ## Hostile dressing on the walls around the play area: leaning rock spikes
@@ -928,7 +890,14 @@ func _build_floor(span: Vector2, step: float) -> ArrayMesh:
 ## whose faces point roughly along `outward`. (Built straight into indexed arrays:
 ## the same triangles, normals and winding SurfaceTool + index() made, several
 ## times faster, which the load into a game feels.)
-func _grid_mesh(grid: Array, outward: Vector3) -> ArrayMesh:
+func _grid_mesh(grid: Array, outward: Vector3, vcols: PackedColorArray = PackedColorArray()) -> ArrayMesh:
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _grid_arrays(grid, outward, vcols))
+	return mesh
+
+
+## _grid_mesh's surface arrays (vertex colours `vcols`, or white).
+func _grid_arrays(grid: Array, outward: Vector3, vcols: PackedColorArray = PackedColorArray()) -> Array:
 	var rows := grid.size()
 	var cols: int = (grid[0] as Array).size()
 	var n_v := rows * cols
@@ -982,15 +951,15 @@ func _grid_mesh(grid: Array, outward: Vector3) -> ArrayMesh:
 				idx[k + 4] = cc
 				idx[k + 5] = d
 			k += 6
-	var colors := PackedColorArray()
-	colors.resize(n_v)
-	colors.fill(Color(1, 1, 1, 1))
+	var colors := vcols
+	if colors.size() != n_v:
+		colors = PackedColorArray()
+		colors.resize(n_v)
+		colors.fill(Color(1, 1, 1, 1))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_INDEX] = idx
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
+	return arrays

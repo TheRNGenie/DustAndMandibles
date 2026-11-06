@@ -32,6 +32,11 @@ func _ready() -> void:
 	add_child(_spawner)
 	_spawner.spawn_path = _spawner.get_path_to(self)
 	_spawner.spawn_function = _spawn_bug
+	swarm = FloorSwarm.new()
+	swarm.name = "FloorSwarm"
+	swarm.bm = self
+	add_child(swarm)
+	FloorSwarm.enabled = not GameState.has_flag("--noswarm")
 	LaneClimber.spit_requested = _on_spit
 	Bug.brood_burst = _on_brood_burst
 
@@ -42,19 +47,22 @@ static var boss_tunnel := -1
 var _tunnel_spin := 0
 ## Big bugs (brutes, the boss) announced at a tunnel mouth but not out yet.
 var _pending := 0
+## Far-off floor walkers (cheap until they near the cliff).
+var swarm: FloorSwarm
 
 ## Seconds of dust and rumble at a tunnel mouth before a big bug comes out.
 const TELEGRAPH_TIME := 3.0
 const TunnelRumble := preload("res://scenes/bugs/tunnel_rumble.gd")
 
 
-func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y: float = 0.0) -> void:
+## `tier` (canyon): 0 the near tunnels, 1 the mid ones, 2 the deep ones (WavePlanner).
+func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y: float = 0.0, tier: int = 0) -> void:
 	if not multiplayer.is_server():
 		return
 	_tunnel_spin += 1
 	# Out of a tunnel down the canyon (a group's lane picks which).
 	# Maps: [mouth, way out] from the map's tunnels (the canyon's are in either wall).
-	var ti := Bug.cliffs.open_tunnel_index(lane * 3 + cliff * 5 + _tunnel_spin) if Bug.cliffs != null else 0
+	var ti := Bug.cliffs.tier_tunnel_index(tier, lane * 3 + cliff * 5 + _tunnel_spin) if Bug.cliffs != null else 0
 	# Story (The Reckoning): the boss comes out of the gallery the second blast opened.
 	if boss_tunnel >= 0 and Bug.cliffs != null and Defs.bug(bug_id) != null and Defs.bug(bug_id).behavior == BugDef.Behavior.BOSS:
 		ti = boss_tunnel
@@ -71,7 +79,12 @@ func spawn_group(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 		_pending += count
 		get_tree().create_timer(TELEGRAPH_TIME, false).timeout.connect(_spawn_heralded.bind(bug_id, count, cliff, lane, tunnel))
 		return
-	_spawn_from(bug_id, count, cliff, lane, start_y, tunnel)
+	# Far tunnels: their bugs are walkers (no node to raise dust), so the mouth
+	# boils with dust as they pour out, the deep ones with a rumble too.
+	if tier > 0 and start_y <= 0.0 and Bug.cliffs != null and Time.get_ticks_msec() >= int(_pour_at.get(ti, 0)):
+		_pour_at[ti] = Time.get_ticks_msec() + 4000
+		_pour.rpc(tunnel[0], tunnel[1], count, tier)
+	_spawn_from(bug_id, count, cliff, lane, start_y, tunnel, tier)
 
 
 ## Telegraphed bugs that haven't left their tunnel yet (the wave isn't over while any wait).
@@ -84,6 +97,23 @@ static func is_big(def: BugDef) -> bool:
 	return def != null and def.behavior in [BugDef.Behavior.TANK, BugDef.Behavior.BROOD, BugDef.Behavior.BOSS]
 
 
+## Host: when each far tunnel may pour dust again (msec).
+var _pour_at: Dictionary = {}
+
+
+## Every peer: dust pours out of a far tunnel's mouth (`count` bugs); the deep
+## ones shake the ground and rumble, more so the more tunnels pour at once.
+@rpc("authority", "call_local", "reliable")
+func _pour(mouth: Vector3, way_out: Vector3, count: int, tier: int) -> void:
+	if vfx != null:
+		vfx.tunnel_dust(mouth)
+	if tier >= 2:
+		var size := clampf(0.8 + float(count) / 20.0, 0.8, 2.4)
+		TunnelRumble.play(get_parent(), mouth, way_out, size, 2.5, true)
+		if vfx != null:
+			vfx.shake_requested.emit(mouth, 0.06 * size)
+
+
 func _spawn_heralded(bug_id: StringName, count: int, cliff: int, lane: int, tunnel: Array) -> void:
 	_pending = maxi(_pending - count, 0)
 	if GameState.phase == GameState.Phase.GAME_OVER or GameState.phase == GameState.Phase.LOBBY:
@@ -91,12 +121,13 @@ func _spawn_heralded(bug_id: StringName, count: int, cliff: int, lane: int, tunn
 	_spawn_from(bug_id, count, cliff, lane, 0.0, tunnel)
 
 
-func _spawn_from(bug_id: StringName, count: int, cliff: int, lane: int, start_y: float, tunnel: Array) -> void:
+func _spawn_from(bug_id: StringName, count: int, cliff: int, lane: int, start_y: float, tunnel: Array, tier: int = 0) -> void:
 	var cfg := Defs.WAVE_CONFIG
 	var def := Defs.bug(bug_id)
+	# Deep tunnels: the bugs come out in a loose column, 3-5 abreast.
+	var abreast := clampi(3 + floori(count / 12.0), 3, 5) if tier >= 2 else 1
+	var along := (tunnel[1] as Vector3).cross(Vector3.UP).normalized()
 	for i in count:
-		if alive_count() >= cfg.max_active_bugs and def.behavior != BugDef.Behavior.BOSS: # (a boss is never crowded out)
-			return
 		# Out of the tunnel, each bug makes for its own spot at the foot of the
 		# wall and picks its own way up from there.
 		var half := WorldLayout.PLATEAU_WIDTH * 0.5 - 2.0
@@ -108,7 +139,9 @@ func _spawn_from(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 		# and cross the canyon floor first (unless a test starts them up the face).
 		if start_y <= 0.0:
 			st = Bug.State.CROSSING
-			pos = (tunnel[0] as Vector3) - (tunnel[1] as Vector3) * (1.2 + float(i) * 1.5) # Maps:
+			var row := floori(float(i) / abreast)
+			var file := float(i % abreast) - float(abreast - 1) * 0.5
+			pos = (tunnel[0] as Vector3) - (tunnel[1] as Vector3) * (1.2 + float(row) * 1.5) + along * file * 1.5 # Maps:
 		match def.behavior:
 			BugDef.Behavior.BURROWER:
 				# Tunnels in: pops up somewhere inside the plateau, never climbs.
@@ -125,6 +158,16 @@ func _spawn_from(bug_id: StringName, count: int, cliff: int, lane: int, start_y:
 					if not o.is_empty():
 						st = int(o["state"])
 						pos = o["pos"]
+		# Far down the floor: a cheap swarm walker until it nears the cliff (FloorSwarm).
+		# Walkers queue there (up to FloorSwarm.MAX_WALKERS) until the cap of
+		# full bugs has room, so a big wave arrives in full rather than trimmed.
+		if st == Bug.State.CROSSING and Bug.cliffs != null and swarm.wants(def, pos, Bug.cliffs.tunnel_mouth(cliff, z)):
+			if swarm.count() >= FloorSwarm.MAX_WALKERS:
+				return
+			swarm.add(bug_id, cliff, lane, z, pos, Bug.cliffs.tunnel_mouth(cliff, z))
+			continue
+		if real_count() >= cfg.max_active_bugs and def.behavior != BugDef.Behavior.BOSS: # (a boss is never crowded out)
+			return
 		spawn_at(bug_id, cliff, lane, z, y, st, pos)
 
 
@@ -187,8 +230,23 @@ func _exit_tree() -> void:
 	BugFace.clear_pool()
 
 
+## Bugs on the canyon floor (not yet climbing): the walkers and the real
+## bugs still crossing. Every peer (walkers and bug states reach them all).
+func floor_count() -> int:
+	var n := swarm.count() if swarm != null else 0
+	for c in get_children():
+		if c is Bug and (c as Bug).state == Bug.State.CROSSING and (c as Bug).site < 0:
+			n += 1
+	return n
+
+
+## Full bugs alive (walkers far down the floor not counted): what the cap limits.
+func real_count() -> int:
+	return alive_count() - (swarm.count() if swarm != null else 0)
+
+
 func alive_count() -> int:
-	var n := 0
+	var n := swarm.count() if swarm != null else 0 # (walkers far down the floor count too)
 	for c in get_children():
 		# (Canyon Expeditions: bugs sleeping at floor sites aren't part of the wave.)
 		if c is Bug and (c as Bug).is_alive() and (c as Bug).site < 0:
@@ -279,6 +337,7 @@ func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 	# Every bug pays the team pot (players call it chitin, see ResNames), shell bonus included.
 	var loot := EconomyLedger.kill_pay(bug.def.scrap_drop, bug.def.chitin_drop, Weather.chitin_mult(GameState.weather))
 	loot = Brand.kill_loot(loot, source_cliff) # Theme: Crossed Irons brand, more per kill
+	loot[&"scrap"] = StyleCombo.scale_pay(source, float(loot[&"scrap"])) # the killer's style combo
 	var raw_scrap := roundi(float(loot[&"scrap"]))
 	loot[&"scrap"] = _scrap_carry.scale(bug.cliff_id, raw_scrap, Perks.kill_scrap_mult(source)) # Perk: Scrap Scavenger (fractions carried)
 	if GameState.has_flag("--scraplog"):

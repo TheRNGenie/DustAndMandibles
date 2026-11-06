@@ -16,6 +16,9 @@ var _scrap: Label
 var _chitin: Label
 var _amber: Label
 var _amber_row: HBoxContainer
+## Casino chips you hold: one chip per colour you have, its count in the middle.
+var _chip_row: HBoxContainer
+var _chips: Dictionary = {}
 ## Solo on the canyon: the other cliff's chitin, on a small labelled line.
 var _chitin_other: Label
 var _homes: Array[ProgressBar] = []
@@ -61,6 +64,17 @@ func _ready() -> void:
 	_chitin = _counter(row, ResNames.PERSONAL_ID, "Your " + ResNames.personal_cap())
 	_chitin.tooltip_text = "%s is yours alone: guns, gun mods and turret upgrades. Salvage the junk heap by your house each build phase; chilies sell for it too." % ResNames.personal_cap()
 	_chitin_other = _chitin.get_meta(&"other") as Label
+	_chip_row = HBoxContainer.new()
+	_chip_row.add_theme_constant_override("separation", 6)
+	_chip_row.visible = false
+	_chip_row.tooltip_text = "Casino chips from Pearl's cage on the airship: stakes at the tables."
+	col.add_child(_chip_row)
+	for v in ChipRules.DENOMS:
+		var chip := ChipIcon.new()
+		chip.value = v
+		chip.visible = false
+		_chip_row.add_child(chip)
+		_chips[v] = chip
 	# Hive amber (personal, like chitin): its own row under the others, only
 	# shown once you've got some.
 	_amber_row = HBoxContainer.new()
@@ -205,6 +219,14 @@ func _refresh_resources() -> void:
 	var amber := Economy.amount(cliff_id, AmberRules.ITEM)
 	_amber.text = str(amber)
 	_amber_row.visible = amber > 0
+	var any := false
+	for v: int in _chips:
+		var n := Economy.amount(cliff_id, ChipRules.id_of(v))
+		var chip := _chips[v] as ChipIcon
+		chip.set_count(n)
+		chip.visible = n > 0
+		any = any or n > 0
+	_chip_row.visible = any
 	# Solo on the canyon you play both cliffs: the big chitin number is the cliff
 	# you stand on, and a small labelled line under it is the other cliff's.
 	var other := 1 - cliff_id

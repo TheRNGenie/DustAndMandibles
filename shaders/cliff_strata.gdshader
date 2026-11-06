@@ -74,8 +74,8 @@ uniform vec4 resin_light : source_color = vec4(0.80, 0.47, 0.13, 1.0);
 uniform vec4 hole_color : source_color = vec4(0.24, 0.12, 0.12, 1.0);
 uniform vec4 silk_color : source_color = vec4(0.95, 0.90, 0.84, 1.0);
 uniform vec4 ink : source_color = vec4(0.169, 0.106, 0.090, 1.0); // Palette.OUTLINE
-// ...and heavier round the tunnel mouths: xyz centre, w radius (up to 12).
-uniform vec4 hive_spots[12];
+// ...and heavier round the tunnel mouths: xyz centre, w radius (up to 24).
+uniform vec4 hive_spots[24];
 uniform int hive_count = 0;
 
 varying vec3 world_pos;

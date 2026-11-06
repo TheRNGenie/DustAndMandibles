@@ -3,10 +3,13 @@ extends RefCounted
 ## Breaks up the canyon: rock shelves and jutting slabs on the walls (kept clear
 ## of the climbing lanes), fallen boulders piled at the foot of each wall,
 ## hoodoo spires, dead trees, bleached cattle skulls and dry-wash cracked mud on
-## the floor, rolling tumbleweeds, and buttes and mesas on the horizon. All
-## visual only (no collision), batched into a few meshes.
+## the floor and rolling tumbleweeds, out to the far end of the corridor, and
+## dust devils out in the badlands. All visual only (no collision), batched
+## into a few meshes.
 
 const LANE_CLEAR := 3.2
+## How far down the canyon each way the dressing reaches.
+const REACH := 490.0
 
 
 static func build(parent: Node3D, cliffs: CliffBuilder, seed_value: int) -> void:
@@ -18,7 +21,6 @@ static func build(parent: Node3D, cliffs: CliffBuilder, seed_value: int) -> void
 		_wall_shelves(rock_st, rng, cliffs, cid)
 		_wall_base(rock_st, rng, cliffs, cid)
 	_floor(rock_st, dry_st, rng, cliffs, parent)
-	_horizon(rock_st, rng)
 	_add(parent, "CanyonRocks", MeshKit.finish(rock_st), Materials.toon(0.03))
 	_add(parent, "CanyonDryStuff", MeshKit.finish(dry_st), Materials.toon(0.015))
 	for i in 7:
@@ -26,6 +28,14 @@ static func build(parent: Node3D, cliffs: CliffBuilder, seed_value: int) -> void
 		tw.cliffs = cliffs
 		tw.seed_value = seed_value + i
 		parent.add_child(tw)
+	if cliffs.map.is_canyon():
+		var land := BadlandsTerrain.new(cliffs)
+		for i in 3:
+			var dd := BadlandsTerrain.DustDevil.new()
+			dd.name = "DustDevil%d" % i
+			dd.terrain = land
+			dd.seed_value = seed_value + 40 + i
+			parent.add_child(dd)
 
 
 static func _add(parent: Node3D, node_name: String, mesh: ArrayMesh, mat: Material) -> void:
@@ -50,9 +60,9 @@ static func _rock_color(rng: RandomNumberGenerator) -> Color:
 static func _wall_shelves(st: SurfaceTool, rng: RandomNumberGenerator, cliffs: CliffBuilder, cid: int) -> void:
 	var placed := 0
 	var tries := 0
-	while placed < 46 and tries < 400:
+	while placed < 127 and tries < 1100:
 		tries += 1
-		var z := rng.randf_range(-170.0, 170.0)
+		var z := rng.randf_range(-(REACH - 20.0), REACH - 20.0)
 		if absf(z) < WorldLayout.WORLD_HALF_Z and _in_lane(z):
 			continue
 		var y := rng.randf_range(4.0, WorldLayout.CLIFF_HEIGHT - 6.0)
@@ -73,12 +83,12 @@ static func _wall_shelves(st: SurfaceTool, rng: RandomNumberGenerator, cliffs: C
 
 ## Fallen boulders and scree slopes at the foot of each wall.
 static func _wall_base(st: SurfaceTool, rng: RandomNumberGenerator, cliffs: CliffBuilder, cid: int) -> void:
-	var z := -200.0
-	while z < 200.0:
+	var z := -(REACH + 10.0)
+	while z < REACH + 10.0:
 		z += rng.randf_range(3.0, 9.0)
 		# Keep the bug tunnels in each lane clear.
 		var near_tunnel := false
-		for tn: Array in WorldLayout.TUNNELS:
+		for tn: Array in WorldLayout.all_tunnels():
 			if int(tn[0]) == cid and absf(z - float(tn[1])) < 4.5:
 				near_tunnel = true
 		if near_tunnel:
@@ -100,8 +110,8 @@ static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerat
 	# The AI-made dead tree and cattle skull (assets/scatter) when they're there.
 	var ai := parent != null and AiModels.exists(TREE_GLB) and AiModels.exists(SKULL_GLB)
 	# Hoodoos: stacked, weathered pillars with a cap stone.
-	for i in 14:
-		var z := rng.randf_range(-190.0, 190.0)
+	for i in 36:
+		var z := rng.randf_range(-REACH, REACH)
 		var x := cliffs.floor_x(rng.randf_range(-13.0, 13.0), z)
 		var y := cliffs.floor_height(x, z)
 		var h := rng.randf_range(4.0, 11.0)
@@ -116,8 +126,8 @@ static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerat
 			at += Vector3(rng.randf_range(-0.15, 0.15), seg_h, rng.randf_range(-0.15, 0.15))
 		MeshKit.add_ellipsoid(hst, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at + Vector3(0, r * 0.3, 0)), Vector3(r * 1.5, r * 0.55, r * 1.3), 5, 9, Color("#8A4A32"), 0.15, rng)
 	# Dead trees: twisted grey trunks with forked branches.
-	for i in 12:
-		var z := rng.randf_range(-190.0, 190.0)
+	for i in 31:
+		var z := rng.randf_range(-REACH, REACH)
 		var x := cliffs.floor_x(rng.randf_range(-15.0, 15.0), z)
 		var y := cliffs.floor_height(x, z)
 		var base := Vector3(x, y, z)
@@ -139,9 +149,9 @@ static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerat
 			MeshKit.add_limb(dst, from, tip, 0.07, bark, 5)
 			MeshKit.add_limb(dst, tip, tip + (dir + Vector3(rng.randf_range(-0.6, 0.6), 0.3, rng.randf_range(-0.6, 0.6))).normalized() * 0.6, 0.035, bark, 4)
 	# Bleached cattle skulls with horns.
-	for i in 10:
+	for i in 26: # ten round the play area, the rest down the corridor
 		var x := rng.randf_range(-14.0, 14.0)
-		var z := rng.randf_range(-85.0, 85.0)
+		var z := rng.randf_range(-85.0, 85.0) if i < 10 else rng.randf_range(-REACH, REACH)
 		var at := Vector3(x, cliffs.floor_height(x, z) + 0.2, z)
 		var basis := Basis(Vector3.UP, rng.randf() * TAU).rotated(Vector3.RIGHT, rng.randf_range(-0.2, 0.2))
 		if ai:
@@ -157,8 +167,8 @@ static func _floor(rock: SurfaceTool, dry: SurfaceTool, rng: RandomNumberGenerat
 			MeshKit.add_limb(dry, h0, h1, 0.05, Palette.BONE.darkened(0.1), 5)
 			MeshKit.add_limb(dry, h1, h1 + basis * Vector3(s * 0.12, 0.25, -0.05), 0.035, Palette.BONE.darkened(0.15), 4)
 	# Cracked mud in the dry wash: dark polygons along the meander.
-	for i in 140:
-		var z := rng.randf_range(-190.0, 190.0)
+	for i in 360:
+		var z := rng.randf_range(-REACH, REACH)
 		var x := cliffs.floor_x(6.0 * sin(z * 0.035) + rng.randf_range(-2.5, 2.5), z)
 		var at := Vector3(x, cliffs.floor_height(x, z) + 0.05, z)
 		var s := rng.randf_range(0.5, 1.2)
@@ -184,21 +194,6 @@ static func _ai_at(parent: Node3D, path: String, at: Vector3, yaw: float, s: flo
 	parent.add_child(mi)
 
 
-## Buttes and mesas on the far horizon, beyond the plateaus.
-static func _horizon(st: SurfaceTool, rng: RandomNumberGenerator) -> void:
-	for i in 22:
-		var a := TAU * i / 22.0 + rng.randf_range(-0.1, 0.1)
-		var dist := rng.randf_range(260.0, 420.0)
-		var at := Vector3(cos(a) * dist, WorldLayout.CLIFF_HEIGHT - 4.0, sin(a) * dist)
-		var w := rng.randf_range(25.0, 70.0)
-		var h := rng.randf_range(18.0, 55.0)
-		var col := Color("#C0704A").lerp(Color("#D89A6A"), rng.randf())
-		# Tapering body with a flat cap and a talus skirt.
-		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at + Vector3(0, h * 0.5, 0)), w * 0.62, w * 0.5, h, 8, col)
-		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at + Vector3(0, h + 1.0, 0)), w * 0.52, w * 0.5, 2.0, 8, col.darkened(0.2))
-		MeshKit.add_cylinder(st, Transform3D(Basis(), at + Vector3(0, 3.0, 0)), w * 0.9, w * 0.62, 6.0, 8, col.lightened(0.08))
-
-
 ## A tumbleweed bowling along the canyon floor, bouncing and spinning.
 class Tumbleweed extends MeshInstance3D:
 	var cliffs: CliffBuilder
@@ -217,7 +212,7 @@ class Tumbleweed extends MeshInstance3D:
 			MeshKit.add_limb(st, a, b, 0.025, c.darkened(rng.randf() * 0.25), 3)
 		mesh = MeshKit.finish(st)
 		material_override = Materials.toon(0.006)
-		position = Vector3(rng.randf_range(-12, 12), 1.0, rng.randf_range(-90, 90))
+		position = Vector3(rng.randf_range(-12, 12), 1.0, rng.randf_range(-WorldLayout.WORLD_HALF_Z, WorldLayout.WORLD_HALF_Z))
 		_vel = Vector3(rng.randf_range(-0.4, 0.4), 0, rng.randf_range(2.0, 4.0) * (1.0 if rng.randf() < 0.5 else -1.0))
 
 	func _process(delta: float) -> void:
@@ -227,10 +222,10 @@ class Tumbleweed extends MeshInstance3D:
 			_vel.z = WeatherFx.wind_sign() * absf(_vel.z)
 		position += _vel * wind * delta
 		position.x = clampf(position.x, -14.0, 14.0)
-		if position.z > 200.0:
-			position.z = -200.0
-		elif position.z < -200.0:
-			position.z = 200.0
+		if position.z > REACH + 10.0:
+			position.z = -(REACH + 10.0)
+		elif position.z < -(REACH + 10.0):
+			position.z = REACH + 10.0
 		_bounce += delta * (3.0 + wind)
 		var floor_y := cliffs.floor_height(position.x, position.z) if cliffs != null else 0.0
 		position.y = floor_y + 0.55 + absf(sin(_bounce)) * 0.6 * wind * 0.5

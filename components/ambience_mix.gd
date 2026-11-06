@@ -27,6 +27,14 @@ static func swarm_levels(count: int, weight: float, high: float) -> Vector3:
 	return Vector3(bed, near, 1.0 + 0.08 * amount)
 
 
+## The march on the canyon floor (`floor_bugs` walking, not yet climbing):
+## x = how much the swarm's low rumble swells (0-1), y = how loud the busy
+## chittering wash that comes in past 200 floor bugs is (0-1).
+static func march_levels(floor_bugs: int) -> Vector2:
+	var swell := clampf(log(1.0 + float(maxi(floor_bugs, 0))) / log(601.0), 0.0, 1.0)
+	return Vector2(swell, smoothstep(200.0, 600.0, float(floor_bugs)))
+
+
 ## Wind bed level for weather `w`, closeness to the lip `edge` (0-1) and height
 ## above the plateau `height` (0-1, the airship deck is near 1).
 static func wind_db(w: int, edge: float, height: float) -> float:

@@ -77,13 +77,12 @@ func is_unlocked(cid: String) -> bool:
 	return progress.is_unlocked(cid) or (GameState.has_flag("--storyall") and GameState.debug_enabled())
 
 
-## Host (or offline): picks the chapter ("" = a normal run), sets its map and
-## turns CPU teammates off (story is played solo or with real riders only).
+## Host (or offline): picks the chapter ("" = a normal run) and sets its map.
+## A CPU partner may come along (Logan): it only holds the other cliff as it
+## does in Endless; the riders do every objective. Riders still pick the map.
 func select(cid: String) -> void:
 	chapter_id = cid
 	if cid != "":
-		NetworkManager.set_cpu(-1)
-		NetworkManager.cpu_quality = -1
 		var ch := chapter()
 		if ch != null:
 			NetworkManager.set_map(map_for(ch, maxi(NetworkManager.players.size(), 1)))

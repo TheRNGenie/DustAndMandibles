@@ -31,6 +31,11 @@ var _last_wave := 0
 var boss_seen: Array = []
 ## Story: edits each planned wave (StoryDirector: the chapter's boss and extra bugs).
 var plan_hook: Callable
+## Canyon, this wave on: the deep tunnels' bugs trickle out a chunk every
+## 2-3 seconds (WavePlanner.trickle_chunks) instead of coming with the pulses.
+const TRICKLE_WAVE := 15
+var _trickle: Array = []
+var _trickle_at := 0.0
 
 
 func _ready() -> void:
@@ -90,10 +95,22 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 			_pulse = 0
 			_clock = 0.0
 			_active = true
+			_trickle = []
+			if trickling():
+				var times: Array = _plan["pulse_times"]
+				var span := maxf(float(times[times.size() - 1]) + 10.0 if not times.is_empty() else 0.0, 30.0)
+				_trickle = WavePlanner.trickle_chunks(_plan["groups"], span)
+				_trickle_at = 0.0
 			for id: StringName in _plan_bosses():
 				boss_seen.append(id)
 		_:
 			_active = false
+			_trickle = []
+
+
+## This wave's deep-tunnel bugs come as a trickle (canyon, wave 15 on).
+func trickling() -> bool:
+	return GameState.wave >= TRICKLE_WAVE and WorldLayout.map().is_canyon() and not GameState.tutorial
 
 
 func _make_plan() -> Dictionary:
@@ -156,7 +173,11 @@ func _process(delta: float) -> void:
 	while _pulse < times.size() and _clock >= float(times[_pulse]):
 		_release(_pulse)
 		_pulse += 1
-	if _pulse >= times.size() and bug_manager.alive_count() == 0 and bug_manager.pending_count() == 0:
+	while not _trickle.is_empty() and _clock >= _trickle_at:
+		var c: Array = _trickle.pop_front()
+		bug_manager.spawn_group(c[0], int(c[1]), int(c[2]), int(c[3]), 0.0, 2)
+		_trickle_at += randf_range(2.0, 3.0)
+	if _pulse >= times.size() and _trickle.is_empty() and bug_manager.alive_count() == 0 and bug_manager.pending_count() == 0:
 		_active = false
 		_plan = {}
 		GameState.end_wave()
@@ -165,11 +186,15 @@ func _process(delta: float) -> void:
 func _release(pulse: int) -> void:
 	if GameState.has_flag("--netlog"):
 		print("[wave] %s: releasing pulse %d of %d, %d groups planned" % [_plan["shape"], pulse, int(_plan["pulses"]), (_plan["groups"] as Array).size()])
+	var trickle := trickling()
 	for g: Dictionary in _plan["groups"]:
 		if int(g["pulse"]) == pulse:
+			var tier := int(g.get("tier", 0))
+			if trickle and tier == 2:
+				continue # (out of the deep tunnels in the trickle instead)
 			if GameState.has_flag("--netlog") and String(g["bug"]).contains("@"):
 				print("[wave]   variant group: %d x %s" % [int(g["count"]), Defs.bug(StringName(g["bug"])).display_name])
-			bug_manager.spawn_group(StringName(g["bug"]), int(g["count"]), int(g["cliff"]), int(g["lane"]))
+			bug_manager.spawn_group(StringName(g["bug"]), int(g["count"]), int(g["cliff"]), int(g["lane"]), 0.0, tier)
 
 
 ## Host: BugManager reports every kill; enough kills of one type the same way

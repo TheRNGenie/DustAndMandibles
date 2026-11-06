@@ -11,15 +11,11 @@ extends Control
 const WIDTH := 300.0
 const PORTRAIT := 84.0
 const TOP := 200.0
-## The subtitle band: widest it gets, and how far up from the bottom edge (clear of the hotbar).
-const SUB_WIDTH := 980.0
-const SUB_BOTTOM := 150.0
 
 var _card: PanelContainer
 var _pic: TextureRect
 var _name: Label
 var _role: Label
-var _text: Label
 var _dot: Panel
 var _queue: Array = []
 ## Seconds of quiet before a different character speaks (Logan).
@@ -30,8 +26,7 @@ var _showing := false
 var _t := 0.0
 var _hold := 0.0
 var _tween: Tween
-var _sub: PanelContainer
-var _sub_name: Label
+var _sub: Subtitle
 var _voice: AudioStreamPlayer
 
 
@@ -92,47 +87,11 @@ func _ready() -> void:
 	_role.autowrap_mode = TextServer.AUTOWRAP_OFF
 	col.add_child(_role)
 	_card.visible = false
-	_build_subtitle()
+	_sub = Subtitle.new()
+	add_child(_sub)
 	_voice = AudioStreamPlayer.new()
 	_voice.bus = &"Voice" if AudioServer.get_bus_index("Voice") >= 0 else &"Master"
 	add_child(_voice)
-
-
-## The subtitle: a soft dark band low on the screen, the speaker's name in the
-## western display face over the line in a warm outlined type.
-func _build_subtitle() -> void:
-	_sub = PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.08, 0.05, 0.03, 0.62)
-	sb.set_corner_radius_all(10)
-	sb.content_margin_left = 22
-	sb.content_margin_right = 22
-	sb.content_margin_top = 8
-	sb.content_margin_bottom = 10
-	_sub.add_theme_stylebox_override("panel", sb)
-	_sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_sub)
-
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 2)
-	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_sub.add_child(col)
-	_sub_name = UiStyle.label("", 18, UiStyle.c("title"))
-	_sub_name.add_theme_font_override("font", UiStyle.display_font())
-	_sub_name.add_theme_color_override("font_outline_color", Palette.OUTLINE)
-	_sub_name.add_theme_constant_override("outline_size", 4)
-	_sub_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_sub_name.autowrap_mode = TextServer.AUTOWRAP_OFF
-	col.add_child(_sub_name)
-	_text = UiStyle.label("", 24, Color("#F6E7C8"))
-	_text.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.02))
-	_text.add_theme_constant_override("outline_size", 6)
-	_text.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
-	_text.add_theme_constant_override("shadow_offset_y", 2)
-	_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	col.add_child(_text)
-	_sub.visible = false
 
 
 ## A round brass-rimmed frame on a warm sepia ground, the portrait clipped inside.
@@ -221,9 +180,7 @@ func _next() -> void:
 		_cur_who = "" # (a fresh conversation later starts without a gap)
 		_showing = false
 		_slide(false)
-		var fade := create_tween()
-		fade.tween_property(_sub, "modulate:a", 0.0, 0.3)
-		fade.tween_callback(func() -> void: _sub.visible = false)
+		_sub.fade_out(0.3)
 		return
 	_showing = true
 	# A different character next: a beat of quiet on the wire first.
@@ -231,8 +188,7 @@ func _next() -> void:
 		_gapping = true
 		_hold = SPEAKER_GAP
 		_voice.stop()
-		var hush := create_tween()
-		hush.tween_property(_sub, "modulate:a", 0.0, 0.25)
+		_sub.fade_out(0.25, false)
 		return
 	_gapping = false
 	var l: Array = _queue.pop_front()
@@ -241,18 +197,13 @@ func _next() -> void:
 	_pic.texture = StoryPortrait.face_texture(self, who)
 	_name.text = StoryChapter.speaker_name(who)
 	_role.text = StoryChapter.speaker_role(who)
-	_text.text = str(l[1])
-	_sub_name.text = StoryChapter.speaker_short(who)
 	_hold = line_seconds(str(l[1]), who)
 	_voice.stop()
 	var stream := VoiceLines.stream_for(who, str(l[1]))
 	if stream != null:
 		_voice.stream = stream
 		_voice.play()
-	_place_subtitle()
-	_sub.visible = true
-	_sub.modulate.a = 0.0
-	create_tween().tween_property(_sub, "modulate:a", 1.0, 0.18)
+	_sub.show_line(who, str(l[1]), stream != null)
 	if not _card.visible:
 		_slide(true)
 	else:
@@ -286,30 +237,9 @@ func _process(delta: float) -> void:
 		_dot.modulate.a = 0.35 + 0.65 * float(int(_t * 2.5) % 2)
 	if not _showing:
 		return
-	if _sub.visible:
-		_keep_subtitle_placed()
 	_hold -= delta
 	if _hold <= 0.0:
 		_next()
-
-
-## The subtitle wraps at SUB_WIDTH (or one line, if the line is short).
-func _place_subtitle() -> void:
-	var w := minf(SUB_WIDTH, get_viewport_rect().size.x - 80.0)
-	var font := _text.get_theme_font("font")
-	var one_line := font.get_string_size(_text.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 12.0
-	_text.custom_minimum_size = Vector2(clampf(one_line, 280.0, w - 44.0), 0)
-	_sub.reset_size()
-	_keep_subtitle_placed()
-
-
-## Centred, its bottom SUB_BOTTOM above the screen's.
-func _keep_subtitle_placed() -> void:
-	# (A wrapped label only knows its height once it has its width, so the band
-	# shrinks back to fit a frame after a new line goes up.)
-	_sub.reset_size()
-	var vp := get_viewport_rect().size
-	_sub.position = Vector2(roundf((vp.x - _sub.size.x) * 0.5), roundf(vp.y - SUB_BOTTOM - _sub.size.y))
 
 
 ## Debug (screenshots): keeps the current line up.

@@ -5,7 +5,7 @@ extends TestCase
 
 
 func test_ids_and_themes() -> void:
-	assert_eq(BrandTable.IDS.size(), 4, "three brands and No Brand")
+	assert_eq(BrandTable.IDS.size(), 4, "four brands to pick (Attack on Mandibles took No Brand's place)")
 	assert_eq(BrandTable.valid("sheaf"), BrandTable.SHEAF)
 	assert_eq(BrandTable.valid("nonsense"), BrandTable.NONE, "unknown ids ride unbranded")
 	assert_eq(BrandTable.theme_of(BrandTable.NONE), &"base", "No Brand keeps the Frontier look")
@@ -48,8 +48,8 @@ func test_snake_bosses_and_cheats() -> void:
 	assert_almost(BrandTable.boss_mult(BrandTable.IRONS), 1.0)
 	assert_true(BrandTable.can_cheat(BrandTable.SNAKE))
 	assert_false(BrandTable.can_cheat(BrandTable.SHEAF))
-	assert_almost(BrandTable.catch_chance("shell", 0), 0.18)
-	assert_almost(BrandTable.catch_chance("shell", 2), 0.38, 0.001, "each cheat this wave adds heat")
+	assert_almost(BrandTable.catch_chance("shell", 0), 0.70)
+	assert_almost(BrandTable.catch_chance("shell", 2), 0.80, 0.001, "each cheat that got past him adds heat")
 	assert_almost(BrandTable.catch_chance("roulette", 50), BrandTable.MAX_RISK, 0.001, "capped")
 	assert_eq(BrandTable.ban_until(4), 6, "barred through the next wave")
 	# Every number stays modest (10-25%).

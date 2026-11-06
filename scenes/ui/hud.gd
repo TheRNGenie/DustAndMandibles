@@ -8,6 +8,8 @@ var _center_label: Label
 var _blackout: ColorRect
 var _debug_label: Label
 var _speed_lines: SpeedLines
+var combo: HudCombo
+var _wave_card: HudWavePreview
 var _crosshair: Control
 var _scope: ScopeOverlay
 var _phase_label: Label
@@ -46,7 +48,8 @@ func _ready() -> void:
 	add_child(hotbar)
 	build_menu = HudBuildMenu.new()
 	add_child(build_menu)
-	add_child(HudWavePreview.new())
+	_wave_card = HudWavePreview.new()
+	add_child(_wave_card)
 	add_child(HudExpedition.new()) # Canyon Expeditions: backpack card, partners in the canyon
 	threat = HudThreatAlert.new()
 	add_child(threat)
@@ -80,6 +83,11 @@ func _ready() -> void:
 	_scope.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_scope.visible = false
 	add_child(_scope)
+	combo = HudCombo.new()
+	combo.set_anchors_preset(Control.PRESET_FULL_RECT)
+	combo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(combo)
+	combo.under = _wave_card # the style grade sits centred under the top-right wave card
 	_crosshair = Crosshair.new()
 	_crosshair.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -186,6 +194,8 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 	(_crosshair as Crosshair).grapple = player.grapple
 	player.gun.reload_started.connect(func(_d: float) -> void: _ammo_label.text = "Reloading")
 	_speed_lines.player = player
+	player.combo.bind_bugs(bugs)
+	combo.bind(player)
 	# Hitting the canyon floor: hard cut to black over the guitar smash, then
 	# fade back in on the porch.
 	player.fall_landed.connect(func() -> void:

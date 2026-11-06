@@ -19,6 +19,12 @@ func _ready() -> void:
 		push_warning("[casino] no game " + GameState.flag_value("--casinoview"))
 		return
 	Economy.earn(0, {&"scrap": 2000, &"chitin": 60})
+	# Chips from Pearl's cage for the chip games (bought as the host would).
+	var cage := ship.get_node_or_null("ChipCage") as ChipCage
+	if cage != null and game.uses_chips():
+		cage._buy(multiplayer.get_unique_id(), &"chip_10", 3)
+		cage._buy(multiplayer.get_unique_id(), &"chip_50", 1)
+		print("[casino] chips bought: %s, team pot %d" % [_chips(), Economy.team_scrap()])
 	if GameState.flag_value("--casinobets") != "" and game.has_method("debug_bets"):
 		game.call("debug_bets", GameState.flag_value("--casinobets").split(","))
 	MenuScreen.instance.open(game)
@@ -48,3 +54,17 @@ func _ready() -> void:
 		game.ui_press(StringName(play2))
 	await get_tree().create_timer(1.0).timeout
 	print("[casino] %s view %s" % [game.name, str(game.view)])
+	await get_tree().create_timer(8.0).timeout
+	print("[casino] after play: chips %s, own scrap %d" % [_chips(), Economy.amount(0, ResNames.PERSONAL_ID)])
+	if cage != null and game.uses_chips():
+		var pot := Economy.team_scrap()
+		for id: StringName in ChipRules.ids():
+			cage._cash(multiplayer.get_unique_id(), id)
+		print("[casino] cashed out: chips %s, team pot %d -> %d" % [_chips(), pot, Economy.team_scrap()])
+
+
+static func _chips() -> Dictionary:
+	var out := {}
+	for id: StringName in ChipRules.ids():
+		out[id] = Economy.amount(0, id)
+	return out

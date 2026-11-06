@@ -28,6 +28,7 @@ const REMAPPABLE: Dictionary = {
 	"field_guide": "Field Guide (wiki)",
 	"smoke": "Smoke a cigarette",
 	"throw_rock": "Throw a rock",
+	"deploy_zip": "Fire a zipline anchor",
 	"melee": "Quick melee (whip)",
 	"ready_up": "Throw your generator lever (ready up)",
 	"ping": "Ping (hold for the ping wheel)",
@@ -75,6 +76,8 @@ var music_volume: float = 0.6
 var bug_volume: float = 1.0
 var weapon_volume: float = 1.0
 var speech_volume: float = 1.0
+## Subtitles for voiced lines (radio and tutorial); unvoiced lines always show their words.
+var subtitles: bool = true
 # Accessibility: shape glyphs on team colours and alerts, not colour alone.
 var colorblind: bool = false
 ## UI text size, 0.9 - 1.3 (UiStyle.ts applies it).
@@ -307,7 +310,7 @@ func _deserialize(data: String) -> InputEvent:
 const SAVED_KEYS: Array[String] = ["mouse_sensitivity", "invert_y", "fov", "brightness", "fps_cap",
 	"vsync", "fullscreen", "shadows", "msaa", "render_scale", "quality", "shadow_detail", "effects",
 	"view_distance", "particles", "bug_detail", "master_volume", "sfx_volume", "music_volume", "bug_volume", "weapon_volume", "speech_volume", "debug_mode",
-	"colorblind", "ui_text_scale", "tutorial_done", "host_online", "build_cam_third", "grapple_swing_toggle", "hold_crouch"]
+	"colorblind", "ui_text_scale", "tutorial_done", "host_online", "build_cam_third", "grapple_swing_toggle", "hold_crouch", "subtitles"]
 
 
 func save_settings() -> void:

@@ -123,7 +123,7 @@ func menu_title() -> String:
 
 
 func menu_tagline() -> String:
-	return "New irons and upgrades, paid in your own %s. You can carry three guns; drop one with Q to make room." % ResNames.personal()
+	return StyleCombo.streak_note() + "New irons and upgrades, paid in your own %s. You can carry three guns; drop one with Q to make room." % ResNames.personal()
 
 
 func menu_tabs() -> Array:
@@ -207,10 +207,22 @@ func menu_items(tab: int) -> Array:
 		# The Powder Satchel heads the Upgrades (it's new, and not a gun); its mods follow the rest.
 		var dyn := _dynamite_items(tab, p.dynamite.code, chitin)
 		out = dyn + out if tab == 1 else out + dyn
+	if tab == 0:
+		# Cheapest first (Logan).
+		out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return _price_of(a) < _price_of(b))
+	elif tab == 1:
+		# What you carry first, then the rest, each keeping the shelf's order (Logan).
+		var mine := out.filter(func(it: Dictionary) -> bool: return str(it["disabled"]) != "Buy it first.")
+		out = mine + out.filter(func(it: Dictionary) -> bool: return str(it["disabled"]) == "Buy it first.")
 	if tab == 2 and out.is_empty():
 		out.append({"id": "", "name": "Nothing to work on", "icon": &"hammer", "desc": "Mods are fitted to the guns you carry.",
 				"price": "", "price_ok": true, "disabled": "Buy a gun first.", "buttons": []})
 	return Perks.discount_menu(out, &"gunsmiths_friend", NetworkManager.cliff_of(multiplayer.get_unique_id())) # Perk: Gunsmith's Friend
+
+
+## A Guns-tab row's price (sorting).
+static func _price_of(item: Dictionary) -> int:
+	return Gun.weapon(StringName(str(item["id"]).substr(4))).price_chitin
 
 
 ## The grapple's dynamite: the Powder Satchel (Upgrades), then its three mods.
@@ -298,9 +310,14 @@ func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
 		cost = w.upgrade_costs[lvl]
 		level = int(owned[id]) + 1 # bumps the level bits, keeps the mods
 	cost = Perks.discount(peer_id, &"gunsmiths_friend", cost) # Perk: Gunsmith's Friend
+	var streak := StyleCombo.streak_for(peer_id) # Hot Streak: off this one purchase
+	cost = ComboRules.cut_price(cost, streak)
 	if not Economy.spend(payer, {&"chitin": cost}):
 		Economy.notify(peer_id, "That costs %s. Salvage the junk heap by your house each build phase, or sell chilies at the market." % UiStyle.cost(cost, ResNames.PERSONAL_ID))
 		return
+	if streak > 0.0:
+		StyleCombo.use_streak(peer_id)
+		Economy.notify(peer_id, "Hot Streak: %d%% off. Silas tips his hat too." % roundi(streak * 100.0))
 	owned[id] = level
 	var player := _player_of(peer_id)
 	if player != null:

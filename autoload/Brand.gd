@@ -7,9 +7,10 @@ extends Node
 ## (reload) ask local_id(). The CPU partner gets a brand too (key 0).
 ## The local player's brand also picks the UI theme set (UiStyle.apply).
 ##
-## Also keeps the airship casino's pit boss: Snake Eyes cheats raise "heat"
-## (each one this wave is likelier to be caught) and a caught rider is barred
-## from the tables for a wave (bans are mirrored so the game screens can say so).
+## Also keeps the airship casino's pit boss: every Snake Eyes cheat that gets
+## past him raises "heat" (the next is likelier to be caught, BrandTable), and a
+## caught rider is barred from the tables for a wave and starts cold again
+## (bans are mirrored so the game screens can say so).
 ##
 ## Flags: --brand=sheaf|irons|snake|none picks on start (tests skip the screen).
 
@@ -25,8 +26,7 @@ var picks: Dictionary = {}
 var local: StringName = &""
 ## peer id -> wave the ban runs until (mirrored).
 var bans: Dictionary = {}
-var _heat: Dictionary = {} # host: peer id -> cheats this wave
-var _heat_wave := -1
+var _heat: Dictionary = {} # host: peer id -> cheats that got past the pit boss since he last caught them
 var _run_active := false
 
 
@@ -170,6 +170,11 @@ func ban_wave(peer_id: int) -> int:
 	return int(bans.get(peer_id, -1))
 
 
+## Zipline anchors' scrap price for this rider (Attack on Mandibles makes them cheaper).
+func zip_cost_mult(peer_id: int) -> float:
+	return BrandTable.zip_cost_mult(of(peer_id))
+
+
 ## Local: can this rider cheat at the tables right now?
 func local_can_cheat() -> bool:
 	return BrandTable.can_cheat(local_id()) and not local_banned()
@@ -177,11 +182,10 @@ func local_can_cheat() -> bool:
 
 ## Local: the risk of being caught on the next cheat at `game`.
 func local_risk(game: String) -> float:
-	return BrandTable.catch_chance(game, _local_heat_count if _local_heat_wave == GameState.wave else 0)
+	return BrandTable.catch_chance(game, _local_heat_count)
 
 
 var _local_heat_count := 0
-var _local_heat_wave := -1
 
 
 ## Host: a rider tries a cheat. Returns 1 = unnoticed, 0 = not allowed, -1 = caught (now barred).
@@ -190,17 +194,14 @@ func cheat(peer_id: int, game: String) -> int:
 		return 0
 	if not BrandTable.can_cheat(of(peer_id)) or is_banned(peer_id):
 		return 0
-	if _heat_wave != GameState.wave:
-		_heat.clear()
-		_heat_wave = GameState.wave
 	var heat := int(_heat.get(peer_id, 0))
 	var risk := BrandTable.catch_chance(game, heat)
-	_heat[peer_id] = heat + 1
-	_send_heat(peer_id, heat + 1)
 	if GameState.has_flag("--cheatlog"):
 		print("[brand] peer %d cheats at %s: risk %.2f" % [peer_id, game, risk])
 	var forced := GameState.flag_value("--caught")
 	if (forced == "" and randf() < risk) or forced == "yes":
+		_heat[peer_id] = 0 # kicked off: the next cheat starts at the base risk again
+		_send_heat(peer_id, 0)
 		bans[peer_id] = BrandTable.ban_until(GameState.wave)
 		_sync_bans()
 		Economy.notify(peer_id, "The pit boss caught you cheating! You're barred from the tables until wave %d." % int(bans[peer_id]))
@@ -209,13 +210,14 @@ func cheat(peer_id: int, game: String) -> int:
 		else:
 			_caught_fx(peer_id)
 		return -1
+	_heat[peer_id] = heat + 1
+	_send_heat(peer_id, heat + 1)
 	return 1
 
 
 func _send_heat(peer_id: int, n: int) -> void:
 	if peer_id == _me():
 		_local_heat_count = n
-		_local_heat_wave = GameState.wave
 	elif NetworkManager.is_online():
 		_set_heat.rpc_id(peer_id, n)
 
@@ -223,7 +225,6 @@ func _send_heat(peer_id: int, n: int) -> void:
 @rpc("authority", "reliable")
 func _set_heat(n: int) -> void:
 	_local_heat_count = n
-	_local_heat_wave = GameState.wave
 
 
 @rpc("authority", "call_local", "reliable")

@@ -18,10 +18,20 @@ const LANE_Z: Array[float] = [-16.0, -8.0, 0.0, 8.0, 16.0]
 ## either wall ([cliff the tunnel is in, z]). Bugs crawl out and walk up the
 ## canyon floor into the play area before they climb.
 const TUNNELS: Array = [[0, -62.0], [1, -68.0], [0, -76.0], [1, -58.0], [0, 60.0], [1, 66.0], [0, 74.0], [1, 56.0]]
+## Deeper tunnels further down the canyon (Canyon Extension): the mid ones open
+## from wave MID_WAVE, the deep ones (drawn bigger) from DEEP_WAVE, so later
+## waves march farther across the floor before they climb.
+const MID_TUNNELS: Array = [[1, -134.0], [0, -146.0], [1, -158.0], [0, -168.0], [0, 132.0], [1, 144.0], [0, 156.0], [1, 166.0]]
+const DEEP_TUNNELS: Array = [[0, -224.0], [1, -238.0], [0, -254.0], [1, -268.0], [1, 222.0], [0, 236.0], [1, 252.0], [0, 266.0]]
+const MID_WAVE := 5
+const DEEP_WAVE := 10
 const LEDGE_Y: Array[float] = [10.0, 20.0, 30.0, 40.0, 50.0]
 
-## Terrain extent (bigger than the playable area so the canyon reads as a landscape).
-const WORLD_HALF_Z := 90.0
+## Terrain extent: the straight, collidable canyon corridor (it reaches past the
+## deep tunnels; the canyon goes wild beyond it).
+const WORLD_HALF_Z := 290.0
+## The play area round the homesteads (expedition walls, props, the minimap span).
+const PLAY_HALF_Z := 90.0
 const TERRAIN_DEPTH := 60.0
 
 ## Overhang of the lip (the face below sits this far back). Hides your own face from your turrets.
@@ -43,6 +53,16 @@ const MASK_SHOTS := LAYER_WORLD | LAYER_BUG | LAYER_STRUCTURE | LAYER_TRAP
 
 ## Players who fall below this height are in the canyon and get hauled home.
 const CANYON_FALL_Y := CLIFF_HEIGHT - 6.0
+
+
+## Every canyon tunnel, near tier first ([cliff, z] like TUNNELS).
+static func all_tunnels() -> Array:
+	return TUNNELS + MID_TUNNELS + DEEP_TUNNELS
+
+
+## The tunnel tier (0 near, 1 mid, 2 deep) of canyon tunnel index i.
+static func tunnel_tier(i: int) -> int:
+	return clampi(floori(float(i) / TUNNELS.size()), 0, 2)
 
 
 ## -1 for the west cliff, +1 for the east cliff (canyon only: other maps use

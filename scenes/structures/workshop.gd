@@ -88,7 +88,7 @@ func menu_tagline() -> String:
 
 
 func menu_tabs() -> Array:
-	return ["Craft", "Parts", "Amber"]
+	return ["Craft", "Parts", "Amber", "Gear"]
 
 
 func _cliff() -> int:
@@ -100,6 +100,8 @@ func menu_items(tab: int) -> Array:
 	var out: Array = []
 	if tab == 2:
 		return _amber_items(cid)
+	if tab == 3:
+		return _gear_items(cid)
 	if tab == 1:
 		for key: StringName in CraftTable.part_keys():
 			var n := Economy.amount(cid, key)
@@ -122,6 +124,17 @@ func menu_items(tab: int) -> Array:
 				"desc": "You need one mount, one barrel and one load. Big bugs and bosses drop them; see the Parts tab.",
 				"price": "", "price_ok": true, "disabled": "Nothing to craft yet.", "buttons": []})
 	return out
+
+
+## Gear: the Zipline Anchor (ZipRules), your own scrap and a little team chitin.
+func _gear_items(cid: int) -> Array:
+	var recipe := ZipRules.recipe(Brand.zip_cost_mult(multiplayer.get_unique_id()))
+	return [{"id": "gear:%s" % ZipRules.ITEM, "name": "Zipline Anchor", "icon": &"grapple",
+			"desc": "Fire it into rock up to %d m away (%s): a rope strings back to where you stood for %d s. E near a rope rides it, either way. Up to %d of yours at once.
+You have %d." % [
+				int(ZipRules.RANGE), KeyHints.key_for("deploy_zip"), int(ZipRules.LIFE), ZipRules.MAX_PER_RIDER, Economy.amount(cid, ZipRules.ITEM)],
+			"price": "%s + %s" % [UiStyle.cost(int(recipe[ResNames.PERSONAL_ID]), ResNames.PERSONAL_ID), UiStyle.cost(int(recipe[ResNames.TEAM_ID]), ResNames.TEAM_ID)],
+			"price_ok": Economy.can_afford(cid, recipe), "disabled": "", "buttons": [[&"craft", "Make 1"]]}]
 
 
 ## Hive amber turrets (AmberRules): blueprint, recipe, and the one-each rule.
@@ -150,6 +163,12 @@ Parts: %s" % [d.stat_line(), d.role, ", ".join(need)],
 
 
 func menu_press(id: Variant, _action: StringName) -> void:
+	if str(id).begins_with("gear:"):
+		if multiplayer.is_server():
+			_make_gear(multiplayer.get_unique_id())
+		else:
+			_request_gear.rpc_id(1)
+		return
 	var design := StringName(str(id))
 	if AmberRules.is_amber(design):
 		if multiplayer.is_server():
@@ -163,6 +182,29 @@ func menu_press(id: Variant, _action: StringName) -> void:
 		_craft(multiplayer.get_unique_id(), design)
 	else:
 		_request_craft.rpc_id(1, String(design))
+
+
+@rpc("any_peer", "reliable")
+func _request_gear() -> void:
+	if multiplayer.is_server():
+		_make_gear(multiplayer.get_remote_sender_id())
+
+
+## Host: one Zipline Anchor for this rider.
+func _make_gear(peer_id: int) -> void:
+	if home == null:
+		return
+	if not GameState.is_solo() and NetworkManager.cliff_of(peer_id) != home.cliff_id:
+		Economy.notify(peer_id, "That's your partner's workshop. Use your own.")
+		return
+	var cid := Economy.payer_cliff(peer_id, home.cliff_id)
+	var recipe := ZipRules.recipe(Brand.zip_cost_mult(peer_id))
+	if not Economy.spend(cid, recipe):
+		Economy.notify(peer_id, "A Zipline Anchor takes %s and %s." % [UiStyle.cost(int(recipe[ResNames.PERSONAL_ID]), ResNames.PERSONAL_ID), UiStyle.cost(int(recipe[ResNames.TEAM_ID]), ResNames.TEAM_ID)])
+		return
+	Economy.earn(cid, {ZipRules.ITEM: 1})
+	Economy.notify(peer_id, "A Zipline Anchor, ready. Fire it with %s." % KeyHints.key_for("deploy_zip"))
+	_crafted_fx.rpc()
 
 
 @rpc("any_peer", "reliable")

@@ -567,6 +567,8 @@ func _update_visibility() -> void:
 
 
 func _think(delta: float) -> void:
+	if latched:
+		return # clamped to the face (LatchDirector)
 	if entombed > 0.0: # Hive amber: set solid on the wall (Amber Kiln)
 		entombed -= delta
 		statue_blocked = 0.0
@@ -718,7 +720,7 @@ func _floor_y(p: Vector3) -> float:
 
 ## Turrets can't lock on to this bug right now (a boss mechanic, e.g. the Mirage Mantis fading).
 func untargetable() -> bool:
-	return (boss != null and boss.untargetable()) or entombed > 0.0 # Hive amber: statues are left standing
+	return (boss != null and boss.untargetable()) or entombed > 0.0 or latched # Hive amber: statues are left standing; latch bugs are tucked under the turrets
 
 
 ## Where a turret standing at `from` aims at this bug (a boss may offer parts, e.g. legs).
@@ -792,6 +794,10 @@ func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, mul
 	if entombed > 0.0: # Hive amber: any hit shatters a statue (a small loot burst)
 		_end_entomb(true, source, source_cliff)
 		return
+	if latched: # Latch bugs: only a rider right on top of it pries it off
+		if _rider_close(source):
+			unlatch_kill(source, source_cliff)
+		return
 	var dmg := damage * multiplier
 	# Kill-method variants take more or less from bullets, fire or explosives.
 	if not def.damage_taken.is_empty():
@@ -844,6 +850,9 @@ func _on_died(source: String, source_cliff: int) -> void:
 ## Host: seconds left of this bug's amber statue (Amber Kiln). Frozen on the
 ## wall, left alone by turrets, and nothing climbs through it.
 var entombed := 0.0
+## Latch bugs (LatchDirector): clamped under a turret line, jamming it.
+var latched := false
+var _latch_mark: Node3D
 var _entomb_source := ""
 var _entomb_cliff := -1
 ## Host: set by BugManager.separate() while a statue shoves this bug back (LaneClimber steps round it).
@@ -985,3 +994,66 @@ func _show_zzz() -> void:
 	var lift := float(spec["body_radius"]) * 1.6 + 0.4
 	_zzz.position = Vector3(sin(_anim_t * 0.7) * 0.15, lift + fmod(_anim_t * 0.25, 0.4), 0)
 	_zzz.modulate.a = 0.6 + 0.4 * sin(_anim_t * 1.3)
+
+
+# ------------------------------------------------------------------ latch bugs
+
+## Host: scuttle to `z` along the face, `y` up it, and clamp on (LatchDirector).
+func latch_at(z: float, y: float) -> void:
+	if not multiplayer.is_server() or not is_alive() or state != State.CLIMBING:
+		return
+	lane_z = z
+	climb_y = y
+	show_latch.rpc(true, z, y)
+
+
+## Host: pried off by a rider (or a CPU partner): it dies, paying as a kill.
+func unlatch_kill(source: String, source_cliff: int) -> void:
+	if not latched:
+		return
+	show_latch.rpc(false, lane_z, climb_y)
+	health.take_damage(health.hp + 1.0, source, source_cliff)
+
+
+## Host: is the rider named `source` close enough to touch this bug?
+func _rider_close(source: String) -> bool:
+	for n: Node in get_tree().get_nodes_in_group("players"):
+		var p := n as Player
+		if p != null and p.display_name() == source:
+			return p.global_position.distance_to(global_position) <= LatchDirector.POINT_BLANK
+	return false
+
+
+## Every peer: clamped on (a pulsing red glow and a warning over it) or off.
+@rpc("authority", "call_local", "reliable")
+func show_latch(on: bool, z: float, y: float) -> void:
+	latched = on
+	lane_z = z
+	climb_y = y
+	if on and not LatchDirector.latched.has(self):
+		LatchDirector.latched.append(self)
+	elif not on:
+		LatchDirector.latched.erase(self)
+	if _latch_mark != null:
+		_latch_mark.queue_free()
+		_latch_mark = null
+	if not on:
+		return
+	_latch_mark = Node3D.new()
+	add_child(_latch_mark)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(1.0, 0.25, 0.15)
+	glow.light_energy = 2.0
+	glow.omni_range = 3.5
+	_latch_mark.add_child(glow)
+	var tag := Label3D.new()
+	tag.text = "LATCHED"
+	tag.font_size = 48
+	tag.pixel_size = 0.006
+	tag.outline_size = 12
+	tag.modulate = Color(1.0, 0.45, 0.3)
+	tag.outline_modulate = Palette.OUTLINE
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.no_depth_test = true
+	tag.position = Vector3.UP * 1.6
+	_latch_mark.add_child(tag)

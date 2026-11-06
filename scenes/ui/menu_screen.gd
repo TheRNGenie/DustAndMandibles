@@ -179,14 +179,28 @@ func _restore_focus(path: Array) -> void:
 		var rows := _body.get_children().filter(func(c: Node) -> bool: return not c.is_queued_for_deletion())
 		if rows.is_empty():
 			return
-		var row: Node = rows[mini(int(path[1]), rows.size() - 1)]
-		var buttons: Array = row.find_children("*", "Button", true, false).filter(func(b: Button) -> bool: return not b.disabled)
+		var at := mini(int(path[1]), rows.size() - 1)
+		var buttons := _live_buttons(rows[at])
 		if buttons.is_empty():
-			_focus_first()
-			return
-		target = buttons[mini(int(path[2]), buttons.size() - 1)]
+			# That row's done (bought, fitted): the nearest row that still has a
+			# button, so the list stays where it was instead of jumping to the top.
+			for d in range(1, rows.size()):
+				for j: int in [at + d, at - d]:
+					if j >= 0 and j < rows.size() and buttons.is_empty():
+						buttons = _live_buttons(rows[j])
+				if not buttons.is_empty():
+					break
+			if buttons.is_empty():
+				return
+			target = buttons[0]
+		else:
+			target = buttons[mini(int(path[2]), buttons.size() - 1)]
 	if target != null:
 		target.grab_focus()
+
+
+static func _live_buttons(row: Node) -> Array:
+	return row.find_children("*", "Button", true, false).filter(func(b: Button) -> bool: return not b.disabled)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -224,6 +238,7 @@ func refresh() -> void:
 	_fill_hints(tabs.size() > 1)
 	for i in tabs.size():
 		var b := tab_button(str(tabs[i]), i == tab)
+		GlowRing.attach(b, str(tabs[i]))
 		var index := i
 		b.pressed.connect(func() -> void:
 			tab = index

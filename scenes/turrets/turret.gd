@@ -167,9 +167,40 @@ func _physics_process(delta: float) -> void:
 		if CpuProf.on:
 			CpuProf.add(&"turrets", Time.get_ticks_usec() - t0)
 	_aim_visual(delta)
+	_show_jam(delta)
 	if shots != _seen_shots:
 		_seen_shots = shots
 		_draw_shot()
+
+
+## Every peer: a flickering "JAMMED" over the gun while a latch bug clamps under it.
+var _jam_tag: Label3D
+var _jam_t := 0.0
+
+
+func _show_jam(delta: float) -> void:
+	_jam_t -= delta
+	if _jam_t > 0.0 and _jam_tag == null:
+		return
+	if _jam_t <= 0.0:
+		_jam_t = 0.4
+		var jammed := LatchDirector.jam_mult(cliff_id, global_position) > 1.0
+		if jammed and _jam_tag == null:
+			_jam_tag = Label3D.new()
+			_jam_tag.text = "JAMMED"
+			_jam_tag.font_size = 44
+			_jam_tag.pixel_size = 0.006
+			_jam_tag.outline_size = 12
+			_jam_tag.modulate = Color(1.0, 0.55, 0.2)
+			_jam_tag.outline_modulate = Palette.OUTLINE
+			_jam_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			_jam_tag.position = Vector3.UP * 2.6
+			add_child(_jam_tag)
+		elif not jammed and _jam_tag != null:
+			_jam_tag.queue_free()
+			_jam_tag = null
+	if _jam_tag != null:
+		_jam_tag.visible = fmod(Time.get_ticks_msec() / 1000.0, 0.5) < 0.35
 
 
 func _think(delta: float) -> void:
@@ -199,7 +230,7 @@ func _think(delta: float) -> void:
 		if not has_ammo:
 			_cooldown = 1.0
 			return
-	_cooldown = def.interval_at(tier) * Weather.turret_fire_interval(GameState.weather) * perk_rate * Economy.tonic_interval_mult(cliff_id) # Perk: Well Oiled; Sarsaparilla tonic from the partner
+	_cooldown = def.interval_at(tier) * Weather.turret_fire_interval(GameState.weather) * perk_rate * Economy.tonic_interval_mult(cliff_id) 			* LatchDirector.jam_mult(cliff_id, global_position) # a latch bug clamped under it # Perk: Well Oiled; Sarsaparilla tonic from the partner
 	shots += 1
 	if randf() <= def.hit_chance * Weather.turret_accuracy(GameState.weather):
 		TurretEffects.apply(self, _target, aim_point, def.damage_at(tier, TurretDef.is_heavy(_target.def)))

@@ -33,6 +33,8 @@ var map_id: StringName = MapDef.CANYON
 ## CPU teammate quality: -1 off, 0 Low, 1 Medium, 2 High. Host sets it in the
 ## lobby; CPUs fill every empty cliff when there's room (see has_cpu).
 var cpu_quality := -1
+## Endless (host): the wave a new run starts at (the lobby slider, EndlessStart).
+var start_wave := 1
 ## Solo (main menu: Story/Endless > Solo): hosted directly, nobody can join,
 ## and the lobby starts as soon as you ready up.
 var solo := false
