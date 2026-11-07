@@ -77,6 +77,9 @@ wave_theme_1.ogg      "The Cowboy's Theme" (from "Wild West Music") by Umplix, O
                       https://opengameart.org/content/wild-west-music
 wave_theme_2.ogg      "Spaghetti Western" by Julie Damsgaard / Spring Spring, OpenGameArt
                       https://opengameart.org/content/spaghetti-western
+menu_theme.ogg        AI-generated with fal.ai, Google Lyria 3 Pro (fal-ai/lyria3/pro), from a
+                      prompt written for this game; cut to a 61-bar loop. Carries Google's
+                      SynthID watermark.
 
 AI-generated sound effects (tools/audio/import_fal_sfx.py)
 ----------------------------------------------------------

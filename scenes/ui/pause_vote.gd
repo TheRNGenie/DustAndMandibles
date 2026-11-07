@@ -95,6 +95,7 @@ func _set_paused(on: bool) -> void:
 	votes.clear()
 	ready_ids.clear()
 	get_tree().paused = on
+	Audio.pause_music(&"vote", on)
 	_root.visible = on
 	if on:
 		UiStyle.fade_in(_root)

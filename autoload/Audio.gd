@@ -210,6 +210,44 @@ func _make_buses() -> void:
 ## tracks are .ogg (tools/audio/import_music.py), older ones .wav. `volume_db` is the
 ## level it settles at; asking for the playing track again just eases to the new level.
 func play_music(track: StringName, fade: float = 2.5, volume_db: float = MUSIC_DB) -> void:
+	if not _pause_why.is_empty():
+		# Paused: the menu theme plays; this is what comes back on resume.
+		_resume_track = track
+		_resume_db = volume_db
+		return
+	_set_music(track, fade, volume_db)
+
+
+## Paused (the Esc menu, or a voted pause): the main menu theme plays until every
+## reason is gone, then the game's own track comes back.
+const PAUSE_TRACK := &"menu_theme"
+const PAUSE_DB := -8.0
+var _pause_why: Dictionary = {}
+var _resume_track: StringName = &""
+var _resume_db := MUSIC_DB
+
+
+func pause_music(why: StringName, on: bool) -> void:
+	var was := not _pause_why.is_empty()
+	if on:
+		_pause_why[why] = true
+	else:
+		_pause_why.erase(why)
+	var now := not _pause_why.is_empty()
+	if now and not was:
+		_resume_track = _music_name
+		_resume_db = _music_db
+		_set_music(PAUSE_TRACK, 1.2, PAUSE_DB)
+	elif was and not now:
+		_set_music(_resume_track, 1.5, _resume_db)
+
+
+## Back at the title screen: any pause is over (left from the Esc menu).
+func clear_pause_music() -> void:
+	_pause_why.clear()
+
+
+func _set_music(track: StringName, fade: float, volume_db: float) -> void:
 	if track == _music_name:
 		if track != &"" and not is_equal_approx(_music_db, volume_db):
 			_music_db = volume_db

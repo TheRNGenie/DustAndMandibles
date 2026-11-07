@@ -43,11 +43,18 @@ var _mode_note: Label
 var _run_pick: OptionButton ## Endless lobby: a new run, or the saved one
 
 
+const MENU_MUSIC_DB := -8.0 # (as loud as the build theme)
+
+
 func _ready() -> void:
 	LoadTimes.begin("menu")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	GameState.reset()
 	WorldPreload.release() # (back from a game: it has let go of what it used)
+	# Main menu theme: Logan's pick (Lyria 3 Pro, from his reference track).
+	Audio.clear_pause_music()
+	if not GameState.has_flag("--shot"):
+		Audio.play_music(&"menu_theme", 2.0, MENU_MUSIC_DB)
 	GameState.tutorial = false # back from the tutorial (or never in it)
 	Story.chapter_id = "" # Story: back from a chapter (a lobby's host picks again)
 	NetworkManager.solo = false # (picked again on the Solo / Co-op page)

@@ -30,6 +30,8 @@ func open() -> void:
 	var was_open := UiStyle.shown(_root)
 	_root.visible = true
 	GameState.menu_open = true
+	if not in_main_menu:
+		Audio.pause_music(&"esc_menu", true)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if not was_open:
 		UiStyle.fade_in(_root)
@@ -50,6 +52,8 @@ func select_tab(index: int) -> void:
 func close() -> void:
 	UiStyle.fade_out(_root)
 	GameState.menu_open = false
+	if not in_main_menu:
+		Audio.pause_music(&"esc_menu", false)
 	if not in_main_menu:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	closed.emit()
