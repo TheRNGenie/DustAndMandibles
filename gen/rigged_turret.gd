@@ -8,6 +8,8 @@ extends RefCounted
 ## the model's own textures ("textured": the turret leaves its materials alone).
 
 const DIR := "res://assets/rigged/turrets/"
+## Keep the import's distance detail levels on the moving parts.
+const KEEP_LODS := true
 
 static var _cache: Dictionary = {}
 
@@ -140,10 +142,9 @@ static func _basis_z(axis: Vector3) -> Basis:
 	return Basis(x, z.cross(x).normalized(), z)
 
 
-## `mesh` with every vertex transformed by `t`, keeping what the import made:
-## its distance detail levels (LODs), its shadow mesh, its compressed vertex
-## format and its materials. Only positions, normals and tangents change, and the
-## vertex order stays, so the LODs' index lists still fit.
+## `mesh` with every vertex transformed by `t`, keeping the import's distance
+## detail levels (LODs) and materials. Only positions, normals and tangents
+## change, and the vertex order stays, so the LODs' index lists still fit.
 static func _moved(mesh: Variant, t: Transform3D) -> ArrayMesh: # (null: a surface it couldn't read)
 	var src := mesh as Mesh
 	if src == null:
@@ -179,16 +180,14 @@ static func _moved(mesh: Variant, t: Transform3D) -> ArrayMesh: # (null: a surfa
 				tg[k + 1] = d.y
 				tg[k + 2] = d.z
 			arr[Mesh.ARRAY_TANGENT] = tg
-		var flags := 0
-		if src is ArrayMesh:
-			flags = (src as ArrayMesh).surface_get_format(i) & Mesh.ARRAY_FLAG_COMPRESS_ATTRIBUTES
-		out.add_surface_from_arrays(src.surface_get_primitive_type(i), arr, [], _lods(src, i), flags)
+		# Written uncompressed: re-compressing the moved vertices drew the moving
+		# parts black and broken on screen (v0.1.62).
+		out.add_surface_from_arrays(src.surface_get_primitive_type(i), arr, [], _lods(src, i) if KEEP_LODS else {})
 		out.surface_set_material(i, src.surface_get_material(i))
 		if src is ArrayMesh:
 			out.surface_set_name(i, (src as ArrayMesh).surface_get_name(i))
-	var am := src as ArrayMesh
-	if am != null and am.shadow_mesh != null and am.shadow_mesh != am:
-		out.shadow_mesh = _moved(am.shadow_mesh, t) # (null if it can't be read: shadows then use the mesh itself)
+	# No shadow mesh carried over: the moved copy left broken shadows (v0.1.62).
+	# Shadows use the part itself, as before v0.1.62.
 	return out
 
 
