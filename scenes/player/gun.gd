@@ -743,7 +743,13 @@ func reload() -> void:
 		_foley("open", -5.0)
 
 
+## Logan (2026-11-07): the twirl is off until it can follow the hand properly.
+const TWIRL_ON := false
+
+
 func _start_twirl(spec: Vector2) -> void:
+	if not TWIRL_ON:
+		return
 	_twirl_len = spec.x
 	_twirl_turns = spec.y
 	_twirl_left = spec.x

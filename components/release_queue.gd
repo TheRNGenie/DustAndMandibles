@@ -5,7 +5,7 @@ extends RefCounted
 ## isn't one column out of one tunnel), and the chunks of every kind are dealt
 ## out in turn (so the field fills with a mix, not one kind first). Pure.
 
-const CHUNK := 8
+const CHUNK := 4
 ## Chunks released per frame at most (the rest wait their turn).
 const PER_TICK := 4
 const LANES := 5

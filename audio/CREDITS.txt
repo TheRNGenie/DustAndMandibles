@@ -68,18 +68,21 @@ airship_creak*.ogg    "Tree Creaking" by AntumDeluge (from Department64), OpenGa
                       https://opengameart.org/content/tree-creaking
                       three groans cut out, one also pitched down 18%.
 
-Music (tools/audio/import_music.py)
------------------------------------
-All CC0 1.0. Cut to a loop (tail crossfaded over the head) and loudness-matched.
-build_theme.ogg       "Desert Settlement" by Vitalezzz, OpenGameArt
-                      https://opengameart.org/content/desert-settlement
-wave_theme_1.ogg      "The Cowboy's Theme" (from "Wild West Music") by Umplix, OpenGameArt
-                      https://opengameart.org/content/wild-west-music
-wave_theme_2.ogg      "Spaghetti Western" by Julie Damsgaard / Spring Spring, OpenGameArt
-                      https://opengameart.org/content/spaghetti-western
-menu_theme.ogg        AI-generated with fal.ai, Google Lyria 3 Pro (fal-ai/lyria3/pro), from a
-                      prompt written for this game; cut to a 61-bar loop. Carries Google's
-                      SynthID watermark.
+Music (tools/audio/import_lyria_music.py)
+-----------------------------------------
+AI-generated with fal.ai, Google Lyria 3 Pro (fal-ai/lyria3/pro), from prompts written
+for this game (kept in the project archive); each cut to whole bars, its tail crossfaded
+over its head so it loops, and loudness-matched. Every track carries Google's SynthID
+watermark.
+menu_theme.ogg        title screen and pause (from Logan's reference track)
+build_theme.ogg       build phase
+wave_theme_1.ogg      the early, smaller waves
+wave_theme_2.ogg      the big waves and blood moons
+victory_theme.ogg     a won run
+boss_<id>.ogg         each boss's own theme (13), with light jazz
+
+Earlier CC0 tracks (OpenGameArt, no longer used): "Desert Settlement" by Vitalezzz,
+"The Cowboy's Theme" by Umplix, "Spaghetti Western" by Julie Damsgaard / Spring Spring.
 
 AI-generated sound effects (tools/audio/import_fal_sfx.py)
 ----------------------------------------------------------

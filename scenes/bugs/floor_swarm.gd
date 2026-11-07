@@ -19,8 +19,12 @@ const PACE := 2.2
 ## the rest wait a tick on the line).
 const PROMOTE_PER_TICK := 12
 const MAX_WALKERS := 5000
+## Walkers slow down over this many metres before the hold line, to this share of their pace.
+const EASE_DIST := 45.0
+const EASE_MIN := 0.2
 
-static var enabled := true
+## Off for now (Logan, 2026-11-07): 1,500 full bugs instead, refilled as they die.
+static var enabled := false
 
 var bm: BugManager
 var _next := 0
@@ -94,7 +98,11 @@ func _physics_process(delta: float) -> void:
 	LegBatch.motion = Color()
 	for id: int in _walkers:
 		var w: Dictionary = _walkers[id]
-		var left := maxf(float(w["left"]) - float(w["speed"]) * delta, PROMOTE_DIST - 0.01)
+		# Easing off over the last stretch before the hold line, so a queue strings
+		# out along the canyon floor instead of bunching at the foot of the wall
+		# (the same on every peer: it only depends on how far each has to go).
+		var ease := clampf((float(w["left"]) - PROMOTE_DIST) / EASE_DIST, EASE_MIN, 1.0)
+		var left := maxf(float(w["left"]) - float(w["speed"]) * ease * delta, PROMOTE_DIST - 0.01)
 		w["left"] = left
 		var pos: Vector3 = (w["goal"] as Vector3) - (w["dir"] as Vector3) * left
 		pos.y = lerpf(float(w["y1"]), float(w["y0"]), left / float(w["len"]))

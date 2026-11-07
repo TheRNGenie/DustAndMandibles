@@ -60,7 +60,7 @@ func test_junk_heap_pays_personal_and_grows() -> void:
 	var total := 0
 	for w in range(0, 20):
 		total += EconomyLedger.heap_pay(w, cfg)
-	assert_true(total > 1800 and total < 3200, "20 heaps pay %d" % total)
+	assert_true(total > 2500 and total < 4200, "20 heaps pay %d" % total)
 	# Into your own stock, never the pot.
 	var l := EconomyLedger.new()
 	l.reset({&"scrap": 100}, 2)

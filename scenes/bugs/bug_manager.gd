@@ -179,11 +179,18 @@ func _rumble(mouth: Vector3, way_out: Vector3, size: float) -> void: # Maps: dir
 		vfx.shake_requested.emit(mouth, 0.15 * size)
 
 
+## A wave past the field's cap: every regular bug carries the bugs that didn't
+## fit as extra toughness (WaveDirector.overflow_hp); bosses are left alone.
+static func _overflow_hp(bug_id: StringName) -> float:
+	var d := Defs.bug(bug_id)
+	return 1.0 if d == null or d.behavior == BugDef.Behavior.BOSS else WaveDirector.overflow_hp
+
+
 ## Host: spawns one bug in any state (used for spiderlings and special bugs).
 func spawn_at(bug_id: StringName, cliff: int, lane: int, z: float, y: float, st: int, pos: Vector3) -> Node:
 	_next_id += 1
 	return _spawner.spawn({"id": _next_id, "bug": bug_id, "cliff": cliff, "lane": lane,
-			"z": z, "y": y, "hp": Defs.WAVE_CONFIG.hp_scale(GameState.wave), "state": st, "pos": pos,
+			"z": z, "y": y, "hp": Defs.WAVE_CONFIG.hp_scale(GameState.wave) * _overflow_hp(bug_id), "state": st, "pos": pos,
 			"smoke": (randf() < SMOKER_CHANCE or GameState.has_flag("--smokers")) if smoke_override < 0 else smoke_override == 1})
 
 
@@ -464,9 +471,9 @@ func _physics_process(delta: float) -> void:
 		send_states()
 		if CpuProf.on:
 			CpuProf.add(&"bm_sync", Time.get_ticks_usec() - t0)
-	# Every other tick is plenty for keeping bugs apart.
-	_sep_tick = not _sep_tick
-	if _sep_tick:
+	# Every third tick is plenty for keeping bugs apart (1,500 of them at once).
+	_sep_n = (_sep_n + 1) % 3
+	if _sep_n == 0:
 		t0 = Time.get_ticks_usec()
 		separate()
 		if CpuProf.on:
@@ -548,7 +555,7 @@ static func set_detail_level(lvl: int) -> void:
 var _detail_t := 0.0
 ## Bugs wearing a face (see _process).
 var _faced: Array[Bug] = []
-var _sep_tick := false
+var _sep_n := 0
 
 
 func _process(delta: float) -> void:

@@ -54,8 +54,23 @@ static func wind_db(w: int, edge: float, height: float) -> float:
 
 
 ## Music for a wave: the big theme once waves get large (and for blood moons).
-static func wave_track(wave: int, weather: int) -> StringName:
+static func wave_track(wave: int, weather: int, bosses: Array = []) -> StringName:
+	# A boss wave plays its boss's own theme (the finale: the first boss's).
+	for id: Variant in bosses:
+		var track := StringName("boss_%s" % id)
+		if ResourceLoader.exists("res://audio/music/%s.ogg" % track):
+			return track
 	return &"wave_theme_2" if wave >= 6 or weather == Weather.Kind.BLOOD_MOON else &"wave_theme_1"
+
+
+## The bosses in a wave preview mix ([id, count] pairs, WaveDirector.preview).
+static func bosses_in(mix: Array) -> Array:
+	var out: Array = []
+	for m: Variant in mix:
+		var d := Defs.bug(StringName(str((m as Array)[0])))
+		if d != null and d.behavior == BugDef.Behavior.BOSS:
+			out.append(d.id)
+	return out
 
 
 ## Wave music swells a little each wave (-9 dB on the first, -5 dB by the ninth).

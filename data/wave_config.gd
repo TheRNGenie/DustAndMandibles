@@ -34,12 +34,15 @@ extends Resource
 ## From this wave on, the count grows by `late_growth` a wave instead (balance
 ## pass: 1.25x compounding outran every economy; the walls at 10-15 were the curve).
 @export var late_from: int = 8
-@export var late_growth: float = 1.12
+@export var late_growth: float = 1.18
 ## From this wave on, HP grows by `late_hp_per_wave` a wave instead.
 @export var late_hp_from: int = 10
 @export var late_hp_per_wave: float = 0.06
 ## A boss wave sends this much less of the regular pack (the boss takes its place).
 @export var boss_count_cut: float = 0.25
+## Most bugs one wave sends (they come out as the field's live cap frees up);
+## a wave planned bigger sends this many, each tougher (WaveDirector.overflow_hp).
+@export var max_wave_bugs: int = 5000
 
 @export_group("Wave shapes")
 ## Every this many waves is a boss wave (brutes up front, the boss once it's unlocked).
@@ -65,7 +68,7 @@ extends Resource
 
 
 ## How many bugs wave w sends (wave 1 = count_base, +25% a wave to wave
-## `late_from`, then +12% a wave; a boss wave a quarter fewer).
+## `late_from`, then +18% a wave; a boss wave a quarter fewer).
 func bug_count(w: int, boss_cut: bool = true) -> int:
 	var early := mini(maxi(w, 1), late_from) - 1
 	var late := maxi(w - late_from, 0)

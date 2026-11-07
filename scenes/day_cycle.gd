@@ -101,15 +101,19 @@ func _wave_start(w: int) -> float:
 	return START_HOUR + HOURS_PER_WAVE * float(maxi(w - 1, 0))
 
 
+func _wave_music() -> StringName:
+	return AmbienceMix.wave_track(GameState.wave, GameState.weather, AmbienceMix.bosses_in(WaveDirector.preview))
+
+
 func _on_phase(p: GameState.Phase) -> void:
 	match p:
 		GameState.Phase.WAVE:
 			clock = maxf(clock, _wave_start(GameState.wave))
 			_target = _wave_start(GameState.wave) + HOURS_PER_WAVE
 			_rate = HOURS_PER_WAVE / WAVE_SECONDS
-			Audio.play_music(AmbienceMix.wave_track(GameState.wave, GameState.weather), 2.5, AmbienceMix.wave_music_db(GameState.wave))
+			Audio.play_music(_wave_music(), 2.5, AmbienceMix.wave_music_db(GameState.wave))
 		GameState.Phase.WARNING:
-			Audio.play_music(AmbienceMix.wave_track(GameState.wave, GameState.weather), 2.5, AmbienceMix.wave_music_db(GameState.wave))
+			Audio.play_music(_wave_music(), 2.5, AmbienceMix.wave_music_db(GameState.wave))
 		GameState.Phase.BUILD, GameState.Phase.LOBBY:
 			if GameState.flag_value("--hour") != "":
 				return
@@ -119,7 +123,7 @@ func _on_phase(p: GameState.Phase) -> void:
 			Audio.play_music(BUILD_MUSIC, 2.5, BUILD_MUSIC_DB)
 		GameState.Phase.GAME_OVER:
 			_rate = 0.0
-			Audio.play_music(&"")
+			Audio.play_music(&"victory_theme" if GameState.won else &"", 2.0, BUILD_MUSIC_DB)
 
 
 func _process(delta: float) -> void:

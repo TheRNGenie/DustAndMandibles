@@ -8,12 +8,12 @@ func test_count_grows_faster_than_toughness() -> void:
 	assert_almost(c.count_growth, 1.25)
 	assert_almost(c.hp_per_wave, 0.10)
 	assert_almost(c.damage_per_wave, 0.10)
-	# Balance pass: +25% a wave to wave 8, +12% after; HP +10% a wave to 10, +6% after.
-	# Wave 11: ~6.7x the bugs of wave 1, each just under 2x as tough.
+	# Balance pass: +25% a wave to wave 8, +18% after; HP +10% a wave to 10, +6% after.
+	# Wave 11: ~7.8x the bugs of wave 1, each just under 2x as tough.
 	assert_almost(c.hp_scale(11), 1.96)
 	assert_almost(c.damage_scale(11), 2.0)
 	var ratio := float(c.bug_count(11)) / float(c.bug_count(1))
-	assert_true(ratio > 6.0 and ratio < 7.5, "wave 11 is %.1fx wave 1" % ratio)
+	assert_true(ratio > 7.0 and ratio < 8.5, "wave 11 is %.1fx wave 1" % ratio)
 	assert_true(absf(float(c.bug_count(13)) / float(c.bug_count(12)) - c.late_growth) < 0.03, "late waves grow by late_growth")
 	# A boss wave sends a quarter fewer than the curve says.
 	assert_true(float(c.bug_count(10)) < float(c.bug_count(9)) * c.late_growth * 0.8, "boss wave cut")

@@ -98,6 +98,12 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 			_active = true
 			_trickle = []
 			_queue = []
+			overflow_hp = 1.0
+			_feed_budget = 0.0
+			_wave_total = 0
+			for g: Dictionary in _plan["groups"]:
+				_wave_total += int(g["count"])
+			_feed_rate = _release_rate()
 			if trickling():
 				var times: Array = _plan["pulse_times"]
 				var span := maxf(float(times[times.size() - 1]) + 10.0 if not times.is_empty() else 0.0, 30.0)
@@ -210,8 +216,36 @@ func _mix_log(delta: float) -> void:
 	print("[mix] t %.0f  queued chunks %d  full %s  walkers %s" % [_clock, _queue.size(), str(real), str(bug_manager.swarm.kinds())])
 
 
+## A wave past the field's cap (full bugs plus floor walkers) sends what fits,
+## each this much tougher, so its threat still follows the curve.
+var overflow_hp := 1.0
+## Bugs come out of the tunnels at this many a second (the wave spread over
+## RELEASE_SECONDS; a rush over RUSH_SECONDS), so they trickle in and up the
+## wall instead of piling up at its foot.
+const RELEASE_SECONDS := 50.0
+const RUSH_SECONDS := 22.0
+const RELEASE_MIN_RATE := 4.0
+var _feed_rate := 1000.0
+## Bugs the whole wave was planned with (all pulses).
+var _wave_total := 0
+var _feed_budget := 0.0
+
+
+func _release_rate() -> float:
+	if _plan.is_empty():
+		return 1000.0
+	var total := 0
+	for g: Dictionary in _plan["groups"]:
+		total += int(g["count"])
+	total = mini(total, Defs.WAVE_CONFIG.max_wave_bugs)
+	var spread := RUSH_SECONDS if _plan.get("shape", &"") == WavePlanner.RUSH else RELEASE_SECONDS
+	return maxf(RELEASE_MIN_RATE, float(total) / spread)
+
+
 func _feed() -> void:
-	var room := Defs.WAVE_CONFIG.max_active_bugs + FloorSwarm.MAX_WALKERS - bug_manager.alive_count()
+	_feed_budget = minf(_feed_budget + _feed_rate * get_process_delta_time(), _feed_rate * 2.0 + 8.0)
+	# Room on the field: as bugs die, more come out (up to the live cap).
+	var room := Defs.WAVE_CONFIG.max_active_bugs - bug_manager.alive_count()
 	# Fliers can't wait on the floor as walkers: cap their share of the full
 	# bugs so they don't take every slot; their chunks wait at the back.
 	var fliers := -1
@@ -227,6 +261,12 @@ func _feed() -> void:
 				looked += 1
 				continue
 			fliers += int(c[1])
+		var boss := Defs.bug(c[0]).behavior == BugDef.Behavior.BOSS
+		if not boss and _feed_budget < float(c[1]):
+			_queue.push_front(c) # (the next chunk waits for its turn)
+			break
+		if not boss:
+			_feed_budget -= float(c[1])
 		bug_manager.spawn_group(c[0], int(c[1]), int(c[2]), int(c[3]), 0.0, int(c[4]))
 		room -= int(c[1])
 		n += 1
@@ -256,10 +296,14 @@ func _release(pulse: int) -> void:
 				print("[wave]   variant group: %d x %s" % [int(g["count"]), Defs.bug(StringName(g["bug"])).display_name])
 			groups.append(g)
 			total += int(g["count"])
-	# More than the field can hold (full bugs plus floor walkers): every kind
-	# shrinks by the same share, rather than the first kind listed taking it all.
-	var room := Defs.WAVE_CONFIG.max_active_bugs + FloorSwarm.MAX_WALKERS
-	var k := minf(1.0, float(room) / maxf(float(total), 1.0))
+	# More than one wave may send (max_wave_bugs, shared across its pulses): every
+	# kind shrinks by the same share, and the overflow becomes toughness.
+	var room := Defs.WAVE_CONFIG.max_wave_bugs * total / maxi(_wave_total, 1) if _wave_total > Defs.WAVE_CONFIG.max_wave_bugs else total
+	var k := minf(1.0, float(room) / float(total)) if total > 0 else 1.0
+	if k < 1.0 and k > 0.0:
+		overflow_hp = maxf(overflow_hp, 1.0 / k)
+		if GameState.has_flag("--netlog") or GameState.has_flag("--cpusim"):
+			print("[wave] %d planned, %d fit: each bug x%.2f HP" % [total, room, overflow_hp])
 	var chunks: Array = []
 	for g: Dictionary in groups:
 		var n := int(g["count"]) if Defs.bug(StringName(g["bug"])).behavior == BugDef.Behavior.BOSS else maxi(ceili(int(g["count"]) * k), 1)

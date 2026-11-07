@@ -696,7 +696,8 @@ func _pose_rv(delta_shot: float, e: float, load_t: float, loading: bool) -> void
 	var flick := 1.0 - pow(1.0 - k, 3.0) + sin(k * PI) * 0.12
 	_swing = flick
 	crane.rotation.z = RV_SWING * _swing
-	crane.position = RV_CRANE + Vector3(-0.006 * _swing, 0, 0)
+	# (The crane hangs off the twirl pivot like the rest of the gun.)
+	crane.position = RV_CRANE + Vector3(-0.006 * _swing, 0, 0) - (TWIRL_PIVOT if crane.get_parent() == _twirl else Vector3.ZERO)
 	# Hammer: falls on the shot, thumbed back again; trigger: squeezed and let go.
 	var cock := _ease(_shot_t / 0.22) if _shot_t < 0.22 else 1.0
 	hammer.rotation.x = RV_HAMMER_COCK * cock * (1.0 - e)

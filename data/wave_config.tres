@@ -22,6 +22,6 @@ hp_per_wave = 0.1
 damage_per_wave = 0.1
 homestead_hp = 500.0
 start_scrap = 150
-max_active_bugs = 750
+max_active_bugs = 1500
 count_base = 45.0
 count_growth = 1.25

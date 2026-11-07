@@ -344,6 +344,13 @@ static func _env_speed() -> float:
 	return _env_k
 
 
+## All bugs' update time this rendered frame (us), and the most it may take.
+static var _frame_id := -1
+static var _frame_us := 0
+static var FRAME_BUDGET_US := 5500
+var _moved_frame := -1
+
+
 func _physics_process(delta: float) -> void:
 	# Far-off and off-screen bugs update less often (with the time they missed),
 	# so hundreds of bugs fit in a tick. Up close every tick.
@@ -351,13 +358,28 @@ func _physics_process(delta: float) -> void:
 	# (Bosses always update: there are one or two, and their telegraphs must be smooth.)
 	if detail != 0 and not due and state != State.DEAD and _tick_acc < 0.5 and boss == null:
 		return
+	# One rendered frame's budget for every bug together: when a slow frame makes
+	# the engine run several physics ticks to catch up, a bug that already moved
+	# this frame waits for the next one (with the time it missed), and once the
+	# frame's budget is spent the rest wait too. A big crowd then costs a steady
+	# slice of each frame instead of snowballing.
+	var frame := Engine.get_process_frames()
+	if frame != _frame_id:
+		_frame_id = frame
+		_frame_us = 0
+	# (Sped-up headless sims run many ticks a frame on purpose: no frame budget there.)
+	if boss == null and state != State.DEAD and Engine.time_scale <= 1.01 			and (_moved_frame == frame or _frame_us > FRAME_BUDGET_US):
+		return
+	_moved_frame = frame
 	due = false
 	var t0 := Time.get_ticks_usec()
 	# All the time since its last update (a bug that waited longer than a
 	# quarter second thinks in quarter-second steps, so it never loses ground).
 	_pp(minf(_tick_acc, 1.0))
 	_tick_acc = 0.0
-	BugManager.note_update(Time.get_ticks_usec() - t0)
+	var took := Time.get_ticks_usec() - t0
+	_frame_us += took
+	BugManager.note_update(took)
 
 
 func _pp(delta: float) -> void:
