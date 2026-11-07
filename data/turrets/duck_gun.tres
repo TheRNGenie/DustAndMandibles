@@ -24,3 +24,4 @@ flight_time = 0.0
 effect_size = 0.0
 anti_air = true
 sound = &"shotgun"
+ground_mult = 0.4

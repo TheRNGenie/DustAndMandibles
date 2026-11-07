@@ -29,6 +29,9 @@ func _ready() -> void:
 	if _what == "lineup":
 		_lineup()
 		return
+	if _what == "revolver" or _what == "revolver_speed":
+		await _revolver_views(_what == "revolver_speed")
+		return
 	var id := StringName(_what)
 	if _what == "harpoon_pull":
 		id = &"harpoon_pistol"
@@ -243,3 +246,39 @@ func _save() -> void:
 	get_viewport().get_texture().get_image().save_png(path)
 	print("[gunview] saved ", path)
 	get_tree().quit()
+
+
+## --gunview=revolver / revolver_speed: the parts revolver in hand, after two
+## shots, and part-way through a reload (single rounds, or the speed loader).
+## Saves <--gunshot>_idle/_fired/_load1/_load2.png.
+func _revolver_views(speed: bool) -> void:
+	var hud: Variant = world.get("hud")
+	if hud != null:
+		hud.set("visible", false)
+	player.global_position = cliffs.plateau_point(player.cliff_id, 12.0, 0.0)
+	player.gun.grant(&"revolver", WeaponMods.with_mod(0, 1) if speed else 0)
+	player.gun.equip(&"revolver")
+	await get_tree().create_timer(1.2).timeout
+	await _snap("idle")
+	for i in 2:
+		player.gun.trigger(player.camera)
+		await get_tree().create_timer(0.5).timeout
+	await _snap("fired")
+	player.gun.reload()
+	await get_tree().create_timer(0.55).timeout
+	await _snap("load1")
+	await get_tree().create_timer(0.35).timeout
+	await _snap("load2")
+	await get_tree().create_timer(1.5).timeout
+	await _snap("done")
+	get_tree().quit()
+
+
+func _snap(tag: String) -> void:
+	var path := GameState.flag_value("--gunshot")
+	if path == "":
+		return
+	await RenderingServer.frame_post_draw
+	var out := path.get_basename() + "_" + tag + ".png"
+	get_viewport().get_texture().get_image().save_png(out)
+	print("[gunview] saved ", out)

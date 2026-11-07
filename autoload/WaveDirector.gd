@@ -67,6 +67,7 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 			# Plan the coming wave now, so both players can see what's coming while they build.
 			_plan = _make_plan()
 			_preview.rpc(_mix(), _plan["shape"])
+			_tell_next_boss()
 		GameState.Phase.WARNING:
 			if _plan.is_empty():
 				_plan = _make_plan()
@@ -96,6 +97,7 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 			_clock = 0.0
 			_active = true
 			_trickle = []
+			_queue = []
 			if trickling():
 				var times: Array = _plan["pulse_times"]
 				var span := maxf(float(times[times.size() - 1]) + 10.0 if not times.is_empty() else 0.0, 30.0)
@@ -106,6 +108,7 @@ func _on_phase_changed(p: GameState.Phase) -> void:
 		_:
 			_active = false
 			_trickle = []
+			_queue = []
 
 
 ## This wave's deep-tunnel bugs come as a trickle (canyon, wave 15 on).
@@ -173,20 +176,77 @@ func _process(delta: float) -> void:
 	while _pulse < times.size() and _clock >= float(times[_pulse]):
 		_release(_pulse)
 		_pulse += 1
+	_feed()
+	if GameState.has_flag("--mixlog"):
+		_mix_log(delta)
 	while not _trickle.is_empty() and _clock >= _trickle_at:
 		var c: Array = _trickle.pop_front()
 		bug_manager.spawn_group(c[0], int(c[1]), int(c[2]), int(c[3]), 0.0, 2)
 		_trickle_at += randf_range(2.0, 3.0)
-	if _pulse >= times.size() and _trickle.is_empty() and bug_manager.alive_count() == 0 and bug_manager.pending_count() == 0:
+	if _pulse >= times.size() and _trickle.is_empty() and _queue.is_empty() and bug_manager.alive_count() == 0 and bug_manager.pending_count() == 0:
 		_active = false
 		_plan = {}
 		GameState.end_wave()
+
+
+## Host: chunks waiting to come out ([bug, count, cliff, lane, tier]), kinds
+## interleaved (ReleaseQueue), fed out a few a frame while there's room.
+var _queue: Array = []
+
+
+var _mix_t := 0.0
+
+
+## Debug (--mixlog): every 5 s of a wave, what's out (full bugs and floor walkers) by kind.
+func _mix_log(delta: float) -> void:
+	_mix_t += delta
+	if _mix_t < 5.0:
+		return
+	_mix_t = 0.0
+	var real := {}
+	for c: Node in bug_manager.get_children():
+		if c is Bug and (c as Bug).is_alive():
+			real[(c as Bug).def.id] = int(real.get((c as Bug).def.id, 0)) + 1
+	print("[mix] t %.0f  queued chunks %d  full %s  walkers %s" % [_clock, _queue.size(), str(real), str(bug_manager.swarm.kinds())])
+
+
+func _feed() -> void:
+	var room := Defs.WAVE_CONFIG.max_active_bugs + FloorSwarm.MAX_WALKERS - bug_manager.alive_count()
+	# Fliers can't wait on the floor as walkers: cap their share of the full
+	# bugs so they don't take every slot; their chunks wait at the back.
+	var fliers := -1
+	var n := 0
+	var looked := 0
+	while not _queue.is_empty() and n < ReleaseQueue.PER_TICK and room > 0 and looked < _queue.size():
+		var c: Array = _queue.pop_front()
+		if Defs.bug(c[0]).behavior == BugDef.Behavior.FLIER:
+			if fliers < 0:
+				fliers = _fliers_out()
+			if fliers + int(c[1]) > roundi(Defs.WAVE_CONFIG.max_active_bugs * ReleaseQueue.FLIER_SHARE):
+				_queue.append(c)
+				looked += 1
+				continue
+			fliers += int(c[1])
+		bug_manager.spawn_group(c[0], int(c[1]), int(c[2]), int(c[3]), 0.0, int(c[4]))
+		room -= int(c[1])
+		n += 1
+
+
+func _fliers_out() -> int:
+	var f := 0
+	for c: Node in bug_manager.get_children():
+		var b := c as Bug
+		if b != null and b.is_alive() and b.def.behavior == BugDef.Behavior.FLIER:
+			f += 1
+	return f
 
 
 func _release(pulse: int) -> void:
 	if GameState.has_flag("--netlog"):
 		print("[wave] %s: releasing pulse %d of %d, %d groups planned" % [_plan["shape"], pulse, int(_plan["pulses"]), (_plan["groups"] as Array).size()])
 	var trickle := trickling()
+	var groups: Array = []
+	var total := 0
 	for g: Dictionary in _plan["groups"]:
 		if int(g["pulse"]) == pulse:
 			var tier := int(g.get("tier", 0))
@@ -194,7 +254,17 @@ func _release(pulse: int) -> void:
 				continue # (out of the deep tunnels in the trickle instead)
 			if GameState.has_flag("--netlog") and String(g["bug"]).contains("@"):
 				print("[wave]   variant group: %d x %s" % [int(g["count"]), Defs.bug(StringName(g["bug"])).display_name])
-			bug_manager.spawn_group(StringName(g["bug"]), int(g["count"]), int(g["cliff"]), int(g["lane"]), 0.0, tier)
+			groups.append(g)
+			total += int(g["count"])
+	# More than the field can hold (full bugs plus floor walkers): every kind
+	# shrinks by the same share, rather than the first kind listed taking it all.
+	var room := Defs.WAVE_CONFIG.max_active_bugs + FloorSwarm.MAX_WALKERS
+	var k := minf(1.0, float(room) / maxf(float(total), 1.0))
+	var chunks: Array = []
+	for g: Dictionary in groups:
+		var n := int(g["count"]) if Defs.bug(StringName(g["bug"])).behavior == BugDef.Behavior.BOSS else maxi(ceili(int(g["count"]) * k), 1)
+		chunks.append(ReleaseQueue.chunks(StringName(g["bug"]), n, int(g["cliff"]), int(g["lane"]), int(g.get("tier", 0))))
+	_queue.append_array(ReleaseQueue.interleave(chunks))
 
 
 ## Host: BugManager reports every kill; enough kills of one type the same way
@@ -262,6 +332,31 @@ static func mix_of(groups: Array) -> Array:
 func send_preview_to(peer: int) -> void:
 	if multiplayer.is_server() and not preview.is_empty():
 		_preview.rpc_id(peer, preview, preview_shape)
+
+
+## The boss the wave after this one brings (ids; empty unless it's a boss
+## wave): shown on the wave card a build phase early, so you can build for it.
+var next_boss: Array = []
+
+
+## Host: works out next wave's boss the way the planner will (BossRotation,
+## same seed; the Mirage Mantis can still swap with the weather).
+func _tell_next_boss() -> void:
+	var w := GameState.wave + 1
+	var cfg := Defs.WAVE_CONFIG
+	var out: Array = []
+	if cfg.boss_every > 0 and w % cfg.boss_every == 0 and not GameState.tutorial:
+		var seen: Array = boss_seen.duplicate()
+		seen.append_array(_plan_bosses())
+		for id: StringName in BossRotation.pick(_planner._seed, w, _planner.bug_defs, seen, cfg.boss_every, cfg.last_wave):
+			out.append(id)
+	_next_boss.rpc(out)
+
+
+@rpc("authority", "call_local", "reliable")
+func _next_boss(ids: Array) -> void:
+	next_boss = ids
+	wave_previewed.emit(preview)
 
 
 @rpc("authority", "call_local", "reliable")

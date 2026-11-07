@@ -19,7 +19,12 @@ const QUALITY := [
 	{"name": "Low", "hit": 0.35, "react": 1.1, "shot": 0.95, "speed": 3.2, "think": 3.0, "farm": 0.35, "place": "random", "weak": 0.05},
 	{"name": "Medium", "hit": 0.6, "react": 0.6, "shot": 0.6, "speed": 4.8, "think": 1.6, "farm": 0.75, "place": "spread", "weak": 0.2},
 	{"name": "High", "hit": 0.85, "react": 0.3, "shot": 0.42, "speed": 6.2, "think": 0.9, "farm": 1.0, "place": "smart", "weak": 0.45},
+	# Hyper: High's head, plus a real body it flies by grapple and slide-hop (HyperPilot).
+	{"name": "Hyper", "hit": 0.88, "react": 0.25, "shot": 0.4, "speed": 6.2, "think": 0.8, "farm": 1.0, "place": "smart", "weak": 0.5},
 ]
+const HYPER := 3
+const LOOK := {"hat": "gambler", "facial": "walrus", "hair": "none", "hair_color": "brown", "outfit": "duster",
+		"neck": "bandana", "extra": "bandolier", "paint": "white"}
 const RANGE := 85.0
 const NAME := "Dusty"
 
@@ -53,7 +58,7 @@ const NAMES := ["Dusty", "Rusty", "Sandy"]
 
 
 func setup(q: int, cid: int, world_cliffs: CliffBuilder, pool: VfxPool, index: int = 0) -> void:
-	quality = clampi(q, 0, 2)
+	quality = clampi(q, 0, QUALITY.size() - 1)
 	cliff_id = cid
 	cliffs = world_cliffs
 	vfx = pool
@@ -66,9 +71,10 @@ func _ready() -> void:
 	add_to_group("cpu_teammates")
 	_rig = DummyRig.new()
 	add_child(_rig)
-	_rig.build(Palette.team_color(cliff_id), false, {"hat": "gambler", "facial": "walrus", "hair": "none",
-			"hair_color": "brown", "outfit": "duster", "neck": "bandana", "extra": "bandolier", "paint": "white"})
-	_rig.set_weapon(&"revolver")
+	_rig.build(Palette.team_color(cliff_id), false, LOOK)
+	if force_gun != &"" and Gun.weapon(force_gun) != null:
+		gun_id = force_gun
+	_rig.set_weapon(gun_id)
 	_z = Buildable.HOUSE_Z + 3.0
 	_d = Buildable.HOUSE_D - 6.0
 	_goal = Vector2(_d, _z)
@@ -82,13 +88,17 @@ func _physics_process(delta: float) -> void:
 		return
 	if not multiplayer.is_server():
 		_puppet(delta)
+		_follow_body()
 		return
 	_watch_threats()
 	_think -= delta
-	if _think <= 0.0 and _task != Task.WALK:
+	if _think <= 0.0 and _task != Task.WALK and not _tripping:
 		_think = float(_q["think"]) * _rng.randf_range(0.8, 1.2)
 		_decide()
-	_walk(delta)
+	if _hyper_body() != null:
+		_hyper_walk()
+	else:
+		_walk(delta)
 	if GameState.phase in [GameState.Phase.WAVE, GameState.Phase.WARNING] or _hostile_on_plateau():
 		_fight(delta)
 	else:
@@ -101,6 +111,10 @@ func _physics_process(delta: float) -> void:
 func _decide() -> void:
 	match GameState.phase:
 		GameState.Phase.BUILD:
+			if _salvage_task():
+				return
+			if _trip_task():
+				return
 			if not _carry.is_empty() and _deposit_task():
 				return
 			if _water_task():
@@ -108,6 +122,8 @@ func _decide() -> void:
 			if _rng.randf() < float(_q["farm"]) and _farm_task():
 				return
 			if _build_task():
+				return
+			if _upgrade_task():
 				return
 			if _lever_task():
 				return
@@ -205,6 +221,11 @@ func _walk(delta: float) -> void:
 
 
 func _place() -> void:
+	if _follow_body():
+		return
+	if _ship_pos != Vector3.INF:
+		global_position = _ship_pos
+		return
 	global_position = _world(Vector2(_d, _z))
 	rotation.y = _yaw
 
@@ -250,14 +271,8 @@ func _seed_for() -> StringName:
 		var res: StringName = CropPlot.seed_res(seed_id)
 		if Economy.amount(cliff_id, res) > 0 and Economy.cpu_can_spend(display_name, {res: 1}, cliff_id):
 			return seed_id
-	# Its seed bag is its own now: out of seeds, it buys a corn seed with team
-	# scrap (within its fair share), as a player would at the market.
-	var corn := Defs.crop(&"corn")
-	if corn != null and multiplayer.is_server():
-		var price := MarketPrices.seed_price(corn)
-		if Economy.cpu_spend(display_name, {&"scrap": price}, cliff_id):
-			Economy.earn(cliff_id, {CropPlot.seed_res(&"corn"): 1})
-			return &"corn"
+	# Out of seeds: it buys more on its next trip to the airship market.
+	_need_seeds = true
 	return &""
 
 
@@ -337,7 +352,16 @@ func _deposit_task() -> bool:
 # ------------------------------------------------------------------ building
 
 ## Turrets worth building, cheapest-first within each kind.
+## Balance tests (--simturret / --simgun): only this turret (Gatling Posts
+## until it unlocks), only this gun (upgraded, never swapped).
+static var force_turret := &""
+static var force_gun := &""
+
+
 func _turret_choice() -> StringName:
+	if force_turret != &"":
+		var pick := force_turret if Defs.is_unlocked(force_turret, GameState.tier_wave()) else &"gatling_post"
+		return pick if Economy.cpu_can_spend(display_name, {&"scrap": Defs.cost_of(pick)}, cliff_id) else &""
 	# Crewed: categories by name (a "Crewed Guns" tab now sits after Cliff Turrets).
 	var cliff_turrets: Array = best_first(Defs.category_items("Cliff Turrets").filter(func(id: StringName) -> bool: return id != &"scaffold"))
 	var air: Array = best_first(Defs.category_items("Air Defense"))
@@ -408,6 +432,48 @@ func _turret_choice() -> StringName:
 ## CPU moves on to Mid and Late turrets once their wave comes (TierRules.best_first).
 static func best_first(ids: Array) -> Array:
 	return TierRules.best_first(ids, GameState.tier_wave())
+
+
+## The junk heap by our house: pick it over once each build phase (our own scrap).
+func _salvage_task() -> bool:
+	var pile := get_tree().current_scene.find_child("Salvage%d" % cliff_id, true, false) as SalvagePile
+	if pile == null or not pile.available:
+		return false
+	var pc := cliffs.plateau_coords(cliff_id, pile.global_position)
+	_go(Vector2(pc.x - 2.6, pc.y), Task.FARM, func() -> void:
+		_face(pile.global_position)
+		_act(&"harvest")
+		var got := pile.cpu_collect()
+		if GameState.has_flag("--cpulog"):
+			print("[cpu] %s salvaged the junk heap: +%d scrap" % [display_name, got]))
+	return true
+
+
+## Our own scrap buys turret upgrades: the cheapest one we can afford first.
+func _upgrade_task() -> bool:
+	var own := Economy.amount(cliff_id, ResNames.PERSONAL_ID)
+	var best: Turret = null
+	for n: Node in _my_turrets():
+		var t := n as Turret
+		if t == null or t.is_queued_for_deletion():
+			continue
+		var c := t.upgrade_cost()
+		if c > 0 and c <= own and (best == null or c < best.upgrade_cost()):
+			best = t
+	if best == null:
+		return false
+	var pc := cliffs.plateau_coords(cliff_id, best.global_position)
+	_go(Vector2(pc.x + 1.5, pc.y), Task.BUILD, func() -> void:
+		if not is_instance_valid(best) or best.upgrade_cost() <= 0:
+			return
+		_face(best.global_position)
+		_act(&"hammer")
+		var cost := best.upgrade_cost()
+		if Economy.spend(cliff_id, {ResNames.PERSONAL_ID: cost}):
+			best.upgrade()
+			if GameState.has_flag("--cpulog"):
+				print("[cpu] %s upgraded the %s to tier %d (%d scrap)" % [display_name, best.def.display_name, best.tier, cost]))
+	return true
 
 
 func _my_turrets() -> Array:
@@ -498,7 +564,17 @@ func _fight(delta: float) -> void:
 	_react -= delta
 	if _react > 0.0 or _shot_cd > 0.0:
 		return
-	_shot_cd = float(_q["shot"]) * _rng.randf_range(0.9, 1.15)
+	var w := Gun.weapon(gun_id)
+	if w.automatic:
+		if _mag_left < 0:
+			_mag_left = w.mag_size
+		_shot_cd = shot_interval() # (the trigger's held: no hesitation between rounds)
+		_mag_left -= 1
+		if _mag_left <= 0:
+			_shot_cd += w.reload_time
+			_mag_left = w.mag_size
+	else:
+		_shot_cd = shot_interval() * _rng.randf_range(0.9, 1.15)
 	_shoot(_target)
 
 
@@ -532,6 +608,25 @@ func _pick_target() -> Bug:
 	return best
 
 
+## Its own gun (bought and upgraded at the gunsmith on airship trips).
+var gun_id := &"revolver"
+var gun_code := 0
+
+
+## Seconds between its shots: its quality's pace, never faster than the gun allows.
+## Automatic guns (Crank Gatling, Bee Smoker) fire at the gun's own rate, held
+## down like a player would, with the reload when the magazine runs dry.
+func shot_interval() -> float:
+	var w := Gun.weapon(gun_id)
+	if w.automatic:
+		return w.fire_interval
+	return maxf(float(_q["shot"]), w.fire_interval)
+
+
+## Rounds left in an automatic gun's magazine (-1: full, not started).
+var _mag_left := -1
+
+
 func _shoot(b: Bug) -> void:
 	var muzzle := global_position + Vector3(0, 1.45, 0) + (b.global_position - global_position).normalized() * 0.5
 	var dist := muzzle.distance_to(b.global_position)
@@ -551,7 +646,7 @@ func _shoot(b: Bug) -> void:
 	if not hit:
 		return
 	var weak := _rng.randf() < float(_q["weak"])
-	var dmg := Gun.weapon(&"revolver").damage
+	var dmg := Gun.damage_for(gun_id, gun_code) * float(Gun.weapon(gun_id).pellets)
 	# [Foundation] one hitbox per bug: a weak-spot hit is just the weak multiplier.
 	b.receive_hit(dmg, aim, (aim - muzzle).normalized(), false, WeakSpot.MULTIPLIER if weak else 1.0, display_name, cliff_id)
 	_hits += 1
@@ -615,7 +710,7 @@ func _puppet(delta: float) -> void:
 	_d = lerpf(_d, _net.x, k)
 	_z = lerpf(_z, _net.y, k)
 	_yaw = _net.z
-	global_position = _world(Vector2(_d, _z))
+	global_position = _ship_pos if _ship_pos != Vector3.INF else _world(Vector2(_d, _z))
 	rotation.y = lerp_angle(rotation.y, _yaw, clampf(delta * 10.0, 0.0, 1.0))
 	_rig.animate(delta, _speed, false, _pitch)
 
@@ -678,3 +773,268 @@ func _busiest_z() -> float:
 			best_n = n
 			best = float(z)
 	return best
+
+
+# ------------------------------------------------------------------ airship trips
+
+## Where it stands aboard the Lucky Mandible (INF: at home on its plateau).
+var _ship_pos := Vector3.INF
+var _need_seeds := false
+var _tripped_wave := -1
+## Seeds it keeps in stock for its plots.
+const SEED_STOCK := 3
+const STOP_TIME := 2.5
+
+
+## Once a build phase, while the ship's ring is down: grapple up to sell its
+## harvest, restock seeds and see the gunsmith, then back to its lip.
+func _trip_task() -> bool:
+	if _tripped_wave == GameState.wave or Airship.ring_up or _ship() == null:
+		return false
+	if _carry.is_empty() and not _need_seeds and _gun_deal().is_empty():
+		return false
+	_tripped_wave = GameState.wave
+	_go(Vector2(1.2, clampf(_z, -16.0, 16.0)), Task.BUILD, func() -> void: _do_trip())
+	return true
+
+
+func _ship() -> Node3D:
+	return get_tree().current_scene.get_node_or_null("Airship") as Node3D
+
+
+func _do_trip() -> void:
+	var ship := _ship()
+	if ship == null:
+		return
+	var vendor := ship.get_node_or_null("Vendor") as VendorCart
+	var shop := ship.get_node_or_null("GunShop") as GunShop
+	if _hyper_body() != null:
+		await _hyper_trip(vendor, shop)
+		return
+	_act(&"hammer")
+	Audio.play_at(&"hook_bite", global_position + Vector3.UP * 2.0, -4.0)
+	await get_tree().create_timer(0.8).timeout
+	if vendor != null:
+		_board_at(vendor.global_position + vendor.global_basis.x * 1.8)
+		await get_tree().create_timer(STOP_TIME).timeout
+		_sell_and_restock(vendor)
+	if shop != null:
+		_board_at(shop.global_position + shop.global_basis.x * 1.8)
+		await get_tree().create_timer(STOP_TIME).timeout
+		_visit_gunsmith()
+	_board_at(Vector3.INF)
+	_go(Vector2(2.2, _z), Task.IDLE)
+
+
+## Host and puppets: aboard at `p` (INF: back home).
+func _board_at(p: Vector3) -> void:
+	if NetworkManager.is_online():
+		_board_rpc.rpc(p)
+	else:
+		_board_rpc(p)
+
+
+@rpc("authority", "call_local", "reliable")
+func _board_rpc(p: Vector3) -> void:
+	_ship_pos = p
+	_place()
+
+
+func _sell_and_restock(vendor: VendorCart) -> void:
+	var sold := {}
+	for res: StringName in _carry.keys():
+		if VendorCart.ITEMS.has(res):
+			sold[res] = vendor.cpu_sell(cliff_id, res, int(_carry[res]))
+			_carry.erase(res)
+	# Seeds: chilies (they sell for its own scrap) when the pot allows, corn otherwise.
+	var bought := 0
+	for seed_res: StringName in [&"seed_chili", &"seed_corn"]:
+		while _seed_count() < SEED_STOCK:
+			if not Economy.cpu_spend(display_name, {&"scrap": VendorCart.seed_cost(seed_res)}, cliff_id):
+				break
+			Economy.earn(cliff_id, {seed_res: 1})
+			bought += 1
+	_need_seeds = _seed_count() == 0
+	if GameState.has_flag("--cpulog"):
+		print("[cpu] %s at the market: sold %s, bought %d seeds" % [display_name, str(sold), bought])
+
+
+func _seed_count() -> int:
+	var n := 0
+	for seed_id: StringName in CropPlot.SEEDS:
+		n += Economy.amount(cliff_id, CropPlot.seed_res(seed_id))
+	return n
+
+
+## The best deal its own scrap can make at the gunsmith: a stronger gun, else
+## the next upgrade for the one it carries. {} if nothing's worth it.
+func _gun_deal() -> Dictionary:
+	var own := Economy.amount(cliff_id, ResNames.PERSONAL_ID)
+	var best := {}
+	var best_dps := _dps(gun_id, gun_code) * 1.15 if force_gun == &"" else INF
+	for item: Dictionary in GunShop.SHELF:
+		if item["kind"] != "buy" or item["id"] == &"dino_rifle":
+			continue
+		var w := Gun.weapon(item["id"])
+		if w == null or w.price_chitin > own:
+			continue
+		var d := _dps(item["id"], 0)
+		if d > best_dps:
+			best_dps = d
+			best = {"kind": "buy", "id": item["id"], "cost": w.price_chitin}
+	if not best.is_empty():
+		return best
+	var lvl := WeaponMods.level(gun_code)
+	var gw := Gun.weapon(gun_id)
+	if lvl < gw.upgrade_costs.size() and int(gw.upgrade_costs[lvl]) <= own:
+		return {"kind": "upgrade", "id": gun_id, "cost": int(gw.upgrade_costs[lvl])}
+	return {}
+
+
+static func _dps(id: StringName, code: int) -> float:
+	var w := Gun.weapon(id)
+	if w == null:
+		return 0.0
+	return Gun.damage_for(id, code) * float(w.pellets) / maxf(w.fire_interval, 0.05)
+
+
+func _visit_gunsmith() -> void:
+	var done: Array = []
+	for i in 3:
+		var deal := _gun_deal()
+		if deal.is_empty() or not Economy.spend(cliff_id, {ResNames.PERSONAL_ID: int(deal["cost"])}):
+			break
+		if deal["kind"] == "buy":
+			gun_id = deal["id"]
+			_mag_left = -1
+			gun_code = 0
+			_rig.set_weapon(gun_id)
+		else:
+			gun_code += 1 # (the level bits: WeaponMods.level)
+		done.append("%s %s" % [deal["kind"], deal["id"]])
+	if GameState.has_flag("--cpulog") and not done.is_empty():
+		print("[cpu] %s at the gunsmith: %s (now %s level %d)" % [display_name, ", ".join(done), gun_id, WeaponMods.level(gun_code)])
+
+
+# ------------------------------------------------------------------ Hyper
+
+## The Hyper CPU's body (a bot Player, World spawns it as "Hyper<cliff>"), or null.
+var _hyper: Player = null
+## Host: a flight to the current walk goal is under way.
+var _flying := false
+## Host: away on the airship (no other plans till it's home).
+var _tripping := false
+
+
+func _hyper_body() -> Player:
+	if quality != HYPER:
+		return null
+	if _hyper == null or not is_instance_valid(_hyper):
+		var root := get_tree().current_scene.get("players_root") as Node3D if get_tree().current_scene != null else null
+		_hyper = root.get_node_or_null("Hyper%d" % cliff_id) as Player if root != null else null
+		if _hyper != null and _rig != null:
+			_rig.visible = false # (the body is what everyone sees)
+	return _hyper
+
+
+## Stand where the body is (host and puppets). False with no body.
+func _follow_body() -> bool:
+	var b := _hyper_body()
+	if b == null or not b.is_node_ready():
+		return false
+	global_position = b.global_position
+	if multiplayer.is_server() and not _flying:
+		b.rotation.y = _yaw # (facing what it shoots at)
+	return true
+
+
+## Host: walking is flying now. A walk goal becomes a flight; arriving finishes the walk.
+func _hyper_walk() -> void:
+	if _task != Task.WALK or _flying:
+		return
+	var b := _hyper_body()
+	var at := _world(Vector2(maxf(_goal.x, 3.5), _goal.y))
+	if Vector2(b.global_position.x - at.x, b.global_position.z - at.z).length() < HyperPilot.ARRIVE:
+		_arrive_walk()
+		return
+	_flying = true
+	var ok := await _fly(at, false, _plan_to(b.global_position, at))
+	_flying = false
+	if not ok:
+		b.pilot_reset(Transform3D(b.global_basis, at + Vector3.UP * 0.5)) # (a fall: back on its feet there, as a respawn would)
+	_arrive_walk()
+
+
+func _arrive_walk() -> void:
+	_d = _goal.x
+	_z = _goal.y
+	if _task == Task.WALK:
+		_task = Task.IDLE
+		if _then.is_valid():
+			var f := _then
+			_then = Callable()
+			f.call()
+
+
+## Fly the body to `to` (onto the ship's deck with `ship`); true once it's there.
+func _fly(to: Vector3, ship: bool = false, plan: Dictionary = {}) -> bool:
+	var b := _hyper_body()
+	if b == null:
+		return false
+	var pl := b.pilot as HyperPilot
+	var res := [false, false]
+	var ok := func(_s: float) -> void:
+		res[0] = true
+		res[1] = true
+	var fail := func(_why: String) -> void:
+		res[0] = true
+	pl.arrived.connect(ok, CONNECT_ONE_SHOT)
+	pl.failed.connect(fail, CONNECT_ONE_SHOT)
+	pl.go(to, ship, plan)
+	while not res[0] and is_instance_valid(b):
+		await get_tree().physics_frame
+	if pl.arrived.is_connected(ok):
+		pl.arrived.disconnect(ok)
+	if pl.failed.is_connected(fail):
+		pl.failed.disconnect(fail)
+	if GameState.has_flag("--cpulog"):
+		print("[cpu] %s flew %.0f m in %.1f s (top %.0f m/s, %d swings, %d slings)%s" % [display_name, pl.path_len, pl.t,
+				pl.top_speed, pl.swings, pl.slings, "" if res[1] else " and missed"])
+	return res[1]
+
+
+## The route book's plan for this flight: the learned leg it's most like, or a
+## short hop for a few metres.
+func _plan_to(from: Vector3, to: Vector3) -> Dictionary:
+	var dist := Vector2(to.x - from.x, to.z - from.z).length()
+	var plan := HyperLearn.route("run") if dist > 30.0 else {}
+	if plan.is_empty():
+		plan = HyperPlan.default()
+		plan["n_sw"] = 0 if dist < 30.0 else 1
+		plan["hops"] = clampi(int(dist / 6.0), 0, 6)
+		plan["hook_dist"] = minf(dist * 0.8, 40.0)
+	return plan
+
+
+## The airship by air: up onto the deck, along it to the stall and the gunsmith, home again.
+func _hyper_trip(vendor: VendorCart, shop: GunShop) -> void:
+	_tripping = true
+	var home := _world(Vector2(4.0, _z))
+	await _fly(HyperLearn.deck_point(get_tree().current_scene as Node3D), true, HyperLearn.route("ship"))
+	var short := {"hops": 0, "n_sw": 0, "hook_dist": 0.0}
+	var walk := HyperPlan.default()
+	walk.merge(short, true)
+	if vendor != null:
+		await _fly(vendor.global_position + vendor.global_basis.x * 1.8, false, walk)
+		await get_tree().create_timer(STOP_TIME * 0.5).timeout
+		_sell_and_restock(vendor)
+	if shop != null:
+		await _fly(shop.global_position + shop.global_basis.x * 1.8, false, walk)
+		await get_tree().create_timer(STOP_TIME * 0.5).timeout
+		_visit_gunsmith()
+	if not await _fly(home, false, HyperLearn.route("home")):
+		var b := _hyper_body()
+		b.pilot_reset(Transform3D(b.global_basis, home + Vector3.UP * 0.5))
+	_d = 4.0
+	_tripping = false
+	_go(Vector2(2.2, _z), Task.IDLE)

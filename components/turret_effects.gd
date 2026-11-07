@@ -199,7 +199,8 @@ static func _steam(t: Turret, target: Bug, aim: Vector3, source: String) -> void
 	for b: Bug in caught:
 		var dmg := t.def.damage_at(t.tier, TurretDef.is_heavy(b.def))
 		b.receive_hit(dmg, b.global_position, (b.global_position - muzzle).normalized(), false, 1.0, source, t.cliff_id)
-	SpecialShotRules.steam_wash(caught, t.def.special_count, source, t.cliff_id)
+	# (Balance pass: the third knock-off comes with the second upgrade.)
+	SpecialShotRules.steam_wash(caught, t.def.special_count + (1 if t.tier >= 2 else 0), source, t.cliff_id)
 
 
 static func _flood(t: Turret, target: Bug, source: String) -> void:

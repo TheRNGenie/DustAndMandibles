@@ -131,7 +131,7 @@ var _aim_ok := false
 ## world layer too, so every player is left out (no hooking your partner).
 func cast(from: Vector3, to: Vector3) -> Dictionary:
 	var skip: Array[RID] = []
-	for p: Node in player.get_tree().get_nodes_in_group("players"):
+	for p: Node in player.get_tree().get_nodes_in_group("players") + player.get_tree().get_nodes_in_group("bots"):
 		if p is CollisionObject3D:
 			skip.append((p as CollisionObject3D).get_rid())
 	var q := PhysicsRayQueryParameters3D.create(from, to, MASK, skip)
@@ -163,15 +163,15 @@ var _peak_speed := 0.0
 ## and before move_and_slide. Returns true when it took over the velocity.
 func physics(delta: float) -> bool:
 	_cd = maxf(_cd - delta, 0.0)
-	var can_use := (_holding() or _harpoon or _latched()) and not GameState.menu_open and not player.is_downed() \
-			and not player.is_down_in_canyon() and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or test_mode)
+	var can_use := (_holding() or _harpoon or _latched()) and not player._menu_blocks() and not player.is_downed() \
+			and not player.is_down_in_canyon() and (player.in_captured() or test_mode)
 	if not can_use:
 		_release()
 		return false
 	if mode == Mode.NONE and _cd <= 0.0 and _holding():
-		if Input.is_action_just_pressed("fire"):
+		if player.in_just(&"fire"):
 			_launch(Mode.PULL)
-		elif Input.is_action_just_pressed("alt_fire"):
+		elif player.in_just(&"alt_fire"):
 			_launch(Mode.SWING)
 	if mode != Mode.NONE and not _follow_bird(delta):
 		return false
@@ -281,7 +281,7 @@ static func _on_airship(n: Node) -> bool:
 func _pull(delta: float) -> bool:
 	_pull_t += delta
 	# Let go of the button: the rope lets go at once, and you keep your speed.
-	if not test_mode and not _harpoon and not _latched() and not Input.is_action_pressed("fire"):
+	if not test_mode and not _harpoon and not _latched() and not player.in_held(&"fire"):
 		_release()
 		return false
 	var to := anchor - (player.global_position + Vector3.UP * 0.9)
@@ -293,7 +293,7 @@ func _pull(delta: float) -> bool:
 			player.velocity = Vector3.ZERO
 			_release()
 			return true
-	if to.length() < ARRIVE_DIST or _pull_t > _pull_limit or Input.is_action_just_pressed("jump"):
+	if to.length() < ARRIVE_DIST or _pull_t > _pull_limit or player.in_just(&"jump"):
 		# Arrive with a little hop so you land on top of ledges.
 		# Keep some of the flight's momentum, so a pull carries you over a rim.
 		var flat := Vector3(player.velocity.x, 0.0, player.velocity.z)
@@ -306,9 +306,9 @@ func _pull(delta: float) -> bool:
 
 
 func _swing(delta: float) -> bool:
-	var jumped := Input.is_action_just_pressed("jump")
-	if GrappleRules.swing_lets_go(_holding(), Settings.grapple_swing_toggle, Input.is_action_pressed("alt_fire"),
-			Input.is_action_just_pressed("alt_fire"), jumped, _fresh_hook):
+	var jumped := player.in_just(&"jump")
+	if GrappleRules.swing_lets_go(_holding(), Settings.grapple_swing_toggle and not player.bot, player.in_held(&"alt_fire"),
+			player.in_just(&"alt_fire"), jumped, _fresh_hook):
 		_fresh_hook = false
 		# Let go: keep the momentum, with a small upward pop if jumping.
 		if jumped:
@@ -326,7 +326,7 @@ func _swing(delta: float) -> bool:
 	_fresh_hook = false
 	# Holding left click as well reels you in: a shorter rope and a tug up it
 	# (only with the launcher in hand: otherwise left click is your gun's).
-	var reeling := (_holding() and Input.is_action_pressed("fire")) or reel_test
+	var reeling := (_holding() and player.in_held(&"fire")) or reel_test
 	if reeling:
 		_rope_len = maxf(_rope_len - REEL_SPEED * _speed() * delta, MIN_ROPE)
 		var up_rope := (anchor - (player.global_position + Vector3.UP * 0.9)).normalized()
@@ -351,7 +351,7 @@ func _swing(delta: float) -> bool:
 		var speed := player.velocity.length()
 		player.velocity = steer.normalized() * speed if steer.length() > 0.001 else steer
 	# Forward/back pumps the swing a little.
-	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var input := player.in_vec()
 	if input != Vector2.ZERO:
 		var wish := (player.transform.basis * Vector3(input.x, 0.0, input.y)).normalized()
 		player.velocity += wish * 6.0 * delta

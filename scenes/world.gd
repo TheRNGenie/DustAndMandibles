@@ -324,6 +324,8 @@ func _start_endless(w: int) -> void:
 func _spawn_cpus() -> void:
 	var free := NetworkManager.cpu_cliffs()
 	for i in free.size():
+		if NetworkManager.cpu_quality == CpuTeammate.HYPER and multiplayer.is_server():
+			spawner.spawn({"peer": 1, "cliff": free[i], "bot": true, "look": CpuTeammate.LOOK})
 		var cpu := CpuTeammate.new()
 		cpu.name = "CPU" if i == 0 else "CPU%d" % (i + 1)
 		cpu.setup(NetworkManager.cpu_quality, free[i], cliffs, vfx, i)
@@ -331,7 +333,7 @@ func _spawn_cpus() -> void:
 		print("[cpu] %s teammate %s on cliff %d (%s)" % [NetworkManager.CPU_QUALITY_NAMES[NetworkManager.cpu_quality], cpu.display_name, cpu.cliff_id, WorldLayout.map().name_of(cpu.cliff_id)])
 	if not multiplayer.is_server():
 		return
-	Economy.enable_cpu_budget(NetworkManager.players.size() + free.size(), free.size())
+	Economy.enable_cpu_budget(free.size() if NetworkManager.sim_all_cpu else NetworkManager.players.size() + free.size(), free.size())
 
 
 ## Lobby roster, or a single offline player when the scene runs on its own.
@@ -353,6 +355,22 @@ func _spawn_player(data: Variant) -> Node:
 	player.name = str(peer_id)
 	player.cliff_id = cid
 	player.set_multiplayer_authority(peer_id)
+	if d.get("bot", false):
+		# A Hyper CPU's body: the host's, flown by its pilot; a puppet everywhere else.
+		player.name = "Hyper%d" % cid
+		player.bot = true
+		player.bot_look = d.get("look", {})
+		player.set_multiplayer_authority(1)
+		player.position = cliffs.plateau_point(cid, Buildable.HOUSE_D - 6.0, Buildable.HOUSE_Z + 3.0) + Vector3.UP * 0.5
+		player.rotation.y = WorldLayout.facing_canyon_yaw(cid)
+		if multiplayer.is_server():
+			var pilot := HyperPilot.new()
+			pilot.name = "Pilot"
+			pilot.setup(player)
+			player.ready.connect(func() -> void:
+				player.gun.vfx = vfx
+				player.add_child(pilot), CONNECT_ONE_SHOT)
+		return player
 	player.position = cliffs.plateau_point(cid, 11.0, 0.0) + Vector3.UP * 0.5
 	player.rotation.y = WorldLayout.facing_canyon_yaw(cid)
 	print("[peer %d] spawned player %d on cliff %d" % [multiplayer.get_unique_id(), peer_id, cid])

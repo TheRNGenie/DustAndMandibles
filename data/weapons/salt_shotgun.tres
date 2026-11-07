@@ -24,6 +24,6 @@ recoil_recover = 0.32
 falloff_start = 15.0
 falloff_end = 50.0
 falloff_min = 0.5
-role = "Wall control"
+role = "Wall control (utility)"
 special = &"salt"
 sound_pitch = 1.25

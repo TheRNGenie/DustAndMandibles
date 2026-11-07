@@ -41,3 +41,6 @@ gun "$(ls $M/*Wooden_Water_Bucket*.glb)" $G bucket --fit y --min -0.09,-0.125,-0
 gun "$(ls $M/*Brass_Flip_Top_Lighte*.glb)" $G zippo --fit y --no-turn --min -0.018,0.0,-0.008 --max 0.018,0.0575,0.008 \
 	--part lid:-0.05,0.05,0.0395,0.07,-0.05,0.05
 echo "done"
+
+# The parts revolver (frame, cylinder, barrel, hammer, trigger, grip, cartridge, speed loader).
+"$B" --background --factory-startup --python tools/rig/prep_revolver.py -- assets/meshy/revolver_parts $G 2>&1 | grep -E "\[rv\] wrote|Error|Traceback" || true

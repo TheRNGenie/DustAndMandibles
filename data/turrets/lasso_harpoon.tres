@@ -6,8 +6,8 @@
 script = ExtResource("1_def")
 id = &"lasso_harpoon"
 display_name = "Lasso Harpoon"
-description = "Pins one climber in place for 3 s so the others can focus it."
-role = "pins one climber for the others"
+description = "Support, not a main defence. Pins one climber in place for 3 s so the others can focus it."
+role = "support: pins one climber for the others"
 weakness = "almost no damage, one bug at a time"
 cost_scrap = 45
 max_hp = 110.0

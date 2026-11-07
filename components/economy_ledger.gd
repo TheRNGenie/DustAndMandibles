@@ -56,7 +56,8 @@ const HEAP_PER_BUG := 0.4
 static func heap_pay(held: int, cfg: WaveConfig = null) -> int:
 	if held < 1 or cfg == null:
 		return HEAP_MIN
-	return maxi(HEAP_MIN, roundi(HEAP_PER_BUG * cfg.bug_count(held)))
+	# (Follows the bug curve, boss cut aside: income keeps pace with the threat.)
+	return maxi(HEAP_MIN, roundi(HEAP_PER_BUG * cfg.bug_count(held, false)))
 
 
 static func is_shared(res: StringName) -> bool:

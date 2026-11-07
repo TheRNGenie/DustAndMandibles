@@ -82,6 +82,16 @@ func _collect(peer_id: int) -> void:
 	_set_available.rpc(false)
 
 
+## Host: a CPU teammate picks over its own heap (its cliff keeps the scrap).
+func cpu_collect() -> int:
+	if not multiplayer.is_server() or not available or GameState.phase != GameState.Phase.BUILD:
+		return 0
+	var got := pay()
+	Economy.earn(cliff_id, {ResNames.PERSONAL_ID: got})
+	_set_available.rpc(false)
+	return got
+
+
 @rpc("authority", "call_local", "reliable")
 func _set_available(value: bool) -> void:
 	if available and not value:

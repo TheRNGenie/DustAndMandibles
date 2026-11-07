@@ -38,7 +38,7 @@ var start_wave := 1
 ## Solo (main menu: Story/Endless > Solo): hosted directly, nobody can join,
 ## and the lobby starts as soon as you ready up.
 var solo := false
-const CPU_QUALITY_NAMES := ["Low", "Medium", "High"]
+const CPU_QUALITY_NAMES := ["Low", "Medium", "High", "Hyper"]
 var local_name: String = "Rancher"
 var _peer: MultiplayerPeer
 var _started := false
@@ -349,11 +349,21 @@ func local_id() -> int:
 
 ## Is there a CPU teammate this run (quality set and a free slot for it)?
 func has_cpu() -> bool:
-	return cpu_quality >= 0 and players.size() < max_players()
+	return cpu_quality >= 0 and (sim_all_cpu or players.size() < max_players())
+
+
+## Debug (--cpusim, balance tests): a CPU teammate on every cliff, the host's
+## own player parked out of play.
+static var sim_all_cpu := false
 
 
 ## Every cliff no human is on (the CPU teammates take these).
 func cpu_cliffs() -> Array[int]:
+	if sim_all_cpu:
+		var all: Array[int] = []
+		for c in max_players():
+			all.append(c)
+		return all
 	var taken := {}
 	for id: int in players:
 		taken[cliff_of(id)] = true
@@ -382,7 +392,7 @@ func cpu_cliff() -> int:
 func set_cpu(quality: int) -> void:
 	if not multiplayer.is_server():
 		return
-	cpu_quality = clampi(quality, -1, 2)
+	cpu_quality = clampi(quality, -1, CPU_QUALITY_NAMES.size() - 1)
 	_sync_cpu.rpc(cpu_quality)
 	players_changed.emit()
 

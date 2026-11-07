@@ -79,7 +79,7 @@ func test_registered_and_buildable() -> void:
 
 func test_stat_lines_name_the_special() -> void:
 	var steam := Defs.turret(&"steam_cannon").stat_line()
-	assert_true(steam.contains("Knocks 3 Off"), steam)
+	assert_true(steam.contains("Knocks 2 Off"), steam)
 	assert_false(steam.contains("Knocks Bugs Off"), "no plain knockback line: " + steam)
 	assert_true(steam.contains("x0.5 vs Heavy"), steam)
 	var flood := Defs.turret(&"flood_gate").stat_line()
@@ -89,7 +89,7 @@ func test_stat_lines_name_the_special() -> void:
 	assert_true(twin.contains("Fire + Blast 3 m"), twin)
 	assert_false(twin.contains("Splash"), twin)
 	var bola := Defs.turret(&"bola_launcher").stat_line()
-	assert_true(bola.contains("Tangles 2 Bugs 3.5 s"), bola)
+	assert_true(bola.contains("Tangles 2 Bugs 5.3 s"), bola)
 	assert_false(bola.contains("Pins"), bola)
 	assert_true(Defs.turret(&"twin_mortar").role_line().contains("Upkeep: 1 chili, 1 chitin a shot"), Defs.turret(&"twin_mortar").role_line())
 	# Older turrets keep their plain lines.

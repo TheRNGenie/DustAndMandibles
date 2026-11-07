@@ -98,9 +98,42 @@ var zipper: ZipDeployer
 var build_mode: BuildMode
 
 
+## A CPU rider's body (the Hyper CPU): a real Player driven by `pilot` on the
+## host instead of the keyboard and mouse. Kept out of the "players" group, so
+## the game never counts it as a person.
+var bot := false
+## The bot's driver (HyperPilot): ticked first each physics frame, it sets `intent`.
+var pilot: Node = null
+var intent := PilotInput.new()
+## The bot's outfit (DummyLook), worn instead of the local player's.
+var bot_look: Dictionary = {}
+
+
+## Movement input: the bot's intent, else the keyboard.
+func in_vec() -> Vector2:
+	return intent.move if bot else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+
+
+func in_held(action: StringName) -> bool:
+	return intent.held(action) if bot else Input.is_action_pressed(action)
+
+
+func in_just(action: StringName) -> bool:
+	return intent.just(action) if bot else Input.is_action_just_pressed(action)
+
+
+## The mouse is ours (or a bot needs none).
+func in_captured() -> bool:
+	return bot or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+
+
+func _menu_blocks() -> bool:
+	return GameState.menu_open and not bot
+
+
 func _ready() -> void:
 	# Each player needs its own capsule so sliding doesn't resize the other player.
-	add_to_group("players")
+	add_to_group("bots" if bot else "players")
 	_capsule = (collision.shape as CapsuleShape3D).duplicate() as CapsuleShape3D
 	collision.shape = _capsule
 	spawn_transform = global_transform
@@ -143,12 +176,22 @@ func _ready() -> void:
 	rig = DummyRig.new()
 	rig.name = "Rig"
 	add_child(rig)
-	rig.build(Palette.team_color(cliff_id), is_multiplayer_authority() and not GameState.has_flag("--thirdperson"),
-			Settings.look if is_multiplayer_authority() else {})
+	rig.build(Palette.team_color(cliff_id), is_multiplayer_authority() and not bot and not GameState.has_flag("--thirdperson"),
+			bot_look if bot else (Settings.look if is_multiplayer_authority() else {}))
 	net.prime()
 	rig.stepped.connect(_on_step)
 	rig.landed.connect(_on_body_landed)
-	if is_multiplayer_authority():
+	if bot:
+		# A bot's body: seen by everyone (its own rig), no view, hands or mouse.
+		camera.current = false
+		gun.visible = false
+		gun.set_process(false)
+		set_process_unhandled_input(false)
+		vitals.set_process(false)
+		vitals.set_physics_process(false)
+		if not is_multiplayer_authority():
+			set_physics_process(false)
+	elif is_multiplayer_authority():
 		cigarette = Cigarette.new()
 		cigarette.name = "Cigarette"
 		cigarette.player = self
@@ -348,6 +391,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if pilot != null:
+		intent.begin_tick()
+		pilot.call("tick", delta)
 	if _mantling:
 		return
 	if seated or crewing != null:
@@ -367,8 +413,8 @@ func _physics_process(delta: float) -> void:
 		return
 	_update_trip()
 	_update_fall(delta)
-	var blocked := GameState.menu_open or vitals.downed
-	var input_dir := Vector2.ZERO if blocked else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var blocked := _menu_blocks() or vitals.downed
+	var input_dir := Vector2.ZERO if blocked else in_vec()
 	_rock_cd = maxf(_rock_cd - delta, 0.0)
 	if _stagger > 0.0:
 		_stagger = maxf(_stagger - delta, 0.0)
@@ -389,7 +435,7 @@ func _physics_process(delta: float) -> void:
 			push = -transform.basis.z * maxf(-input_dir.y, 0.0) * 3.0
 		velocity.x = side.x + push.x
 		velocity.z = side.z + push.z
-		if Input.is_action_just_pressed("jump"):
+		if in_just(&"jump"):
 			velocity += transform.basis.z * 3.0 + Vector3.UP * 2.0
 			ladder_count = 0
 		move_and_slide()
@@ -405,7 +451,7 @@ func _physics_process(delta: float) -> void:
 	_hop_left = maxf(_hop_left - delta, 0.0)
 	if _hop_left <= 0.0:
 		hop_stacks = 0
-	if not blocked and Input.is_action_just_pressed("jump"):
+	if not blocked and in_just(&"jump"):
 		if on_floor:
 			velocity.y = JUMP_VELOCITY
 			Audio.play_at(&"jump", global_position + Vector3.UP, -8.0)
@@ -414,18 +460,18 @@ func _physics_process(delta: float) -> void:
 			_end_slide()
 		elif _try_mantle():
 			return
-	elif not blocked and not on_floor and Input.is_action_pressed("jump") and velocity.y < 1.0:
+	elif not blocked and not on_floor and in_held(&"jump") and velocity.y < 1.0:
 		# Holding jump against a ledge mantles onto it.
 		if _try_mantle():
 			return
 
-	var sprinting := not blocked and Input.is_action_pressed("sprint") and input_dir.y < -0.1 and not _sliding and not gun.aiming
-	if not blocked and Input.is_action_just_pressed("slide") and on_floor and not _sliding:
+	var sprinting := not blocked and in_held(&"sprint") and input_dir.y < -0.1 and not _sliding and not gun.aiming
+	if not blocked and in_just(&"slide") and on_floor and not _sliding:
 		var speed := Vector2(velocity.x, velocity.z).length()
 		if sprinting or speed > WALK_SPEED * 0.9:
 			_start_slide()
 	# Hold to Crouch (Settings): holding Slide as you touch down lands you in a slide.
-	elif not blocked and on_floor and not _was_on_floor and not _sliding and Settings.hold_crouch 			and Input.is_action_pressed("slide") and Vector2(velocity.x, velocity.z).length() > WALK_SPEED * 0.9:
+	elif not blocked and on_floor and not _was_on_floor and not _sliding and Settings.hold_crouch 			and in_held(&"slide") and Vector2(velocity.x, velocity.z).length() > WALK_SPEED * 0.9:
 		_start_slide()
 	_was_on_floor = on_floor
 
@@ -478,7 +524,7 @@ func _wall_slide(on_floor: bool, blocked: bool) -> void:
 	var out := velocity.dot(wall_slide_normal)
 	if out > 0.0:
 		velocity -= wall_slide_normal * out
-	if not blocked and Input.is_action_just_pressed("jump"):
+	if not blocked and in_just(&"jump"):
 		velocity = Vector3(velocity.x, 0.0, velocity.z) * 0.6 + wall_slide_normal * 7.0 + Vector3.UP * 6.5
 		wall_sliding = false
 		combo.add()
@@ -511,6 +557,8 @@ func _turret_bounce() -> void:
 
 
 func _handle_weapon() -> void:
+	if bot:
+		return # (a CPU's shots are its brain's, not a trigger)
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or GameState.menu_open or vitals.downed \
 			or (build_mode != null and build_mode.active):
 		gun.set_aiming(false)
@@ -761,7 +809,7 @@ func _ride_zip(delta: float) -> void:
 	_zip_t = clampf(_zip_t, 0.0, 1.0)
 	global_position = _zip_line.point(_zip_t) + Vector3.DOWN * ZIP_HANG
 	velocity = (global_position - before) / maxf(delta, 0.001)
-	var let_go := not GameState.menu_open and Input.is_action_just_pressed("jump") and is_multiplayer_authority()
+	var let_go := not _menu_blocks() and in_just(&"jump") and is_multiplayer_authority()
 	if done and _zip_land == Vector3.INF:
 		_zip_line = null # a deployed rope's end: drop off with the ride's speed
 	elif done:
@@ -798,6 +846,31 @@ func cancel_fall() -> void:
 	fall_intensity = 0.0
 	# A late catch at full plummet speed would fling you round the rope.
 	velocity = velocity.limit_length(24.0)
+
+
+## Hyper CPU trials: put the bot back at `at`, standing still, every move called off.
+func pilot_reset(at: Transform3D) -> void:
+	if grapple != null:
+		grapple._release()
+		grapple._cd = 0.0
+	_end_slide()
+	_mantling = false
+	_falling = false
+	_fall_t = 0.0
+	_fall_left = -1.0
+	fall_intensity = 0.0
+	_zip_line = null
+	_rope = null
+	_haul_t = -1.0
+	_trip = false
+	hop_stacks = 0
+	_hop_left = 0.0
+	wall_sliding = false
+	_stagger = 0.0
+	velocity = Vector3.ZERO
+	global_transform = at
+	head.rotation = Vector3.ZERO
+	intent.release_all()
 
 
 func respawn() -> void:
@@ -837,6 +910,8 @@ func on_rope() -> bool:
 
 
 func _update_trip() -> void:
+	if bot:
+		return # (a CPU off the lip is falling, rope or no rope)
 	var below := global_position.y < WorldLayout.CANYON_FALL_Y
 	if not _trip and below and not _falling and grapple != null and grapple.is_active() 			and GameState.phase == GameState.Phase.BUILD:
 		_trip = true # grappled down the wall between waves
@@ -846,6 +921,8 @@ func _update_trip() -> void:
 
 
 func _report_trip() -> void:
+	if bot:
+		return # (a CPU's dips below the lip are no expedition)
 	var down_now := _trip and global_position.y < WorldLayout.CANYON_FALL_Y
 	if down_now != _reported_down:
 		_reported_down = down_now

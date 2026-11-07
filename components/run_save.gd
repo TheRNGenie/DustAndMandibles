@@ -68,7 +68,7 @@ static func normalize(raw: Dictionary) -> Dictionary:
 		"phase": _i(raw, "phase", 1),
 		"endless": _b(raw, "endless", false),
 		"weather": _i(raw, "weather", 0),
-		"cpu_quality": clampi(_i(raw, "cpu_quality", -1), -1, 2),
+		"cpu_quality": clampi(_i(raw, "cpu_quality", -1), -1, 3),
 		"saved_at": _i(raw, "saved_at", 0),
 		"map": str(raw.get("map", "canyon")) if MapDef.IDS.has(StringName(str(raw.get("map", "canyon")))) else "canyon",
 	}

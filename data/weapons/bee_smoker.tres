@@ -23,6 +23,6 @@ sound = &"slide"
 recoil_deg = 0.0
 recoil_yaw_deg = 0.0
 recoil_recover = 0.1
-role = "Pest control"
+role = "Pest control (utility, no damage)"
 special = &"smoke"
 sound_pitch = 1.6

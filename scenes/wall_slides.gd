@@ -1,17 +1,18 @@
 class_name WallSlides
 extends Node3D
-## Wall slide zones (movement plan #18): smooth, pale patches high on each
+## Wall slide zones (movement plan #18): smooth, faintly darker patches high on each
 ## canyon face over the bug lanes, just under the lip. Drop onto one from a
 ## swing and you slide down it slowly, free to shoot; jump to kick off. Sliding
 ## is never a fall into the canyon, but slide off the bottom without hooking on
 ## and you're falling. Each zone: an Area3D the player counts (like a ladder)
-## and a pale skin laid on the rock itself.
+## and a faint dark skin laid on the rock itself (Logan: hard to tell apart from far away).
 
 const LANES: Array[float] = [-16.0, -8.0, 8.0, 16.0]
 const TOP := WorldLayout.CLIFF_HEIGHT - 4.0
 const BOTTOM := WorldLayout.CLIFF_HEIGHT - 16.0
 const WIDTH := 6.0
-const SKIN := Color("#E9D2AE")
+## The skin darkens the rock under it this much at its middle, fading to nothing at its edges.
+const SKIN_DARK := 0.22
 
 var cliffs: CliffBuilder
 
@@ -55,7 +56,7 @@ static func _basis(n: Vector3) -> Basis:
 	return Basis(x, Vector3.UP, x.cross(Vector3.UP).normalized())
 
 
-## The pale patch, laid on the face point by point so it follows the rock.
+## The faint dark patch, laid on the face point by point so it follows the rock.
 func _skin(cid: int, z0: float, n: Vector3) -> MeshInstance3D:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -71,24 +72,20 @@ func _skin(cid: int, z0: float, n: Vector3) -> MeshInstance3D:
 		pts.append(row)
 	for j in ny:
 		for i in nz:
-			var a: Vector3 = pts[j][i]
-			var b: Vector3 = pts[j][i + 1]
-			var c: Vector3 = pts[j + 1][i + 1]
-			var d: Vector3 = pts[j + 1][i]
-			# Edges fade so the patch reads as worn-smooth rock, not a sticker.
-			var edge := minf(minf(i, nz - i - 1), minf(j, ny - j - 1))
-			var col := Color(SKIN, 0.55 if edge <= 0 else 0.85)
-			for v: Vector3 in [a, b, c, a, c, d]:
+			# Per corner: darkest in the middle, nothing at the edges (no hard outline).
+			for q: Vector2i in [Vector2i(i, j), Vector2i(i + 1, j), Vector2i(i + 1, j + 1), Vector2i(i, j), Vector2i(i + 1, j + 1), Vector2i(i, j + 1)]:
+				var u := 1.0 - absf(float(q.x) / nz * 2.0 - 1.0)
+				var w := 1.0 - absf(float(q.y) / ny * 2.0 - 1.0)
 				st.set_normal(n)
-				st.set_color(col)
-				st.add_vertex(v)
+				st.set_color(Color(0, 0, 0, SKIN_DARK * smoothstep(0.0, 0.6, u) * smoothstep(0.0, 0.4, w)))
+				st.add_vertex(pts[q.y][q.x])
 	var mi := MeshInstance3D.new()
 	mi.mesh = st.commit()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.roughness = 0.35
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED # (a plain shade over the rock, no shine of its own)
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mi

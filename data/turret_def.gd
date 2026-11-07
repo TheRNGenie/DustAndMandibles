@@ -60,6 +60,9 @@ const HEAVY_HP := 100.0
 ## Air defence: sits in the second row from the lip and only shoots flying bugs,
 ## over either plateau or the canyon.
 @export var anti_air: bool = false
+## An anti-air turret with this above 0 also shoots climbers on the cliff it
+## covers, at this share of its damage (fliers still come first).
+@export var ground_mult: float = 0.0
 ## Shot sound (audio/sfx name). "gatling" picks one of three variants.
 @export var sound: StringName = &"gatling"
 # Crewed: a 2 x 2 crewed gun (scenes/turrets/crewed_turret.gd): E takes the seat
@@ -213,7 +216,9 @@ func stat_line(upgrade: int = 0) -> String:
 		parts.append("Pierces Armour")
 	if not is_equal_approx(heavy_mult, 1.0):
 		parts.append("x%s vs Heavy" % _num(heavy_mult))
-	if anti_air:
+	if anti_air and ground_mult > 0.0:
+		parts.append("Fliers First, Climbers x%s" % _num(ground_mult))
+	elif anti_air:
 		parts.append("Fliers Only")
 	if yard_wide:
 		parts.append("Whole Yard")

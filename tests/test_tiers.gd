@@ -96,7 +96,7 @@ func test_twin_gatling_doubles_the_rate() -> void:
 	var t := Defs.turret(&"twin_gatling")
 	assert_almost(t.fire_interval, g.fire_interval * 0.5, 0.001)
 	assert_eq(t.heavy_mult, 0.5, "still weak against heavy")
-	assert_eq(t.cost_scrap, 110)
+	assert_eq(t.cost_scrap, 85) # (balance pass: was 110)
 
 
 func test_new_turret_numbers_and_stat_lines() -> void:

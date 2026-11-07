@@ -18,6 +18,8 @@ const SLING_MIN := 80.0
 const SLING_MAX := 200.0
 ## Grade bands: [lowest count, letter].
 const GRADES: Array = [[30, "S+"], [20, "S"], [10, "A"], [5, "B"], [1, "C"]]
+## Reach S in a wave and the combo stays at least this high until the wave ends.
+const S_FLOOR := 20
 
 
 ## Hot Streak (movement plan #10): end a wave having reached this combo and

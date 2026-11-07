@@ -227,6 +227,22 @@ func _sell(peer_id: int, item: StringName) -> bool:
 	return true
 
 
+## Host: a CPU teammate sells `n` of `item` for cliff `cid` (paid like a rider's sale).
+## Returns what it fetched.
+func cpu_sell(cid: int, item: StringName, n: int) -> int:
+	if not ITEMS.has(item) or n <= 0:
+		return 0
+	var cur := MarketPrices.currency(item)
+	var key := "%d:%s" % [cid, cur]
+	_credit[key] = float(_credit.get(key, 0.0)) + market.sell(item, n)
+	var whole := int(floor(float(_credit[key])))
+	if whole > 0:
+		_credit[key] = float(_credit[key]) - whole
+		Economy.earn(cid, {cur: whole})
+	_ka_ching.rpc()
+	return whole
+
+
 @rpc("authority", "call_local", "unreliable")
 func _ka_ching() -> void:
 	Audio.play_at(&"coin", global_position, -4.0)

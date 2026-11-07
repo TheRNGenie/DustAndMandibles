@@ -31,13 +31,13 @@ func _physics_process(delta: float) -> void:
 		var g := player.gun
 		sync_weapon = g.def.id if (g.holding == &"" and g.def != null) else &""
 		player.rig.set_weapon(sync_weapon)
-		sync_look = JSON.stringify(Settings.look)
+		sync_look = JSON.stringify(player.bot_look if player.bot else Settings.look)
 	else:
 		player.rig.set_weapon(sync_weapon)
 	if sync_look != _applied_look and sync_look != "":
 		_applied_look = sync_look
 		player.rig.apply_look(DummyLook.clean(JSON.parse_string(sync_look)))
-		if player.is_multiplayer_authority():
+		if player.is_multiplayer_authority() and not player.bot:
 			player.gun.refresh_arms(Settings.look)
 	if not player.is_multiplayer_authority():
 		# Remote players follow their owner's replicated position every tick.

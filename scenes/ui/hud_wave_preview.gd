@@ -87,6 +87,13 @@ func _rebuild() -> void:
 		row.add_child(cell)
 	if mix.size() > MAX_KINDS:
 		row.add_child(KeyHints.text("+%d More" % (mix.size() - MAX_KINDS), 12, UiStyle.c("hud").darkened(0.2)))
+	# Balance pass: next wave's boss, a build phase early.
+	for id: Variant in WaveDirector.next_boss:
+		var bd := Defs.bug(StringName(str(id)))
+		if bd != null:
+			var warn := KeyHints.text(UiStyle.tc("Next wave: %s" % bd.display_name), 13, UiStyle.c("warn_hud"))
+			warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			col.add_child(warn)
 	_center.call_deferred()
 
 

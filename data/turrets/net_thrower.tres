@@ -6,8 +6,8 @@
 script = ExtResource("1_def")
 id = &"net_thrower"
 display_name = "Net Thrower"
-description = "Flings weighted nets. A netted flier hangs helpless in the air for a few seconds."
-role = "holds a flier in the air"
+description = "Support, not a main defence. Flings weighted nets. A netted flier hangs helpless in the air for a few seconds."
+role = "support: holds a flier in the air"
 weakness = "almost no damage"
 cost_scrap = 55
 max_hp = 130.0

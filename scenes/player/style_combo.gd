@@ -17,6 +17,8 @@ var player: Player
 var count := 0
 ## This wave's best combo (Hot Streak).
 var peak := 0
+## Reached S during this wave: the combo can't fall below S until the wave ends (Logan).
+var _s_lock := false
 ## Fractional gain carried between actions (a brand can add more than one per action).
 var _gain := 0.0
 var _still := 0.0
@@ -62,6 +64,10 @@ func extend(seconds: float) -> void:
 
 func break_combo() -> void:
 	_gain = 0.0
+	if _s_lock:
+		if count > ComboRules.S_FLOOR:
+			_set_count(ComboRules.S_FLOOR, false) # kept at S till the wave's over
+		return
 	if count > 0:
 		_set_count(0, true)
 
@@ -92,6 +98,8 @@ func _on_kill(_bug: String, _bug_cliff: int, source: String, _source_cliff: int,
 
 
 func _on_phase(p: GameState.Phase) -> void:
+	if p != GameState.Phase.WAVE:
+		_s_lock = false
 	if p == GameState.Phase.WAVE:
 		peak = count
 	elif p == GameState.Phase.BUILD and GameState.wave > 1:
@@ -153,6 +161,8 @@ func _set_count(n: int, broke: bool) -> void:
 		return
 	count = n
 	peak = maxi(peak, n)
+	if n >= ComboRules.S_FLOOR and GameState.phase == GameState.Phase.WAVE:
+		_s_lock = true
 	_still = 0.0
 	if GameState.has_flag("--combolog"):
 		print("[combo] %s: %d %s%s" % [player.display_name(), count, ComboRules.grade(count), " (broke)" if broke else ""])

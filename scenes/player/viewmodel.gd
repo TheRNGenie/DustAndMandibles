@@ -59,7 +59,9 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 	left.position = WeaponBuilder.LEFT_FIST[id]
 	add_child(left)
 	_left_mi = _mi(left, null)
-	var held_round := WeaponBuilder.cartridge()
+	var held_round: Mesh = WeaponBuilder.cartridge()
+	if _rv:
+		held_round = _rv_mesh("cartridge").mesh
 	match id:
 		&"coach_shotgun":
 			held_round = WeaponBuilder.shell()
@@ -70,7 +72,7 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 		&"flare_gun", &"salt_shotgun", &"punt_gun", &"harpoon_pistol", &"telescope_rifle", &"pepperbox":
 			held_round = FrontierGuns.held_round(id)
 	_round = _mi(left, held_round)
-	if FrontierGuns.has(id):
+	if FrontierGuns.has(id) or _rv:
 		_round.material_override = null
 	_round.position = Vector3(0.012, 0.02, -0.02)
 	_round.visible = false
@@ -131,6 +133,9 @@ func _build_frontier(body: MeshInstance3D) -> void:
 func _build_classic(body: MeshInstance3D) -> void:
 	match id:
 		&"revolver":
+			if has_parts_revolver():
+				_build_rv(body)
+				return
 			body.mesh = WeaponBuilder.revolver_body()
 			drum = _mi(self, WeaponBuilder.revolver_drum())
 			drum.position = Vector3(0, 0.018, -0.005)
@@ -301,6 +306,8 @@ func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: f
 			transform = Transform3D(Basis.from_euler(Vector3(0.4 * e, 0.12 * e, 0.3 * e)), Vector3(-0.04, 0.06, 0.06) * e)
 	if drum != null:
 		drum.rotation.z = drum_angle
+	if _rv:
+		_pose_rv(get_process_delta_time(), e, load_t, loading)
 	if lever != null:
 		lever.rotation.x = 0.95 * sin(clampf(cycle, 0.0, 1.0) * PI)
 	if barrels != null:
@@ -343,8 +350,8 @@ func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: f
 		# Tip the forearm down and out so it doesn't swing through the camera.
 		var k := clampf(sin(clampf(catch_t, 0.0, 1.0) * PI) * 1.4, 0.0, 1.0)
 		left.rotation = left.rotation.lerp(Vector3(1.1, -0.5, 0.6), k)
-	_round.visible = holding
-	if holding:
+	_round.visible = holding and not (_rv and speedload)
+	if holding and _round.visible:
 		# The round points the way it goes in, pinched at the fingertips.
 		var parent_basis := (get_parent() as Node3D).global_transform.basis
 		var dir := (parent_basis * push).normalized()
@@ -476,11 +483,18 @@ func _load_point(round_index: int) -> Vector3:
 		var side := 1.0 if round_index % 2 == 0 else -1.0
 		var chamber := barrels.transform * (Vector3(side * 0.017, 0.012, -0.092) - barrels.position)
 		return transform * chamber
+	if _rv:
+		# The next empty chamber's mouth on the swung-out cylinder (the loader: its back face).
+		if speedload:
+			return (get_parent() as Node3D).global_transform.affine_inverse() * drum.to_global(Vector3(0, 0, 0.065))
+		return _rv_chamber_mouth()[0]
 	return transform * (WeaponBuilder.LOAD_POINT[id] as Vector3)
 
 
 ## Direction the round is pushed (parent space).
 func _push_dir() -> Vector3:
+	if _rv and drum != null:
+		return _rv_chamber_mouth()[1]
 	match id:
 		&"lever_rifle":
 			return transform.basis * Vector3(-0.5, 0.1, -1.0).normalized()
@@ -516,3 +530,190 @@ func eject_shells() -> void:
 		tw.chain().tween_property(s, "global_position", start + fly * 0.5 + Vector3.DOWN * 1.2, 0.35).set_ease(Tween.EASE_IN)
 		tw.chain().tween_callback(s.queue_free)
 	Audio.play_at(&"shell_eject", global_position, -6.0)
+
+
+# ------------------------------------------------------------------ the parts revolver
+
+## Logan's Meshy revolver in parts (tools/rig/prep_revolver.py writes rv_*.glb):
+## the cylinder turns, each chamber shows its round, the hammer and trigger
+## move, and with the Speed loader mod all six go in at once.
+const RV_AXIS := Vector3(0.0, 0.018, -0.005)
+const RV_HAMMER := Vector3(0.0, 0.0086, 0.0361)
+const RV_TRIGGER := Vector3(0.0, -0.0138, 0.0156)
+## Chambers sit this far off the axis, the first straight up (under the hammer).
+const RV_CHAMBER_R := 0.0164
+const RV_CHAMBER_Z := 0.002
+## The chamber the loading gate opens onto (slot 5: 30 degrees, upper right).
+const RV_GATE_SLOT := 5
+const RV_HAMMER_COCK := 0.6
+## The crane's hinge (parallel to the barrel) and how far the cylinder swings out (rad).
+const RV_CRANE := Vector3(-0.012, -0.008, -0.005)
+const RV_SWING := 1.7
+var crane: Node3D
+## The swing, eased with a little overshoot (a flick of the wrist).
+var _swing := 0.0
+var hammer: Node3D
+var trig: Node3D
+var _rv := false
+var _chambers: Array[Node3D] = []
+var _full: Array[bool] = [true, true, true, true, true, true]
+var _steps := 0
+var _shot_t := 1.0
+var _loader: Node3D
+## Gun sets this before pose(): the Speed loader mod is on (all six at once).
+var speedload := false
+
+
+static func has_parts_revolver() -> bool:
+	return ResourceLoader.exists(GunModels.DIR + "rv_frame.glb")
+
+
+## One part as its own MeshInstance3D (the glb's mesh with its own materials).
+static func _rv_mesh(part: String) -> MeshInstance3D:
+	var n := GunModels.make(&"rv", part)
+	var mi := MeshInstance3D.new()
+	if n == null:
+		return mi
+	var src := n.find_children("*", "MeshInstance3D", true, false)
+	if not src.is_empty():
+		mi.mesh = (src[0] as MeshInstance3D).mesh
+		# Meshy sometimes exports alpha blending: these parts are solid.
+		for i in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(i) as BaseMaterial3D
+			if m != null and m.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+				var solid := m.duplicate() as BaseMaterial3D
+				solid.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+				mi.set_surface_override_material(i, solid)
+	n.free()
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
+
+
+func _build_rv(body: MeshInstance3D) -> void:
+	_rv = true
+	body.mesh = null
+	for part in ["frame", "barrel", "grip_r", "grip_l"]:
+		add_child(_rv_mesh(part))
+	# The cylinder rides a crane hinged below-left of it, so it can swing out.
+	crane = Node3D.new()
+	crane.name = "Crane"
+	crane.position = RV_CRANE
+	add_child(crane)
+	drum = Node3D.new()
+	drum.name = "Cylinder"
+	drum.position = RV_AXIS - RV_CRANE
+	crane.add_child(drum)
+	var cyl := _rv_mesh("cylinder")
+	cyl.position = -RV_AXIS
+	drum.add_child(cyl)
+	for i in 6:
+		var a := PI * 0.5 + TAU * float(i) / 6.0
+		var c := _rv_mesh("cartridge")
+		c.position = Vector3(cos(a) * RV_CHAMBER_R, sin(a) * RV_CHAMBER_R, RV_CHAMBER_Z)
+		drum.add_child(c)
+		_chambers.append(c)
+	hammer = Node3D.new()
+	hammer.position = RV_HAMMER
+	add_child(hammer)
+	var h := _rv_mesh("hammer")
+	h.position = -RV_HAMMER
+	hammer.add_child(h)
+	trig = Node3D.new()
+	trig.position = RV_TRIGGER
+	add_child(trig)
+	var t := _rv_mesh("trigger")
+	t.position = -RV_TRIGGER
+	trig.add_child(t)
+	_loader = _rv_mesh("speed_loader")
+	_loader.visible = false
+	add_child(_loader)
+
+
+## The chamber now at `slot` (0 = under the hammer, counting the way the cylinder turns).
+func _chamber_at(slot: int) -> int:
+	return posmod(slot - _steps, 6)
+
+
+func _show_chambers() -> void:
+	for i in _chambers.size():
+		_chambers[i].visible = _full[i]
+
+
+## Gun: a shot went off (the chamber under the hammer is spent; the cylinder turns on).
+func rv_fired() -> void:
+	if not _rv:
+		return
+	_full[_chamber_at(0)] = false
+	_steps += 1
+	_shot_t = 0.0
+	_show_chambers()
+
+
+## Gun: one round thumbed through the gate (then the cylinder clicks round).
+func rv_loaded_one() -> void:
+	if not _rv:
+		return
+	var i := _full.find(false)
+	if i >= 0:
+		_full[i] = true
+	_show_chambers()
+
+
+## Gun: the speed loader dropped all six home.
+func rv_loaded_all() -> void:
+	if not _rv:
+		return
+	for i in 6:
+		_full[i] = true
+	_show_chambers()
+
+
+## Gun: match the chambers to `rounds` loaded (equipping, a dropped gun picked up).
+func rv_set_rounds(rounds: int) -> void:
+	if not _rv:
+		return
+	for k in 6:
+		_full[_chamber_at(k)] = k < rounds
+	_show_chambers()
+
+
+## The chamber the next round goes in (the first empty one), in parent space:
+## its mouth on the swung-out cylinder's back face, and the way the round goes in.
+func _rv_chamber_mouth() -> Array:
+	var i := maxi(_full.find(false), 0)
+	var a := PI * 0.5 + TAU * float(i) / 6.0
+	var local := Vector3(cos(a) * RV_CHAMBER_R, sin(a) * RV_CHAMBER_R, 0.04)
+	var to_parent := (get_parent() as Node3D).global_transform.affine_inverse()
+	var mouth := to_parent * drum.to_global(local)
+	var dir := (to_parent.basis * drum.global_transform.basis * Vector3(0, 0, -1)).normalized()
+	return [mouth, dir]
+
+
+func _pose_rv(delta_shot: float, e: float, load_t: float, loading: bool) -> void:
+	_shot_t += delta_shot
+	# Flick out with the posture, a quick overshoot, and snap home as it ends.
+	var k := clampf(e * 1.25, 0.0, 1.0)
+	var flick := 1.0 - pow(1.0 - k, 3.0) + sin(k * PI) * 0.12
+	_swing = flick
+	crane.rotation.z = RV_SWING * _swing
+	crane.position = RV_CRANE + Vector3(-0.006 * _swing, 0, 0)
+	# Hammer: falls on the shot, thumbed back again; trigger: squeezed and let go.
+	var cock := _ease(_shot_t / 0.22) if _shot_t < 0.22 else 1.0
+	hammer.rotation.x = RV_HAMMER_COCK * cock * (1.0 - e)
+	trig.rotation.x = -0.35 * (1.0 - _ease(_shot_t / 0.12))
+	_loader.visible = false
+	if speedload and loading:
+		# The loader comes up behind the cylinder, all six bullets first, and pushes home.
+		# Lined up on the swung-out cylinder's back face, bullets first, pushed home.
+		var lp := _loader.get_parent() as Node3D
+		var back := lp.to_local(drum.to_global(Vector3(0, 0, 0.065)))
+		var seat := lp.to_local(drum.to_global(Vector3(0, 0, 0.029)))
+		var at := back
+		if load_t < 0.45:
+			at = lp.to_local(drum.to_global(Vector3(-0.06, -0.12, 0.14))).lerp(back, _ease(load_t / 0.45))
+		elif load_t < 0.6:
+			at = back.lerp(seat, _ease((load_t - 0.45) / 0.15))
+		if load_t < 0.6:
+			_loader.visible = true
+			_loader.position = at
+			_loader.basis = (lp.global_transform.basis.inverse() * drum.global_transform.basis).orthonormalized()

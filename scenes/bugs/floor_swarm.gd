@@ -32,6 +32,15 @@ func count() -> int:
 	return _walkers.size()
 
 
+## Walkers by kind (debug).
+func kinds() -> Dictionary:
+	var out := {}
+	for id: int in _walkers:
+		var k: StringName = _walkers[id]["bug"]
+		out[k] = int(out.get(k, 0)) + 1
+	return out
+
+
 ## Host: should this crossing bug start in the swarm?
 func wants(def: BugDef, pos: Vector3, goal: Vector3) -> bool:
 	return enabled and def.behavior != BugDef.Behavior.BOSS and Vector2(goal.x - pos.x, goal.z - pos.z).length() > PROMOTE_DIST + 2.0

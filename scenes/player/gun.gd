@@ -268,7 +268,9 @@ func equip(id: StringName) -> void:
 	if id == &"revolver" and is_inside_tree() and not GameState.has_flag("--notwirl"):
 		# Drawn with a spin round the trigger finger.
 		_start_twirl(TWIRL_EQUIP)
-	var muzzle_z := -0.28 if id == &"revolver" else -0.62
+	var muzzle_z := (-0.22 if ViewModel.has_parts_revolver() else -0.28) if id == &"revolver" else -0.62
+	if id == &"revolver" and _models.has(id):
+		(_models[id] as ViewModel).rv_set_rounds(ammo)
 	_flash.position = FrontierGuns.MUZZLE.get(id, Vector3(0, 0.02, muzzle_z))
 	_flash_light.position = _flash.position + Vector3(0, 0, -0.05)
 	_hand_next = 0
@@ -411,6 +413,7 @@ func _process(delta: float) -> void:
 		vm.set_loaded(ammo > 0 or _stage == Reload.CLOSE)
 		var load_t := clampf(_stage_t / maxf(_stage_len, 0.001), 0.0, 1.0)
 		var catch_t := load_t if (_stage == Reload.OPEN and _catching) else -1.0
+		vm.speedload = _speedloads()
 		vm.pose(_open, load_t, _stage == Reload.LOAD, _cycle, _drum_angle, _loaded_this_reload, catch_t)
 		if def.id == &"revolver":
 			_twirl_left = maxf(_twirl_left - delta, 0.0)
@@ -562,15 +565,22 @@ func _advance_reload(delta: float) -> void:
 				(_models[def.id] as ViewModel).eject_shells()
 				ammo = 0
 				ammo_changed.emit(ammo, mag_size())
-			_begin(Reload.LOAD, times.y)
+			_begin(Reload.LOAD, times.y * (SPEED_LOAD_ROUNDS if _speedloads() else 1.0))
 		Reload.LOAD:
 			# The gatling swaps a whole drum at once.
-			ammo = mag_size() if LOAD_ALL.has(def.id) else mini(ammo + 1, mag_size())
+			var all := LOAD_ALL.has(def.id) or _speedloads()
+			ammo = mag_size() if all else mini(ammo + 1, mag_size())
+			var rvm := _models.get(def.id) as ViewModel
+			if rvm != null and def.id == &"revolver":
+				if all:
+					rvm.rv_loaded_all()
+				else:
+					rvm.rv_loaded_one()
 			_loaded_this_reload += 1
 			ammo_changed.emit(ammo, mag_size())
 			_foley("load", -8.0)
-			if def.id == &"revolver":
-				_drum_target += TAU / 6.0
+			if def.id == &"revolver" and not all and not ViewModel.has_parts_revolver():
+				_drum_target += TAU / 6.0 # (the parts revolver's cylinder is swung out: nothing turns)
 			if ammo < mag_size():
 				_begin(Reload.LOAD, times.y)
 			else:
@@ -585,6 +595,14 @@ func _advance_reload(delta: float) -> void:
 			elif def.id == &"lever_rifle":
 				_cycle = 0.0 # work the lever to chamber a round
 			_foley("close", -5.0)
+
+
+## The revolver's Speed loader mod: all six rounds go in at once.
+const SPEED_LOADER_MOD := 1
+## The loader's push takes as long as this many single rounds would (all six in one).
+const SPEED_LOAD_ROUNDS := 2.5
+func _speedloads() -> bool:
+	return def != null and def.id == &"revolver" and WeaponMods.has_mod(code_of(def.id), SPEED_LOADER_MOD)
 
 
 func _begin(stage: Reload, length: float) -> void:
@@ -621,6 +639,8 @@ func trigger(camera: Camera3D) -> bool:
 	_kick = 1.0 + def.shake
 	if def.id == &"revolver" or def.id == &"pepperbox":
 		_drum_target += TAU / 6.0
+		if def.id == &"revolver" and _models.has(def.id):
+			(_models[def.id] as ViewModel).rv_fired()
 	elif def.id == &"lever_rifle" or def.id == &"salt_shotgun" or def.id == &"telescope_rifle":
 		_cycle = 0.0 # work the lever / pump / bolt
 	var vm := _models.get(def.id) as ViewModel
@@ -715,8 +735,8 @@ func reload() -> void:
 	_begin(Reload.OPEN, CATCH_TIME if _catching else times.x)
 	if _catching:
 		_foley("open", -4.0)
-	var rounds := mag_size() if def.id == &"coach_shotgun" else (1 if LOAD_ALL.has(def.id) else mag_size() - ammo)
-	reload_started.emit(times.x + times.y * rounds + times.z)
+	var rounds := mag_size() if def.id == &"coach_shotgun" else (1 if LOAD_ALL.has(def.id) or _speedloads() else mag_size() - ammo)
+	reload_started.emit(times.x + times.y * (SPEED_LOAD_ROUNDS if _speedloads() else float(rounds)) + times.z)
 	if def.id == &"revolver":
 		flourished.emit(&"reload_revolver")
 	if not _catching:

@@ -8,10 +8,15 @@ func test_count_grows_faster_than_toughness() -> void:
 	assert_almost(c.count_growth, 1.25)
 	assert_almost(c.hp_per_wave, 0.10)
 	assert_almost(c.damage_per_wave, 0.10)
-	# Wave 11: ~9.3x the bugs of wave 1, but each only 2x as tough.
-	assert_almost(c.hp_scale(11), 2.0)
+	# Balance pass: +25% a wave to wave 8, +12% after; HP +10% a wave to 10, +6% after.
+	# Wave 11: ~6.7x the bugs of wave 1, each just under 2x as tough.
+	assert_almost(c.hp_scale(11), 1.96)
 	assert_almost(c.damage_scale(11), 2.0)
-	assert_true(float(c.bug_count(11)) / float(c.bug_count(1)) > 9.0)
+	var ratio := float(c.bug_count(11)) / float(c.bug_count(1))
+	assert_true(ratio > 6.0 and ratio < 7.5, "wave 11 is %.1fx wave 1" % ratio)
+	assert_true(absf(float(c.bug_count(13)) / float(c.bug_count(12)) - c.late_growth) < 0.03, "late waves grow by late_growth")
+	# A boss wave sends a quarter fewer than the curve says.
+	assert_true(float(c.bug_count(10)) < float(c.bug_count(9)) * c.late_growth * 0.8, "boss wave cut")
 
 
 func test_win_at_twenty() -> void:
@@ -19,7 +24,7 @@ func test_win_at_twenty() -> void:
 	# Endless keeps the same growth past the last wave.
 	var c := Defs.WAVE_CONFIG
 	assert_true(c.bug_count(21) > c.bug_count(20))
-	assert_almost(c.hp_scale(21) - c.hp_scale(20), c.hp_per_wave)
+	assert_almost(c.hp_scale(21) - c.hp_scale(20), c.late_hp_per_wave)
 
 
 func test_heat_makes_you_thirsty() -> void:

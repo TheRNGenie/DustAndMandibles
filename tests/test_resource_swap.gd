@@ -55,11 +55,12 @@ func test_junk_heap_pays_personal_and_grows() -> void:
 		var p := EconomyLedger.heap_pay(w, cfg)
 		assert_true(p >= last and p >= EconomyLedger.HEAP_MIN, "wave %d: %d" % [w, p])
 		last = p
-	# Measured: a cliff's bug shells used to pay it ~5,000 personal over 20 waves.
+	# Measured: a cliff's bug shells used to pay it ~5,000 personal over 20 waves;
+	# the balance pass flattened the bug curve after wave 8, and the heap with it.
 	var total := 0
 	for w in range(0, 20):
 		total += EconomyLedger.heap_pay(w, cfg)
-	assert_true(total > 4000 and total < 6500, "20 heaps pay %d" % total)
+	assert_true(total > 1800 and total < 3200, "20 heaps pay %d" % total)
 	# Into your own stock, never the pot.
 	var l := EconomyLedger.new()
 	l.reset({&"scrap": 100}, 2)

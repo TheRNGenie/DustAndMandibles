@@ -206,6 +206,13 @@ func _ready() -> void:
 		_threat_test()
 	elif GameState.has_flag("--streaktest"):
 		_streak_test()
+	elif GameState.has_flag("--cpusim"):
+		_cpu_sim()
+	elif HyperLearn.wanted():
+		var hl := HyperLearn.new()
+		hl.name = "HyperLearn"
+		add_child(hl)
+		hl.run(world)
 	elif GameState.has_flag("--grappleprobe"):
 		_grapple_probe()
 	elif GameState.has_flag("--grapplewall"):
@@ -1685,6 +1692,87 @@ func _stress(count: int) -> void:
 
 ## --grappletest: pulls the player to a point 18 m away and 6 m up, then swings
 ## them from an anchor 12 m overhead; prints where they end up. Works headless.
+## --cpusim: balance test. A High CPU holds every cliff (NetworkManager.sim_all_cpu),
+## the host's own player is parked out of play, and the host's lever is thrown
+## --simbuild seconds (default 180) into each build phase, standing in for a
+## player getting ready. No god mode, no free money. --simspeed=N runs the
+## world N times faster (headless). Prints a line per wave and quits at game
+## over or after --simwaves (default 50).
+func _cpu_sim() -> void:
+	var speed := maxf(GameState.flag_value("--simspeed").to_float(), 1.0)
+	Engine.time_scale = speed
+	Engine.physics_ticks_per_second = roundi(60.0 * speed)
+	Engine.max_physics_steps_per_frame = roundi(8.0 * speed)
+	var build_s := GameState.flag_value("--simbuild").to_float() if GameState.flag_value("--simbuild") != "" else 180.0
+	var last := int(GameState.flag_value("--simwaves")) if GameState.flag_value("--simwaves") != "" else 50
+	for i in 30:
+		await get_tree().process_frame
+	var player := world.call("local_player") as Player
+	if player != null:
+		player.global_position = Vector3(0, 900, 0)
+		player.process_mode = Node.PROCESS_MODE_DISABLED
+		player.visible = false
+	var start := Time.get_ticks_msec()
+	var bugs := world.get("bugs") as BugManager
+	# Who killed what: turret kinds (source "Owner's Turret") and the CPUs' own guns.
+	var kills := {}
+	bugs.bug_killed.connect(func(_name: String, _bc: int, source: String, _sc: int, _loot: Dictionary) -> void:
+		var key := source.get_slice("'s ", 1) if source.contains("'s ") else ("gun " + source)
+		kills[key] = int(kills.get(key, 0)) + 1)
+	# Bosses: which came each boss wave, and whether they died before it ended.
+	var bosses := {"wave": [], "dead": []}
+	bugs.bug_killed.connect(func(bug_name: String, _bc: int, _source: String, _sc: int, _loot: Dictionary) -> void:
+		for id: StringName in bosses["wave"]:
+			if Defs.bug(id) != null and Defs.bug(id).display_name == bug_name and not (bosses["dead"] as Array).has(id):
+				(bosses["dead"] as Array).append(id)
+				break)
+	GameState.phase_changed.connect(func(p: GameState.Phase) -> void:
+		if p == GameState.Phase.WAVE:
+			# What each CPU spent of the team pot, against its share of all the team has had.
+			var parts: PackedStringArray = []
+			for c: Node in get_tree().get_nodes_in_group("cpu_teammates"):
+				var cn := str(c.get("display_name"))
+				parts.append("%s spent %d of %d" % [cn, int((Economy.cpu_spent.get(cn, {}) as Dictionary).get(&"scrap", 0)),
+						int(floor(float(Economy.gained.get(&"scrap", 0)) * Economy.cpu_share))])
+			print("[sim] wave %d starts  pot %d  %s" % [GameState.wave, Economy.team_scrap(), "  ".join(parts)])
+			bosses["wave"] = WaveDirector._plan_bosses()
+			bosses["dead"] = []
+		elif not (bosses["wave"] as Array).is_empty() and (p == GameState.Phase.BUILD or p == GameState.Phase.GAME_OVER):
+			for id: StringName in bosses["wave"]:
+				print("[sim] BOSS wave %d %s %s" % [GameState.wave - (1 if p == GameState.Phase.BUILD else 0), id,
+						"killed" if (bosses["dead"] as Array).has(id) else ("alive_at_loss" if p == GameState.Phase.GAME_OVER else "survived")])
+			bosses["wave"] = []
+	)
+	GameState.phase_changed.connect(func(p: GameState.Phase) -> void:
+		var hp := str(GameState.homestead_hp.map(func(v: float) -> int: return roundi(v)))
+		if p == GameState.Phase.BUILD:
+			print("[sim] wave %d held  homesteads %s  turrets %d  team %d  scrap %s  real %.0f s" % [GameState.wave - 1, hp, get_tree().get_nodes_in_group("turrets").size(), Economy.team_scrap(), str([Economy.amount(0, &"chitin"), Economy.amount(1, &"chitin")]), (Time.get_ticks_msec() - start) / 1000.0])
+			if GameState.wave > last:
+				print("[sim] KILLS %s" % str(kills))
+				print("[sim] RESULT survived %d" % last)
+				get_tree().quit()
+		elif p == GameState.Phase.GAME_OVER and GameState.won:
+			# The run's last wave held: carry on into Endless, as a player would.
+			print("[sim] won the run at wave %d: on into Endless" % GameState.wave)
+			GameState.continue_endless.call_deferred()
+		elif p == GameState.Phase.GAME_OVER:
+			print("[sim] KILLS %s" % str(kills))
+			print("[sim] RESULT lost on wave %d  homesteads %s  bugs out %d  real %.0f s" % [GameState.wave, hp, bugs.alive_count(), (Time.get_ticks_msec() - start) / 1000.0])
+			get_tree().quit())
+	while true:
+		await get_tree().process_frame
+		if GameState.phase == GameState.Phase.BUILD:
+			var t := 0.0 # game seconds (scaled), not wall time: a busy frame mustn't cut the build short
+			var w := GameState.wave
+			while GameState.phase == GameState.Phase.BUILD and GameState.wave == w and t < build_s:
+				await get_tree().process_frame
+				t += get_process_delta_time()
+			if GameState.phase == GameState.Phase.BUILD and not GameState.is_ready_local():
+				GameState.toggle_ready()
+			while GameState.phase == GameState.Phase.BUILD and GameState.wave == w:
+				await get_tree().process_frame
+
+
 ## --streaktest: end a wave at combo 20 and buy a revolver upgrade at the gunsmith.
 func _streak_test() -> void:
 	for i in 30:
@@ -1696,6 +1784,16 @@ func _streak_test() -> void:
 	player.combo._still = -1e9
 	player.combo._on_phase(GameState.Phase.BUILD)
 	var me := multiplayer.get_unique_id()
+	# S lock: reach S in a wave and a hit or standing still keeps you at S.
+	GameState.phase = GameState.Phase.WAVE
+	player.combo._set_count(22, false)
+	player.combo.break_combo()
+	var held := player.combo.count
+	GameState.phase = GameState.Phase.BUILD
+	player.combo._on_phase(GameState.Phase.BUILD)
+	player.combo.break_combo()
+	print("[streak] S lock: broke at 22 mid-wave -> %d; after the wave -> %d" % [held, player.combo.count])
+	player.combo._set_count(20, false)
 	print("[streak] peak %d -> cut %.0f%% (host has %.0f%%), banner: '%s'" % [player.combo.peak, ComboRules.streak_cut(20) * 100.0, StyleCombo.streak_for(me) * 100.0, StyleCombo.streak_note()])
 	var shop := world.get_node("Airship/GunShop") as GunShop
 	Economy.earn(player.cliff_id, {&"chitin": 200})

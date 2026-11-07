@@ -31,6 +31,15 @@ extends Resource
 ## Bugs in wave 1 (both cliffs together); each later wave brings `count_growth` times as many.
 @export var count_base: float = 45.0
 @export var count_growth: float = 1.25
+## From this wave on, the count grows by `late_growth` a wave instead (balance
+## pass: 1.25x compounding outran every economy; the walls at 10-15 were the curve).
+@export var late_from: int = 8
+@export var late_growth: float = 1.12
+## From this wave on, HP grows by `late_hp_per_wave` a wave instead.
+@export var late_hp_from: int = 10
+@export var late_hp_per_wave: float = 0.06
+## A boss wave sends this much less of the regular pack (the boss takes its place).
+@export var boss_count_cut: float = 0.25
 
 @export_group("Wave shapes")
 ## Every this many waves is a boss wave (brutes up front, the boss once it's unlocked).
@@ -55,9 +64,15 @@ extends Resource
 @export var variant_share: float = 0.35
 
 
-## How many bugs wave w sends (wave 1 = count_base, then +25% a wave).
-func bug_count(w: int) -> int:
-	return int(round(count_base * pow(count_growth, float(maxi(w - 1, 0)))))
+## How many bugs wave w sends (wave 1 = count_base, +25% a wave to wave
+## `late_from`, then +12% a wave; a boss wave a quarter fewer).
+func bug_count(w: int, boss_cut: bool = true) -> int:
+	var early := mini(maxi(w, 1), late_from) - 1
+	var late := maxi(w - late_from, 0)
+	var n := count_base * pow(count_growth, float(early)) * pow(late_growth, float(late))
+	if boss_cut and boss_every > 0 and w > 0 and w % boss_every == 0:
+		n *= 1.0 - boss_count_cut
+	return int(round(n))
 
 
 ## Threat budget for wave w: 20 + 12w + 1.5w^2.
@@ -67,7 +82,9 @@ func budget(w: int) -> float:
 
 ## Bug HP multiplier for wave w.
 func hp_scale(w: int) -> float:
-	return hp_multiplier * (1.0 + hp_per_wave * float(maxi(w - 1, 0)))
+	var early := mini(maxi(w, 1), late_hp_from) - 1
+	var late := maxi(w - late_hp_from, 0)
+	return hp_multiplier * (1.0 + hp_per_wave * float(early) + late_hp_per_wave * float(late))
 
 
 ## Bug damage multiplier for wave w (bites on structures and players).

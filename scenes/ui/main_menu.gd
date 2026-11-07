@@ -89,11 +89,17 @@ func _ready() -> void:
 		# --startafter=S: start the hosted game after S seconds on the menu (crash repro of a normal start).
 		if GameState.flag_value("--startafter") != "":
 			get_tree().create_timer(GameState.flag_value("--startafter").to_float()).timeout.connect(NetworkManager.start_game)
+		# --cpusim: balance test, a High CPU on every cliff (debug_tools runs it).
+		if GameState.has_flag("--cpusim"):
+			NetworkManager.sim_all_cpu = true
+			NetworkManager.set_cpu(CpuTeammate.HYPER if GameState.has_flag("--simhyper") else 2)
+			CpuTeammate.force_turret = StringName(GameState.flag_value("--simturret"))
+			CpuTeammate.force_gun = StringName(GameState.flag_value("--simgun"))
 		# --endlesswave=N: the lobby's Starting Wave slider set to N (tests).
 		if GameState.flag_value("--endlesswave") != "":
 			NetworkManager.start_wave = clampi(int(GameState.flag_value("--endlesswave")), 1, EndlessStart.MAX_WAVE)
 		# --cpu=low|medium|high: start with a CPU partner (tests).
-		var cq := ["low", "medium", "high"].find(GameState.flag_value("--cpu").to_lower())
+		var cq := ["low", "medium", "high", "hyper"].find(GameState.flag_value("--cpu").to_lower())
 		if cq >= 0:
 			NetworkManager.set_cpu(cq)
 	elif GameState.has_flag("--join") or GameState.flag_value("--join") != "":
@@ -291,7 +297,7 @@ func _build_ui() -> void:
 	_lobby_box.add_child(_map_row)
 	# Host: optional CPU teammates for the empty cliffs.
 	_cpu_pick = OptionButton.new()
-	for label: String in ["No CPU Teammates", "CPU Teammates: Low", "CPU Teammates: Medium", "CPU Teammates: High"]:
+	for label: String in ["No CPU Teammates", "CPU Teammates: Low", "CPU Teammates: Medium", "CPU Teammates: High", "CPU Teammates: Hyper"]:
 		_cpu_pick.add_item(label)
 	_cpu_pick.selected = NetworkManager.cpu_quality + 1
 	_cpu_pick.item_selected.connect(func(i: int) -> void: NetworkManager.set_cpu(i - 1))

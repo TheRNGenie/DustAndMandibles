@@ -1,15 +1,16 @@
 // Far landforms on the horizon (BadlandsTerrain.horizon_silhouettes), well past
 // the camera's far plane: each vertex is pulled toward the camera along its line
 // of sight (same spot on screen) and drawn at the very back of the depth range,
-// so everything else covers it and the far plane never clips it. Faint: the
-// colour leans toward the horizon haze; the fog is left off. Lit as flat ground
-// (a silhouette, no shading across it) by the sun alone, so it dims at dusk.
+// so everything else covers it and the far plane never clips it. Very faint
+// (Logan): mostly the horizon haze with a hint of the rock's colour, lit as
+// flat ground by the sun and the sky's ambient (so it's never a dark hole by
+// day and still dims with the light at dusk and night).
 shader_type spatial;
-render_mode cull_disabled, fog_disabled, specular_disabled, ambient_light_disabled;
+render_mode cull_disabled, fog_disabled, specular_disabled;
 
 uniform vec4 color : source_color = vec4(0.788, 0.541, 0.369, 1.0); // #C98A5E
 uniform vec4 haze : source_color = vec4(0.969, 0.851, 0.627, 1.0);  // Palette.SKY_HORIZON
-uniform float faint : hint_range(0.0, 1.0) = 0.5;
+uniform float faint : hint_range(0.0, 1.0) = 0.35;
 uniform float pull = 0.15;
 // Hazier toward the foot (from base_y up over fade metres), so where nearer
 // ground covers the foot the cut doesn't show.
@@ -29,6 +30,6 @@ void vertex() {
 void fragment() {
 	NORMAL = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
 	float foot = 1.0 - smoothstep(base_y, base_y + fade, world_y);
-	ALBEDO = mix(color.rgb, haze.rgb, mix(faint, 0.9, foot));
+	ALBEDO = mix(color.rgb, haze.rgb, mix(faint, 0.96, foot));
 	ROUGHNESS = 1.0;
 }

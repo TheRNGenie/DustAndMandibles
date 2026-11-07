@@ -233,7 +233,10 @@ func _think(delta: float) -> void:
 	_cooldown = def.interval_at(tier) * Weather.turret_fire_interval(GameState.weather) * perk_rate * Economy.tonic_interval_mult(cliff_id) 			* LatchDirector.jam_mult(cliff_id, global_position) # a latch bug clamped under it # Perk: Well Oiled; Sarsaparilla tonic from the partner
 	shots += 1
 	if randf() <= def.hit_chance * Weather.turret_accuracy(GameState.weather):
-		TurretEffects.apply(self, _target, aim_point, def.damage_at(tier, TurretDef.is_heavy(_target.def)))
+		var dmg := def.damage_at(tier, TurretDef.is_heavy(_target.def))
+		if def.anti_air and _target.state != Bug.State.FLYING:
+			dmg *= def.ground_mult # (an anti-air gun turned on a climber)
+		TurretEffects.apply(self, _target, aim_point, dmg)
 
 
 
@@ -255,7 +258,9 @@ func _pick_target() -> Bug:
 			if g == null or not _valid_cheap(g, muzzle, seen, pitch, max_range):
 				continue
 			cands.append(g)
-			scores.append(Targeting.marked_priority(-g.global_position.distance_to(global_position), g.status.is_marked())) # Signal Flare
+			# (Anti-air that also takes climbers: any flier before any climber.)
+			var flier_first := 1000.0 if def.anti_air and g.state == Bug.State.FLYING else 0.0
+			scores.append(Targeting.marked_priority(-g.global_position.distance_to(global_position) + flier_first, g.status.is_marked())) # Signal Flare
 	else:
 		for b in bug_manager.climbers_on(covers):
 			if not _valid_cheap(b, muzzle, seen, pitch, max_range):
@@ -293,7 +298,7 @@ func _valid_cheap(b: Bug, muzzle: Vector3, seen: float, pitch: float, max_range:
 	if not b.is_alive() or b.is_hidden() or b.untargetable(): # Boss: untargetable = Mirage Mantis fading
 		return false
 	if def.anti_air:
-		if b.state != Bug.State.FLYING:
+		if b.state != Bug.State.FLYING and not (def.ground_mult > 0.0 and b.is_climbing() and Targeting.cliff_allows(cliff_id, b.cliff_id, true, covers)):
 			return false
 	elif def.guards_plateau:
 		# Last resorts wake only for bugs that made it over YOUR lip (or fly overhead).
