@@ -1,5 +1,5 @@
 {
- "_doc": "Per-model split of the fal turrets (tools/rig/prep_turret.py). All points are in the model's own glTF frame as Trellis made it (a unit box, Y up). forward: the way the gun points (flat). yaw_y: everything above this height swivels. pitch: the gun's elevation pivot; gun_min_y: the gun is everything swivelling above this height (optionally gun_box). spin: box of parts that spin, with their axis point and axis. height: the finished turret's height in metres.",
+ "_doc": "Per-model split of the fal turrets (tools/rig/prep_turret.py). All points are in the model's own glTF frame as Trellis made it (a unit box, Y up). forward: the way the gun points (flat). yaw_y: everything above this height swivels. pitch: the gun's elevation pivot; gun_min_y: the gun is everything swivelling above this height (optionally gun_box). spin: box of parts that spin, with their axis point and axis. height: the finished turret's height in metres. Optional: centre [x, z] (swivel about this point for a model made off-centre); base_box: a list of boxes that stay on the base (loose props); gun_box may be a list of boxes; gun_tilt_deg: how far the gun as made points nose-up (negative: nose-down), levelled about the pitch pivot. head_box: a list of boxes that swivel but never pitch (carriage cheeks or a stand hugging the gun). yaw_pivot_y: the swivel's height when it isn't yaw_y (the game sights from the swivel, so a carriage that turns from its wheels still sights from its top).",
  "repeater_post": {
   "forward": [
    -1,
@@ -1366,6 +1366,173 @@
    0,
    0.25,
    0.5
+  ]
+ },
+ "big_fifty": {
+  "forward": [
+   0.177,
+   0,
+   1
+  ],
+  "height": 1.6,
+  "yaw_y": -0.04,
+  "pitch": [
+   0.031,
+   0.234,
+   0.0
+  ],
+  "gun_min_y": -0.08,
+  "gun_box": [
+   [
+    -0.14,
+    0.08,
+    -0.08,
+    0.37,
+    -0.52,
+    -0.07
+   ],
+   [
+    -0.08,
+    0.12,
+    0.17,
+    0.37,
+    -0.07,
+    0.08
+   ],
+   [
+    -0.02,
+    0.17,
+    0.2,
+    0.37,
+    0.08,
+    0.52
+   ]
+  ],
+  "gun_tilt_deg": 8.5,
+  "muzzle": [
+   0.118,
+   0.31,
+   0.49
+  ]
+ },
+ "brimstone_bellows": {
+  "forward": [
+   1,
+   0,
+   0
+  ],
+  "height": 1.6,
+  "centre": [
+   -0.14,
+   0.0
+  ],
+  "yaw_y": -0.07,
+  "pitch": [
+   -0.14,
+   0.135,
+   0.0
+  ],
+  "gun_min_y": 0.0,
+  "gun_box": [
+   -0.43,
+   0.52,
+   0.0,
+   0.42,
+   -0.215,
+   0.215
+  ],
+  "head_box": [
+   [
+    -0.21,
+    -0.05,
+    -0.07,
+    0.175,
+    0.115,
+    0.235
+   ],
+   [
+    -0.21,
+    -0.05,
+    -0.07,
+    0.175,
+    -0.235,
+    -0.115
+   ]
+  ],
+  "gun_tilt_deg": 4.5,
+  "muzzle": [
+   0.5,
+   0.21,
+   0.0
+  ]
+ },
+ "cotton_bale_cannon": {
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "height": 1.3,
+  "centre": [
+   0.123,
+   0.0
+  ],
+  "yaw_y": -0.3,
+  "yaw_pivot_y": 0.0,
+  "pitch": [
+   0.123,
+   0.14,
+   0.02
+  ],
+  "gun_min_y": 0.01,
+  "gun_box": [
+   -0.08,
+   0.33,
+   0.01,
+   0.35,
+   -0.53,
+   0.53
+  ],
+  "head_box": [
+   [
+    -0.1,
+    0.0,
+    0.0,
+    0.168,
+    -0.085,
+    0.115
+   ],
+   [
+    0.245,
+    0.34,
+    0.0,
+    0.168,
+    -0.085,
+    0.115
+   ]
+  ],
+  "base_box": [
+   [
+    -0.38,
+    -0.1,
+    -0.32,
+    0.02,
+    -0.22,
+    0.27
+   ],
+   [
+    -0.22,
+    0.4,
+    -0.32,
+    -0.16,
+    -0.53,
+    -0.31
+   ]
+  ],
+  "muzzle": [
+   0.123,
+   0.147,
+   -0.47
   ]
  }
 }

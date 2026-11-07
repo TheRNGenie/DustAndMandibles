@@ -4,7 +4,8 @@
     blender --background --factory-startup --python tools/rig/prep_turret.py -- <in_dir> <out_dir> [names]
 
 tools/rig/turret_parts.json says, per model, which way it points, where it swivels
-and pitches, and which bits spin or swing. Faces are sorted by their centre into
+and pitches, and which bits spin or swing (optional: centre, base_box, a list of
+gun boxes, head_box, gun_tilt_deg, yaw_pivot_y; see its _doc). Faces are sorted by their centre into
 base / head (swivels) / gun (swivels and pitches) / spin_N / swing, the model is
 turned so the gun points down -Z, scaled to its height in metres, stood on y = 0
 and centred on its swivel, and each part is written as <name>_<part>.glb in that
@@ -37,6 +38,9 @@ def classify(c, spec):
     for b in spec.get("drop", []):  # cut out entirely (Logan: no gunner on the Thunder Mule)
         if inside(c, b):
             return "drop"
+    for b in spec.get("base_box", []):  # loose props (spare bales, ramrod) that stay put
+        if inside(c, b):
+            return "base"
     for i, s in enumerate(spec.get("spin", [])):
         if inside(c, s["box"]):
             return "spin%d" % i
@@ -47,7 +51,12 @@ def classify(c, spec):
     if c.y <= spec["yaw_y"]:
         return "base"
     gb = spec.get("gun_box")
-    if c.y > spec["gun_min_y"] and (gb is None or inside(c, gb)) and not spec.get("no_pitch"):
+    if gb is not None and not isinstance(gb[0], list):
+        gb = [gb]  # one box, or a list of them (a gun that wraps round its crutch)
+    for b in spec.get("head_box", []):  # carriage cheeks / stand arches hugging the gun
+        if inside(c, b):
+            return "head"
+    if c.y > spec["gun_min_y"] and (gb is None or any(inside(c, b) for b in gb)) and not spec.get("no_pitch"):
         return "gun"
     return "head"
 
@@ -84,8 +93,10 @@ def main():
         lo, hi = min(ys), max(ys)
         s = float(spec["height"]) / (hi - lo)
 
+        cx, cz = spec.get("centre", (0.0, 0.0))  # (a model made off-centre: swivel about its middle)
+
         def fit(p):
-            q = rot @ (Vector(p) - Vector((0, lo, 0)))
+            q = rot @ (Vector(p) - Vector((cx, lo, cz)))
             return q * s
 
         # Sort the faces (by centre, in the model's own frame) into parts.
@@ -119,6 +130,17 @@ def main():
             bm.free()
             objs[part] = o
         bpy.data.objects.remove(obj, do_unlink=True)
+        # gun_tilt_deg: the gun as made sits this far nose-up (negative: nose-down);
+        # turn it level about its pitch pivot so it aims where the turret aims.
+        tilt = None
+        if spec.get("gun_tilt_deg") and "pitch" in spec:
+            piv = fit(spec["pitch"])
+            tilt = Matrix.Rotation(math.radians(-float(spec["gun_tilt_deg"])), 3, "X")
+            for part in ("gun", "swing"):
+                if part in objs:
+                    for v in objs[part].data.vertices:
+                        v.co = bl(piv + tilt @ (gl(v.co) - piv))
+                    objs[part].data.update()
         # One GLB per turret, a node per part (base / head / gun / spinN / swing),
         # so the parts share one set of textures.
         bpy.ops.object.select_all(action="DESELECT")
@@ -129,11 +151,14 @@ def main():
                                   use_selection=True, export_image_format="AUTO")
         pts = {}
         if "yaw_y" in spec:
-            pts["yaw"] = list(fit((0, spec["yaw_y"], 0)))
+            pts["yaw"] = list(fit((cx, spec.get("yaw_pivot_y", spec["yaw_y"]), cz)))  # (the sight point: keep it above the lip)
         if "pitch" in spec:
             pts["pitch"] = list(fit(spec["pitch"]))
         if "muzzle" in spec:
-            pts["muzzle"] = list(fit(spec["muzzle"]))
+            m = fit(spec["muzzle"])
+            if tilt is not None:
+                m = piv + tilt @ (m - piv)
+            pts["muzzle"] = list(m)
         if "swing" in spec:
             pts["swing"] = list(fit(spec["swing"]["at"]))
             pts["swing_axis"] = list(rot @ Vector(spec["swing"]["axis"]))
