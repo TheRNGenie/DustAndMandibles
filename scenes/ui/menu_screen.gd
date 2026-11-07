@@ -37,6 +37,11 @@ var _tabs: HBoxContainer
 var _body: VBoxContainer
 var _scroll: ScrollContainer
 var _dirty := false
+## Money changed (every kill, mid-wave): refresh the stock chips, and rebuild the
+## rows only if what they show changed, so buttons keep their hover and clicks.
+var _money_dirty := false
+var _items_sig := 0
+var _built_ms := 0
 var _hint_box: HBoxContainer
 var _hint_tabs := -1
 var _frame: PanelContainer
@@ -47,7 +52,7 @@ func _ready() -> void:
 	layer = 45
 	_build()
 	_root.visible = false
-	Economy.resources_changed.connect(func(_c: int) -> void: _mark_dirty())
+	Economy.resources_changed.connect(func(_c: int) -> void: _money_dirty = true)
 	UiStyle.notifier.changed.connect(_mark_dirty) # Theme: redraw rows in the new set
 
 
@@ -66,7 +71,7 @@ func open(p: Object) -> void:
 	var was_open := UiStyle.shown(_root)
 	_size_frame()
 	_root.visible = true
-	GameState.menu_open = true
+	GameState.set_menu(self, true)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	refresh()
 	if not was_open:
@@ -79,8 +84,8 @@ func close() -> void:
 	_disconnect()
 	provider = null
 	UiStyle.fade_out(_root)
-	GameState.menu_open = false
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	GameState.set_menu(self, false)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if GameState.menu_open else Input.MOUSE_MODE_CAPTURED # another screen may still be up
 
 
 func _disconnect() -> void:
@@ -221,6 +226,27 @@ func _process(_delta: float) -> void:
 		return
 	if _dirty:
 		_dirty = false
+		_money_dirty = false
+		refresh()
+	elif _money_dirty:
+		_money_dirty = false
+		_money_changed()
+
+
+func _money_changed() -> void:
+	if provider == null:
+		return
+	_fill_money()
+	if provider.has_method("menu_build_body"):
+		# A custom body can't be compared: rebuild at most twice a second, and
+		# never under a held mouse button (that would eat the click).
+		if Time.get_ticks_msec() - _built_ms < 500 or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			_money_dirty = true
+			return
+		refresh()
+		return
+	var items: Array = provider.call("menu_items", tab) if provider.has_method("menu_items") else []
+	if hash(items) != _items_sig:
 		refresh()
 
 
@@ -244,6 +270,7 @@ func refresh() -> void:
 			tab = index
 			refresh())
 		_tabs.add_child(b)
+	_built_ms = Time.get_ticks_msec()
 	var keep_scroll := _scroll.scroll_vertical
 	var keep_focus := _focus_path()
 	for c in _body.get_children():
@@ -252,6 +279,7 @@ func refresh() -> void:
 		provider.call("menu_build_body", _body, self)
 	else:
 		var items: Array = provider.call("menu_items", tab) if provider.has_method("menu_items") else []
+		_items_sig = hash(items)
 		for item: Dictionary in items:
 			_body.add_child(_row(item))
 		if items.is_empty():

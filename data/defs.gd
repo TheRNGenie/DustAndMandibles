@@ -89,6 +89,11 @@ const TURRETS: Dictionary = {
 	&"bramble_bomb": preload("res://data/turrets/bramble_bomb.tres"),
 	&"dust_devil_trap": preload("res://data/turrets/dust_devil_trap.tres"),
 	&"siege_mortar": preload("res://data/turrets/siege_mortar.tres"),
+	# Lines keep their kind: the Mid cliff rifle and the Late sulfur and cotton
+	# cliff guns that close the Buffalo, Dynamite and Lasso lines.
+	&"big_fifty": preload("res://data/turrets/big_fifty.tres"),
+	&"brimstone_bellows": preload("res://data/turrets/brimstone_bellows.tres"),
+	&"cotton_bale_cannon": preload("res://data/turrets/cotton_bale_cannon.tres"),
 }
 
 ## Hive amber turrets (AmberRules): crafted at the Workshop from amber and rare
@@ -158,7 +163,8 @@ const BUILD_ORDER: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"wat
 	&"twin_gatling", &"hornets_nest", &"elephant_battery", &"rail_spike_driver", &"gatling_porch", # Tiers
 	&"repeater_post", &"brass_gatling", &"long_tom_rifle", &"buck_blaster", &"grapeshot_turret", &"skeet_post", &"flak_porch", # Turret ammo: self-powered
 	&"corn_hopper", &"twin_hopper", &"pepper_sprayer", &"sulfur_fume_vent", &"herb_rifle", &"tripwire_fence",
-	&"bramble_bomb", &"dust_devil_trap", &"siege_mortar"] # Turret ammo: crop-fed
+	&"bramble_bomb", &"dust_devil_trap", &"siege_mortar", # Turret ammo: crop-fed
+	&"big_fifty", &"brimstone_bellows", &"cotton_bale_cannon"] # Lines keep their kind
 
 ## Build menu (B) categories, in tab order.
 const BUILD_CATEGORIES: Array[Dictionary] = [
@@ -166,11 +172,11 @@ const BUILD_CATEGORIES: Array[Dictionary] = [
 	# Turret ammo: Cliff Turrets are the self-powered ones (always fire), Crop-Fed
 	# ones need a load of their crop each wave. Tabs show sorted by tier.
 	{"name": "Cliff Turrets", "items": [&"gatling_post", &"buffalo_rifle", &"scaffold",
-		&"repeater_post", &"twin_gatling", &"brass_gatling", &"long_tom_rifle"]},
+		&"repeater_post", &"twin_gatling", &"big_fifty", &"brass_gatling", &"long_tom_rifle"]},
 	{"name": "Crewed Guns", "items": [&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound"]}, # Crewed (sarsaparilla loads)
 	{"name": "Crop-Fed", "items": [&"corn_hopper", &"herb_rifle", &"chili_mortar", &"dynamite_lobber", &"water_cannon", &"lasso_harpoon",
 		&"twin_hopper", &"pepper_sprayer", &"sulfur_fume_vent", &"steam_cannon", &"bola_launcher", &"elephant_battery",
-		&"hornets_nest", &"twin_mortar", &"flood_gate", &"rail_spike_driver", &"siege_mortar"]},
+		&"hornets_nest", &"twin_mortar", &"flood_gate", &"rail_spike_driver", &"siege_mortar", &"brimstone_bellows", &"cotton_bale_cannon"]},
 	{"name": "Tactical", "items": [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post"]},
 	{"name": "Air Defense", "items": [&"duck_gun", &"sky_sweeper", &"skeet_post", &"powder_flak", &"flak_porch", &"net_thrower", &"firework_battery"]},
 	{"name": "Last Resorts", "items": [&"scattergun_post", &"porch_repeater", &"tripwire_fence", &"buck_blaster", &"sharpshooter_tower", &"rooftop_cannon",
@@ -330,10 +336,14 @@ static func name_of(id: StringName) -> String:
 ## new turret's price, keeping its upgrade tier, scaffold level and health.
 ## Turret ammo: lines never cross tracks, a self-powered turret steps up to a
 ## self-powered one and a crop-fed one to one fed by the same crop.
+## Lines never change kind either (Logan): a cliff turret steps up to a cliff
+## turret, a last resort to a last resort, anti-air to anti-air, a house gun to a
+## house gun (kind_of). The Sharpshooter Tower, Firework Battery and Net Thrower
+## stand on their own.
 const TIER_UP: Dictionary = {
 	# Self-powered.
 	&"gatling_post": &"repeater_post", &"repeater_post": &"brass_gatling",
-	&"buffalo_rifle": &"sharpshooter_tower", &"sharpshooter_tower": &"long_tom_rifle",
+	&"buffalo_rifle": &"big_fifty", &"big_fifty": &"long_tom_rifle",
 	&"scattergun_post": &"buck_blaster", &"buck_blaster": &"grapeshot_turret",
 	&"porch_repeater": &"rooftop_cannon", &"rooftop_cannon": &"gatling_porch",
 	&"duck_gun": &"skeet_post", &"skeet_post": &"flak_porch",
@@ -341,14 +351,29 @@ const TIER_UP: Dictionary = {
 	# Crop-fed.
 	&"corn_hopper": &"twin_hopper", &"twin_hopper": &"hornets_nest",
 	&"chili_mortar": &"pepper_sprayer", &"pepper_sprayer": &"twin_mortar",
-	&"dynamite_lobber": &"sulfur_fume_vent", &"sulfur_fume_vent": &"firework_battery",
+	&"dynamite_lobber": &"sulfur_fume_vent", &"sulfur_fume_vent": &"brimstone_bellows",
 	&"water_cannon": &"steam_cannon", &"steam_cannon": &"flood_gate",
-	&"lasso_harpoon": &"bola_launcher", &"bola_launcher": &"net_thrower",
+	&"lasso_harpoon": &"bola_launcher", &"bola_launcher": &"cotton_bale_cannon",
 	&"herb_rifle": &"elephant_battery", &"elephant_battery": &"rail_spike_driver",
 	&"tripwire_fence": &"bramble_bomb", &"bramble_bomb": &"dust_devil_trap",
 }
 ## Stepping up costs this share of building the higher tier outright.
 const TIER_UP_RATE := 0.85
+
+
+## What a turret is for, which a step-up never changes: &"cliff" (shoots the
+## far wall), &"last_resort" (guards your own plateau), &"air" or &"house".
+static func kind_of(id: StringName) -> StringName:
+	var d := turret(id)
+	if d == null:
+		return &""
+	if d.anti_air:
+		return &"air"
+	if d.guards_house:
+		return &"house"
+	if d.guards_plateau:
+		return &"last_resort"
+	return &"cliff"
 
 
 ## The turret `id` steps up to, or &"".

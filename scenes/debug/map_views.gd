@@ -239,7 +239,7 @@ func _range_check() -> void:
 		var d := Defs.turret(id)
 		if d == null or d.guards_plateau or d.anti_air or Defs.is_house_turret(id):
 			continue
-		var head := float(TurretBuilder.build(id, Color.WHITE)["head_y"])
+		var head := TurretBuilder.head_y(id)
 		var worst := 1.0
 		var worst_at := ""
 		var sum := 0.0

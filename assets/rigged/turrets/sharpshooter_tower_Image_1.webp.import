@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://umt71enls2va"
-path="res://.godot/imported/sharpshooter_tower_Image_1.webp-1906e454ccfc7d0451f941bd5658c1ed.ctex"
+path.bptc="res://.godot/imported/sharpshooter_tower_Image_1.webp-1906e454ccfc7d0451f941bd5658c1ed.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "1a7a3c7ddda81d3e9e2e5f04ee9ec7b8"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/sharpshooter_tower_Image_1.webp"
-dest_files=["res://.godot/imported/sharpshooter_tower_Image_1.webp-1906e454ccfc7d0451f941bd5658c1ed.ctex"]
+dest_files=["res://.godot/imported/sharpshooter_tower_Image_1.webp-1906e454ccfc7d0451f941bd5658c1ed.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

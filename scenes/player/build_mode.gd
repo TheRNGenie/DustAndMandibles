@@ -30,6 +30,10 @@ var _ok := false
 var _grid: MultiMeshInstance3D
 var _coverage: CoveragePreview
 var _grid_t := 0.0
+var _grid_sig := 0
+var _grid_ms := 0
+var _hit: Dictionary = {}
+var _hit_frame := -1
 ## Additions: how covered the far wall already is, and the third-person build camera (Tab).
 var _heatmap: CoverageHeatmap
 var _build_cam: BuildCamera
@@ -221,6 +225,7 @@ func _select_id(id: StringName) -> void:
 		return
 	_picked = id
 	_grid_t = 0.0
+	_grid_sig = 0
 	_refresh_ghost_mesh()
 	changed.emit()
 
@@ -229,6 +234,7 @@ func _select(i: int) -> void:
 	selected = i
 	_picked = &""
 	_grid_t = 0.0
+	_grid_sig = 0
 	_refresh_ghost_mesh()
 	changed.emit()
 
@@ -253,6 +259,7 @@ func _set_active(on: bool) -> void:
 	_ghost.visible = on
 	_grid.visible = on
 	_grid_t = 0.0
+	_grid_sig = 0
 	changed.emit()
 
 
@@ -416,7 +423,16 @@ static func _description(id: StringName) -> String:
 	return Defs.structure(id).description
 
 
+## What the crosshair is on (one ray a frame: the HUD's sell hint asks again).
 func _aim_hit() -> Dictionary:
+	var f := Engine.get_process_frames()
+	if f != _hit_frame:
+		_hit_frame = f
+		_hit = _cast_aim()
+	return _hit
+
+
+func _cast_aim() -> Dictionary:
 	var cam := player.camera
 	var from := cam.global_position
 	var to := from - cam.global_transform.basis.z * REACH
@@ -485,9 +501,18 @@ func _rebuild_grid() -> void:
 	var aimed: Array[Vector2i] = []
 	if _cell.x >= 0:
 		aimed = Buildable.footprint(id, _cell)
-	var mm := _grid.multimesh
-	mm.instance_count = cells.size()
 	var bm := BuildManager.instance
+	# Nothing that colours the tiles changed (same item, same aimed cell, same
+	# builds): leave the grid as it is, refreshing at least once a second.
+	var sig := hash([id, _cell, _cliff, _ok, cells.size(), bm.get_child_count(), GameState.is_solo()])
+	var now := Time.get_ticks_msec()
+	if sig == _grid_sig and now - _grid_ms < 1000:
+		return
+	_grid_sig = sig
+	_grid_ms = now
+	var mm := _grid.multimesh
+	if mm.instance_count != cells.size(): # setting it reallocates the buffer
+		mm.instance_count = cells.size()
 	for i in cells.size():
 		var cid: int = cells[i][0]
 		var c: Vector2i = cells[i][1]

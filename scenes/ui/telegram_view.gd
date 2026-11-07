@@ -63,7 +63,7 @@ func open() -> void:
 	foot.add_child(close)
 	_was_captured = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	GameState.menu_open = true
+	GameState.set_menu(self, true)
 	_root.visible = true
 	UiStyle.fade_in(_root)
 
@@ -72,7 +72,7 @@ func close_view() -> void:
 	if not is_open():
 		return
 	UiStyle.fade_out(_root)
-	GameState.menu_open = false
+	GameState.set_menu(self, false)
 	if _was_captured:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 

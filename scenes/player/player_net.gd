@@ -15,6 +15,7 @@ var sync_weapon: StringName = &"revolver"
 ## Your outfit (DummyLook) as JSON, so the other player sees how you're dressed.
 var sync_look: String = ""
 var _applied_look := ""
+var _look_hash := 0
 
 @onready var player: Player = get_parent() as Player
 
@@ -31,7 +32,11 @@ func _physics_process(delta: float) -> void:
 		var g := player.gun
 		sync_weapon = g.def.id if (g.holding == &"" and g.def != null) else &""
 		player.rig.set_weapon(sync_weapon)
-		sync_look = JSON.stringify(player.bot_look if player.bot else Settings.look)
+		var look: Dictionary = player.bot_look if player.bot else Settings.look
+		var h := hash(look)
+		if h != _look_hash: # (only when the outfit changes, not every tick)
+			_look_hash = h
+			sync_look = JSON.stringify(look)
 	else:
 		player.rig.set_weapon(sync_weapon)
 	if sync_look != _applied_look and sync_look != "":
@@ -63,11 +68,24 @@ func server_damage(amount: float) -> void:
 		return
 	if player.is_multiplayer_authority():
 		player.vitals.apply_damage(amount)
-	else:
-		_take_damage.rpc_id(player.get_multiplayer_authority(), amount)
+		return
+	# A remote player: every chewing bug hits every tick, so add it up and send
+	# it 10 times a second, reliably (a dropped packet would drop the damage).
+	if _owed <= 0.0:
+		player.get_tree().create_timer(0.1, true).timeout.connect(_send_owed)
+	_owed += amount
 
 
-@rpc("any_peer", "call_remote", "unreliable")
+var _owed := 0.0
+
+
+func _send_owed() -> void:
+	if _owed > 0.0 and multiplayer.is_server() and is_instance_valid(player) and player.is_inside_tree():
+		_take_damage.rpc_id(player.get_multiplayer_authority(), _owed)
+	_owed = 0.0
+
+
+@rpc("any_peer", "call_remote", "reliable")
 func _take_damage(amount: float) -> void:
 	if multiplayer.get_remote_sender_id() == 1:
 		player.vitals.apply_damage(amount)
@@ -207,6 +225,8 @@ func fire(origin: Vector3, dir: Vector3) -> void:
 	var def := gun.def
 	if def.special == &"smoke":
 		_smoke_fx(muzzle, dir)
+	elif multiplayer.is_server():
+		pass # the host's own shot: _server_fire casts each pellet once and draws it too
 	else:
 		for d in Gun.shot_dirs(id, dir, seed_value, level):
 			var hit := gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, level))
@@ -218,7 +238,7 @@ func fire(origin: Vector3, dir: Vector3) -> void:
 			if def.special == &"harpoon":
 				_harpoon_self(hit)
 	if multiplayer.is_server():
-		_server_fire(origin, dir, id, level, seed_value)
+		_server_fire(origin, dir, id, level, seed_value, muzzle)
 	else:
 		_request_fire.rpc_id(1, origin, dir, id, level, seed_value)
 
@@ -236,12 +256,21 @@ func _request_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, se
 	var code := int(owned.get(id, 0))
 	if GameState.has_flag("--netlog"):
 		print("[host] %s shot from peer %d: host code %d (sender said %d), %.1f damage a pellet" % [String(id), multiplayer.get_remote_sender_id(), code, level, Gun.damage_for(id, code)])
-	_show_remote_shot(origin, dir, id, seed_value, code)
-	_server_fire(origin, dir, id, code, seed_value)
+	if Gun.weapon(id).special == &"smoke":
+		_show_remote_shot(origin, dir, id, seed_value, code)
+		_server_fire(origin, dir, id, code, seed_value)
+		return
+	# The host draws this client's shot from the same rays that deal its damage.
+	var def := Gun.weapon(id)
+	Gun.play_shot_sound(def, player.global_position + Vector3.UP * 1.4, -4.0, seed_value >> 1)
+	_server_fire(origin, dir, id, code, seed_value, null, _remote_muzzle())
+	player.flash_body()
 
 
 ## Host: applies damage for every pellet, then tells every other peer to draw the shot.
-func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, seed_value: int) -> void:
+## `muzzle` set: the host's own shot, drawn here as it's cast (no second ray);
+## `remote_muzzle` set: a client's shot, drawn the same way from their body.
+func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, seed_value: int, muzzle: Variant = null, remote_muzzle: Variant = null) -> void:
 	var def := Gun.weapon(id)
 	if def.special == &"smoke":
 		_server_smoke(origin, dir.normalized(), level)
@@ -250,6 +279,11 @@ func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, see
 	var salted: Array[Bug] = []
 	for d in Gun.shot_dirs(id, dir.normalized(), seed_value, level):
 		var hit := player.gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, level))
+		if muzzle is Vector3:
+			_draw_own_pellet(id, level, def, origin, d, hit, muzzle)
+		elif remote_muzzle is Vector3: # a client's shot, as the host sees it
+			player.gun.show_impact(hit, d)
+			player.gun.draw_tracer(id, remote_muzzle, hit["position"] if not hit.is_empty() else origin + d * Gun.range_for(id, level))
 		if hit.is_empty():
 			if def.special == &"flare":
 				# Into the open sky: it hangs there and sinks, lighting what's below.
@@ -272,6 +306,18 @@ func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, see
 	# Canyon Expeditions: gunshots carry (sleeping floor bugs hear them; the whip is quiet).
 	Expedition.make_noise(origin, ExpeditionRules.gun_noise(def.special, def.kickback, Gun.shot_dirs(id, dir.normalized(), seed_value, level).size()))
 	_fire_fx.rpc(origin, dir, id, seed_value, level)
+
+
+## One pellet of your own shot, as you see it: the impact, its number and the tracer.
+func _draw_own_pellet(id: StringName, level: int, def: WeaponDef, origin: Vector3, d: Vector3, hit: Dictionary, muzzle: Vector3) -> void:
+	var gun := player.gun
+	var dmg := Gun.damage_at(id, level, origin.distance_to(hit["position"])) if not hit.is_empty() else Gun.damage_for(id, level)
+	dmg *= _crit(def, hit)
+	gun.show_impact(hit, d, true, dmg)
+	var end: Vector3 = hit["position"] if not hit.is_empty() else origin + d * Gun.range_for(id, level)
+	gun.draw_tracer(id, muzzle, end)
+	if def.special == &"harpoon":
+		_harpoon_self(hit)
 
 
 ## Weak-spot crit multiplier of a hit for this gun (1 = none).
@@ -365,7 +411,7 @@ func _fire_fx(origin: Vector3, dir: Vector3, id: StringName, seed_value: int, co
 func _show_remote_shot(origin: Vector3, dir: Vector3, id: StringName, seed_value: int, code: int = 0) -> void:
 	var def := Gun.weapon(id)
 	Gun.play_shot_sound(def, player.global_position + Vector3.UP * 1.4, -4.0, seed_value >> 1)
-	var muzzle := player.global_position + Vector3.UP * 1.3 + player.global_transform.basis.x * 0.3
+	var muzzle := _remote_muzzle()
 	if def.special == &"smoke":
 		_smoke_fx(muzzle + dir.normalized() * 0.4, dir)
 		return
@@ -375,6 +421,11 @@ func _show_remote_shot(origin: Vector3, dir: Vector3, id: StringName, seed_value
 		var end: Vector3 = hit["position"] if not hit.is_empty() else origin + d * Gun.range_for(id, code)
 		player.gun.draw_tracer(id, muzzle, end)
 	player.flash_body()
+
+
+## Where another player's shots seem to leave from (their body, not a view model).
+func _remote_muzzle() -> Vector3:
+	return player.global_position + Vector3.UP * 1.3 + player.global_transform.basis.x * 0.3
 
 
 # ------------------------------------------------------------------ rocks

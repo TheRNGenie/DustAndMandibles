@@ -48,6 +48,8 @@ const MENU_MUSIC_DB := -8.0 # (as loud as the build theme)
 
 func _ready() -> void:
 	LoadTimes.begin("menu")
+	if not GameState.has_flag("--debug"): # (test screenshots keep the plain menu)
+		SceneFade.reveal() # first launch: black until the menu runs smoothly
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	GameState.reset()
 	WorldPreload.release() # (back from a game: it has let go of what it used)
@@ -548,7 +550,7 @@ func _on_solo() -> void:
 ## Solo or Co-op host: Story picks a chapter first; Endless goes to its lobby.
 func _start_mode() -> void:
 	if _mode == &"story":
-		_story.open()
+		_open_loading(_story)
 		return
 	RunSave.pending = {}
 	Story.chapter_id = ""
@@ -558,8 +560,22 @@ func _start_mode() -> void:
 # Perk: opens the Rancher's Ledger (perks, loadout, wardrobe items).
 func _ledger_button() -> Button:
 	var b := _button("Rancher's Ledger")
-	b.pressed.connect(func() -> void: _ledger.open())
+	b.pressed.connect(func() -> void: _open_loading(_ledger))
 	return b
+
+
+## The Story chapters and the Rancher's Ledger (with its dummy preview) build
+## themselves on their first open, a noticeable hitch: that first time they
+## open behind a quick fade to black (SceneFade.cover).
+var _opened := {}
+
+
+func _open_loading(screen: Object) -> void:
+	if _opened.has(screen):
+		screen.call("open")
+		return
+	_opened[screen] = true
+	SceneFade.cover(func() -> void: screen.call("open"))
 
 
 ## Tutorial: an offline solo game on the canyon (no lobby, no port, no CPU),

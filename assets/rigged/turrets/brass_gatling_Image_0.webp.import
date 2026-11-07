@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d3aix6fmrwveo"
-path="res://.godot/imported/brass_gatling_Image_0.webp-e70ed5e23fc2261938cbc1822b59b15f.ctex"
+path.bptc="res://.godot/imported/brass_gatling_Image_0.webp-e70ed5e23fc2261938cbc1822b59b15f.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "9735d33b1468ba7e2cd9ea68cdca0bf9"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/brass_gatling_Image_0.webp"
-dest_files=["res://.godot/imported/brass_gatling_Image_0.webp-e70ed5e23fc2261938cbc1822b59b15f.ctex"]
+dest_files=["res://.godot/imported/brass_gatling_Image_0.webp-e70ed5e23fc2261938cbc1822b59b15f.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

@@ -160,12 +160,24 @@ static func is_compatibility() -> bool:
 
 
 func apply() -> void:
+	_apply_display()
+	_apply_viewport()
+	_apply_shadows()
+	_apply_detail()
+	_apply_audio()
+	changed.emit()
+
+
+func _apply_display() -> void:
 	Engine.max_fps = fps_cap
 	if DisplayServer.get_name() != "headless":
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)
 		var mode := DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
 		if DisplayServer.window_get_mode() != mode:
 			DisplayServer.window_set_mode(mode)
+
+
+func _apply_viewport() -> void:
 	var vp := get_viewport()
 	vp.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X, Viewport.MSAA_8X][clampi(msaa, 0, 3)] as Viewport.MSAA
 	vp.scaling_3d_scale = render_scale
@@ -173,18 +185,44 @@ func apply() -> void:
 	# OpenGL renderer only has bilinear.
 	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if render_scale < 0.99 and not is_compatibility() else Viewport.SCALING_3D_MODE_BILINEAR
 	vp.mesh_lod_threshold = GraphicsQuality.LOD_THRESHOLD[GraphicsQuality.level(view_distance)]
+
+
+func _apply_shadows() -> void:
 	var sd := GraphicsQuality.level(shadow_detail)
 	RenderingServer.directional_shadow_atlas_set_size(GraphicsQuality.SHADOW_ATLAS[sd], true)
 	RenderingServer.directional_soft_shadow_filter_set_quality(GraphicsQuality.SHADOW_FILTER[sd] as RenderingServer.ShadowQuality)
+
+
+func _apply_detail() -> void:
 	BugManager.set_detail_level(GraphicsQuality.level(bug_detail))
 	Materials.set_terrain_detail(GraphicsQuality.level(effects)) # the rock shader's painted detail
 	InfestProps.set_detail(GraphicsQuality.level(effects)) # how many infestation props
+
+
+func _apply_audio() -> void:
 	_set_bus_volume("Master", master_volume)
 	_set_bus_volume("SFX", sfx_volume)
 	_set_bus_volume("Music", music_volume)
 	_set_bus_volume("Bugs", bug_volume)
 	_set_bus_volume("Weapons", weapon_volume)
 	_set_bus_volume("Voice", speech_volume)
+
+
+## Only the engine work one setting needs (a volume slider dragged across the
+## bar used to resize the shadow atlas and redo the bug detail every step).
+func _apply_key(key: String) -> void:
+	match key:
+		"fps_cap", "vsync", "fullscreen":
+			_apply_display()
+		"msaa", "render_scale", "view_distance":
+			_apply_viewport()
+		"shadow_detail":
+			_apply_shadows()
+		"bug_detail", "effects":
+			_apply_detail()
+		_:
+			if key.ends_with("_volume"):
+				_apply_audio()
 	changed.emit()
 
 
@@ -201,8 +239,27 @@ func set_value(key: String, value: Variant) -> void:
 	if GraphicsQuality.PRESET_KEYS.has(key):
 		quality = GraphicsQuality.matching_preset(_preset_values())
 		_session.erase("quality")
-	apply()
-	save_settings()
+	_apply_key(key)
+	_save_soon()
+
+
+var _save_pending := false
+
+
+## Sliders call set_value every step while dragged: write the file once they
+## settle instead of every step.
+func _save_soon() -> void:
+	if _save_pending:
+		return
+	_save_pending = true
+	get_tree().create_timer(0.4, true, false, true).timeout.connect(func() -> void:
+		if _save_pending:
+			save_settings())
+
+
+func _notification(what: int) -> void:
+	if (what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_PREDELETE) and _save_pending:
+		save_settings()
 
 
 ## Picks a graphics preset ("low", "medium", "high"), applies and saves it.
@@ -314,6 +371,7 @@ const SAVED_KEYS: Array[String] = ["mouse_sensitivity", "invert_y", "fov", "brig
 
 
 func save_settings() -> void:
+	_save_pending = false
 	var cfg := ConfigFile.new()
 	for key in SAVED_KEYS:
 		cfg.set_value("settings", key, _session[key] if _session.has(key) else get(key))

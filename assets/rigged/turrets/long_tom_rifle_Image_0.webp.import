@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cpntjnhc2ptkq"
-path="res://.godot/imported/long_tom_rifle_Image_0.webp-2269e5adaa1f1e0246a524080172fd68.ctex"
+path.bptc="res://.godot/imported/long_tom_rifle_Image_0.webp-2269e5adaa1f1e0246a524080172fd68.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "82ecf64263481076e8dd15a764f92a91"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/long_tom_rifle_Image_0.webp"
-dest_files=["res://.godot/imported/long_tom_rifle_Image_0.webp-2269e5adaa1f1e0246a524080172fd68.ctex"]
+dest_files=["res://.godot/imported/long_tom_rifle_Image_0.webp-2269e5adaa1f1e0246a524080172fd68.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

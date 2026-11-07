@@ -274,9 +274,16 @@ func _pick_target() -> Bug:
 	var cands: Array[Bug] = []
 	var scores: Array[float] = []
 	if def.guards_plateau or def.anti_air:
-		for n: Node in bug_manager.get_children():
-			var g := n as Bug
-			if g == null or not _valid_cheap(g, muzzle, seen, pitch, max_range):
+		# Only bugs that can pass the rules: those over a lip or flying, plus the
+		# climbers an anti-air gun may turn on (ground_mult).
+		var pool: Array[Bug] = bug_manager.topside_bugs()
+		if def.anti_air and def.ground_mult > 0.0:
+			pool = pool.duplicate()
+			for c in WorldLayout.cliff_count():
+				if Targeting.cliff_allows(cliff_id, c, true, covers):
+					pool.append_array(bug_manager.climbers_on(c))
+		for g in pool:
+			if not _valid_cheap(g, muzzle, seen, pitch, max_range):
 				continue
 			cands.append(g)
 			# (Anti-air that also takes climbers: any flier before any climber.)
@@ -332,13 +339,18 @@ func _valid_cheap(b: Bug, muzzle: Vector3, seen: float, pitch: float, max_range:
 				return false
 	elif not Targeting.cliff_allows(cliff_id, b.cliff_id, b.is_climbing(), covers) 			and not Targeting.floor_allows(b.floor_bug, b.state == Bug.State.CROSSING or b.state == Bug.State.BURROWED): # Canyon Expeditions
 		return false
-	if seen < 1.0 and _lit_near(b.global_position):
-		seen = 1.0 # a lantern or a lit lighter shows this bug through the murk
-	if def.anti_air or def.guards_plateau:
-		return Targeting.in_arc(muzzle, b.global_position, pitch, max_range * seen)
-	if _aim == Vector3.ZERO:
-		_aim = Targeting.wall_aim(Bug.cliffs, covers, muzzle)
-	return Targeting.in_arc(muzzle, b.global_position, pitch, max_range * seen, _aim, Targeting.AIM_HALF_DEG)
+	# The arc first (cheap); the lantern scan only for a bug the murk hides.
+	var aim := Vector3.ZERO
+	var half := 180.0
+	if not (def.anti_air or def.guards_plateau):
+		if _aim == Vector3.ZERO:
+			_aim = Targeting.wall_aim(Bug.cliffs, covers, muzzle)
+		aim = _aim
+		half = Targeting.AIM_HALF_DEG
+	if Targeting.in_arc(muzzle, b.global_position, pitch, max_range * seen, aim, half):
+		return true
+	# A lantern or a lit lighter shows this bug through the murk.
+	return seen < 1.0 and Targeting.in_arc(muzzle, b.global_position, pitch, max_range, aim, half) and _lit_near(b.global_position)
 
 
 ## Line of sight from the muzzle to the bug (rock and buildings block it).
@@ -374,19 +386,38 @@ func weather_range() -> float:
 	var w := GameState.weather
 	if w != Weather.Kind.FOG and w != Weather.Kind.DUST_STORM:
 		return Weather.turret_range(w)
-	for l: Node in get_tree().get_nodes_in_group("lanterns"):
-		if (l as Node3D).global_position.distance_to(global_position) < Weather.LANTERN_FOG_RADIUS:
+	for l: Array in _lights():
+		if (l[0] as Vector3).distance_to(global_position) < Weather.LANTERN_FOG_RADIUS:
 			return Weather.turret_range(w, true)
 	return Weather.turret_range(w)
 
 
 ## Is `pos` lit by a lantern post or someone's lit Zippo?
 func _lit_near(pos: Vector3) -> bool:
-	for l: Node in get_tree().get_nodes_in_group("lanterns"):
-		var n := l as Node3D
-		if n.global_position.distance_to(pos) < float(n.call("reveal_radius")):
+	for l: Array in _lights():
+		if (l[0] as Vector3).distance_to(pos) < float(l[1]):
 			return true
 	return false
+
+
+## Every lantern and lit lighter as [position, reveal radius], gathered once a
+## tick for all the turrets.
+static var _lights_list: Array = []
+static var _lights_tick := -1
+static var _lights_frame := -1
+
+
+func _lights() -> Array:
+	var pf := Engine.get_physics_frames()
+	var f := Engine.get_process_frames()
+	if pf != _lights_tick or f != _lights_frame:
+		_lights_tick = pf
+		_lights_frame = f
+		_lights_list.clear()
+		for l: Node in get_tree().get_nodes_in_group("lanterns"):
+			var n := l as Node3D
+			_lights_list.append([n.global_position, float(n.call("reveal_radius"))])
+	return _lights_list
 
 
 ## Range from the upgrade tier and the scaffold level it stands on.
@@ -609,7 +640,7 @@ func _show_tier() -> void:
 		_brass.queue_free()
 		_brass = null
 	_gun_mi.scale = Vector3.ONE * (1.15 if tier >= 2 else 1.0)
-	health.max_hp = def.hp_at(tier) # max_hp isn't replicated; tier is
+	health.max_hp = def.hp_at(tier) * perk_hp # max_hp isn't replicated; tier is (Perk: Reinforced Frames)
 	if tier <= 0:
 		return
 	var st := MeshKit.begin()

@@ -476,6 +476,14 @@
         "Bosses shake it off after a second."
       ]
     },
+    "cotton_bale_cannon": {
+      "lore": "A stubby cannon that fires a whole roped cotton bale. It bursts on the wall into a mat of rope and lint that holds four climbers where they cling.",
+      "tips": [
+        "Crop-fed: it fires only after you load it with a cotton load (E), and the load lasts one wave.",
+        "Steps up from a Bola Launcher (Y): tangles four bugs at once and holds them longer.",
+        "Almost no damage. Bosses shake it off after a second."
+      ]
+    },
     "amber_kiln": {
       "lore": "A squat brick furnace mortar from the railroad's own smelting sheds, fed hive amber instead of coal. It lobs gobbets of molten resin that set harder than iron in seconds: anything it leaves below half health is sealed on the wall as an amber statue.",
       "tips": [
@@ -518,6 +526,14 @@
       "lore": "An absurdly long rifle on an iron tripod with a brass telescope. The longest reach in the canyon.",
       "tips": [
         "Self-powered: it fires every wave without any crop."
+      ]
+    },
+    "big_fifty": {
+      "lore": "A heavy .50 buffalo gun on a timber crutch with a buckhorn sight. Bigger slugs and a longer reach than the Buffalo Rifle, the step between it and the Long Tom.",
+      "tips": [
+        "Self-powered: it fires every wave without any crop.",
+        "Steps up from a Buffalo Rifle (Y) and on to a Long Tom Rifle.",
+        "Best on big and armoured bugs."
       ]
     },
     "buck_blaster": {
@@ -566,6 +582,14 @@
       "lore": "A chimney burning sulfur root. Rolls a toxic yellow cloud over the lip of the far wall.",
       "tips": [
         "Crop-fed: it fires only after you load it with a sulfur root load (E), and the load lasts one wave."
+      ]
+    },
+    "brimstone_bellows": {
+      "lore": "A brick firebox and a great leather bellows. Every pump drives a long plume of burning sulfur far down the far wall.",
+      "tips": [
+        "Crop-fed: it fires only after you load it with a sulfur root load (E), and the load lasts one wave.",
+        "Steps up from a Sulfur Fume Vent (Y): a wider, longer-lasting cloud.",
+        "Little punch on armour: pair it with a rifle."
       ]
     },
     "herb_rifle": {

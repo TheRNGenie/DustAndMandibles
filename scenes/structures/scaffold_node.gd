@@ -69,6 +69,7 @@ func setup(cid: int, c: Vector2i, pos: Vector3) -> void:
 
 
 func _ready() -> void:
+	add_to_group("scaffolds") # story "keep" chapters count these
 	Materials.paint_live(self, Materials.RUSTIC, Materials.MAP_TIMBER) # painted wood, iron, rock (assets/rustic)
 	_rebuild()
 

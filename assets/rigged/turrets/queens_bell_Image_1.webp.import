@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b77xgbxttmmv0"
-path="res://.godot/imported/queens_bell_Image_1.webp-4f4d367d74dc2e876a779aba700cd409.ctex"
+path.bptc="res://.godot/imported/queens_bell_Image_1.webp-4f4d367d74dc2e876a779aba700cd409.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "efd14b7c2a613083352cf9f57d6f7007"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/queens_bell_Image_1.webp"
-dest_files=["res://.godot/imported/queens_bell_Image_1.webp-4f4d367d74dc2e876a779aba700cd409.ctex"]
+dest_files=["res://.godot/imported/queens_bell_Image_1.webp-4f4d367d74dc2e876a779aba700cd409.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

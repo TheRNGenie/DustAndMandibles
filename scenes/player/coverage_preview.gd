@@ -67,7 +67,7 @@ func show_for(id: StringName, cid: int, base: Vector3, level: int, ok: bool) -> 
 		_ring(base, def.range if not def.anti_air else minf(def.range, 60.0))
 		return
 	if not _head_y.has(id):
-		_head_y[id] = float(TurretBuilder.build(id, Color.WHITE)["head_y"])
+		_head_y[id] = TurretBuilder.head_y(id)
 	var muzzle := base + Vector3(0, float(_head_y[id]), 0)
 	var pitch := def.pitch_limit_deg + Turret.look_down_bonus(level)
 	_far_patch(cid, muzzle, pitch, def.range_at(0, level))

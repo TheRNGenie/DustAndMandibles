@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b26c5tvekrmiv"
-path="res://.godot/imported/flood_gate_Image_1.webp-ecb313c8c084d24f0557466c92658687.ctex"
+path.bptc="res://.godot/imported/flood_gate_Image_1.webp-ecb313c8c084d24f0557466c92658687.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "6891d169962944e0641df2510f365b50"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/flood_gate_Image_1.webp"
-dest_files=["res://.godot/imported/flood_gate_Image_1.webp-ecb313c8c084d24f0557466c92658687.ctex"]
+dest_files=["res://.godot/imported/flood_gate_Image_1.webp-ecb313c8c084d24f0557466c92658687.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

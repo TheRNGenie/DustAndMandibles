@@ -132,6 +132,14 @@ static func normalize(raw: Dictionary) -> Dictionary:
 			guns[int(str(key))] = _amounts(raw_guns[key])
 	out["perks"] = perks
 	out["guns"] = guns
+	# The bullwhip and the Powder Satchel: cliff -> WeaponMods code (older saves: none).
+	for field: String in ["whips", "dynamite"]:
+		var codes := {}
+		var raw_codes: Dictionary = raw.get(field, {}) if raw.get(field) is Dictionary else {}
+		for key: Variant in raw_codes:
+			if str(key).is_valid_int() and (raw_codes[key] is float or raw_codes[key] is int):
+				codes[int(str(key))] = int(raw_codes[key])
+		out[field] = codes
 	var seen: Array = []
 	for id: Variant in (raw.get("bosses_seen", []) if raw.get("bosses_seen") is Array else []):
 		if (id is String or id is StringName) and str(id) != "":

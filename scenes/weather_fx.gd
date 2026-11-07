@@ -76,10 +76,12 @@ func _process(delta: float) -> void:
 			p.global_position = above
 		_dust.global_position = cam.global_position + Vector3(0, 2, -wind_sign() * 18.0)
 	_rain.emitting = Weather.is_rain(w)
-	_rain.amount = 2600 if w == Weather.Kind.THUNDERSTORM else 1400
 	_snow.emitting = w == Weather.Kind.SNOW
 	_dust.emitting = w == Weather.Kind.WINDY or w == Weather.Kind.DUST_STORM
-	_dust.amount = 1600 if w == Weather.Kind.DUST_STORM else 500
+	# Setting a CPUParticles3D's amount clears every live particle and
+	# reallocates its buffer (even to the same value): only when it changes.
+	_set_amount(_rain, 2600 if w == Weather.Kind.THUNDERSTORM else 1400)
+	_set_amount(_dust, 1600 if w == Weather.Kind.DUST_STORM else 500)
 	_dust.gravity = Vector3(0, -0.3, wind_sign() * 26.0)
 	_snow.gravity = Vector3(0, -2.2, wind_sign() * (0.8 if w != Weather.Kind.WINDY else 4.0))
 	if w == Weather.Kind.WINDY or w == Weather.Kind.DUST_STORM:
@@ -89,6 +91,11 @@ func _process(delta: float) -> void:
 		if _bolt_t <= 0.0:
 			_bolt_t = _next_bolt()
 			_strike()
+
+
+static func _set_amount(p: CPUParticles3D, n: int) -> void:
+	if p.amount != n:
+		p.amount = n
 
 
 func _next_bolt() -> float:

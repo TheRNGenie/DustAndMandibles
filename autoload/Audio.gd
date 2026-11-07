@@ -57,6 +57,8 @@ const ECHO_SOUNDS: Array[StringName] = [&"revolver", &"gatling_1", &"gatling_2",
 	&"dynamite", &"lever_rifle", &"shotgun", &"repeater", &"sharpshooter", &"scattergun", &"blunderbuss",
 	&"mortar", &"lobber", &"cannon", &"thunder"]
 const ECHO_MIN_DIST := AmbienceMix.ECHO_MIN_DIST
+## Positional one-shots are silent past this many metres.
+const MAX_DIST_3D := 160.0
 ## Settings > Audio has its own sliders for bugs, weapons and speech: those sounds
 ## play on their own buses (made in _make_buses, beside SFX, each feeding Master).
 const BUG_SOUNDS: Array[StringName] = [&"skitter", &"beetle_hiss", &"spider_screech", &"bug_pop", &"acid_spit",
@@ -121,7 +123,7 @@ func _ready() -> void:
 		var p := AudioStreamPlayer3D.new()
 		p.bus = sfx_bus
 		p.unit_size = 12.0
-		p.max_distance = 160.0
+		p.max_distance = MAX_DIST_3D
 		p.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
 		add_child(p)
 		_players_3d.append(p)
@@ -298,6 +300,13 @@ func play_at(sound: StringName, pos: Vector3, volume_db: float = 0.0, pitch: flo
 		return
 	if _log:
 		print("[audio] %s at %s %.0f dB" % [sound, str(pos.snapped(Vector3.ONE * 0.1)), volume_db])
+	# Past the 3D players' cut-off it would be silent anyway: don't steal a voice
+	# from a nearby sound for it (the wall echo below still answers far shots).
+	var cam := get_viewport().get_camera_3d()
+	if cam != null and cam.global_position.distance_squared_to(pos) > MAX_DIST_3D * MAX_DIST_3D:
+		if sound in ECHO_SOUNDS:
+			_echo(sound, pos, volume_db, randf_range(1.0 - PITCH_VARIATION, 1.0 + PITCH_VARIATION) * pitch)
+		return
 	var p := _players_3d[_next_3d]
 	_next_3d = (_next_3d + 1) % _players_3d.size()
 	p.stream = _pick(sound)

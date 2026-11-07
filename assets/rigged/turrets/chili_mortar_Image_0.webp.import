@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dubw20l78tvoj"
-path="res://.godot/imported/chili_mortar_Image_0.webp-e4ca54459c7af36503c81064f74b264a.ctex"
+path.bptc="res://.godot/imported/chili_mortar_Image_0.webp-e4ca54459c7af36503c81064f74b264a.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "0d0826202888de6fdc0498a9fca70117"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/chili_mortar_Image_0.webp"
-dest_files=["res://.godot/imported/chili_mortar_Image_0.webp-e4ca54459c7af36503c81064f74b264a.ctex"]
+dest_files=["res://.godot/imported/chili_mortar_Image_0.webp-e4ca54459c7af36503c81064f74b264a.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

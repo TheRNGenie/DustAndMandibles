@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bj3eadaaijb4e"
-path="res://.godot/imported/lasso_harpoon_Image_1.webp-6fa8f57a50b286b256994e1c56eafe9f.ctex"
+path.bptc="res://.godot/imported/lasso_harpoon_Image_1.webp-6fa8f57a50b286b256994e1c56eafe9f.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "7e7e3cf6b118910fb7a8c7c3ec4fbdad"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/lasso_harpoon_Image_1.webp"
-dest_files=["res://.godot/imported/lasso_harpoon_Image_1.webp-6fa8f57a50b286b256994e1c56eafe9f.ctex"]
+dest_files=["res://.godot/imported/lasso_harpoon_Image_1.webp-6fa8f57a50b286b256994e1c56eafe9f.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

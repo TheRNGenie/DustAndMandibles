@@ -66,6 +66,7 @@ var _label: Label3D
 
 func setup(cid: int) -> void:
 	cliff_id = cid
+	add_to_group("gun_shops")
 	collision_layer = WorldLayout.LAYER_STRUCTURE
 	var mi := MeshInstance3D.new()
 	mi.mesh = ShopBuilder.gun_stall()
@@ -416,6 +417,15 @@ func _buy_dynamite(peer_id: int, kind: String, slot: int) -> void:
 	else:
 		Economy.notify(peer_id, "A Powder Satchel on your belt and a match strip on the launcher. Grapple out (%s), then R, R." % KeyHints.key_for("select_10"))
 	_sold.rpc()
+
+
+## Host, resuming a saved run: hand `peer_id` back the whip it saved with.
+func restore_whip(peer_id: int, c: int) -> void:
+	whips[peer_id] = c
+	if peer_id == multiplayer.get_unique_id():
+		_set_whip(c)
+	else:
+		_set_whip.rpc_id(peer_id, c)
 
 
 @rpc("authority", "reliable")

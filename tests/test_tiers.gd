@@ -20,10 +20,10 @@ func test_tier_chart() -> void:
 		0: [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar", &"dynamite_lobber", &"lasso_harpoon",
 				&"duck_gun", &"sky_sweeper", &"scattergun_post", &"porch_repeater", &"corn_hopper", &"herb_rifle", &"tripwire_fence"],
 		1: [&"twin_gatling", &"elephant_battery", &"powder_flak", &"sharpshooter_tower", &"repeater_post", &"buck_blaster",
-				&"skeet_post", &"twin_hopper", &"pepper_sprayer", &"sulfur_fume_vent", &"bramble_bomb"],
+				&"skeet_post", &"twin_hopper", &"pepper_sprayer", &"sulfur_fume_vent", &"bramble_bomb", &"big_fifty"],
 		2: [&"hornets_nest", &"rail_spike_driver", &"thunder_mule", &"whaler", &"firework_battery", &"sky_hound", &"gatling_porch",
 				&"net_thrower", &"twin_mortar", &"brass_gatling", &"long_tom_rifle", &"grapeshot_turret", &"flak_porch",
-				&"dust_devil_trap", &"siege_mortar"],
+				&"dust_devil_trap", &"siege_mortar", &"brimstone_bellows", &"cotton_bale_cannon"],
 	}
 	for t: int in chart:
 		for id: StringName in chart[t]:
@@ -158,6 +158,59 @@ func test_tier_up_chains_go_up_one_tier_in_the_same_family() -> void:
 		assert_true(next != &"", "%s steps up to a real turret" % id)
 		assert_eq(Defs.tier_of(next), Defs.tier_of(id) + 1, "%s -> %s is one tier up" % [id, next])
 		assert_false(Defs.is_crewed(next), "%s steps up to a 1x1 turret" % id)
+
+
+## Logan: a turret never changes kind when it steps up. Cliff stays cliff, a
+## last resort stays a last resort, anti-air stays anti-air, house stays house.
+func test_tier_up_never_changes_the_turret_kind() -> void:
+	for id: StringName in Defs.TIER_UP:
+		var next := Defs.tier_up_of(id)
+		assert_eq(Defs.kind_of(next), Defs.kind_of(id), "%s -> %s keeps its kind" % [id, next])
+		var a := Defs.turret(id)
+		var b := Defs.turret(next)
+		assert_eq(b.guards_plateau, a.guards_plateau, "%s -> %s plateau guard" % [id, next])
+		assert_eq(b.guards_house, a.guards_house, "%s -> %s house gun" % [id, next])
+		assert_eq(b.anti_air, a.anti_air, "%s -> %s anti-air" % [id, next])
+	assert_eq(Defs.kind_of(&"buffalo_rifle"), &"cliff")
+	assert_eq(Defs.kind_of(&"sharpshooter_tower"), &"last_resort")
+	assert_eq(Defs.kind_of(&"net_thrower"), &"air")
+	assert_eq(Defs.kind_of(&"rooftop_cannon"), &"house")
+	assert_eq(Defs.tier_up_of(&"buffalo_rifle"), &"big_fifty")
+	assert_eq(Defs.tier_up_of(&"big_fifty"), &"long_tom_rifle")
+	assert_eq(Defs.tier_up_of(&"sulfur_fume_vent"), &"brimstone_bellows")
+	assert_eq(Defs.tier_up_of(&"bola_launcher"), &"cotton_bale_cannon")
+	# The turrets the lines used to cross into still stand on their own.
+	for id: StringName in [&"sharpshooter_tower", &"firework_battery", &"net_thrower"]:
+		assert_true(Defs.TURRETS.has(id) and Defs.BUILD_ORDER.has(id), "%s still buildable" % id)
+		assert_false(Defs.TIER_UP.values().has(id), "nothing steps up into %s" % id)
+
+
+## The three turrets that close those lines: registered, modelled, in the guide.
+func test_line_turrets_are_complete() -> void:
+	var guide: Dictionary = (JSON.parse_string(FileAccess.get_file_as_string("res://data/field_guide.json")) as Dictionary)["turrets"]
+	for id: StringName in [&"big_fifty", &"brimstone_bellows", &"cotton_bale_cannon"]:
+		assert_true(Defs.BUILD_ORDER.has(id), "%s in BUILD_ORDER" % id)
+		var listed := false
+		for cat: Dictionary in Defs.BUILD_CATEGORIES:
+			listed = listed or (cat["items"] as Array).has(id)
+		assert_true(listed, "%s in a build tab" % id)
+		assert_true(TierBuilder.has(id), "%s has its own model" % id)
+		assert_true(guide.has(String(id)) and str(guide[String(id)].get("lore", "")) != "", "%s has a field guide entry" % id)
+		var p := TurretBuilder.build(id, Color.RED)
+		for k: String in ["base", "head", "gun", "muzzle", "head_y", "gun_y"]:
+			assert_true(p.has(k), "%s model has %s" % [id, k])
+		assert_true((p["gun"] as ArrayMesh).get_surface_count() > 0, "%s gun has geometry" % id)
+	assert_eq(KillMethod.classify("Logan's Big Fifty"), KillMethod.BULLET)
+	assert_eq(KillMethod.classify("Logan's Brimstone Bellows"), KillMethod.FIRE)
+	assert_eq(KillMethod.classify("Logan's Cotton Bale Cannon"), KillMethod.TRAP)
+	assert_eq(Defs.turret(&"cotton_bale_cannon").special, &"bola")
+	assert_true(Defs.turret(&"cotton_bale_cannon").special_count > Defs.turret(&"bola_launcher").special_count, "holds more climbers than the Bola Launcher")
+	# Each step is a real step: more damage per second than the turret before it.
+	var dps := func(id: StringName) -> float:
+		var d := Defs.turret(id)
+		return d.damage * d.hit_chance / d.fire_interval
+	assert_true(dps.call(&"big_fifty") > dps.call(&"buffalo_rifle") and dps.call(&"big_fifty") < dps.call(&"long_tom_rifle"))
+	assert_true(dps.call(&"brimstone_bellows") > dps.call(&"sulfur_fume_vent"))
 
 
 func test_tier_up_is_a_bit_cheaper_than_building_new() -> void:

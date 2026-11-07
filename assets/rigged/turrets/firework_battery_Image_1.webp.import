@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://tu8kq5ldkb7e"
-path="res://.godot/imported/firework_battery_Image_1.webp-20a007d7af7ac793607c705e8555b2dd.ctex"
+path.bptc="res://.godot/imported/firework_battery_Image_1.webp-20a007d7af7ac793607c705e8555b2dd.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "9bdceac7eb5c7a4731c2455f088b8559"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/firework_battery_Image_1.webp"
-dest_files=["res://.godot/imported/firework_battery_Image_1.webp-20a007d7af7ac793607c705e8555b2dd.ctex"]
+dest_files=["res://.godot/imported/firework_battery_Image_1.webp-20a007d7af7ac793607c705e8555b2dd.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

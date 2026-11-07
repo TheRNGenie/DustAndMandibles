@@ -274,7 +274,22 @@ func _notice(text: String) -> void:
 	notice.emit(text)
 
 
+## The ledger changed: tell everyone once, at the end of this frame, however
+## many kills and purchases changed it in between (one RPC, one signal per cliff).
 func _push() -> void:
+	if _dirty:
+		return
+	_dirty = true
+	_flush.call_deferred()
+
+
+var _dirty := false
+
+
+func _flush() -> void:
+	if not _dirty:
+		return
+	_dirty = false
 	if multiplayer.is_server() and NetworkManager.is_online():
 		_sync.rpc(ledger.stock, cpu_mode)
 	for cid in ledger.cliff_ids():

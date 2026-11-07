@@ -1006,7 +1006,7 @@ func to_menu() -> void:
 	GameState.god_mode = false
 	NetworkManager.leave()
 	GameState.reset()
-	get_tree().change_scene_to_file(NetworkManager.MENU_SCENE)
+	SceneFade.go(NetworkManager.MENU_SCENE)
 
 
 ## Keep Playing: the waves carry on as a normal run (still never saved, no
@@ -1019,7 +1019,9 @@ func keep_playing() -> void:
 	# other cliff (spending at most 20% of the pot), waves until the homestead falls.
 	var gift := {}
 	for r: StringName in EconomyLedger.RESOURCES:
-		gift[r] = KEEP_PLAYING_GIFT
+		# Turret ammo sacks only up to what the cliff has room for: past the cap
+		# no crop could ever be harvested again (AmmoStore.can_harvest).
+		gift[r] = AmmoStore.room(me, r) if String(r).ends_with("_load") else KEEP_PLAYING_GIFT
 	Economy.earn(me, gift)
 	# ...and every item unlocked for the rest of the run: all turret tiers, Lucky's
 	# stall, and the amber blueprints.

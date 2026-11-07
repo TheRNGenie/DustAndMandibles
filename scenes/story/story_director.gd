@@ -899,8 +899,7 @@ func count_keep() -> int:
 	var cliffs := _held_cliffs()
 	match chapter.keep_thing():
 		"storeys":
-			var bm := BuildManager.instance
-			return count_storeys(bm.find_children("*", "", true, false) if bm != null else [], cliffs)
+			return count_storeys(get_tree().get_nodes_in_group("scaffolds"), cliffs)
 		"lanterns":
 			return count_lanterns(get_tree().get_nodes_in_group("lanterns"), cliffs)
 	return 0

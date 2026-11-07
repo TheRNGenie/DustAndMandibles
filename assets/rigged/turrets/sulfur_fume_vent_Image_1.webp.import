@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dtxelbql2sby2"
-path="res://.godot/imported/sulfur_fume_vent_Image_1.webp-a2e749dbe1618cd55bc6c7782e1a4758.ctex"
+path.bptc="res://.godot/imported/sulfur_fume_vent_Image_1.webp-a2e749dbe1618cd55bc6c7782e1a4758.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "a3a90789718b0998f9feb1d91a7674da"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/sulfur_fume_vent_Image_1.webp"
-dest_files=["res://.godot/imported/sulfur_fume_vent_Image_1.webp-a2e749dbe1618cd55bc6c7782e1a4758.ctex"]
+dest_files=["res://.godot/imported/sulfur_fume_vent_Image_1.webp-a2e749dbe1618cd55bc6c7782e1a4758.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

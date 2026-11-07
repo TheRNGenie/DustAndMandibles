@@ -35,6 +35,7 @@ func _ready() -> void:
 		_pops.append(_make_chunks())
 		_pop_stars.append(_make_emitter(Color.WHITE, 3, 0.25, Vector2(0.0, 0.5), 1.6, 2.5))
 	instance = self
+	SpecialShotFx.reset() # (its materials belong to this world's night dimming now)
 	_ready_extras()
 
 
@@ -106,17 +107,29 @@ func tracer(from: Vector3, to: Vector3, color: Color = Palette.GLOW_YELLOW, widt
 		m.albedo_color = color * 2.0
 		_tracer_mats[key] = m
 	var mi := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(width, width, length)
-	box.material = _tracer_mats[key]
-	mi.mesh = box
+	mi.mesh = _unit_box(_tracer_mats[key])
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 	var up := Vector3.UP if absf((to - from).normalized().dot(Vector3.UP)) < 0.95 else Vector3.RIGHT
-	mi.global_transform = Transform3D(Basis.looking_at(to - from, up), (from + to) * 0.5)
+	var size := Vector3(width, width, length)
+	mi.global_transform = Transform3D(Basis.looking_at(to - from, up) * Basis.from_scale(size), (from + to) * 0.5)
 	var tw := mi.create_tween()
-	tw.tween_property(mi, "scale", Vector3(0.1, 0.1, 1.0), 0.1)
+	tw.tween_property(mi, "scale", size * Vector3(0.1, 0.1, 1.0), 0.1)
 	tw.tween_callback(mi.queue_free)
+
+
+## One 1 m box per material, shared by every streak (each node scales it to size).
+var _unit_boxes: Dictionary = {}
+
+
+func _unit_box(mat: Material) -> BoxMesh:
+	var b: BoxMesh = _unit_boxes.get(mat)
+	if b == null:
+		b = BoxMesh.new()
+		b.size = Vector3.ONE
+		b.material = mat
+		_unit_boxes[mat] = b
+	return b
 
 
 ## A stylized bullet for player shots: a white-hot core inside a coloured glow
@@ -146,15 +159,13 @@ func bullet_streak(from: Vector3, to: Vector3, color: Color, width: float, speed
 	var basis := Basis.looking_at(dir, up)
 	# The fading trail along the whole path.
 	var trail := MeshInstance3D.new()
-	var tb := BoxMesh.new()
-	tb.size = Vector3(width * 0.6, width * 0.6, length)
-	tb.material = _streak_mat(color, 0.55)
-	trail.mesh = tb
+	var tsize := Vector3(width * 0.6, width * 0.6, length)
+	trail.mesh = _unit_box(_streak_mat(color, 0.55))
 	trail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(trail)
-	trail.global_transform = Transform3D(basis, (from + to) * 0.5)
+	trail.global_transform = Transform3D(basis * Basis.from_scale(tsize), (from + to) * 0.5)
 	var tt := trail.create_tween()
-	tt.tween_property(trail, "scale", Vector3(0.05, 0.05, 1.0), 0.28).set_ease(Tween.EASE_IN)
+	tt.tween_property(trail, "scale", tsize * Vector3(0.05, 0.05, 1.0), 0.28).set_ease(Tween.EASE_IN)
 	tt.tween_callback(trail.queue_free)
 	# The bolt itself: a glow sheath around a hot core, flying down the path.
 	var bolt_len := clampf(length * 0.3, 0.6, 3.0)
@@ -162,10 +173,8 @@ func bullet_streak(from: Vector3, to: Vector3, color: Color, width: float, speed
 	add_child(bolt)
 	for layer: Array in [[width * 2.6, color, 0.7], [width, Color(1.0, 0.97, 0.85), 1.0]]:
 		var mi := MeshInstance3D.new()
-		var b := BoxMesh.new()
-		b.size = Vector3(float(layer[0]), float(layer[0]), bolt_len)
-		b.material = _streak_mat(layer[1], float(layer[2]))
-		mi.mesh = b
+		mi.mesh = _unit_box(_streak_mat(layer[1], float(layer[2])))
+		mi.scale = Vector3(float(layer[0]), float(layer[0]), bolt_len)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		bolt.add_child(mi)
 	var start := from + dir * bolt_len * 0.5
@@ -182,12 +191,18 @@ func acid_blob(from: Vector3, to: Vector3, flight: float) -> void:
 	lob(from, to, flight, Palette.ACID_GREEN)
 
 
+var _lob_meshes: Dictionary = {}
+
+
 ## A lobbed shot (acid, chili, dynamite) arcing to its target.
 func lob(from: Vector3, to: Vector3, flight: float, color: Color) -> void:
 	var mi := MeshInstance3D.new()
-	var st := MeshKit.begin()
-	MeshKit.add_ellipsoid(st, Transform3D(), Vector3.ONE * 0.35, 5, 8, color, 0.0, null, 0.6)
-	mi.mesh = MeshKit.finish(st)
+	var key := color.to_html()
+	if not _lob_meshes.has(key): # (one glob mesh per colour, shared)
+		var st := MeshKit.begin()
+		MeshKit.add_ellipsoid(st, Transform3D(), Vector3.ONE * 0.35, 5, 8, color, 0.0, null, 0.6)
+		_lob_meshes[key] = MeshKit.finish(st)
+	mi.mesh = _lob_meshes[key]
 	mi.material_override = Materials.toon(0.02)
 	add_child(mi)
 	mi.global_position = from

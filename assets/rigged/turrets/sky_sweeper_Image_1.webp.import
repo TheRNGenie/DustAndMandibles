@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dtfth5w576xn6"
-path="res://.godot/imported/sky_sweeper_Image_1.webp-756edb41ba44e61c501b9b73e8961918.ctex"
+path.bptc="res://.godot/imported/sky_sweeper_Image_1.webp-756edb41ba44e61c501b9b73e8961918.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "c35cace09f0f1a145a7f6a5c5cccea0c"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/sky_sweeper_Image_1.webp"
-dest_files=["res://.godot/imported/sky_sweeper_Image_1.webp-756edb41ba44e61c501b9b73e8961918.ctex"]
+dest_files=["res://.godot/imported/sky_sweeper_Image_1.webp-756edb41ba44e61c501b9b73e8961918.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

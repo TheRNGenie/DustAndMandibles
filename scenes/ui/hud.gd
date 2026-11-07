@@ -288,7 +288,7 @@ func _update_phase_label() -> void:
 	if GameState.phase == GameState.Phase.LOBBY:
 		_phase_label.text = title
 	elif GameState.phase == GameState.Phase.WAVE:
-		var left := get_tree().get_nodes_in_group("bugs").size()
+		var left := BugManager.instance.alive_count() if is_instance_valid(BugManager.instance) else get_tree().get_nodes_in_group("bugs").size()
 		_phase_label.text = "Wave %d%s%s%s%d Bug%s Left" % [GameState.wave, SEP, title, SEP, left, "" if left == 1 else "s"]
 	elif GameState.phase == GameState.Phase.BUILD and GameState.ready_countdown >= 0.0:
 		_phase_label.text = "Wave %d%sRiding in %s" % [GameState.wave, SEP, UiStyle.clock(GameState.ready_countdown)]
@@ -465,6 +465,7 @@ class SpeedLines extends Control:
 	var player: Player
 	var _lines: Array = []
 	var _flash := 0.0
+	var _drawn := false # something is on screen that the next idle frame must clear
 
 	func _ready() -> void:
 		for i in 70:
@@ -477,8 +478,10 @@ class SpeedLines extends Control:
 			for l: Array in _lines:
 				l[1] = fposmod(float(l[1]) + delta * (1.5 + player.fall_intensity * 5.0) * float(l[2]), 1.0)
 			queue_redraw()
+			_drawn = true
 		_flash = maxf(_flash - delta * 2.5, 0.0)
-		if player.fall_intensity <= 0.02 and _flash <= 0.0:
+		if player.fall_intensity <= 0.02 and _flash <= 0.0 and _drawn:
+			_drawn = false # one last redraw clears it, then it stays idle
 			queue_redraw()
 
 	func flash() -> void:

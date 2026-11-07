@@ -340,7 +340,7 @@ func parse_invite(text: String) -> Dictionary:
 func join_from_menu(address: String, port: int) -> void:
 	leave()
 	pending_join = {"address": address, "port": port}
-	get_tree().change_scene_to_file(MENU_SCENE)
+	SceneFade.go(MENU_SCENE)
 
 
 func local_id() -> int:
@@ -518,10 +518,18 @@ func _on_peer_disconnected(id: int) -> void:
 
 
 @rpc("any_peer", "reliable")
-func _register(player_name: String) -> void:
+func _register(player_name: String, version: String = "") -> void:
 	if not multiplayer.is_server():
 		return
 	var id := multiplayer.get_remote_sender_id()
+	# Online lobbies check the version before joining; IP joins are checked here.
+	if version != game_version():
+		_refused.rpc_id(id, "Version mismatch: that game runs %s and you have %s. Both of you need the same version."
+				% [game_version(), version if version != "" else "an older one"])
+		get_tree().create_timer(0.5).timeout.connect(func() -> void:
+			if _peer != null and multiplayer.get_peers().has(id):
+				_peer.disconnect_peer(id))
+		return
 	# Story: a chapter lobby seats up to four (the chapter moves to a bigger map to fit them).
 	if players.size() >= (MAX_PLAYERS if Story.active() else max_players()):
 		_peer.disconnect_peer(id)
@@ -592,8 +600,17 @@ func _start_game(id: String = "canyon") -> void:
 
 func _on_connected_to_server() -> void:
 	_netlog("connected to the host as peer %d" % multiplayer.get_unique_id())
-	_register.rpc_id(1, local_name)
+	_register.rpc_id(1, local_name, game_version())
 	connected_to_host.emit()
+
+
+## The host turned us away (a different version): back to the menu with why.
+@rpc("authority", "reliable")
+func _refused(reason: String) -> void:
+	print("[net] refused by the host: %s" % reason)
+	leave()
+	menu_message = reason
+	server_closed.emit()
 
 
 func _on_connection_failed() -> void:

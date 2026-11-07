@@ -209,7 +209,11 @@ func _refresh_homes() -> void:
 		_captions[i].text = "%s (%s)" % [WorldLayout.map().name_of(cid), who]
 		_homes[i].max_value = maxf(GameState.homestead_max[cid], 1.0)
 		_homes[i].value = GameState.homestead_hp[cid]
-		_homes[i].add_theme_stylebox_override("fill", _fill(Palette.team_color(cid)))
+		# (a new bar style only when the cliff in that slot or the UI theme changes)
+		var look := "%d|%s" % [cid, UiStyle.current]
+		if _homes[i].get_meta("look", "") != look:
+			_homes[i].set_meta("look", look)
+			_homes[i].add_theme_stylebox_override("fill", _fill(Palette.team_color(cid)))
 
 
 func _refresh_resources() -> void:

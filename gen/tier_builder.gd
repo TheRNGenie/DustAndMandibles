@@ -1,7 +1,8 @@
 class_name TierBuilder
 extends RefCounted
 ## Tiers: meshes for the Mid and Late turrets (Twin Gatling, Hornet's Nest,
-## Elephant Battery, Rail Spike Driver, Gatling Porch Turret), in the same parts
+## Elephant Battery, Rail Spike Driver, Gatling Porch Turret, Big Fifty, Brimstone
+## Bellows, Cotton Bale Cannon), in the same parts
 ## as TurretBuilder: base (static), head (yaws), gun (pitches, barrels along -Z),
 ## optional spin / spin_b (barrel clusters that whirl about their own axes, in
 ## gun space at spin_at / spin_b_at), muzzle and an optional muzzle_b that shots
@@ -21,7 +22,13 @@ const HORNET := Color("#E8B12E")
 const COAL := Color("#26221F")
 const STEAM_RED := Color("#8E2F22")
 
-const IDS: Array[StringName] = [&"twin_gatling", &"hornets_nest", &"elephant_battery", &"rail_spike_driver", &"gatling_porch"]
+const IDS: Array[StringName] = [&"twin_gatling", &"hornets_nest", &"elephant_battery", &"rail_spike_driver", &"gatling_porch",
+	&"big_fifty", &"brimstone_bellows", &"cotton_bale_cannon"] # (the last three close the Buffalo, sulfur and cotton lines)
+const SULFUR := Color("#D9C23A")
+const COTTON := Color("#EFE8D6")
+const BRICK := Color("#8C4A36")
+const LEATHER := Color("#6B4528")
+const ROPE := Color("#B8955A")
 
 
 static func has(id: StringName) -> bool:
@@ -38,6 +45,12 @@ static func build(id: StringName, team: Color) -> Dictionary:
 			return _rail_spike_driver(team)
 		&"gatling_porch":
 			return _gatling_porch(team)
+		&"big_fifty":
+			return _big_fifty(team)
+		&"brimstone_bellows":
+			return _brimstone_bellows(team)
+		&"cotton_bale_cannon":
+			return _cotton_bale_cannon(team)
 	return _twin_gatling(team)
 
 
@@ -144,6 +157,10 @@ static func _barrel_cluster(st: SurfaceTool, cx: float, cy: float, n: int, ring:
 ## A team pennant (shared with the other turrets).
 static func _pennant(st: SurfaceTool, at: Vector3, h: float, team: Color) -> void:
 	TurretBuilder._pennant(st, at, h, team)
+
+
+static func _rivets(st: SurfaceTool, c: Vector3, along: Vector3, n: int, step: float, r: float = 0.022) -> void:
+	TurretBuilder._rivets(st, c, along, n, step, r)
 
 
 # ------------------------------------------------------------------ Twin Gatling
@@ -587,3 +604,231 @@ static func _gatling_porch(team: Color) -> Dictionary:
 	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun),
 			"spin": MeshKit.finish(spin), "spin_at": Vector3(0, 0, -0.12), "recoil": 0.03,
 			"head_y": 0.78, "gun_y": 0.18, "muzzle": Vector3(0, 0, -0.84)}
+
+
+# ------------------------------------------------------------------ Big Fifty
+
+## Big Fifty (Mid, Buffalo line): a heavy .50 buffalo gun laid on a timber
+## crutch. Base: a split-log platform on sandbags with a cartridge belt and a
+## folded buffalo robe. Head: a forked iron rest on a swivel post. Gun: a long
+## octagonal barrel, a case-hardened action with a side hammer, double set
+## triggers, a buckhorn rear sight and a tall tang peep sight.
+static func _big_fifty(team: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1201
+	var base := MeshKit.begin()
+	# Split-log deck on two sleepers, iron dogs pinning the ends.
+	for z: float in [-0.36, 0.36]:
+		MeshKit.add_box(base, _t(Vector3(0, 0.06, z)), Vector3(1.15, 0.12, 0.16), Palette.WOOD_DARK.darkened(rng.randf() * 0.12), 0.015, rng)
+	for i in 5:
+		var x := -0.44 + i * 0.22
+		MeshKit.add_cylinder(base, Transform3D(ALONG, Vector3(x, 0.19, 0)), 0.1, 0.1, 1.0, 7, Palette.WOOD.darkened(rng.randf() * 0.15))
+		for z: float in [-0.36, 0.36]:
+			MeshKit.add_box(base, _t(Vector3(x, 0.29, z)), Vector3(0.03, 0.02, 0.09), IRON)
+	for k in 4:
+		var a := TAU * float(k) / 4.0 + 0.4
+		_sandbag(base, rng, Vector3(cos(a) * 0.62, 0.1, sin(a) * 0.62), a + PI * 0.5, 0.9)
+	# Swivel post: a turned oak post in an iron collar.
+	MeshKit.lathe(base, _t(Vector3(0, 0.29, 0)), [Vector2(0.17, 0.0), Vector2(0.15, 0.05), Vector2(0.1, 0.1),
+			Vector2(0.09, 0.5), Vector2(0.12, 0.56), Vector2(0.13, 0.62)], 12, Palette.WOOD)
+	MeshKit.add_cylinder(base, _t(Vector3(0, 0.36, 0)), 0.165, 0.165, 0.06, 12, IRON)
+	MeshKit.add_cylinder(base, _t(Vector3(0, 0.92, 0)), 0.14, 0.14, 0.02, 12, GREASE)
+	_rivet_ring(base, Vector3(0, 0.36, 0), Vector3.UP, 0.165, 8)
+	# A cartridge belt over the logs and a folded buffalo robe at the back.
+	_belt(base, [Vector3(-0.5, 0.3, 0.2), Vector3(-0.2, 0.31, 0.32), Vector3(0.1, 0.3, 0.4), Vector3(0.45, 0.29, 0.3)], 12)
+	MeshKit.add_ellipsoid(base, _t(Vector3(0.28, 0.36, 0.3)), Vector3(0.26, 0.08, 0.17), 4, 9, Color("#4E3524"), 0.05, rng)
+	MeshKit.add_ellipsoid(base, _t(Vector3(0.28, 0.42, 0.3)), Vector3(0.2, 0.05, 0.13), 3, 8, Color("#5E4330"), 0.05, rng)
+	_ammo_box(base, rng, Vector3(-0.4, 0.29, 0.3), Vector3(0.26, 0.13, 0.18), 0.3, Color("#2F4A6B"))
+	_pennant(base, Vector3(-0.52, 0.29, -0.3), 1.3, team)
+	# Head: the forked rest, its jaws lined with rawhide.
+	var head := MeshKit.begin()
+	MeshKit.add_cylinder(head, _t(Vector3(0, 0.02, 0)), 0.15, 0.15, 0.05, 12, IRON.lightened(0.1))
+	MeshKit.add_box(head, _t(Vector3(0, 0.07, 0)), Vector3(0.36, 0.06, 0.2), DARK_IRON)
+	for sx: float in [-1.0, 1.0]:
+		MeshKit.tube(head, [Vector3(sx * 0.16, 0.07, 0), Vector3(sx * 0.17, 0.16, 0), Vector3(sx * 0.13, 0.24, 0)], [0.03, 0.028, 0.025], 6, IRON)
+		MeshKit.add_cylinder(head, Transform3D(ACROSS, Vector3(sx * 0.14, 0.2, 0)), 0.04, 0.04, 0.03, 10, BRASS)
+	MeshKit.add_box(head, _t(Vector3(0, 0.1, 0.1)), Vector3(0.08, 0.04, 0.12), LEATHER)
+	# Gun: the rifle, pivoting on the trunnion between the forks.
+	var gun := MeshKit.begin()
+	MeshKit.add_cylinder(gun, Transform3D(ACROSS, Vector3.ZERO), 0.03, 0.03, 0.3, 8, IRON)
+	# Receiver: case-hardened (mottled), a side hammer and a lever under it.
+	MeshKit.add_box(gun, _t(Vector3(0, 0.0, 0.14)), Vector3(0.11, 0.12, 0.28), GUNMETAL.darkened(0.15))
+	for sx: float in [-1.0, 1.0]:
+		for k in 3:
+			MeshKit.add_ellipsoid(gun, _t(Vector3(sx * 0.056, -0.02 + k * 0.03, 0.08 + k * 0.05)), Vector3(0.004, 0.02, 0.03), 2, 5, Color("#6F5A7A").lerp(BRASS, 0.3 * k))
+	MeshKit.tube(gun, [Vector3(0.05, 0.05, 0.25), Vector3(0.05, 0.11, 0.23), Vector3(0.05, 0.13, 0.17)], [0.016, 0.014, 0.02], 5, IRON.lightened(0.2))
+	_rod(gun, Vector3(0, -0.07, 0.2), Vector3(0, -0.15, 0.3), 0.011, IRON, 4)
+	_rod(gun, Vector3(0, -0.15, 0.3), Vector3(0, -0.08, 0.38), 0.011, IRON, 4)
+	for k in 2: # double set triggers
+		MeshKit.add_box(gun, Transform3D(Basis(Vector3.RIGHT, 0.4), Vector3(0, -0.09, 0.26 + k * 0.04)), Vector3(0.012, 0.05, 0.008), BRASS)
+	# Stock: a long walnut buttstock with a crescent butt plate and patch box.
+	MeshKit.lathe(gun, Transform3D(ALONG, Vector3(0, -0.03, 0)), [Vector2(0.05, 0.28), Vector2(0.045, 0.36), Vector2(0.07, 0.5),
+			Vector2(0.095, 0.66), Vector2(0.1, 0.72)], 8, Palette.WOOD.darkened(0.12), Vector2(0.7, 1.2))
+	MeshKit.add_box(gun, _t(Vector3(0, -0.03, 0.735)), Vector3(0.075, 0.24, 0.025), BRASS.darkened(0.1))
+	MeshKit.add_box(gun, _t(Vector3(0.05, -0.03, 0.58)), Vector3(0.006, 0.06, 0.12), BRASS)
+	# Barrel: heavy octagonal, a little taper, the bore dark at the mouth.
+	MeshKit.lathe(gun, Transform3D(ALONG, Vector3(0, 0.02, 0)), [Vector2(0.058, -0.0), Vector2(0.056, -0.3), Vector2(0.05, -1.2),
+			Vector2(0.047, -1.66), Vector2(0.052, -1.69), Vector2(0.052, -1.74)], 8, Palette.METAL.darkened(0.3))
+	MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(0, 0.02, -1.745)), 0.026, 0.026, 0.004, 8, Palette.OUTLINE)
+	MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(0, 0.02, -0.62)), 0.06, 0.06, 0.04, 10, BRASS.darkened(0.2))
+	# Forend and the ramrod under the barrel.
+	MeshKit.add_box(gun, _t(Vector3(0, -0.045, -0.3)), Vector3(0.1, 0.06, 0.48), Palette.WOOD.darkened(0.1))
+	_rod(gun, Vector3(0, -0.07, -0.05), Vector3(0, -0.06, -1.3), 0.01, Palette.WOOD_DARK, 4)
+	# Sights: buckhorn rear, a tall tang peep folded up, a blade at the muzzle.
+	MeshKit.add_box(gun, _t(Vector3(0, 0.085, -0.32)), Vector3(0.07, 0.035, 0.012), IRON.lightened(0.1))
+	for sx: float in [-1.0, 1.0]:
+		MeshKit.add_box(gun, Transform3D(Basis(Vector3.BACK, sx * 0.5), Vector3(sx * 0.035, 0.11, -0.32)), Vector3(0.012, 0.04, 0.01), IRON.lightened(0.1))
+	MeshKit.add_box(gun, _t(Vector3(0, 0.12, 0.3)), Vector3(0.012, 0.13, 0.012), BRASS)
+	MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(0, 0.19, 0.3)), 0.02, 0.02, 0.008, 8, BRASS)
+	MeshKit.add_box(gun, _t(Vector3(0, 0.09, -1.7)), Vector3(0.008, 0.04, 0.03), BRASS)
+	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun),
+			"recoil": 0.14, "head_y": 0.94, "gun_y": 0.2, "muzzle": Vector3(0, 0.02, -1.76)}
+
+
+# ------------------------------------------------------------------ Brimstone Bellows
+
+## Brimstone Bellows (Late, sulfur line): a squat brick firebox with an iron
+## door glowing behind its grate, a coal scuttle and sulfur sacks; the head
+## carries a great leather bellows and a stovepipe; the gun is a long iron
+## nozzle with a brass flare, crusted yellow where the fumes come out.
+static func _brimstone_bellows(team: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1202
+	var base := MeshKit.begin()
+	# Stone footing and the brick firebox (courses offset like real bond).
+	MeshKit.add_box(base, _t(Vector3(0, 0.05, 0)), Vector3(1.3, 0.1, 1.3), STONE.darkened(0.1), 0.02, rng)
+	for course in 6:
+		var y := 0.13 + course * 0.1
+		var shift := 0.06 if course % 2 == 0 else -0.06
+		for side in 4:
+			var b := Basis(Vector3.UP, side * PI * 0.5)
+			for k in 4:
+				var x := -0.39 + k * 0.26 + shift
+				if absf(x) > 0.46:
+					continue
+				MeshKit.add_box(base, Transform3D(b, b * Vector3(x, y, 0.47)), Vector3(0.24, 0.085, 0.12),
+						BRICK.darkened(rng.randf() * 0.2).lerp(Color("#5A3A2C"), rng.randf() * 0.2), 0.008, rng)
+	MeshKit.add_box(base, _t(Vector3(0, 0.42, 0)), Vector3(0.86, 0.6, 0.86), BRICK.darkened(0.35)) # (mortar fill behind the bricks)
+	# Iron fire door with a grate and the glow behind it.
+	MeshKit.add_box(base, _t(Vector3(0, 0.34, 0.545)), Vector3(0.34, 0.26, 0.03), DARK_IRON)
+	for k in 4:
+		MeshKit.add_box(base, _t(Vector3(-0.12 + k * 0.08, 0.34, 0.565)), Vector3(0.025, 0.2, 0.012), IRON)
+	MeshKit.add_box(base, _t(Vector3(0, 0.34, 0.552)), Vector3(0.28, 0.18, 0.01), Color("#FF8A2A"), 0.0, null, 1.6)
+	MeshKit.add_ellipsoid(base, _t(Vector3(0.12, 0.34, 0.58)), Vector3(0.02, 0.02, 0.02), 2, 5, BRASS)
+	# Top slab and the greased turntable.
+	MeshKit.add_box(base, _t(Vector3(0, 0.78, 0)), Vector3(1.04, 0.07, 1.04), STONE, 0.01, rng)
+	MeshKit.lathe(base, _t(Vector3(0, 0.81, 0)), [Vector2(0.3, 0.0), Vector2(0.28, 0.06), Vector2(0.31, 0.09)], 14, DARK_IRON)
+	MeshKit.add_cylinder(base, _t(Vector3(0, 0.91, 0)), 0.3, 0.3, 0.012, 14, GREASE)
+	# Sulfur sacks and a coal scuttle beside it.
+	for k in 2:
+		var p := Vector3(0.62 + k * 0.05, 0.2, -0.3 + k * 0.32)
+		MeshKit.add_ellipsoid(base, _t(p), Vector3(0.16, 0.2, 0.15), 4, 8, Palette.SAND.darkened(0.2), 0.06, rng)
+		MeshKit.add_ellipsoid(base, _t(p + Vector3(0, 0.17, 0)), Vector3(0.1, 0.05, 0.09), 3, 6, SULFUR)
+		MeshKit.add_box(base, _t(p + Vector3(0, 0.02, -0.15)), Vector3(0.12, 0.09, 0.01), SULFUR.darkened(0.3))
+	MeshKit.lathe(base, _t(Vector3(-0.62, 0.0, 0.42)), [Vector2(0.12, 0.0), Vector2(0.15, 0.18), Vector2(0.16, 0.2)], 10, IRON)
+	MeshKit.add_ellipsoid(base, _t(Vector3(-0.62, 0.2, 0.42)), Vector3(0.13, 0.05, 0.13), 3, 8, COAL, 0.1, rng)
+	_pennant(base, Vector3(-0.58, 0.1, -0.5), 1.5, team)
+	# Head: the bellows (two boards, a pleated leather bag) and a stovepipe.
+	var head := MeshKit.begin()
+	MeshKit.add_cylinder(head, _t(Vector3(0, 0.02, 0)), 0.3, 0.3, 0.05, 14, IRON.lightened(0.1))
+	MeshKit.add_box(head, _t(Vector3(0, 0.1, 0.05)), Vector3(0.5, 0.1, 0.5), DARK_IRON)
+	for k in 5:
+		var z := 0.4 - k * 0.07
+		var r := 0.2 + 0.03 * sin(float(k) * 1.6)
+		MeshKit.add_box(head, _t(Vector3(0, 0.26, z)), Vector3(r * 2.0, 0.17, 0.06), LEATHER.darkened(0.05 * (k % 2)))
+	for z: float in [0.45, 0.1]:
+		MeshKit.add_box(head, _t(Vector3(0, 0.26, z)), Vector3(0.46, 0.2, 0.03), Palette.WOOD_DARK, 0.01, rng)
+	_rivets(head, Vector3(0, 0.36, 0.45), Vector3.RIGHT, 5, 0.09)
+	_rod(head, Vector3(0, 0.38, 0.45), Vector3(0, 0.5, 0.62), 0.02, Palette.WOOD, 5) # pump handle
+	MeshKit.add_cylinder(head, Transform3D(ACROSS, Vector3(0, 0.5, 0.62)), 0.03, 0.03, 0.2, 6, Palette.WOOD_DARK)
+	MeshKit.add_cylinder(head, _t(Vector3(0.22, 0.5, 0.25)), 0.07, 0.07, 0.8, 10, DARK_IRON) # stovepipe
+	MeshKit.add_cylinder(head, _t(Vector3(0.22, 0.93, 0.25)), 0.11, 0.0, 0.1, 10, IRON) # rain cap
+	MeshKit.add_cylinder(head, _t(Vector3(0.22, 0.88, 0.25)), 0.012, 0.012, 0.06, 4, IRON)
+	# Gun: the nozzle (it pitches about the swivel at the front of the bellows).
+	var gun := MeshKit.begin()
+	MeshKit.add_cylinder(gun, Transform3D(ACROSS, Vector3.ZERO), 0.05, 0.05, 0.36, 8, IRON)
+	MeshKit.add_ellipsoid(gun, _t(Vector3(0, 0.0, 0.0)), Vector3(0.13, 0.12, 0.13), 4, 10, DARK_IRON)
+	MeshKit.lathe(gun, Transform3D(ALONG, Vector3.ZERO), [Vector2(0.09, -0.08), Vector2(0.07, -0.25), Vector2(0.06, -0.9),
+			Vector2(0.07, -1.15), Vector2(0.12, -1.3), Vector2(0.15, -1.36)], 10, IRON)
+	MeshKit.lathe(gun, Transform3D(ALONG, Vector3.ZERO), [Vector2(0.155, -1.36), Vector2(0.16, -1.38)], 12, BRASS)
+	MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(0, 0, -1.385)), 0.12, 0.12, 0.006, 12, COAL)
+	for z: float in [-0.35, -0.7]:
+		MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(0, 0, z)), 0.075, 0.075, 0.04, 10, BRASS.darkened(0.15))
+	for k in 6: # the sulfur crust round the mouth
+		var a := TAU * float(k) / 6.0 + rng.randf() * 0.4
+		MeshKit.add_ellipsoid(gun, _t(Vector3(cos(a) * 0.14, sin(a) * 0.14, -1.33)), Vector3(0.03, 0.03, 0.05), 2, 5, SULFUR.darkened(rng.randf() * 0.2))
+	_rod(gun, Vector3(0.0, 0.08, -0.05), Vector3(0.0, 0.08, -0.85), 0.012, BRASS, 4) # igniter line
+	MeshKit.add_ellipsoid(gun, _t(Vector3(0.0, 0.09, -0.88)), Vector3(0.025, 0.025, 0.025), 2, 6, Color("#FF9A3A"), 0.0, null, 1.4)
+	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun),
+			"recoil": 0.04, "head_y": 0.92, "gun_y": 0.26, "muzzle": Vector3(0, 0, -1.4)}
+
+
+# ------------------------------------------------------------------ Cotton Bale Cannon
+
+## Cotton Bale Cannon (Late, cotton line): a stubby wide-mouthed iron cannon on
+## a wheeled field carriage, a roped cotton bale showing at the muzzle, more
+## bales and a coil of rope on the trail, a pressing screw on the breech.
+static func _cotton_bale_cannon(team: Color) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1203
+	var base := MeshKit.begin()
+	# Carriage: two cheeks, an axle and spoked wheels, the trail running back.
+	for sx: float in [-1.0, 1.0]:
+		var x := sx * 0.36
+		MeshKit.add_box(base, _t(Vector3(x, 0.38, 0.05)), Vector3(0.08, 0.3, 0.75), Palette.WOOD.darkened(0.05), 0.012, rng)
+		var hub := Vector3(sx * 0.52, 0.34, -0.05)
+		MeshKit.add_rim(base, Transform3D(ACROSS, hub), 0.34, 0.29, 0.06, 18, Palette.WOOD_DARK)
+		MeshKit.add_rim(base, Transform3D(ACROSS, hub), 0.345, 0.335, 0.065, 18, IRON)
+		MeshKit.add_cylinder(base, Transform3D(ACROSS, hub), 0.06, 0.06, 0.12, 10, IRON)
+		for k in 10:
+			var a := TAU * float(k) / 10.0
+			_beam(base, hub, hub + Vector3(0, sin(a), cos(a)) * 0.3, Vector2(0.025, 0.025), Palette.WOOD)
+	MeshKit.add_cylinder(base, Transform3D(ACROSS, Vector3(0, 0.34, -0.05)), 0.04, 0.04, 1.1, 8, IRON)
+	MeshKit.add_box(base, Transform3D(Basis(Vector3.RIGHT, -0.32), Vector3(0, 0.2, 0.62)), Vector3(0.28, 0.1, 0.7), Palette.WOOD.darkened(0.08), 0.012, rng)
+	MeshKit.add_box(base, _t(Vector3(0, 0.04, 0.95)), Vector3(0.32, 0.08, 0.12), IRON) # trail shoe
+	# Spare bales on the trail and a coil of rope.
+	for k in 2:
+		var p := Vector3(-0.12 + k * 0.26, 0.24 + k * 0.03, 0.5 + k * 0.16)
+		_bale(base, rng, p, 0.2 * k, 0.75)
+	for k in 4:
+		_hoop(base, Vector3(0.36, 0.06 + k * 0.03, 0.72), Vector3.UP, 0.13 - k * 0.006, 0.02, ROPE, 12)
+	MeshKit.add_cylinder(base, _t(Vector3(0, 0.6, 0.0)), 0.24, 0.24, 0.08, 12, DARK_IRON) # pivot plate
+	MeshKit.add_cylinder(base, _t(Vector3(0, 0.65, 0.0)), 0.22, 0.22, 0.012, 12, GREASE)
+	_pennant(base, Vector3(0.34, 0.53, 0.38), 1.2, team)
+	# Head: a yoke with trunnion caps.
+	var head := MeshKit.begin()
+	MeshKit.add_cylinder(head, _t(Vector3(0, 0.02, 0)), 0.22, 0.22, 0.05, 12, IRON.lightened(0.1))
+	MeshKit.add_box(head, _t(Vector3(0, 0.07, 0)), Vector3(0.62, 0.06, 0.3), Palette.WOOD_DARK, 0.01, rng)
+	for sx: float in [-1.0, 1.0]:
+		MeshKit.add_box(head, _t(Vector3(sx * 0.28, 0.2, 0)), Vector3(0.06, 0.24, 0.22), Palette.WOOD, 0.01, rng)
+		MeshKit.add_box(head, _t(Vector3(sx * 0.28, 0.3, 0)), Vector3(0.075, 0.04, 0.16), IRON)
+		_rivets(head, Vector3(sx * 0.312, 0.16, 0), Vector3.BACK, 3, 0.06)
+	# Gun: the stubby barrel, its muzzle swell, the bale loaded in the mouth.
+	var gun := MeshKit.begin()
+	MeshKit.add_cylinder(gun, Transform3D(ACROSS, Vector3.ZERO), 0.05, 0.05, 0.52, 8, IRON)
+	MeshKit.lathe(gun, Transform3D(ALONG, Vector3.ZERO), [Vector2(0.0, 0.42), Vector2(0.12, 0.4), Vector2(0.2, 0.3),
+			Vector2(0.23, 0.12), Vector2(0.24, 0.0), Vector2(0.22, -0.3), Vector2(0.21, -0.7), Vector2(0.26, -0.78),
+			Vector2(0.27, -0.86), Vector2(0.24, -0.88)], 14, DARK_IRON)
+	MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(0, 0, -0.885)), 0.2, 0.2, 0.006, 14, Palette.OUTLINE)
+	for z: float in [0.12, -0.34]:
+		MeshKit.add_cylinder(gun, Transform3D(ALONG, Vector3(0, 0, z)), 0.25, 0.25, 0.05, 14, IRON.lightened(0.1))
+	# The breech's pressing screw and handwheel (it packs the bale tight).
+	_rod(gun, Vector3(0, 0, 0.42), Vector3(0, 0, 0.62), 0.025, IRON, 6)
+	MeshKit.add_rim(gun, Transform3D(ALONG, Vector3(0, 0, 0.64)), 0.14, 0.11, 0.025, 14, BRASS)
+	for k in 4:
+		var a := TAU * float(k) / 4.0
+		_rod(gun, Vector3(0, 0, 0.64), Vector3(cos(a), sin(a), 0) * 0.12 + Vector3(0, 0, 0.64), 0.012, BRASS, 4)
+	# The bale in the mouth: lumpy cotton bound with rope.
+	MeshKit.add_ellipsoid(gun, _t(Vector3(0, 0, -0.86)), Vector3(0.18, 0.18, 0.12), 5, 10, COTTON, 0.12, rng)
+	for k in 2:
+		_hoop(gun, Vector3(0, 0, -0.83 - k * 0.06), Vector3.BACK, 0.175, 0.015, ROPE, 12)
+	return {"base": MeshKit.finish(base), "head": MeshKit.finish(head), "gun": MeshKit.finish(gun),
+			"recoil": 0.12, "head_y": 0.66, "gun_y": 0.3, "muzzle": Vector3(0, 0, -0.95)}
+
+
+## A pressed cotton bale: a lumpy block bound with three ropes.
+static func _bale(st: SurfaceTool, rng: RandomNumberGenerator, at: Vector3, turn: float, s: float) -> void:
+	var b := Basis(Vector3.UP, turn)
+	MeshKit.add_box(st, Transform3D(b, at), Vector3(0.36, 0.26, 0.24) * s, COTTON.darkened(0.04 + rng.randf() * 0.06), 0.02, rng)
+	for k in 3:
+		MeshKit.add_box(st, Transform3D(b, at + b * Vector3((-0.12 + k * 0.12) * s, 0, 0)), Vector3(0.025, 0.27, 0.25) * s, ROPE)

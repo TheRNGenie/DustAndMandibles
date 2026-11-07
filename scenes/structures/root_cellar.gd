@@ -14,6 +14,8 @@ const ROOM_SIZE := Vector3(4.4, 2.7, 5.2)
 
 var home: Homestead
 var _bins: Array[CellarBin] = []
+var _lamp: OmniLight3D
+var _look_t := 0.0
 
 
 func _ready() -> void:
@@ -53,6 +55,8 @@ func _build_room() -> void:
 	lamp.omni_range = 7.0
 	lamp.position = Vector3(1.3, s.y - 0.5, -0.4)
 	room.add_child(lamp)
+	_lamp = lamp
+	lamp.visible = false # (lit only while you're down here: _process)
 	var hang := MeshInstance3D.new()
 	hang.mesh = StructureBuilder.lantern()
 	hang.material_override = Materials.toon(0.01)
@@ -80,6 +84,24 @@ func _build_room() -> void:
 	rack_mi.mesh = _rack_mesh()
 	rack_mi.material_override = Materials.toon_house(0.02)
 	rack.add_child(rack_mi)
+
+
+## The lantern is unshadowed and sits only 2 m under the yard, so lit all the
+## time it would glow on the ground and the house wall above. It's lit only
+## while this screen's camera is down in the room (from there the yard can't be
+## seen, and from the yard the room can't): the room looks just the same.
+func _process(delta: float) -> void:
+	_look_t -= delta
+	if _lamp == null or _look_t > 0.0:
+		return
+	_look_t = 0.05
+	var cam := get_viewport().get_camera_3d()
+	var inside := false
+	if cam != null:
+		var p := to_local(cam.global_position) - ROOM
+		var h := ROOM_SIZE * 0.5 + Vector3(0.6, 0.0, 0.6)
+		inside = absf(p.x) < h.x and absf(p.z) < h.z and p.y > -0.5 and p.y < ROOM_SIZE.y + 0.5
+	_lamp.visible = inside
 
 
 ## Can `peer_id` use this cellar? (Your own house only: the cross-canyon rule.)

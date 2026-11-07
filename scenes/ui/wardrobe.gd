@@ -107,12 +107,18 @@ static func _preview_texture(host: Node) -> Texture2D:
 		sun.rotation = Vector3(deg_to_rad(-35), deg_to_rad(150), 0)
 		sun.light_energy = 1.3
 		_preview.add_child(sun)
-		Settings.look_changed.connect(func() -> void:
-			if is_instance_valid(_rig):
-				_rig.build(Palette.TEAM_WEST, false, Settings.look))
+		# One connection for good (a new lambda per studio piled up a connection
+		# each time a world freed the old one).
+		if not Settings.look_changed.is_connected(_redress):
+			Settings.look_changed.connect(_redress)
 	_rig.build(Palette.TEAM_WEST, false, Settings.look)
 	_rig.animate(0.016, 0.0, false, 0.0)
 	return _preview.get_texture()
+
+
+static func _redress() -> void:
+	if is_instance_valid(_rig):
+		_rig.build(Palette.TEAM_WEST, false, Settings.look)
 
 
 ## Turns the preview dummy slowly.

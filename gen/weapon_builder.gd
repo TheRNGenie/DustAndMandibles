@@ -371,8 +371,17 @@ static func shell() -> ArrayMesh:
 	return MeshKit.finish(st)
 
 
-## Any gun by id, as one mesh.
+## Any gun by id, as one mesh (built once per id: every rig and pickup shares it).
 static func gun(id: StringName) -> ArrayMesh:
+	if not _guns.has(id):
+		_guns[id] = _gun(id)
+	return _guns[id]
+
+
+static var _guns: Dictionary = {}
+
+
+static func _gun(id: StringName) -> ArrayMesh:
 	match id:
 		&"lever_rifle":
 			return lever_rifle()

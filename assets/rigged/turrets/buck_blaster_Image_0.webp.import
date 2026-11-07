@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d1sy8piji4n6e"
-path="res://.godot/imported/buck_blaster_Image_0.webp-72972d136b87ee82c9c73bc09c84a2d9.ctex"
+path.bptc="res://.godot/imported/buck_blaster_Image_0.webp-72972d136b87ee82c9c73bc09c84a2d9.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "55e3fb76b7b25b3c7492c8fb43cadc75"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/buck_blaster_Image_0.webp"
-dest_files=["res://.godot/imported/buck_blaster_Image_0.webp-72972d136b87ee82c9c73bc09c84a2d9.ctex"]
+dest_files=["res://.godot/imported/buck_blaster_Image_0.webp-72972d136b87ee82c9c73bc09c84a2d9.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

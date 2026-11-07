@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dqsdva0lbihrc"
-path="res://.godot/imported/flak_porch_Image_0.webp-4770cfe1d3fe9bf57aa2ee754dc79607.ctex"
+path.bptc="res://.godot/imported/flak_porch_Image_0.webp-4770cfe1d3fe9bf57aa2ee754dc79607.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "dfb758ded292ed13c405cf790cb6b252"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/flak_porch_Image_0.webp"
-dest_files=["res://.godot/imported/flak_porch_Image_0.webp-4770cfe1d3fe9bf57aa2ee754dc79607.ctex"]
+dest_files=["res://.godot/imported/flak_porch_Image_0.webp-4770cfe1d3fe9bf57aa2ee754dc79607.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

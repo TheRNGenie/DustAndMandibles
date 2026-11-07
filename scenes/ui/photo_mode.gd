@@ -99,8 +99,8 @@ func _enter_free() -> void:
 	_pitch = e.x
 	_cam.current = true
 	# Freeze the rider (movement, shooting, interacting) while you fly.
-	if not GameState.menu_open:
-		GameState.menu_open = true
+	if not _blocked_menu:
+		GameState.set_menu(self, true)
 		_blocked_menu = true
 
 
@@ -112,7 +112,7 @@ func _leave_free() -> void:
 			_player_cam.current = true
 	_player_cam = null
 	if _blocked_menu:
-		GameState.menu_open = false
+		GameState.set_menu(self, false)
 		_blocked_menu = false
 
 

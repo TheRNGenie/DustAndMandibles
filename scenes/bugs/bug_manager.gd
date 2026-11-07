@@ -209,6 +209,10 @@ func _spawn_bug(data: Variant) -> Node:
 	bug.setup(Defs.bug(StringName(d["bug"])), int(d["cliff"]), int(d["lane"]),
 			float(d["z"]), float(d["y"]), float(d["hp"]), int(d.get("state", Bug.State.CLIMBING)),
 			d.get("pos", Vector3.ZERO))
+	if bug.site < 0 and _alive_tick == Engine.get_physics_frames() and _alive_frame == Engine.get_process_frames():
+		_alive_n += 1 # (keeps this tick's count right while a wave pours out)
+	if bug.def.behavior == BugDef.Behavior.BOSS:
+		bosses.append(bug)
 	if d.has("yaw"):
 		var yaw := float(d["yaw"])
 		bug.set("_heading", Vector3(sin(yaw), 0, cos(yaw)))
@@ -229,6 +233,9 @@ func _spawn_bug(data: Variant) -> Node:
 
 func _forget(id: int, bug: Bug) -> void:
 	_climbers_tick = -1 # never hand out a freed bug
+	_topside_tick = -1
+	_alive_tick = -1
+	bosses.erase(bug)
 	if _by_id.get(id) == bug:
 		_by_id.erase(id)
 
@@ -253,12 +260,25 @@ func real_count() -> int:
 
 
 func alive_count() -> int:
-	var n := swarm.count() if swarm != null else 0 # (walkers far down the floor count too)
-	for c in get_children():
-		# (Canyon Expeditions: bugs sleeping at floor sites aren't part of the wave.)
-		if c is Bug and (c as Bug).is_alive() and (c as Bug).site < 0:
-			n += 1
-	return n
+	var pf := Engine.get_physics_frames()
+	var f := Engine.get_process_frames()
+	if pf != _alive_tick or f != _alive_frame:
+		# Counted once a tick (the HUD, the walkers and the wave all ask often).
+		_alive_tick = pf
+		_alive_frame = f
+		_alive_n = 0
+		for c in get_children():
+			# (Canyon Expeditions: bugs sleeping at floor sites aren't part of the wave.)
+			if c is Bug and (c as Bug).is_alive() and (c as Bug).site < 0:
+				_alive_n += 1
+	return _alive_n + (swarm.count() if swarm != null else 0) # (walkers far down the floor count too)
+
+
+var _alive_n := 0
+var _alive_tick := -1
+var _alive_frame := -1
+## Every boss in play (the HUD's boss bars), dead ones until they're freed.
+var bosses: Array[Bug] = []
 
 
 ## Host: a bug asleep at a canyon-floor raid site (Canyon Expeditions). It
@@ -303,6 +323,28 @@ func climbers_on(cliff: int) -> Array[Bug]:
 					(list as Array[Bug]).append(b)
 	var got: Variant = _climbers.get(cliff)
 	return got if got != null else _NO_BUGS
+
+
+## Living bugs over a lip or in the air (BREACHING, CRESTING, FLYING), in the
+## same order as the children: the plateau guards' and anti-air guns' list,
+## sorted out once per tick and shared like climbers_on().
+func topside_bugs() -> Array[Bug]:
+	var pf := Engine.get_physics_frames()
+	var f := Engine.get_process_frames()
+	if pf != _topside_tick or f != _topside_frame:
+		_topside_tick = pf
+		_topside_frame = f
+		_topside.clear()
+		for c in get_children():
+			var b := c as Bug
+			if b != null and (b.state == Bug.State.BREACHING or b.state == Bug.State.CRESTING or b.state == Bug.State.FLYING) and b.is_alive():
+				_topside.append(b)
+	return _topside
+
+
+var _topside: Array[Bug] = []
+var _topside_tick := -1
+var _topside_frame := -1
 
 
 var _climbers: Dictionary = {} # cliff -> Array[Bug], this tick's climbers_on()
@@ -787,12 +829,13 @@ var _sync_t := 0.0
 var _net_packets := 0
 var _net_bugs := 0
 var _net_log_t := 0
-## How often the host sends every bug's state, and how many bugs per packet
-## (kept under one MTU, so a lost packet only costs those bugs a tick). At most
-## 25 bytes a bug: 40 bugs stay under Epic P2P's 1170-byte packet limit, which
-## refuses bigger packets outright (48 could reach 1200 and be dropped).
+## How often the host sends every bug's state, and how many bytes of bug states
+## go in one packet (19 bytes a bug on a cliff face, 25 crossing, flying or
+## breaching). The whole RPC, about 16 bytes more, must stay under the
+## FragmentingPeer's 1000-byte piece, or Epic would get it split into pieces
+## that go reliable, and one lost piece would hold up every packet behind it.
 const SYNC_INTERVAL := 0.1
-const SYNC_PER_PACKET := 40
+const SYNC_BYTES := 920
 
 
 ## Host: packs every bug's replicated state (see Bug) into a few unreliable
@@ -806,13 +849,13 @@ func send_states() -> void:
 		var b := c as Bug
 		if b == null or b.net_id == 0:
 			continue
-		BugSync.pack_into(buf, b.net_id, b.state, b.cliff_id, b.crouch, b.ride, b.health.hp,
-				b.climb_y, b.lane_z, b.crest_t, b.ground_pos)
-		count += 1
-		if count >= SYNC_PER_PACKET:
+		if buf.size() + 25 > SYNC_BYTES:
 			_bug_states.rpc(buf)
 			buf = PackedByteArray()
 			count = 0
+		BugSync.pack_into(buf, b.net_id, b.state, b.cliff_id, b.crouch, b.ride, b.health.hp,
+				b.climb_y, b.lane_z, b.crest_t, b.ground_pos)
+		count += 1
 	if count > 0:
 		_bug_states.rpc(buf)
 

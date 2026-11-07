@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cow1nh0mntu85"
-path="res://.godot/imported/gatling_porch_Image_1.webp-a248f752d3fcf1aaf896e1e335b0886e.ctex"
+path.bptc="res://.godot/imported/gatling_porch_Image_1.webp-a248f752d3fcf1aaf896e1e335b0886e.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "875c14320b95375f66c7624cc05fd23d"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/gatling_porch_Image_1.webp"
-dest_files=["res://.godot/imported/gatling_porch_Image_1.webp-a248f752d3fcf1aaf896e1e335b0886e.ctex"]
+dest_files=["res://.godot/imported/gatling_porch_Image_1.webp-a248f752d3fcf1aaf896e1e335b0886e.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

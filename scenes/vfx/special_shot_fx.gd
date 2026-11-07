@@ -25,6 +25,35 @@ static var _sheet_shader: Shader
 static var _blob_mesh: ArrayMesh
 static var _bola_mesh: ArrayMesh
 static var _tangles: Dictionary = {}
+## Process materials and puff quads by their settings: every steam or chili shot
+## with the same look shares them instead of building new ones (and new
+## gradient textures) per shot.
+static var _shared: Dictionary = {}
+
+
+## A new world: drop the last game's materials, so these pick up this world's
+## night dimming (VfxPool's puff materials) like every other puff.
+static func reset() -> void:
+	_steam_mat = null
+	_flame_mat = null
+	_smoke_mat = null
+	_shared.clear()
+
+
+static func _process_for(key: String, make: Callable) -> ParticleProcessMaterial:
+	if not _shared.has(key):
+		_shared[key] = make.call()
+	return _shared[key]
+
+
+static func _quad_for(size: Vector2, mat: Material) -> QuadMesh:
+	var key := "quad:%s:%d" % [str(size), mat.get_instance_id()]
+	if not _shared.has(key):
+		var q := QuadMesh.new()
+		q.size = size
+		q.material = mat
+		_shared[key] = q
+	return _shared[key]
 
 
 static func draw(t: Turret, vfx: VfxPool) -> void:
@@ -85,14 +114,12 @@ static func _puffs(vfx: VfxPool, amount: int, life: float, burst: float, speed: 
 	e.lifetime = life
 	e.explosiveness = burst
 	e.local_coords = false
-	var pm := VfxPool.puff_process(speed, spread, rise, grow)
-	pm.damping_min = 0.0
-	pm.damping_max = 0.4
-	e.process_material = pm
-	var quad := QuadMesh.new()
-	quad.size = Vector2(size, size)
-	quad.material = _steam_mat
-	e.draw_pass_1 = quad
+	e.process_material = _process_for("puffs:%s:%.2f:%.2f:%.2f" % [str(speed), spread, rise, grow], func() -> ParticleProcessMaterial:
+		var pm := VfxPool.puff_process(speed, spread, rise, grow)
+		pm.damping_min = 0.0
+		pm.damping_max = 0.4
+		return pm)
+	e.draw_pass_1 = _quad_for(Vector2(size, size), _steam_mat)
 	e.amount_ratio = GraphicsQuality.PARTICLE_RATIO[GraphicsQuality.level(Settings.particles)]
 	vfx.add_child(e)
 	vfx.get_tree().create_timer(life + 0.4).timeout.connect(e.queue_free)
@@ -119,14 +146,13 @@ static func chili_flames(vfx: VfxPool, at: Vector3, radius: float, seconds: floa
 		e.amount = 34 if k == 0 else 10
 		e.lifetime = 0.7 if k == 0 else 1.8
 		e.local_coords = false
-		var pm := VfxPool.puff_process(Vector2(1.0, 2.5) if k == 0 else Vector2(1.0, 2.0), 25.0, 5.0 if k == 0 else 2.0, 1.6 if k == 0 else 3.0)
-		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-		pm.emission_sphere_radius = radius * (0.8 if k == 0 else 0.6)
-		e.process_material = pm
-		var quad := QuadMesh.new()
-		quad.size = Vector2.ONE * (1.5 if k == 0 else 1.8)
-		quad.material = _flame_mat if k == 0 else _smoke_mat
-		e.draw_pass_1 = quad
+		var layer := k
+		e.process_material = _process_for("flames:%d:%.2f" % [k, radius], func() -> ParticleProcessMaterial:
+			var pm := VfxPool.puff_process(Vector2(1.0, 2.5) if layer == 0 else Vector2(1.0, 2.0), 25.0, 5.0 if layer == 0 else 2.0, 1.6 if layer == 0 else 3.0)
+			pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+			pm.emission_sphere_radius = radius * (0.8 if layer == 0 else 0.6)
+			return pm)
+		e.draw_pass_1 = _quad_for(Vector2.ONE * (1.5 if k == 0 else 1.8), _flame_mat if k == 0 else _smoke_mat)
 		e.amount_ratio = ratio
 		vfx.add_child(e)
 		e.global_transform = Transform3D(Basis.looking_at(Vector3.UP, Vector3.FORWARD), at + Vector3.UP * (0.0 if k == 0 else 1.2))

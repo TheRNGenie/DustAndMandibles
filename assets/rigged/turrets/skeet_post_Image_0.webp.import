@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bgubmptpkfinw"
-path="res://.godot/imported/skeet_post_Image_0.webp-86db2008e047fe7e576fb2a07dac1963.ctex"
+path.bptc="res://.godot/imported/skeet_post_Image_0.webp-86db2008e047fe7e576fb2a07dac1963.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "5b6ff5b1826556a63875578e15768576"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/skeet_post_Image_0.webp"
-dest_files=["res://.godot/imported/skeet_post_Image_0.webp-86db2008e047fe7e576fb2a07dac1963.ctex"]
+dest_files=["res://.godot/imported/skeet_post_Image_0.webp-86db2008e047fe7e576fb2a07dac1963.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

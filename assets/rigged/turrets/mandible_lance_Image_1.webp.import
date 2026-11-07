@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://do63r6o3bcrwj"
-path="res://.godot/imported/mandible_lance_Image_1.webp-59defe47be384b07662157dd44f99239.ctex"
+path.bptc="res://.godot/imported/mandible_lance_Image_1.webp-59defe47be384b07662157dd44f99239.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "002820b439ffe5be2741ae4d0002410b"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/mandible_lance_Image_1.webp"
-dest_files=["res://.godot/imported/mandible_lance_Image_1.webp-59defe47be384b07662157dd44f99239.ctex"]
+dest_files=["res://.godot/imported/mandible_lance_Image_1.webp-59defe47be384b07662157dd44f99239.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

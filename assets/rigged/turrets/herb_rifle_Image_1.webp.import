@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cy7xfoflxnelf"
-path="res://.godot/imported/herb_rifle_Image_1.webp-a4fe591172d30e398ad7920fd4276d66.ctex"
+path.bptc="res://.godot/imported/herb_rifle_Image_1.webp-a4fe591172d30e398ad7920fd4276d66.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "ced59783ce48f0b5dc1826033899f877"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/herb_rifle_Image_1.webp"
-dest_files=["res://.godot/imported/herb_rifle_Image_1.webp-a4fe591172d30e398ad7920fd4276d66.ctex"]
+dest_files=["res://.godot/imported/herb_rifle_Image_1.webp-a4fe591172d30e398ad7920fd4276d66.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

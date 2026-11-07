@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c0if3lpehr05k"
-path="res://.godot/imported/dust_devil_trap_Image_0.webp-adf5bdc3abdd1e6682980f3eaf2463b3.ctex"
+path.bptc="res://.godot/imported/dust_devil_trap_Image_0.webp-adf5bdc3abdd1e6682980f3eaf2463b3.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "a1ed3bacc3cc8e1dc4e95b70ca475af1"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/dust_devil_trap_Image_0.webp"
-dest_files=["res://.godot/imported/dust_devil_trap_Image_0.webp-adf5bdc3abdd1e6682980f3eaf2463b3.ctex"]
+dest_files=["res://.godot/imported/dust_devil_trap_Image_0.webp-adf5bdc3abdd1e6682980f3eaf2463b3.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

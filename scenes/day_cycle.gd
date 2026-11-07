@@ -209,20 +209,33 @@ func _apply_now() -> void:
 	# Golden hour: the haze stays a soft dusty peach, so the low sun reads as
 	# warm light and long violet shadows rather than flooding everything orange.
 	env.fog_light_color = horizon.lerp(Color("#C89A9A"), golden_amount() * 0.45 * (1.0 - _storm))
-	sky.set_shader_parameter("fog_color", env.fog_light_color) # the far ground melts into the sky
-	sky.set_shader_parameter("top_color", top)
-	sky.set_shader_parameter("horizon_color", horizon)
+	_sky_set("fog_color", env.fog_light_color) # the far ground melts into the sky
+	_sky_set("top_color", top)
+	_sky_set("horizon_color", horizon)
 	# Clouds pick up the light: white by day, warm at dusk, dim blue-grey at night.
-	sky.set_shader_parameter("cloud_color", Color("#FFF7EA").lerp(sun_color, 0.35) * clampf(energy / 1.2, 0.3, 1.0) + horizon * 0.15)
-	sky.set_shader_parameter("sun_color", sun_color)
+	_sky_set("cloud_color", Color("#FFF7EA").lerp(sun_color, 0.35) * clampf(energy / 1.2, 0.3, 1.0) + horizon * 0.15)
+	_sky_set("sun_color", sun_color)
 	# Stars and moon at night, a flaring horizon at golden hour.
 	var n := night_amount()
 	var g := golden_amount() * (1.0 - _storm)
-	sky.set_shader_parameter("night", n)
-	sky.set_shader_parameter("golden", g)
-	sky.set_shader_parameter("glow_color", Color("#FF7A3A") if h > 12.0 else Color("#FF9A7A"))
-	sky.set_shader_parameter("overcast", clampf(_storm * 1.2, 0.0, 1.0))
+	_sky_set("night", n)
+	_sky_set("golden", g)
+	_sky_set("glow_color", Color("#FF7A3A") if h > 12.0 else Color("#FF9A7A"))
+	_sky_set("overcast", clampf(_storm * 1.2, 0.0, 1.0))
 	_glow_at_night(n)
+
+
+## Sky parameters as last sent: only changes go to the sky (between waves the
+## clock stands still, and each change makes the sky redo its reflections).
+var _sky_sent: Dictionary = {}
+
+
+func _sky_set(param: StringName, value: Variant) -> void:
+	var was: Variant = _sky_sent.get(param)
+	if was != null and typeof(was) == typeof(value) and (was == value or (value is Color and (value as Color).is_equal_approx(was)) or (value is float and is_equal_approx(value, was))):
+		return
+	_sky_sent[param] = value
+	sky.set_shader_parameter(param, value)
 
 
 ## 0 by day, 1 in full night (stars out, lamps glowing).

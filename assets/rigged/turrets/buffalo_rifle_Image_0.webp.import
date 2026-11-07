@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c46plxjhq4ltc"
-path="res://.godot/imported/buffalo_rifle_Image_0.webp-3bf651f1790f0f9b4c8e5b354976ad90.ctex"
+path.bptc="res://.godot/imported/buffalo_rifle_Image_0.webp-3bf651f1790f0f9b4c8e5b354976ad90.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "80d3a054bc93fd2f831d2846aa4c34f6"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/buffalo_rifle_Image_0.webp"
-dest_files=["res://.godot/imported/buffalo_rifle_Image_0.webp-3bf651f1790f0f9b4c8e5b354976ad90.ctex"]
+dest_files=["res://.godot/imported/buffalo_rifle_Image_0.webp-3bf651f1790f0f9b4c8e5b354976ad90.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

@@ -1085,10 +1085,12 @@ func _cheat(kind: String) -> void:
 			Economy.earn(cid, {&"scrap": 500})
 			for side in WorldLayout.cliff_count():
 				Economy.earn(side, {&"chitin": 50})
-				# Turret ammo: 3 loads of every crop.
+				# Turret ammo: 3 loads of every crop (as far as the sacks' cap allows).
 				for c: CropDef in Defs.CROPS.values():
 					if c.load_item != &"":
-						Economy.earn(side, {c.load_item: 3})
+						var n := mini(3, AmmoStore.room(side, c.load_item))
+						if n > 0:
+							Economy.earn(side, {c.load_item: n})
 		"spawn":
 			var ids: Array = Defs.active_bug_ids()
 			var id: StringName = ids[_bug_index % ids.size()]

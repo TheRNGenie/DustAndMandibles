@@ -9,12 +9,45 @@ static var _cache: Dictionary = {}
 static func turret(host: Node, id: StringName, color: Color = Color.WHITE) -> Texture2D:
 	var key := "turret:%s" % id
 	if not _cache.has(key) or not is_instance_valid(_cache[key]["vp"]):
-		var p := TurretBuilder.build(id, color)
-		var head_y: float = p["head_y"]
-		var gun_y: float = p["gun_y"]
-		_render(host, key, [[p["base"], Transform3D()], [p["head"], Transform3D(Basis(), Vector3(0, head_y, 0))],
-				[p["gun"], Transform3D(Basis(), Vector3(0, head_y + gun_y, 0))]], -35.0)
+		if RiggedTurret.has(id) and not RiggedTurret.is_built(id):
+			# A fal model not built yet (tens of ms each): hand back the picture
+			# now and draw it a frame or so later, one model a frame, so opening
+			# a build tab or the Field Guide never stalls on a dozen at once.
+			_render(host, key, [], -35.0)
+			_later.append([key, id, color])
+			if not _pumping:
+				_pumping = true
+				(Engine.get_main_loop() as SceneTree).process_frame.connect(_pump)
+		else:
+			_render(host, key, _turret_parts(id, color), -35.0)
 	return _cache[key]["tex"]
+
+
+static func _turret_parts(id: StringName, color: Color) -> Array:
+	var p := TurretBuilder.build(id, color)
+	var head_y: float = p["head_y"]
+	var gun_y: float = p["gun_y"]
+	return [[p["base"], Transform3D()], [p["head"], Transform3D(Basis(), Vector3(0, head_y, 0))],
+			[p["gun"], Transform3D(Basis(), Vector3(0, head_y + gun_y, 0))]]
+
+
+## Turret pictures waiting for their model: [cache key, id, colour].
+static var _later: Array = []
+static var _pumping := false
+
+
+static func _pump() -> void:
+	while not _later.is_empty():
+		var job: Array = _later.pop_front()
+		var entry: Variant = _cache.get(job[0])
+		if entry == null or not is_instance_valid(entry["vp"]):
+			continue # (its menu closed and took the picture with it)
+		var vp := entry["vp"] as SubViewport
+		_render(vp.get_parent(), job[0], _turret_parts(job[1], job[2]), -35.0, vp)
+		break
+	if _later.is_empty() and _pumping:
+		_pumping = false
+		(Engine.get_main_loop() as SceneTree).process_frame.disconnect(_pump)
 
 
 ## A crafting part on its own (a mount, a barrel or a load), for the Workshop's Parts list.
@@ -66,13 +99,19 @@ static func site_loot(host: Node, look: StringName) -> Texture2D:
 	return _cache[key]["tex"]
 
 
-static func _render(host: Node, key: String, parts: Array, yaw_deg: float) -> void:
-	var vp := SubViewport.new()
-	vp.size = Vector2i(128, 128)
-	vp.own_world_3d = true
-	vp.transparent_bg = true
+## `into`: fill a picture handed out earlier (its viewport) instead of a new one.
+static func _render(host: Node, key: String, parts: Array, yaw_deg: float, into: SubViewport = null) -> void:
+	var vp := into
+	if vp == null:
+		vp = SubViewport.new()
+		vp.size = Vector2i(128, 128)
+		vp.own_world_3d = true
+		vp.transparent_bg = true
+		host.add_child(vp)
 	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
-	host.add_child(vp)
+	if parts.is_empty():
+		_cache[key] = {"vp": vp, "tex": vp.get_texture()}
+		return
 	var root := Node3D.new()
 	vp.add_child(root)
 	var mat := Materials.toon(0.01)

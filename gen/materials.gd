@@ -51,6 +51,18 @@ static func toon(outline_thickness: float = 0.03) -> ShaderMaterial:
 	return mat
 
 
+## `mat` without its outline pass (cached, so the Effects setting still reaches
+## it): for a node that draws the outline from a second, shadowless node.
+static func without_outline(mat: ShaderMaterial) -> ShaderMaterial:
+	var key := "noout_%d" % mat.get_instance_id()
+	if _cache.has(key):
+		return _cache[key]
+	var bare := mat.duplicate() as ShaderMaterial
+	bare.next_pass = null
+	_cache[key] = bare
+	return bare
+
+
 ## toon() for the bug MultiMesh batches (LegBatch): the same look, and every
 ## piece glides with its bug between updates (shaders/bug_glide.gdshaderinc).
 static func toon_glide(outline_thickness: float = 0.03) -> ShaderMaterial:
@@ -266,8 +278,24 @@ static func paint_live(root: Node, set_prefix: String, kind_map: Array) -> void:
 
 
 static func _on_node_added(n: Node) -> void:
-	if n is GeometryInstance3D:
-		_queue(n)
+	if not (n is GeometryInstance3D):
+		return
+	# Only what's built under a live root (not every tracer and damage number);
+	# once the roots are all gone, stop listening.
+	var any := false
+	for e: Array in _live:
+		if not is_instance_valid(e[0]):
+			continue
+		var root := e[0] as Node
+		any = true
+		if root == n or root.is_ancestor_of(n):
+			_queue(n)
+			return
+	if not any:
+		_live.clear()
+		var tree := n.get_tree()
+		if tree != null and tree.node_added.is_connected(_on_node_added):
+			tree.node_added.disconnect(_on_node_added)
 
 
 static func _queue(n: Node) -> void:

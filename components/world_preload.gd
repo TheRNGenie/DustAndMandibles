@@ -11,7 +11,7 @@ extends RefCounted
 const SCENES: Array[String] = ["res://scenes/world.tscn", "res://scenes/player/player.tscn"]
 ## Folders whose models and pictures every game uses (not recursive).
 const DIRS: Array[String] = ["res://assets/airship", "res://assets/airship/deck", "res://assets/deck",
-	"res://assets/rigged/guns", "res://assets/sky", "res://assets/train", "res://assets/icons"]
+	"res://assets/rigged/guns", "res://assets/rigged/turrets", "res://assets/sky", "res://assets/train", "res://assets/icons"]
 ## Story chapters also bring these.
 const STORY_DIRS: Array[String] = ["res://assets/story", "res://assets/portraits"]
 const FILES: Array[String] = ["res://assets/paper/paper.jpg"]
@@ -42,7 +42,9 @@ static func paths(story: bool) -> PackedStringArray:
 
 ## Starts the background loads (again: only what isn't loaded or loading yet).
 static func start(story: bool = false) -> void:
-	if GameState.has_flag("--nopreload"):
+	# (Read from the command line itself, not GameState, so the turret builder can
+	# call let_go from tools and tests that run without the autoloads.)
+	if OS.get_cmdline_user_args().has("--nopreload") or OS.get_cmdline_args().has("--nopreload"):
 		return
 	var n := 0
 	for p in paths(story):
@@ -76,8 +78,17 @@ static func _poll() -> void:
 
 
 ## The world has what it needs: let go (whatever is still in use stays loaded).
+## The turret models stay held until RiggedTurret has built each one (let_go),
+## since the build menu or a placement may want any of them later.
 static func release() -> void:
-	_held.clear()
+	for p: String in _held.keys():
+		if not p.begins_with(RiggedTurret.DIR):
+			_held.erase(p)
+
+
+## Done with one held file (RiggedTurret built its parts).
+static func let_go(path: String) -> void:
+	_held.erase(path)
 
 
 static func busy() -> bool:

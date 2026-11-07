@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c12ibada2xyof"
-path="res://.godot/imported/hornets_nest_Image_0.webp-8d5d154cb764a6ddcb1d1c013ad6c95a.ctex"
+path.bptc="res://.godot/imported/hornets_nest_Image_0.webp-8d5d154cb764a6ddcb1d1c013ad6c95a.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "4f6532d2393d13b537c4577b6370d54e"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/hornets_nest_Image_0.webp"
-dest_files=["res://.godot/imported/hornets_nest_Image_0.webp-8d5d154cb764a6ddcb1d1c013ad6c95a.ctex"]
+dest_files=["res://.godot/imported/hornets_nest_Image_0.webp-8d5d154cb764a6ddcb1d1c013ad6c95a.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

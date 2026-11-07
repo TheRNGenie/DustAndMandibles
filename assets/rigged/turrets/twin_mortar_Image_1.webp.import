@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cccet7ta0t3lf"
-path="res://.godot/imported/twin_mortar_Image_1.webp-56eb24a8d830406589d38a4580270452.ctex"
+path.bptc="res://.godot/imported/twin_mortar_Image_1.webp-56eb24a8d830406589d38a4580270452.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "20b72d5153586a682683ee2581336637"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/twin_mortar_Image_1.webp"
-dest_files=["res://.godot/imported/twin_mortar_Image_1.webp-56eb24a8d830406589d38a4580270452.ctex"]
+dest_files=["res://.godot/imported/twin_mortar_Image_1.webp-56eb24a8d830406589d38a4580270452.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

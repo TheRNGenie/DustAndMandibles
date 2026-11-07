@@ -95,6 +95,17 @@ float tri(vec3 p, vec3 n, float scale) {
 	return nx * w.x + ny * w.y + nz * w.z;
 }
 
+// tri() for use inside a branch: the same lookups with the derivatives passed in
+// (dx, dy = how far p moves per pixel), so the mip picked never changes.
+float tri_g(vec3 p, vec3 n, float scale, vec3 dx, vec3 dy) {
+	vec3 w = pow(abs(n), vec3(4.0));
+	w /= (w.x + w.y + w.z);
+	float nx = textureGrad(noise_tex, p.zy * scale, dx.zy * scale, dy.zy * scale).r;
+	float ny = textureGrad(noise_tex, p.xz * scale, dx.xz * scale, dy.xz * scale).r;
+	float nz = textureGrad(noise_tex, p.xy * scale, dx.xy * scale, dy.xy * scale).r;
+	return nx * w.x + ny * w.y + nz * w.z;
+}
+
 // A packed texture projected in world space: the two wall projections run with
 // v downward (drips fall, ledges lie flat), the ground one from above. Only
 // projections that carry weight are sampled (one on most pixels; High blends up
@@ -278,12 +289,15 @@ void fragment() {
 	float detail = tri(world_pos * 6.0, wn, noise_scale);
 	rock *= 1.0 + (detail - 0.5) * detail_strength * 2.0;
 	float up = step(0.0, wn.y) * smoothstep(top_threshold - 0.04, top_threshold + 0.04, abs(wn.y));
-	// Sand: patches of scrubby ground and pebble flecks.
+	// Sand: patches of scrubby ground and pebble flecks (walls never show it, so
+	// they skip the six lookups).
 	vec3 sand = top_color.rgb * (1.0 + (detail - 0.5) * detail_strength);
-	float scrub = smoothstep(0.6, 0.7, tri(world_pos, wn, noise_scale * 0.6));
-	sand = mix(sand, scrub_color.rgb, scrub * 0.35);
-	float pebble = smoothstep(0.8, 0.81, tri(world_pos * 22.0, wn, noise_scale));
-	sand = mix(sand, band_b.rgb, pebble * 0.3);
+	if (up > 0.0) {
+		float scrub = smoothstep(0.6, 0.7, tri_g(world_pos, wn, noise_scale * 0.6, dpdx, dpdy));
+		sand = mix(sand, scrub_color.rgb, scrub * 0.35);
+		float pebble = smoothstep(0.8, 0.81, tri_g(world_pos * 22.0, wn, noise_scale, dpdx * 22.0, dpdy * 22.0));
+		sand = mix(sand, band_b.rgb, pebble * 0.3);
+	}
 
 	// How deep into the canyon (0 on the plateau, 1 on the floor).
 	float depth = clamp((plateau_y - world_pos.y) / max(plateau_y - floor_y, 1.0), 0.0, 1.0);

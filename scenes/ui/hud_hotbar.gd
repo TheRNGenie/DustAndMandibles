@@ -69,16 +69,30 @@ func bind(h: Hotbar) -> void:
 	refresh()
 
 
+## What each slot last showed ([id, count, selected, theme]): refresh() only
+## touches the slots that changed (it runs on every ledger change).
+var _shown: Array = []
+
+
 func refresh() -> void:
 	if hotbar == null:
 		return
+	_shown.resize(Hotbar.SLOTS)
 	for i in Hotbar.SLOTS:
 		var info := hotbar.slot_info(i)
-		_icons[i].item = info["id"]
-		_icons[i].queue_redraw()
-		# Icons render a frame later: redraw once they're ready.
-		get_tree().create_timer(0.2).timeout.connect(_icons[i].queue_redraw)
+		var state := [info["id"], info["count"], bool(info["selected"]), UiStyle.current]
+		if _shown[i] == state:
+			continue
+		var was: Array = _shown[i] if _shown[i] is Array else []
+		_shown[i] = state
 		_counts[i].text = str(info["count"])
+		if was.is_empty() or was[0] != info["id"]:
+			_icons[i].item = info["id"]
+			_icons[i].queue_redraw()
+			# Icons render a frame later: redraw once they're ready.
+			get_tree().create_timer(0.2).timeout.connect(_icons[i].queue_redraw)
+		if not was.is_empty() and was[2] == state[2] and was[3] == state[3] and (was[0] == &"") == (info["id"] == &""):
+			continue
 		var sb := UiStyle.wood_sign()
 		sb.set_content_margin_all(4)
 		if bool(info["selected"]): # Theme: the set's trim lights the picked slot

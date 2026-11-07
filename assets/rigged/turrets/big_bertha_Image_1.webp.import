@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cptu4hrm4d6uu"
-path="res://.godot/imported/big_bertha_Image_1.webp-23c8cfa01138577be0350bc1a6996938.ctex"
+path.bptc="res://.godot/imported/big_bertha_Image_1.webp-23c8cfa01138577be0350bc1a6996938.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "3b5f7472a9af7b54b0a5349e9389d82e"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/big_bertha_Image_1.webp"
-dest_files=["res://.godot/imported/big_bertha_Image_1.webp-23c8cfa01138577be0350bc1a6996938.ctex"]
+dest_files=["res://.godot/imported/big_bertha_Image_1.webp-23c8cfa01138577be0350bc1a6996938.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

@@ -27,7 +27,7 @@ var _hp := -1.0
 
 func setup(p: Player) -> void:
 	player = p
-	if not player.is_multiplayer_authority():
+	if not _mine():
 		return
 	player.grapple.hooked.connect(add)
 	player.grapple.let_go.connect(add)
@@ -43,7 +43,7 @@ func setup(p: Player) -> void:
 
 
 func bind_bugs(bugs: BugManager) -> void:
-	if player.is_multiplayer_authority() and not bugs.bug_killed.is_connected(_on_kill):
+	if _mine() and not bugs.bug_killed.is_connected(_on_kill):
 		bugs.bug_killed.connect(_on_kill)
 
 
@@ -53,9 +53,15 @@ static func active() -> bool:
 	return Brand.local_id() == BrandTable.MANDIBLES
 
 
+## Only your own rider has a combo: a Hyper CPU's body is the host's
+## (authority 1, and the host's name), so its moves must not feed the host's.
+func _mine() -> bool:
+	return player != null and player.is_multiplayer_authority() and not player.bot
+
+
 ## One qualifying action.
 func add() -> void:
-	if not player.is_multiplayer_authority() or GameState.phase == GameState.Phase.LOBBY or not active():
+	if not _mine() or GameState.phase == GameState.Phase.LOBBY or not active():
 		return
 	_gain += ComboRules.PER_ACTION * BrandTable.combo_gain(Brand.local_id()) # Attack on Mandibles: +25%
 	var whole := int(_gain)
@@ -79,7 +85,7 @@ func break_combo() -> void:
 
 
 func _process(delta: float) -> void:
-	if player == null or not player.is_multiplayer_authority() or count <= 0:
+	if player == null or not _mine() or count <= 0:
 		return
 	var moving := Vector2(player.velocity.x, player.velocity.z).length() > 1.0 or not player.is_on_floor()
 	_still = minf(_still, 0.0) if moving else _still + delta # (a negative _still is extra grace)

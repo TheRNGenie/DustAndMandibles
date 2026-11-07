@@ -457,7 +457,7 @@ func _turret_choice() -> StringName:
 			if total > 0 and float(fliers) / total > 0.15 and air_built < 2:
 				options.append_array(air)
 			if big > 0:
-				options.append_array(best_first([&"buffalo_rifle", &"elephant_battery", &"long_tom_rifle", &"rail_spike_driver"]))
+				options.append_array(best_first([&"buffalo_rifle", &"big_fifty", &"elephant_battery", &"long_tom_rifle", &"rail_spike_driver"]))
 			# Crewed: High builds a crewed gun or two once the line is up (it never
 			# sits in one: they fire on their own at half power for it).
 			var crewed_built := _my_turrets().filter(func(t: Node) -> bool: return t is CrewedTurret).size()

@@ -32,7 +32,28 @@ var won := false
 var endless := false
 var end_reason := ""
 ## True while the pause menu (or another full-screen menu) is open: the local player stops.
-var menu_open: bool = false
+## Each screen opens and closes its own entry (set_menu), so closing one never
+## frees the mouse behind another. Setting it false clears them all (leaving a world).
+var menu_open: bool:
+	get:
+		for k: Variant in _menus.keys():
+			if k is int and not is_instance_id_valid(k):
+				_menus.erase(k) # a screen freed while open
+		return not _menus.is_empty()
+	set(v):
+		if v:
+			_menus[&"menu"] = true
+		else:
+			_menus.clear()
+var _menus := {}
+
+
+## `owner`'s screen is open (on) or closed; the player stops while any is open.
+func set_menu(owner: Object, on: bool) -> void:
+	if on:
+		_menus[owner.get_instance_id()] = true
+	else:
+		_menus.erase(owner.get_instance_id())
 ## Debug: Homesteads take no damage.
 var god_mode: bool = false
 ## The tutorial run (main menu > Tutorial): a gentle scripted solo game that is
@@ -71,6 +92,7 @@ func _ready() -> void:
 	for arg: String in OS.get_cmdline_args():
 		if arg.begins_with("--") and not flags.has(arg):
 			flags.append(arg)
+	NetworkManager.player_left.connect(_on_player_left)
 
 
 func has_flag(flag: String) -> bool:
@@ -314,10 +336,25 @@ func damage_homestead(cliff_id: int, amount: float) -> void:
 	if not multiplayer.is_server() or phase == Phase.GAME_OVER or god_mode:
 		return
 	homestead_hp[cliff_id] = maxf(homestead_hp[cliff_id] - amount, 0.0)
-	_sync_homesteads.rpc(homestead_hp, homestead_max)
 	if homestead_hp[cliff_id] <= 0.0:
+		_home_sync_pending = false
+		_sync_homesteads_reliable.rpc(homestead_hp, homestead_max)
 		var side := WorldLayout.map().name_of(cliff_id) # Maps: "West Cliff", "North Butte"...
 		_finish.rpc(false, "The %s Homestead fell on wave %d." % [side, wave])
+		return
+	# Every chewing bug hits every tick: send the house HP 10 times a second.
+	if not _home_sync_pending:
+		_home_sync_pending = true
+		get_tree().create_timer(0.1, true).timeout.connect(_flush_homes)
+
+
+var _home_sync_pending := false
+
+
+func _flush_homes() -> void:
+	if _home_sync_pending and multiplayer.is_server():
+		_home_sync_pending = false
+		_sync_homesteads_reliable.rpc(homestead_hp, homestead_max)
 
 
 @rpc("authority", "call_local", "unreliable")
@@ -470,13 +507,29 @@ func _add_vote(id: int) -> void:
 		return
 	_voters[id] = true
 	_sync_votes.rpc(_voters.size())
+	_maybe_count_down()
+	_push_levers()
+
+
+func _maybe_count_down() -> void:
 	if _voters.size() >= _needed_votes() and ready_countdown < 0.0 and ExpeditionRules.countdown_allowed(Expedition.down):
 		# Everyone's ready: a short countdown anyone can call off with the ready key
 		# (Waterworks: by pulling their lever back). CPU teammates throw theirs now.
 		for cid: int in (NetworkManager.cpu_cliffs() if NetworkManager.has_cpu() else []):
 			cpu_levers[cid] = true
 		_sync_countdown.rpc(READY_COUNTDOWN * _time_scale())
-	_push_levers()
+
+
+## Host: someone left. Their ready vote goes with them, and as fewer votes are
+## needed now, everyone still here may already be ready.
+func _on_player_left(peer_id: int) -> void:
+	if not multiplayer.is_server():
+		return
+	if _voters.erase(peer_id):
+		_sync_votes.rpc(_voters.size())
+	if phase == Phase.BUILD and not _voters.is_empty():
+		_maybe_count_down()
+		_push_levers()
 
 
 # ------------------------------------------------------------------ Canyon Expeditions

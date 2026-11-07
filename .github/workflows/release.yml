@@ -90,6 +90,16 @@ jobs:
           [System.IO.File]::WriteAllText((Join-Path $PWD "eos_release.cfg"), $cfg)
           Write-Host "Epic credentials written (online lobbies on)."
 
+      - name: Reuse the last build's imported assets
+        # The full import takes a long time (models, textures, audio); Godot only
+        # re-imports files whose source or settings changed since the cached copy.
+        uses: actions/cache@v4
+        with:
+          path: .godot/imported
+          key: godot-import-${{ env.GODOT_VERSION }}-${{ hashFiles('**/*.import') }}
+          restore-keys: |
+            godot-import-${{ env.GODOT_VERSION }}-
+
       - name: Export the game
         shell: pwsh
         run: |

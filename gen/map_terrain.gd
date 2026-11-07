@@ -446,9 +446,14 @@ func _build_buttes(parent: Node3D) -> void:
 
 
 func _lake_material() -> ShaderMaterial:
+	# Cached with the other terrain materials, so the Effects setting reaches it.
+	var key := "map_lakebed"
+	if Materials._cache.has(key):
+		return Materials._cache[key]
 	# A shade cooler than the desert round it (the buttes shade the basin).
 	var mat := Materials.strata(Color("#E3CFAA")).duplicate() as ShaderMaterial
 	mat.set_shader_parameter("scrub_color", Color("#CDB28A"))
+	Materials._cache[key] = mat
 	return mat
 
 

@@ -23,6 +23,8 @@ var _address: String = DEFAULT_ADDRESS
 var _upnp: UPNP
 var _upnp_thread: Thread
 var _upnp_port := 0
+var _upnp_gen := 0 # bumped on every open/close: a discovery from before is stale
+var _upnp_jobs: Array[Thread] = [] # router clean-ups running off the main thread
 
 
 func backend_name() -> String:
@@ -175,11 +177,12 @@ func _open_router(port: int) -> void:
 		status_changed.emit()
 		return
 	_upnp_port = port
+	_upnp_gen += 1
 	_upnp_thread = Thread.new()
-	_upnp_thread.start(_upnp_work.bind(port))
+	_upnp_thread.start(_upnp_work.bind(port, _upnp_gen))
 
 
-func _upnp_work(port: int) -> void:
+func _upnp_work(port: int, gen: int) -> void:
 	var u := UPNP.new()
 	var ip := ""
 	var ok := false
@@ -190,7 +193,7 @@ func _upnp_work(port: int) -> void:
 	# A router behind the provider's own NAT reports a private address: no good for invites.
 	if ip == "" or _private(ip):
 		ok = false
-	_upnp_done.call_deferred(u, ok, ip)
+	_upnp_done.call_deferred(u, ok, ip, gen, port)
 
 
 static func _private(ip: String) -> bool:
@@ -203,14 +206,15 @@ static func _private(ip: String) -> bool:
 			or (a == 100 and b >= 64 and b <= 127) or (a == 169 and b == 254)
 
 
-func _upnp_done(u: UPNP, ok: bool, ip: String) -> void:
-	if _upnp_thread != null:
-		_upnp_thread.wait_to_finish()
-		_upnp_thread = null
-	if not _hosting:
-		if ok:
-			u.delete_port_mapping(_upnp_port, "UDP") # we stopped hosting while it worked
+func _upnp_done(u: UPNP, ok: bool, ip: String, gen: int, port: int) -> void:
+	_reap_jobs()
+	if gen != _upnp_gen or not _hosting:
+		if ok: # we stopped hosting while it worked: take the mapping down again
+			_in_background(func() -> void: u.delete_port_mapping(port, "UDP"))
 		return
+	if _upnp_thread != null:
+		_upnp_thread.wait_to_finish() # it has just finished (this was its last call)
+		_upnp_thread = null
 	_upnp = u if ok else null
 	upnp_state = "open" if ok else "lan"
 	public_ip = ip if ok else ""
@@ -218,16 +222,38 @@ func _upnp_done(u: UPNP, ok: bool, ip: String) -> void:
 	status_changed.emit()
 
 
+## Never waits on the router here: leaving or re-hosting used to block the game
+## for 2 to 4 s while UPnP discovery finished or the mapping came down.
 func _close_router() -> void:
+	_upnp_gen += 1 # a discovery still running cleans up after itself (_upnp_done)
 	if _upnp_thread != null:
-		_upnp_thread.wait_to_finish()
+		_upnp_jobs.append(_upnp_thread) # joined once it ends
 		_upnp_thread = null
 	if _upnp != null:
-		_upnp.delete_port_mapping(_upnp_port, "UDP")
+		var u := _upnp
+		var port := _upnp_port
+		_in_background(func() -> void: u.delete_port_mapping(port, "UDP"))
 		_upnp = null
 	upnp_state = ""
 	public_ip = ""
 
 
+func _in_background(job: Callable) -> void:
+	_reap_jobs()
+	var t := Thread.new()
+	t.start(job)
+	_upnp_jobs.append(t)
+
+
+func _reap_jobs() -> void:
+	for t: Thread in _upnp_jobs.duplicate():
+		if not t.is_alive():
+			t.wait_to_finish()
+			_upnp_jobs.erase(t)
+
+
 func _exit_tree() -> void:
 	_close_router()
+	for t: Thread in _upnp_jobs: # quitting: let the router clean-up finish
+		t.wait_to_finish()
+	_upnp_jobs.clear()

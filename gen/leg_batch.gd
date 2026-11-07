@@ -48,6 +48,19 @@ static func of(mesh: Mesh, mat: Material, tree_root: Node, shadows: bool = false
 		# Bugs roam the whole canyon: never cull the batch as a whole.
 		b.node.custom_aabb = AABB(Vector3(-2000, -500, -2000), Vector3(4000, 1500, 4000))
 		tree_root.add_child(b.node)
+		var sm := mat as ShaderMaterial
+		if shadows and sm != null and sm.next_pass != null:
+			# The outline hull (next_pass) would be drawn into every shadow
+			# cascade too: draw it from a second node on the same MultiMesh that
+			# casts no shadow. Same draw calls on screen, half the shadow work.
+			b.node.material_override = Materials.without_outline(sm)
+			var hull := MultiMeshInstance3D.new()
+			hull.name = "LegBatchOutline"
+			hull.multimesh = b.mm
+			hull.material_override = sm.next_pass
+			hull.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			hull.custom_aabb = b.node.custom_aabb
+			b.node.add_child(hull)
 		_batches[mesh] = b
 	return b
 

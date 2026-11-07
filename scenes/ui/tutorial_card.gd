@@ -126,7 +126,7 @@ func show_paper() -> void:
 	_paper = TutorialGazette.new()
 	_paper.name = "Gazette"
 	add_child(_paper)
-	GameState.menu_open = true
+	GameState.set_menu(self, true)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_paper.turned.connect(func() -> void:
 		if run != null:
@@ -139,8 +139,8 @@ func _close_paper() -> void:
 	if is_instance_valid(_paper):
 		_paper.close()
 	_paper = null
-	GameState.menu_open = false
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	GameState.set_menu(self, false)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if GameState.menu_open else Input.MOUSE_MODE_CAPTURED # another screen may still be up
 
 
 ## A new step's card.
@@ -492,7 +492,7 @@ func show_finish() -> void:
 	_sub_n += 1
 	_sub.clear()
 	_close_paper()
-	GameState.menu_open = true
+	GameState.set_menu(self, true)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_finish = Control.new()
 	_finish.name = "Finish"
@@ -549,7 +549,7 @@ func _keep_playing() -> void:
 	if _finish != null:
 		_finish.queue_free()
 		_finish = null
-	GameState.menu_open = false
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	GameState.set_menu(self, false)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if GameState.menu_open else Input.MOUSE_MODE_CAPTURED # another screen may still be up
 	if run != null:
 		run.keep_playing()

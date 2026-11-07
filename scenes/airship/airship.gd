@@ -495,6 +495,9 @@ func _process(delta: float) -> void:
 			if _t >= ARRIVE_TIME:
 				_state = 0
 				visible = false
+				# Out of sight: the crew, props and casino stop animating too.
+				for c in get_children():
+					c.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 ## A thin plume from an engine's stack: it hangs on station, so the smoke rises

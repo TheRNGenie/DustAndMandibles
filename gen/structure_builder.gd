@@ -6,7 +6,17 @@ const IRON := Color("#4A4E58")
 const BRASS := Color("#D6A74A")
 
 
+## Built once per kind and shared (every copy of a trap or post looks the same).
 static func build(kind: StructureDef.Kind) -> ArrayMesh:
+	if not _built.has(kind):
+		_built[kind] = _build(kind)
+	return _built[kind]
+
+
+static var _built: Dictionary = {}
+
+
+static func _build(kind: StructureDef.Kind) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 60 + int(kind)
 	var st := MeshKit.begin()

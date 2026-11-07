@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b7t1oa5jjbl35"
-path="res://.godot/imported/grapeshot_turret_Image_1.webp-7357eb15f1f72a3f95fecf263392ae24.ctex"
+path.bptc="res://.godot/imported/grapeshot_turret_Image_1.webp-7357eb15f1f72a3f95fecf263392ae24.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "8f5f2b5db9e16afa51fdae82b411c67d"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/grapeshot_turret_Image_1.webp"
-dest_files=["res://.godot/imported/grapeshot_turret_Image_1.webp-7357eb15f1f72a3f95fecf263392ae24.ctex"]
+dest_files=["res://.godot/imported/grapeshot_turret_Image_1.webp-7357eb15f1f72a3f95fecf263392ae24.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

@@ -29,7 +29,7 @@ func open() -> void:
 		PauseVote.instance.votes_changed.connect(_refresh_vote)
 	var was_open := UiStyle.shown(_root)
 	_root.visible = true
-	GameState.menu_open = true
+	GameState.set_menu(self, true)
 	if not in_main_menu:
 		Audio.pause_music(&"esc_menu", true)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -51,7 +51,7 @@ func select_tab(index: int) -> void:
 
 func close() -> void:
 	UiStyle.fade_out(_root)
-	GameState.menu_open = false
+	GameState.set_menu(self, false)
 	if not in_main_menu:
 		Audio.pause_music(&"esc_menu", false)
 	if not in_main_menu:
@@ -190,4 +190,4 @@ func _leave_to_menu() -> void:
 	GameState.menu_open = false
 	NetworkManager.leave()
 	GameState.reset()
-	get_tree().change_scene_to_file(NetworkManager.MENU_SCENE)
+	SceneFade.go(NetworkManager.MENU_SCENE)

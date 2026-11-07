@@ -8,9 +8,29 @@ extends RefCounted
 
 ## Returns {"base", "head", "gun": ArrayMesh, "head_y", "gun_y": float, "muzzle": Vector3,
 ##          optional "spin": ArrayMesh, "spin_at": Vector3, "recoil": float}
+## The head's pivot height alone. For the fal models it comes from their .json,
+## so asking doesn't load the model.
+static func head_y(id: StringName) -> float:
+	if RiggedTurret.has(id):
+		return RiggedTurret.head_y(id)
+	return float(build(id, Color.WHITE)["head_y"])
+
+
 static func build(id: StringName, team: Color) -> Dictionary:
 	if RiggedTurret.has(id): # the fal models (gen/rigged_turret.gd, tools/rig/prep_turret.py)
 		return RiggedTurret.build(id, team)
+	# Code-built models are the same every time for an id and team colour: build
+	# each once (every placement, ghost and icon shares it; nobody changes them).
+	var key := "%s|%s" % [id, team.to_html()]
+	if not _built.has(key):
+		_built[key] = _build(id, team)
+	return _built[key]
+
+
+static var _built: Dictionary = {}
+
+
+static func _build(id: StringName, team: Color) -> Dictionary:
 	if CraftTable.is_craft(id): # Crafted: modular mount + barrel + load (gen/craft_builder.gd)
 		return CraftBuilder.build(id, team)
 	if AmberBuilder.has(id): # Hive amber turrets (gen/amber_builder.gd)

@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dilte2p3xepqv"
-path="res://.godot/imported/bramble_bomb_Image_1.webp-ad80fbcd08b5f49fa2a746811145033d.ctex"
+path.bptc="res://.godot/imported/bramble_bomb_Image_1.webp-ad80fbcd08b5f49fa2a746811145033d.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "fad30b823fe918f4885c088ea32bfece"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/bramble_bomb_Image_1.webp"
-dest_files=["res://.godot/imported/bramble_bomb_Image_1.webp-ad80fbcd08b5f49fa2a746811145033d.ctex"]
+dest_files=["res://.godot/imported/bramble_bomb_Image_1.webp-ad80fbcd08b5f49fa2a746811145033d.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

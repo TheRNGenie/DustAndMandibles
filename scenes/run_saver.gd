@@ -113,6 +113,8 @@ func capture() -> Dictionary:
 	# Perks: each human's locked loadout and Barn Raising, and the guns they own.
 	var perks := {}
 	var guns := {}
+	var whips := {}
+	var dynamite := {}
 	for cid in WorldLayout.cliff_count():
 		var peer := Perks.peer_for_cliff(cid)
 		if peer <= 0:
@@ -120,8 +122,14 @@ func capture() -> Dictionary:
 		perks[cid] = Perks.run_state_of(peer)
 		if GunShop.loadouts.has(peer):
 			guns[cid] = GunShop.loadouts[peer]
+		if GunShop.whips.has(peer):
+			whips[cid] = int(GunShop.whips[peer])
+		if int(GunShop.dynamite.get(peer, 0)) != 0:
+			dynamite[cid] = int(GunShop.dynamite[peer])
 	data["perks"] = perks
 	data["guns"] = guns
+	data["whips"] = whips # the bullwhip's level and mods
+	data["dynamite"] = dynamite # the Powder Satchel and its mods
 	data["brands"] = Brand.save_state() # Brand: each cliff's brand
 	var works := {}
 	for cid in WorldLayout.cliff_count(): # Waterworks: tower levels and levers
@@ -193,6 +201,23 @@ func resume(data: Dictionary) -> bool:
 		for w: StringName in guns[cid]:
 			if pl != null and Gun.weapon(w) != null:
 				pl.net.grant_weapon(w, int(guns[cid][w]))
+	# (saves from before v0.1.62 have neither: everyone starts with a plain whip)
+	var shop := get_tree().get_first_node_in_group("gun_shops") as GunShop
+	var whips: Dictionary = data.get("whips", {})
+	for cid: int in whips:
+		var peer := Perks.peer_for_cliff(cid)
+		if peer > 0 and shop != null:
+			shop.restore_whip(peer, int(whips[cid]))
+	var dyn: Dictionary = data.get("dynamite", {})
+	for cid: int in dyn:
+		var peer := Perks.peer_for_cliff(cid)
+		if peer <= 0:
+			continue
+		var pl := _player_on(peer)
+		if pl != null and pl.dynamite != null:
+			pl.dynamite.grant(int(dyn[cid]))
+		else:
+			GunShop.dynamite[peer] = int(dyn[cid])
 	GameState.endless = bool(data["endless"])
 	# The houses first (their storeys carry the house-turret mounts).
 	var homes: Array = data["homesteads"]

@@ -384,12 +384,24 @@ static func _mantis(shell: Color) -> Dictionary:
 
 ## The Mirage Mantis's shimmer: an unlit body coloured from its vertices that
 ## ripples the background through it; `solid` 1 = plain sight, ~0.1 = a ripple.
+static var _mirage_shader: Shader
+
+
 static func mirage_material() -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = _mirage()
+	return m
+
+
+## One compiled shader for every Mantis (each material keeps its own uniforms).
+static func _mirage() -> Shader:
+	if _mirage_shader != null:
+		return _mirage_shader
 	var sh := Shader.new()
 	sh.code = """
 shader_type spatial;
 render_mode unshaded, cull_back, depth_draw_opaque, specular_disabled, shadows_disabled;
-uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
+uniform sampler2D screen_tex : hint_screen_texture, filter_linear; // only mip 0 is read
 uniform float solid = 1.0;
 uniform float haze = 0.5;
 uniform vec3 sun_dir = vec3(0.4, 0.8, 0.3);
@@ -413,9 +425,8 @@ void fragment() {
 	ALBEDO = mix(bg + vec3(0.06, 0.05, 0.02) * fres, body, k);
 }
 """
-	var m := ShaderMaterial.new()
-	m.shader = sh
-	return m
+	_mirage_shader = sh
+	return sh
 
 
 # ------------------------------------------------------------------ the Hive Wagon

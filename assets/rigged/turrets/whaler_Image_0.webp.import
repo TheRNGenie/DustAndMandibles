@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://tvjv8bp53yid"
-path="res://.godot/imported/whaler_Image_0.webp-98713ddcf2e99f6a4d0065398c58d831.ctex"
+path.bptc="res://.godot/imported/whaler_Image_0.webp-98713ddcf2e99f6a4d0065398c58d831.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "a9812066b5e799e9302d526e3ed86336"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/whaler_Image_0.webp"
-dest_files=["res://.godot/imported/whaler_Image_0.webp-98713ddcf2e99f6a4d0065398c58d831.ctex"]
+dest_files=["res://.godot/imported/whaler_Image_0.webp-98713ddcf2e99f6a4d0065398c58d831.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

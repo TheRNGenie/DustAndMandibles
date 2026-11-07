@@ -120,6 +120,24 @@ var _drum_angle := 0.0
 var _drum_target := 0.0
 var _kick := 0.0
 var _models: Dictionary = {}
+var _vm_team := Color.WHITE
+var _vm_mat: Material
+var _vm_look: Dictionary = {}
+
+
+var _mine := true # the local rider's own gun (the only one that is ever seen)
+
+
+## The first-person model of `id`, built the first time it's needed.
+func _ensure_model(id: StringName) -> void:
+	# Other riders and CPU bots never show this gun (Player hides it): no model,
+	# or each new gun they drew would build one mid-wave.
+	if _models.has(id) or not ORDER.has(id) or _vm_mat == null or not _mine:
+		return
+	var vm := ViewModel.new()
+	add_child(vm)
+	vm.build(id, _vm_team, _vm_look if not _vm_look.is_empty() else Settings.look, _vm_mat)
+	_models[id] = vm
 var _flash: MeshInstance3D
 var _flash_light: OmniLight3D
 var _flash_left := 0.0
@@ -165,6 +183,7 @@ var _tuck_target := 0.0
 
 ## Rebuilds the first-person hands for a new outfit (dummy paint, coat sleeves).
 func refresh_arms(look: Dictionary) -> void:
+	_vm_look = look
 	for id: StringName in _models:
 		(_models[id] as ViewModel).set_look(look)
 	_hand.mesh = WeaponBuilder.item_arm(_team, look)
@@ -181,11 +200,16 @@ func _ready() -> void:
 	var mat := Materials.toon(0.004)
 	var owner_player := get_parent().get_parent().get_parent() as Player
 	var team := Palette.team_color(owner_player.cliff_id) if owner_player != null else Palette.TEAM_WEST
-	for id: StringName in ORDER:
-		var vm := ViewModel.new()
-		add_child(vm)
-		vm.build(id, team, Settings.look, mat)
-		_models[id] = vm
+	_vm_team = team
+	_vm_mat = mat
+	# Your own rider builds every first-person gun up front (switching is
+	# instant); a partner's or a Hyper CPU's body never shows them, so it builds
+	# only the one in hand, when it's drawn.
+	var mine := owner_player == null or (owner_player.is_multiplayer_authority() and not owner_player.bot)
+	_mine = mine
+	if mine:
+		for id: StringName in ORDER:
+			_ensure_model(id)
 	_hand = MeshInstance3D.new()
 	_hand.mesh = WeaponBuilder.item_arm(team, Settings.look)
 	_team = team
@@ -259,6 +283,7 @@ func equip(id: StringName) -> void:
 	_stage = Reload.NONE
 	_open = 0.0
 	_cycle = 1.0
+	_ensure_model(id)
 	for k: StringName in _models:
 		(_models[k] as Node3D).visible = k == id
 	if _raise < 0.5 and is_inside_tree():
@@ -561,7 +586,7 @@ func _advance_reload(delta: float) -> void:
 	match _stage:
 		Reload.OPEN:
 			_catching = false
-			if def.id == &"coach_shotgun":
+			if def.id == &"coach_shotgun" and _models.has(def.id):
 				(_models[def.id] as ViewModel).eject_shells()
 				ammo = 0
 				ammo_changed.emit(ammo, mag_size())

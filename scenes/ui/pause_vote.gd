@@ -99,15 +99,15 @@ func _set_paused(on: bool) -> void:
 	_root.visible = on
 	if on:
 		UiStyle.fade_in(_root)
-	GameState.menu_open = on
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if on else Input.MOUSE_MODE_CAPTURED
+	GameState.set_menu(self, on)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if GameState.menu_open else Input.MOUSE_MODE_CAPTURED
 	var pm := get_parent().get_node_or_null("PauseMenu") as PauseMenu
 	if pm == null:
 		pm = get_tree().current_scene.get_node_or_null("PauseMenu") as PauseMenu
 	if on and pm != null and pm.is_open():
 		pm.close()
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		GameState.menu_open = true
+		GameState.set_menu(self, true)
 	Audio.play_ui(&"bell", -8.0)
 	_refresh()
 	votes_changed.emit()

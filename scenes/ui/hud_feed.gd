@@ -9,6 +9,7 @@ const FEED_LIFETIME := 7.0
 
 var cliff_id: int = 0
 var _feed: VBoxContainer
+var _spare: Array[Label] = []
 var _card: HudPromptCard
 var _prompt_text := ""
 var _over: Control
@@ -107,7 +108,7 @@ func _ready() -> void:
 	back.pressed.connect(func() -> void:
 		NetworkManager.leave()
 		GameState.reset()
-		get_tree().change_scene_to_file(NetworkManager.MENU_SCENE))
+		SceneFade.go(NetworkManager.MENU_SCENE))
 	footer.add_child(back)
 
 	_boss_box = VBoxContainer.new()
@@ -136,8 +137,8 @@ func _ready() -> void:
 		if p != GameState.Phase.GAME_OVER and _over.visible:
 			# Endless mode picked up after the win screen: back to the game.
 			_over.visible = false
-			GameState.menu_open = false
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			GameState.set_menu(self, false)
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if GameState.menu_open else Input.MOUSE_MODE_CAPTURED # another screen may still be up
 			add_line("Endless! The waves keep coming. How long can you hold?", UiStyle.c("title"))
 		)
 	GameState.weather_changed.connect(func(k: int) -> void:
@@ -174,9 +175,10 @@ func _process(_delta: float) -> void:
 
 func _update_boss_bar() -> void:
 	var bosses: Array[Bug] = []
-	for n: Node in get_tree().get_nodes_in_group("bugs"):
+	var pool: Array = BugManager.instance.bosses if is_instance_valid(BugManager.instance) else get_tree().get_nodes_in_group("bugs")
+	for n: Node in pool:
 		var b := n as Bug
-		if b.def.behavior == BugDef.Behavior.BOSS and b.is_alive():
+		if is_instance_valid(b) and b.def.behavior == BugDef.Behavior.BOSS and b.is_alive():
 			bosses.append(b)
 	_boss_box.visible = not bosses.is_empty()
 	for k in _boss_bars.size():
@@ -210,11 +212,32 @@ func add_line(text: String, color: Color = Color(0, 0, 0, 0)) -> void:
 			last.modulate.a = 1.0
 			_fade_later(last)
 			return
-	var l := _outlined(text, 16, color)
+	var l := _line(text, color)
 	l.set_meta("base", text)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	l.set_meta("count", 1)
+	_feed.add_child(l)
+	while _feed.get_child_count() > FEED_LINES:
+		_retire(_feed.get_child(0) as Label)
+	_fade_later(l)
+
+
+## A feed line: a spare one when there is one (a busy wave used to build and
+## free a styled label for every kill), else a new one.
+func _line(text: String, color: Color) -> Label:
+	var l: Label = _spare.pop_back() if not _spare.is_empty() else null
+	if l == null:
+		l = _outlined(text, 16, color)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		l.add_theme_stylebox_override("normal", StyleBoxFlat.new())
+		l.size_flags_horizontal = Control.SIZE_SHRINK_END
+		l.autowrap_mode = TextServer.AUTOWRAP_OFF # one line, hugging its text
+	else:
+		l.text = text
+		l.add_theme_color_override("font_color", color)
+		l.add_theme_font_size_override("font_size", UiStyle.ts(16))
+		l.modulate.a = 1.0
 	# Each line sits on its own small dark plate (no loose text over the sky).
-	var plate := StyleBoxFlat.new()
+	var plate := l.get_theme_stylebox("normal") as StyleBoxFlat
 	plate.bg_color = Color(UiStyle.c("hud_bg"), 0.82) # Theme: the set's HUD card
 	plate.border_color = UiStyle.c("hud_rim")
 	plate.border_width_left = 3
@@ -223,14 +246,23 @@ func add_line(text: String, color: Color = Color(0, 0, 0, 0)) -> void:
 	plate.content_margin_right = 8
 	plate.content_margin_top = 1
 	plate.content_margin_bottom = 1
-	l.add_theme_stylebox_override("normal", plate)
-	l.size_flags_horizontal = Control.SIZE_SHRINK_END
-	l.autowrap_mode = TextServer.AUTOWRAP_OFF # one line, hugging its text
-	_feed.add_child(l)
-	while _feed.get_child_count() > FEED_LINES:
-		_feed.get_child(0).queue_free()
-		_feed.remove_child(_feed.get_child(0))
-	_fade_later(l)
+	return l
+
+
+## Takes a line off the feed and keeps it for the next one.
+func _retire(l: Label) -> void:
+	if l == null:
+		return
+	var old: Variant = l.get_meta("tween") if l.has_meta("tween") else null
+	if old is Tween and (old as Tween).is_valid():
+		(old as Tween).kill()
+	l.remove_meta("tween")
+	if l.get_parent() != null:
+		l.get_parent().remove_child(l)
+	if _spare.size() < FEED_LINES * 2:
+		_spare.append(l)
+	else:
+		l.queue_free()
 
 
 ## (Re)starts a feed line's countdown to fade out.
@@ -241,7 +273,7 @@ func _fade_later(l: Label) -> void:
 	var tw := l.create_tween()
 	tw.tween_interval(FEED_LIFETIME)
 	tw.tween_property(l, "modulate:a", 0.0, 0.6)
-	tw.tween_callback(l.queue_free)
+	tw.tween_callback(_retire.bind(l))
 	l.set_meta("tween", tw)
 
 
@@ -290,7 +322,7 @@ func _on_game_over(won: bool, reason: String) -> void:
 	UiStyle.fade_in(_over)
 	_fit_over.call_deferred()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	GameState.menu_open = true
+	GameState.set_menu(self, true)
 
 
 ## Story: the chapter's front page, and the host's Retry / Next Chapter button.
@@ -331,3 +363,11 @@ static func _outlined(text: String, size: int, color: Color) -> Label:
 	l.add_theme_color_override("font_outline_color", Palette.OUTLINE)
 	l.add_theme_constant_override("outline_size", 6)
 	return l
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		for l: Label in _spare: # spare lines sit outside the tree
+			if is_instance_valid(l):
+				l.free()
+		_spare.clear()

@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bgixj54xvmupi"
-path="res://.godot/imported/net_thrower_Image_0.webp-59aed2579a4a428d025ef86501e4d958.ctex"
+path.bptc="res://.godot/imported/net_thrower_Image_0.webp-59aed2579a4a428d025ef86501e4d958.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "beaef727704f7559c5421de45bea89fb"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/net_thrower_Image_0.webp"
-dest_files=["res://.godot/imported/net_thrower_Image_0.webp-59aed2579a4a428d025ef86501e4d958.ctex"]
+dest_files=["res://.godot/imported/net_thrower_Image_0.webp-59aed2579a4a428d025ef86501e4d958.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

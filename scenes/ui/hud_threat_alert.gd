@@ -19,6 +19,7 @@ var _label_box: VBoxContainer
 ## cliff id -> {"count": int, "pos": Vector3} for this scan.
 var _threats: Dictionary = {}
 var _was := {}
+var _drawn := false
 
 
 func _ready() -> void:
@@ -51,7 +52,11 @@ func _process(delta: float) -> void:
 	if _t <= 0.0:
 		_t = SCAN
 		_scan()
-	queue_redraw()
+	# The markers follow the camera, so redraw every frame while there are
+	# threats, once more to clear them, then not at all.
+	if not _threats.is_empty() or _drawn:
+		_drawn = not _threats.is_empty()
+		queue_redraw()
 
 
 func _scan() -> void:

@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c3l36ccqk34oa"
-path="res://.godot/imported/twin_hopper_Image_0.webp-775891c253f1725bc2f6590d4a34c8ee.ctex"
+path.bptc="res://.godot/imported/twin_hopper_Image_0.webp-775891c253f1725bc2f6590d4a34c8ee.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "1049d6886e1f3e7e756a46c9378cc845"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/rigged/turrets/twin_hopper_Image_0.webp"
-dest_files=["res://.godot/imported/twin_hopper_Image_0.webp-775891c253f1725bc2f6590d4a34c8ee.ctex"]
+dest_files=["res://.godot/imported/twin_hopper_Image_0.webp-775891c253f1725bc2f6590d4a34c8ee.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

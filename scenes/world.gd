@@ -400,6 +400,16 @@ func local_player() -> Player:
 	return players_root.get_node_or_null(str(multiplayer.get_unique_id())) as Player
 
 
+## SceneFade: the load screen stays black until your own rider is in.
+func load_finished() -> bool:
+	return local_player() != null or not NetworkManager.is_online()
+
+
+## SceneFade: the line on the black while it waits.
+func load_note() -> String:
+	return "Waiting for your posse" if NetworkManager.is_online() and multiplayer.get_peers().size() > 0 else "Loading"
+
+
 func _on_player_left(id: int) -> void:
 	if multiplayer.is_server():
 		var p := players_root.get_node_or_null(str(id))
@@ -411,7 +421,7 @@ func _on_player_left(id: int) -> void:
 
 func _return_to_menu() -> void:
 	GameState.reset()
-	get_tree().change_scene_to_file(NetworkManager.MENU_SCENE)
+	SceneFade.go(NetworkManager.MENU_SCENE)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -453,6 +463,9 @@ func _build_environment() -> void:
 		sky_mat.set_shader_parameter("art_mesas", load("res://assets/sky/mesas.png"))
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
+	# The sky only changes slowly (the day clock, weather): rebuild its
+	# reflections a layer a frame instead of all of them every frame (it uses TIME).
+	sky.process_mode = Sky.PROCESS_MODE_INCREMENTAL
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
