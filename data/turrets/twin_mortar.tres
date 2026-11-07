@@ -6,7 +6,7 @@
 
 [resource]
 script = ExtResource("1_def")
-tier = 1
+tier = 2
 id = &"twin_mortar"
 display_name = "Twin Mortar"
 description = "Two tubes on one carriage. Every salvo lands a blast shell on the pack and a chili fire shell just above it, so whatever lives through the bang climbs into the flames."
@@ -26,7 +26,7 @@ hit_chance = 0.95
 effect = 3
 flight_time = 1.6
 effect_size = 3.0
-ammo_cost = {&"chili": 1, &"scrap": 1}
 sound = &"mortar"
 special = &"twin"
 special_count = 0
+crop_type = &"firecracker_chili"

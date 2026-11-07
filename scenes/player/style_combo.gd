@@ -47,9 +47,15 @@ func bind_bugs(bugs: BugManager) -> void:
 		bugs.bug_killed.connect(_on_kill)
 
 
+## The style combo is the Attack on Mandibles brand's own mechanic (Logan,
+## 2026-11-07): riders of every other brand have none.
+static func active() -> bool:
+	return Brand.local_id() == BrandTable.MANDIBLES
+
+
 ## One qualifying action.
 func add() -> void:
-	if not player.is_multiplayer_authority() or GameState.phase == GameState.Phase.LOBBY:
+	if not player.is_multiplayer_authority() or GameState.phase == GameState.Phase.LOBBY or not active():
 		return
 	_gain += ComboRules.PER_ACTION * BrandTable.combo_gain(Brand.local_id()) # Attack on Mandibles: +25%
 	var whole := int(_gain)

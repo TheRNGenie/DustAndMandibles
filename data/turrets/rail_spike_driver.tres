@@ -26,3 +26,4 @@ special = &"spike"
 special_radius = 1.6
 special_falloff = 0.85
 special_pin = 2.5
+crop_type = &"herbs"

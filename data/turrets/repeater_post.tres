@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"repeater_post"
+display_name = "Repeater Post"
+description = "A beefed-up gatling: thicker barrel shroud, brass cooling fins, twin belts. Tighter and faster than the Gatling Post."
+role = "swarms of small bugs"
+weakness = "armour and big bugs (half damage)"
+cost_scrap = 90
+max_hp = 175.0
+range = 99.0
+fire_interval = 0.1
+damage = 4.0
+armor_pierce = false
+heavy_mult = 0.5
+pitch_limit_deg = 40.0
+turn_speed = 210.0
+spread_deg = 1.5
+hit_chance = 0.7
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+sound = &"gatling"
+tier = 1

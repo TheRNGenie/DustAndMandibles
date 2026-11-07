@@ -501,12 +501,109 @@
         "8 s of fire overheats it; it vents steam for 10 s. Idle, it cools off.",
         "Craft it at your Workshop's Amber tab: 14 hive amber, a Tripod mount, a Rifle barrel and an Acid load. The team fields only one."
       ]
+    },
+    "repeater_post": {
+      "lore": "A beefed-up gatling: thicker barrel shroud, brass cooling fins, twin belts. Tighter and faster than the Gatling Post.",
+      "tips": [
+        "Self-powered: it fires every wave without any crop."
+      ]
+    },
+    "brass_gatling": {
+      "lore": "Six polished brass barrels with steam vents. The strongest gun that never needs a crop.",
+      "tips": [
+        "Self-powered: it fires every wave without any crop."
+      ]
+    },
+    "long_tom_rifle": {
+      "lore": "An absurdly long rifle on an iron tripod with a brass telescope. The longest reach in the canyon.",
+      "tips": [
+        "Self-powered: it fires every wave without any crop."
+      ]
+    },
+    "buck_blaster": {
+      "lore": "Last line: a sawed-off double barrel on a swivel. Brutal on bugs that reach your plateau.",
+      "tips": [
+        "Self-powered: it fires every wave without any crop."
+      ]
+    },
+    "grapeshot_turret": {
+      "lore": "Last line: a naval carronade loaded with grapeshot. One blast clears a patch of your plateau.",
+      "tips": [
+        "Self-powered: it fires every wave without any crop."
+      ]
+    },
+    "skeet_post": {
+      "lore": "An upward-angled rifle on a tall swivel with brass tracking gears. Follows fast fliers.",
+      "tips": [
+        "Self-powered: it fires every wave without any crop."
+      ]
+    },
+    "flak_porch": {
+      "lore": "A wide-bore flak cannon: shells burst in the air and pepper every flier in the cloud.",
+      "tips": [
+        "Self-powered: it fires every wave without any crop."
+      ]
+    },
+    "corn_hopper": {
+      "lore": "A tin hopper of dried corn feeds a rapid-fire barrel. Hits harder than a Gatling Post while it has corn.",
+      "tips": [
+        "Crop-fed: it fires only after you load it with a corn load (E), and the load lasts one wave."
+      ]
+    },
+    "twin_hopper": {
+      "lore": "Two corn hoppers on one swivel: twin barrels, double the fire rate.",
+      "tips": [
+        "Crop-fed: it fires only after you load it with a corn load (E), and the load lasts one wave."
+      ]
+    },
+    "pepper_sprayer": {
+      "lore": "Leather bellows blast a cloud of ground chili down the wall. Leaves a wide burning patch.",
+      "tips": [
+        "Crop-fed: it fires only after you load it with a chili load (E), and the load lasts one wave."
+      ]
+    },
+    "sulfur_fume_vent": {
+      "lore": "A chimney burning sulfur root. Rolls a toxic yellow cloud over the lip of the far wall.",
+      "tips": [
+        "Crop-fed: it fires only after you load it with a sulfur root load (E), and the load lasts one wave."
+      ]
+    },
+    "herb_rifle": {
+      "lore": "A long rifle firing herb-acid tipped rounds that eat through armour.",
+      "tips": [
+        "Crop-fed: it fires only after you load it with a herbs load (E), and the load lasts one wave."
+      ]
+    },
+    "tripwire_fence": {
+      "lore": "Last line: tumbleweed wire strung low across your yard. Snares a bug that reaches your plateau for 3 s.",
+      "tips": [
+        "Crop-fed: it fires only after you load it with a tumbleweed vine load (E), and the load lasts one wave."
+      ]
+    },
+    "bramble_bomb": {
+      "lore": "Last line: a thorny tumbleweed ball rigged with dynamite. Bursts into brambles that pin and burn bugs on your plateau.",
+      "tips": [
+        "Crop-fed: it fires only after you load it with a tumbleweed vine load (E), and the load lasts one wave."
+      ]
+    },
+    "dust_devil_trap": {
+      "lore": "Last line: whips tumbleweed into a little tornado that flings bugs off your plateau.",
+      "tips": [
+        "Crop-fed: it fires only after you load it with a tumbleweed vine load (E), and the load lasts one wave."
+      ]
+    },
+    "siege_mortar": {
+      "lore": "A massive iron mortar firing barrel cactus shells. The biggest single hit in the canyon.",
+      "tips": [
+        "Crop-fed: it fires only after you load it with a barrel cactus load (E), and the load lasts one wave."
+      ]
     }
   },
   "crops": {
     "corn": {
       "lore": "Sweet canyon corn. Grows like a weed and keeps a rancher fed.",
       "tips": [
+        "Each harvest gives 4 loads for the Corn Hopper line, plus a little to keep.",
         "Plant it between waves for quick chitin for the team pot at the market.",
         "Left click with corn out to eat it when your belly growls."
       ]
@@ -514,6 +611,7 @@
     "prickly_pear": {
       "lore": "A stubborn cactus fruit. Takes its time, but it's food, water and medicine in one.",
       "tips": [
+        "Each harvest gives 2 loads for the Water Cannon line, plus a little to keep.",
         "Eating a pear heals a little and quenches thirst.",
         "The pads give back more water than they drink."
       ]
@@ -521,6 +619,7 @@
     "firecracker_chili": {
       "lore": "Hot enough to light a fuse. The Chili Mortar won't fire without it.",
       "tips": [
+        "Each harvest gives 3 loads for the Chili Mortar line, plus a little to keep.",
         "Keep a stock before building a Chili Mortar: every shot burns one.",
         "The market pays your own scrap for chilies, the only crop that does."
       ]
@@ -528,6 +627,7 @@
     "herbs": {
       "lore": "Desert sage, dried and bundled. Better than any snake-oil tonic.",
       "tips": [
+        "Each harvest gives 2 loads for the Herb Rifle line, plus a little to keep.",
         "Carry a few into every wave: a dose heals 50 HP.",
         "Herbs fetch the most chitin per unit at the market."
       ]
@@ -535,10 +635,35 @@
     "sarsaparilla": {
       "lore": "A twining vine with heart-shaped leaves and a thick, knobbly root that brews the canyon's best tonic. You don't grow it for yourself: you grow it for whoever is guarding your wall.",
       "tips": [
+        "Each harvest gives 2 loads for the crewed guns, plus a little to keep.",
         "Hold a root (hotbar 4) and left click to send your partner a tonic: their turrets fire 15% faster.",
         "Each tonic adds 60 s, stacking up to 3 minutes. The clock only runs during a wave, so send them any time.",
         "Can't use it yourself? Store roots in your partner's deposit box and let them brew for you.",
         "The market won't buy it. Seeds are at the airship market."
+      ]
+    },
+    "cotton": {
+      "lore": "Soft canyon cotton, braided into ropes, bolas and nets.",
+      "tips": [
+        "Each harvest gives 3 loads for the Lasso Harpoon line."
+      ]
+    },
+    "sulfur_root": {
+      "lore": "A gnarly yellow root that smells like a struck match.",
+      "tips": [
+        "Thirsty and slow, but each harvest gives 2 loads for the Dynamite Lobber line."
+      ]
+    },
+    "barrel_cactus": {
+      "lore": "A squat ribbed cactus that never needs watering.",
+      "tips": [
+        "Plant it and forget it: one load for the Siege Mortar."
+      ]
+    },
+    "tumbleweed_vine": {
+      "lore": "A fast vine that balls up into tumbleweeds.",
+      "tips": [
+        "Each harvest gives 4 loads for the Tripwire Fence line."
       ]
     }
   },

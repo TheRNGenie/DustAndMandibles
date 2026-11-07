@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"bramble_bomb"
+display_name = "Bramble Bomb"
+description = "Last line: a thorny tumbleweed ball rigged with dynamite. Bursts into brambles that pin and burn bugs on your plateau."
+role = "pins and burns a group on your plateau"
+weakness = "slow; never fires at cliffs"
+cost_scrap = 90
+max_hp = 120.0
+range = 30.0
+fire_interval = 6.0
+damage = 25.0
+armor_pierce = false
+heavy_mult = 1.0
+pitch_limit_deg = 40.0
+turn_speed = 360.0
+spread_deg = 0.0
+hit_chance = 1.0
+effect = 0
+flight_time = 0.0
+effect_size = 2.0
+guards_plateau = true
+sound = &"lobber"
+tier = 1
+special = &"bramble"
+special_pin = 3.0
+crop_type = &"tumbleweed_vine"

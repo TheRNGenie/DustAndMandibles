@@ -11,7 +11,8 @@ const SYNC_INTERVAL := 2.0
 const SIZE := 3.4 # fills a 2 x 2 block of grid cells with a little gap
 const PLANT_SCALE := 1.45
 ## Seed order for F (cycle) on an empty plot.
-const SEEDS: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs", &"sarsaparilla"]
+const SEEDS: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs", &"sarsaparilla",
+	&"cotton", &"sulfur_root", &"barrel_cactus", &"tumbleweed_vine"]
 
 ## The seed resource each crop needs (bought from the airship market for scrap):
 ## CropDef.seed_item, via Defs.seed_of. [Foundation: was a dictionary here]
@@ -130,7 +131,8 @@ func interact_prompt() -> String:
 		var have := Economy.amount(_local_cliff(), seed_res(seed_def().id))
 		if have <= 0:
 			return "Out of %s seeds\nBuy more at the airship market\nF: change seed" % seed_def().display_name
-		return "%s seeds: %d\nE: plant   F: change seed" % [seed_def().display_name, have]
+		var feeds := ("\nLoads: %s" % seed_def().turret_family) if seed_def().turret_family != "" else ""
+		return "%s seeds: %d\nE: plant   F: change seed%s" % [seed_def().display_name, have, feeds]
 	var n := crop_def.display_name
 	match growth.stage:
 		CropGrowth.Stage.PLANTED:
@@ -138,6 +140,8 @@ func interact_prompt() -> String:
 		CropGrowth.Stage.GROWING:
 			return "%s growing: %d%%" % [n, int(growth.fraction() * 100.0)]
 		_:
+			if crop_def.loads_per_harvest > 0: # Turret ammo
+				return "E: harvest %s (%d turret loads)" % [n, crop_def.loads_per_harvest]
 			return "E: harvest %s" % n
 
 
@@ -167,6 +171,8 @@ func _use(peer_id: int, seed_id: StringName) -> void:
 				return
 			crop_def = def
 			growth.plant(def)
+			if def.water_cost <= 0:
+				growth.water() # Barrel cactus: needs no water at all
 			_fx.rpc(&"rustle")
 		CropGrowth.Stage.PLANTED:
 			if Economy.spend(payer, {&"water": crop_def.water_cost}):
@@ -175,7 +181,16 @@ func _use(peer_id: int, seed_id: StringName) -> void:
 			else:
 				Economy.notify(peer_id, "No water left. Fill up at the well or the water tower tap.")
 		CropGrowth.Stage.RIPE:
-			Economy.earn(payer, Brand.harvest(peer_id, Perks.bumper_harvest(peer_id, growth.harvest()))) # Perk: Bumper Crop; Brand: The Sheaf
+			# Turret ammo: no room for its sacks, it waits on the plot (AmmoStore).
+			if not AmmoStore.can_harvest(payer, crop_def, peer_id):
+				return
+			var picked := crop_def
+			var got := AmmoStore.fit(payer, picked, Brand.harvest(peer_id, Perks.bumper_harvest(peer_id, growth.harvest())), peer_id) # Perk: Bumper Crop; Brand: The Sheaf
+			Economy.earn(payer, got)
+			var sacks := int(got.get(picked.load_item, 0))
+			if sacks > 0 and peer_id > 0:
+				Economy.notify(peer_id, "+%d %s ammo sack%s (%d/%d)." % [sacks, picked.display_name.to_lower(), "" if sacks == 1 else "s",
+						Economy.amount(payer, picked.load_item), AmmoStore.cap(payer)])
 			_fx.rpc(&"rustle")
 	_broadcast()
 

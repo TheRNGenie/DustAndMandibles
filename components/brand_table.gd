@@ -53,7 +53,7 @@ const BRANDS: Dictionary = {
 		"lines": ["+20% damage to bosses", "Cheat at the airship casino: peek, nudge, load the ball, palm an ace, dope a beetle",
 			"Get caught and you're barred from the tables for a wave"]},
 	MANDIBLES: {"name": "Attack on Mandibles", "short": "Mandibles", "motto": "You are the weapon.",
-		"lines": ["Style combo climbs 25% faster", "Grapple slingshot hits 20% harder", "Grapple swings and reels 15% faster", "Zipline anchors cost 20% less scrap"]},
+		"lines": ["The style combo (this brand only): chain moves for a grade that raises your pay", "Grapple slingshot hits 20% harder", "Grapple swings and reels 15% faster", "Zipline anchors cost 20% less scrap"]},
 	NONE: {"name": "No Brand", "short": "Unbranded", "motto": "Ride clean.",
 		"lines": ["No bonuses", "The plain Frontier look"]},
 }

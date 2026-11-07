@@ -68,7 +68,8 @@ func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: Strin
 	super.setup(d, cid, c, pos, owner_label, 0)
 	add_to_group("crewed_turrets")
 	_seat_eye = CrewedBuilder.seat(d.id)
-	_head.position.z = float(CrewedBuilder.HEAD_Z.get(d.id, 0.0))
+	if not RiggedTurret.has(d.id): # (the fal models swivel about their own centre)
+		_head.position.z = float(CrewedBuilder.HEAD_Z.get(d.id, 0.0))
 	# One box over the whole 2 x 2 footprint instead of the post's cylinder.
 	for ch in get_children():
 		var cs := ch as CollisionShape3D
@@ -147,6 +148,8 @@ func _think(delta: float) -> void:
 	_tick_chain(delta)
 	# Boss: webbed (Queen Spider) or stunned (Thunder Cicada) guns hold fire, as Turret._think does.
 	if BossFx.holds_fire(self):
+		return
+	if not can_fire(): # Turret ammo: a crewed gun needs its sarsaparilla load
 		return
 	if crew_peer != 0:
 		_think_manned(delta)
@@ -537,6 +540,9 @@ var _was_chained := false
 
 
 func local_interact(holding: bool) -> void:
+	if not holding and wants_load() and _load_count() > 0:
+		super.local_interact(false) # Turret ammo: the first tap loads it
+		return
 	if holding:
 		_pending_mount = false
 		super.local_interact(true)

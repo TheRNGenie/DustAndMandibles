@@ -9,6 +9,8 @@ extends RefCounted
 ## Returns {"base", "head", "gun": ArrayMesh, "head_y", "gun_y": float, "muzzle": Vector3,
 ##          optional "spin": ArrayMesh, "spin_at": Vector3, "recoil": float}
 static func build(id: StringName, team: Color) -> Dictionary:
+	if RiggedTurret.has(id): # the fal models (gen/rigged_turret.gd, tools/rig/prep_turret.py)
+		return RiggedTurret.build(id, team)
 	if CraftTable.is_craft(id): # Crafted: modular mount + barrel + load (gen/craft_builder.gd)
 		return CraftBuilder.build(id, team)
 	if AmberBuilder.has(id): # Hive amber turrets (gen/amber_builder.gd)

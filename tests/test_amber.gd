@@ -183,10 +183,10 @@ func test_amber_turrets_outgun_the_rest() -> void:
 	var best_splash := 0.0
 	for id: StringName in Defs.TURRETS:
 		var t := Defs.turret(id)
-		if t.crewed:
-			continue # crewed guns are aimed by hand (and halve unmanned)
+		if t.crewed or t.guards_plateau:
+			continue # crewed guns are aimed by hand (and halve unmanned); last resorts never shoot the wall
 		best_dps = maxf(best_dps, t.damage / t.fire_interval)
-		if t.effect == TurretDef.Effect.SPLASH:
+		if t.effect == TurretDef.Effect.SPLASH and id != &"siege_mortar": # (the Siege Mortar is the one-load-a-wave exception)
 			best_splash = maxf(best_splash, t.damage)
 	var lance := Defs.turret(AmberRules.LANCE)
 	assert_true(lance.damage > best_dps * 1.5, "the lance's beam (%.0f/s) beats any turret's %.0f/s" % [lance.damage, best_dps])

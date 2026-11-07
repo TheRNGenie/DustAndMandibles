@@ -1005,6 +1005,29 @@ static func tier_chip(tier: int, locked: bool = false, size: int = 12) -> PanelC
 	return p
 
 
+## Turret ammo: a small chip naming the crop that loads a crop-fed turret, with
+## a dot of the crop's colour ("● Corn").
+static func crop_chip(crop: CropDef, size: int = 12) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", chip_flat())
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 4)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(h)
+	if crop == null:
+		return p
+	var dot := ColorRect.new()
+	dot.color = crop.color
+	dot.custom_minimum_size = Vector2(8, 8)
+	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(dot)
+	var l := strap_text(tc(crop.display_name.get_slice(" ", 0) if crop.id == &"firecracker_chili" or crop.id == &"sarsaparilla" else crop.display_name), size)
+	h.add_child(l)
+	return p
+
+
 ## A small dark chip for a stock count on a header strap ("[swatch] 370 Scrap").
 static func stock_chip(resource: StringName, amount: int) -> PanelContainer:
 	var p := PanelContainer.new()

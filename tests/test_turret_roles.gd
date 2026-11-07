@@ -23,9 +23,15 @@ func test_basic_turrets_need_no_upkeep() -> void:
 
 
 func test_special_turrets_show_their_upkeep() -> void:
-	assert_eq(Defs.turret(&"chili_mortar").upkeep_text(), "1 chili")
-	assert_true(Defs.turret(&"dynamite_lobber").has_upkeep())
-	assert_true(Defs.turret(&"chili_mortar").role_line().contains("Upkeep: 1 chili a shot"))
+	# Turret ammo: crop-fed turrets take a load a wave instead of per-shot upkeep.
+	assert_false(Defs.turret(&"chili_mortar").has_upkeep())
+	assert_true(Defs.turret(&"dynamite_lobber").is_crop_fed())
+	assert_false(Defs.turret(&"gatling_post").is_crop_fed(), "self-powered")
+	assert_true(Defs.turret(&"chili_mortar").role_line().contains("Crop-fed: 1 firecracker chili load a wave"))
+	for id: StringName in Defs.TURRETS:
+		var d := Defs.turret(id)
+		if d.is_crop_fed():
+			assert_true(d.load_item() != &"" and EconomyLedger.RESOURCES.has(d.load_item()), "%s loads from a known item" % id)
 
 
 func test_swarm_gun_weak_and_rifle_strong_against_heavy() -> void:

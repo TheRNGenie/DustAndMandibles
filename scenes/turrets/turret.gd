@@ -36,6 +36,10 @@ var shots: int = 0
 var tier: int = 0
 ## False while the owner's stockpile can't pay this special turret's upkeep.
 var has_ammo: bool = true
+## Turret ammo: a crop-fed turret (TurretDef.crop_type) fires only while loaded.
+## E with that crop's load in your stockpile loads it; the load is spent when the
+## wave ends (host). Self-powered turrets ignore it.
+var loaded: bool = false
 # Perk: the builder's Engineer perks (Perks.apply_turret): range, fire interval, HP multipliers.
 var perk_range := 1.0
 var perk_rate := 1.0
@@ -85,36 +89,42 @@ func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: Strin
 	collision_layer = WorldLayout.LAYER_STRUCTURE
 	collision_mask = 0
 	var parts := TurretBuilder.build(d.id, Palette.team_color(cid))
+	_textured = bool(parts.get("textured", false)) # fal models keep their own textures (RiggedTurret)
+	_fixed_yaw = bool(parts.get("fixed_yaw", false))
 	var base := MeshInstance3D.new()
 	base.mesh = parts["base"]
-	base.material_override = Materials.toon(0.025)
+	_paint(base, 0.025)
 	add_child(base)
 	_head = Node3D.new()
 	_head.position.y = float(parts["head_y"])
 	add_child(_head)
 	var head_mi := MeshInstance3D.new()
 	head_mi.mesh = parts["head"]
-	head_mi.material_override = Materials.toon(0.02)
+	_paint(head_mi, 0.02)
 	_head.add_child(head_mi)
 	_gun = Node3D.new()
 	_gun.position.y = float(parts["gun_y"])
 	_head.add_child(_gun)
 	_gun_mi = MeshInstance3D.new()
 	_gun_mi.mesh = parts["gun"]
-	_gun_mi.material_override = Materials.toon(0.015)
+	_paint(_gun_mi, 0.015)
 	_gun.add_child(_gun_mi)
 	_recoil_len = float(parts.get("recoil", 0.06))
 	if parts.has("spin"):
 		_spin = MeshInstance3D.new()
 		_spin.mesh = parts["spin"]
-		_spin.material_override = Materials.toon(0.012)
+		_paint(_spin, 0.012)
 		_spin.position = parts["spin_at"]
+		if parts.has("spin_basis"):
+			_spin.basis = parts["spin_basis"]
 		_gun_mi.add_child(_spin)
 	if parts.has("spin_b"): # Tiers: twin barrel clusters spin about their own axes
 		_spin_b = MeshInstance3D.new()
 		_spin_b.mesh = parts["spin_b"]
-		_spin_b.material_override = Materials.toon(0.012)
+		_paint(_spin_b, 0.012)
 		_spin_b.position = parts["spin_b_at"]
+		if parts.has("spin_b_basis"):
+			_spin_b.basis = parts["spin_b_basis"]
 		_gun_mi.add_child(_spin_b)
 	# Brass stars on the head show the upgrade tier.
 	_stars = Node3D.new()
@@ -127,9 +137,14 @@ func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: Strin
 		_muzzle_b = Node3D.new()
 		_muzzle_b.position = parts["muzzle_b"]
 		_gun.add_child(_muzzle_b)
-	if d.has_upkeep():
+	if d.has_upkeep() or d.is_crop_fed():
 		_empty_sign = _make_empty_sign(float(parts["head_y"]) + 1.3)
 		add_child(_empty_sign)
+	if d.is_crop_fed():
+		_pip = _make_pip(float(parts["head_y"]) + 1.05)
+		add_child(_pip)
+		_in_wave = GameState.phase == GameState.Phase.WAVE
+		GameState.phase_changed.connect(_on_phase_changed)
 	var col := CollisionShape3D.new()
 	var shape := CylinderShape3D.new()
 	shape.radius = 0.8
@@ -150,7 +165,7 @@ func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: Strin
 
 func _make_synchronizer() -> MultiplayerSynchronizer:
 	var cfg := SceneReplicationConfig.new()
-	for p: String in [".:aim_point", ".:shots", ".:tier", ".:has_ammo", "Health:hp"]:
+	for p: String in [".:aim_point", ".:shots", ".:tier", ".:has_ammo", ".:loaded", "Health:hp"]:
 		var path := NodePath(p)
 		cfg.add_property(path)
 		cfg.property_set_spawn(path, true)
@@ -210,6 +225,10 @@ func _think(delta: float) -> void:
 	_retarget -= delta
 	# Boss: webbed (Queen Spider) or stunned (Thunder Cicada) turrets hold fire.
 	if BossFx.holds_fire(self):
+		return
+	# Turret ammo: an unloaded crop-fed turret rests, barrel skyward.
+	if not can_fire():
+		_target = null
 		return
 	# Re-pick on a timer (not every tick when there's nothing to shoot), or at once
 	# when the current target dies or leaves the arc.
@@ -422,20 +441,23 @@ func _aim_visual(delta: float) -> void:
 		yaw = sin((_idle_t + float(cell.y)) * 0.45) * 0.95
 		pitch = (0.65 if def.anti_air else -0.08) + sin((_idle_t + float(cell.y)) * 0.3) * 0.06
 		step *= 0.25
-	_head.rotation.y = rotate_toward(_head.rotation.y, yaw, step)
-	_gun.rotation.x = rotate_toward(_gun.rotation.x, pitch, step)
+	if def.is_crop_fed() and _crop_visual(delta):
+		pass # resting skyward or lowering on a load: the barrel is busy
+	else:
+		_head.rotation.y = 0.0 if _fixed_yaw else rotate_toward(_head.rotation.y, yaw, step)
+		_gun.rotation.x = rotate_toward(_gun.rotation.x, pitch, step)
 	# Recoil kick, spinning barrels winding down, tier stars.
 	_recoil = move_toward(_recoil, 0.0, delta * 6.0)
 	_gun_mi.position.z = _recoil_len * _recoil * _recoil
 	_spin_speed = move_toward(_spin_speed, 0.0, delta * 12.0)
 	if _spin != null:
-		_spin.rotate_z(_spin_speed * delta)
+		_spin.rotate_object_local(Vector3.BACK, _spin_speed * delta)
 	if _spin_b != null:
-		_spin_b.rotate_z(-_spin_speed * delta)
+		_spin_b.rotate_object_local(Vector3.BACK, -_spin_speed * delta)
 	if tier != _shown_tier:
 		_shown_tier = tier
 		_show_tier()
-	if _empty_sign != null and has_ammo != _shown_ammo:
+	if _empty_sign != null and not def.is_crop_fed() and has_ammo != _shown_ammo:
 		_shown_ammo = has_ammo
 		_empty_sign.visible = not has_ammo
 
@@ -528,6 +550,7 @@ func interact_prompt() -> String:
 		text += "\nStands by until bugs reach your plateau"
 	if def.has_upkeep():
 		text += ("\nUpkeep: %s a shot" if has_ammo else "\nEMPTY: needs %s a shot") % def.upkeep_text()
+	text += _load_prompt()
 	if needs_repair():
 		text += "\nHold E: repair (1 %s per %d HP)" % [ResNames.team(), int(BuildManager.REPAIR_HP_PER_SCRAP)]
 	if upgrade_cost() > 0:
@@ -543,9 +566,33 @@ func interact_prompt() -> String:
 	return text
 
 
-func local_interact(_holding: bool) -> void:
+func local_interact(holding: bool) -> void:
+	if not holding and wants_load() and _load_count() > 0:
+		BuildManager.instance.load_node(self)
+		return
 	if needs_repair():
 		BuildManager.instance.repair_node(self)
+
+
+## Turret ammo: loads of this turret's crop in the local player's stockpile.
+func _load_count() -> int:
+	var item := def.load_item()
+	if item == &"":
+		return 0
+	return Economy.amount(Economy.payer_cliff(multiplayer.get_unique_id(), cliff_id), item)
+
+
+## "E: load (Corn)" / "Loaded" / "EMPTY: needs a corn load" for the prompt.
+func _load_prompt() -> String:
+	if not def.is_crop_fed():
+		return ""
+	var crop := def.crop_name()
+	if loaded:
+		return "\nLoaded with %s: fires until the wave ends" % crop.to_lower()
+	var have := _load_count()
+	if have > 0:
+		return "\nE: load (%s)  - %d load%s in stock" % [crop, have, "" if have == 1 else "s"]
+	return "\nEMPTY: needs a %s load. Harvest %s to get some." % [crop.to_lower(), crop.to_lower()]
 
 
 func _on_destroyed(_source: String, _source_cliff: int) -> void:
@@ -587,6 +634,121 @@ func _show_tier() -> void:
 	_brass.mesh = MeshKit.finish(bst)
 	_brass.material_override = Materials.toon(0.01)
 	_gun_mi.add_child(_brass)
+
+
+# ------------------------------------------------------------------ turret ammo
+
+## Barrel tilt while a crop-fed turret waits for a load (up, in radians).
+const REST_PITCH := PI / 4.0
+## Idle sway either side of REST_PITCH, and its period.
+const REST_SWAY := 2.0 * PI / 180.0
+const REST_SWAY_PERIOD := 4.0
+## Loading: the barrel lowers over this long (ease-in-out), thunk at the midpoint.
+const LOAD_TIME := 0.4
+## The EMPTY sign fades in over this long once the barrel is up.
+const SIGN_FADE := 0.3
+
+var _pip: MeshInstance3D
+var _in_wave := false
+var _shown_loaded := false
+var _load_t := 0.0
+var _load_from := 0.0
+var _thunked := false
+var _sign_a := 0.0
+
+
+var _textured := false
+var _fixed_yaw := false
+
+
+## Toon material on code-built parts; the fal models keep their textures.
+func _paint(mi: MeshInstance3D, outline: float) -> void:
+	if not _textured:
+		mi.material_override = Materials.toon(outline)
+
+
+## Fires this wave: self-powered always, crop-fed only once loaded.
+func can_fire() -> bool:
+	return loaded or not def.is_crop_fed()
+
+
+## Crop-fed and waiting for its crop.
+func wants_load() -> bool:
+	return def.is_crop_fed() and not loaded
+
+
+## Host: arm a crop-fed turret for the rest of this wave (or the next one).
+func load_turret() -> void:
+	if multiplayer.is_server() and wants_load():
+		loaded = true
+
+
+## Host: a wave ending spends every crop-fed turret's load.
+func _on_phase_changed(p: GameState.Phase) -> void:
+	var was := _in_wave
+	_in_wave = p == GameState.Phase.WAVE
+	if was and not _in_wave and multiplayer.is_server():
+		loaded = false
+
+
+## Every peer: a crop-fed turret's barrel. Unloaded it rests 45 degrees skyward with
+## a slow sway and the EMPTY sign fades in; loading lowers it to level with a thunk,
+## a puff of the crop's colour at the muzzle and the green ammo pip. True while it
+## holds the barrel (aiming waits).
+func _crop_visual(delta: float) -> bool:
+	if loaded != _shown_loaded:
+		_shown_loaded = loaded
+		if loaded:
+			_load_t = LOAD_TIME
+			_load_from = _gun.rotation.x
+			_thunked = false
+	_pip.visible = loaded and _load_t <= 0.0
+	if loaded and _load_t > 0.0:
+		_load_t = maxf(_load_t - delta, 0.0)
+		var k := 1.0 - _load_t / LOAD_TIME
+		_gun.rotation.x = lerpf(_load_from, 0.0, k * k * (3.0 - 2.0 * k))
+		if not _thunked and k >= 0.5:
+			_thunked = true
+			Audio.play_at(&"crank_gatling_close", global_position)
+		if _load_t <= 0.0 and vfx != null:
+			var c := Defs.crop(def.crop_type)
+			vfx.spark(_muzzle.global_position, -_gun.global_basis.z, c.color if c != null else Palette.GLOW_YELLOW)
+		_set_sign(0.0)
+		return true
+	if loaded:
+		_set_sign(0.0)
+		return false
+	var want := REST_PITCH + sin(Time.get_ticks_msec() / 1000.0 * TAU / REST_SWAY_PERIOD) * REST_SWAY
+	_gun.rotation.x = lerp_angle(_gun.rotation.x, want, 1.0 - exp(-delta * 7.0)) # ease-out, about half a second
+	var up := absf(_gun.rotation.x - want) < 0.05
+	_set_sign(move_toward(_sign_a, 1.0 if up else 0.0, delta / SIGN_FADE))
+	return true
+
+
+func _set_sign(a: float) -> void:
+	_sign_a = a
+	if _empty_sign != null:
+		_empty_sign.visible = a > 0.01
+		_empty_sign.modulate.a = a
+		_empty_sign.outline_modulate.a = a
+
+
+## The green ammo pip over a loaded crop-fed turret.
+func _make_pip(y: float) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.09
+	sphere.height = 0.18
+	sphere.radial_segments = 10
+	sphere.rings = 5
+	mi.mesh = sphere
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color("#5FE36A")
+	mi.material_override = mat
+	mi.position = Vector3(0, y, 0)
+	mi.visible = false
+	return mi
 
 
 ## A red "EMPTY" sign over a special turret that has run out of upkeep.

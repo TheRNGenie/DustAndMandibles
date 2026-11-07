@@ -24,10 +24,12 @@ func test_crewed_defs_are_registered_and_listed() -> void:
 
 func test_crewed_guns_cost_more_than_any_normal_turret() -> void:
 	var priciest := 0
-	for id: StringName in Defs.TURRETS:
-		# The new Mid / Late tier turrets sit in the crewed price band by design.
-		if not Defs.is_crewed(id) and not TierBuilder.has(id) and not ContraptionBuilder.has(id):
-			priciest = maxi(priciest, Defs.cost_of(id))
+	# The original basic turrets (the Mid / Late tier and the newer turrets sit in
+	# the crewed price band by design).
+	for id: StringName in [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar", &"dynamite_lobber", &"lasso_harpoon",
+			&"scattergun_post", &"sharpshooter_tower", &"porch_repeater", &"rooftop_cannon", &"duck_gun", &"sky_sweeper",
+			&"powder_flak", &"net_thrower", &"firework_battery"]:
+		priciest = maxi(priciest, Defs.cost_of(id))
 	for id in CREWED:
 		var c := Defs.cost_of(id)
 		assert_true(c >= priciest * 1.5 and c <= priciest * 2, "%s costs %d (1.5-2x %d)" % [id, c, priciest])

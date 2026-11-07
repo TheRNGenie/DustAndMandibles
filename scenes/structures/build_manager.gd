@@ -34,6 +34,28 @@ func _ready() -> void:
 	add_child(_spawner)
 	_spawner.spawn_path = _spawner.get_path_to(self)
 	_spawner.spawn_function = _spawn_built
+	GameState.phase_changed.connect(_ammo_reminder, CONNECT_DEFERRED) # after the turrets spend their loads
+
+
+## Host, turret ammo: a nudge when the wave warning sounds (crop-fed turrets
+## still unloaded) and when a wave ends (every load is spent).
+func _ammo_reminder(p: GameState.Phase) -> void:
+	if not multiplayer.is_server() or not (p in [GameState.Phase.WARNING, GameState.Phase.BUILD]) or GameState.wave <= 0:
+		return
+	var empty := {}
+	for n: Node in get_tree().get_nodes_in_group("turrets"):
+		var t := n as Turret
+		if t != null and t.wants_load():
+			empty[t.cliff_id] = int(empty.get(t.cliff_id, 0)) + 1
+	for cid: int in empty:
+		var k := int(empty[cid])
+		if p == GameState.Phase.WARNING:
+			if k == 1:
+				Economy.notify_cliff(cid, "1 crop-fed turret is not loaded: it won't fire this wave.")
+			else:
+				Economy.notify_cliff(cid, "%d crop-fed turrets are not loaded: they won't fire this wave." % k)
+		else:
+			Economy.notify_cliff(cid, "The wave spent your turret loads. Load your %d crop-fed turret%s (E) before the next one." % [k, "" if k == 1 else "s"])
 
 
 static func _key(cid: int, cell: Vector2i, level: int = 0) -> String:
@@ -203,6 +225,11 @@ func tier_up_node(n: Node) -> void:
 	_call(&"tier_up", [n.name])
 
 
+## Turret ammo: load a crop-fed turret from your stockpile.
+func load_node(n: Node) -> void:
+	_call(&"load", [n.name])
+
+
 func _call(action: StringName, args: Array) -> void:
 	if multiplayer.is_server():
 		_handle(multiplayer.get_unique_id(), action, args)
@@ -232,6 +259,8 @@ func _handle(peer_id: int, action: StringName, args: Array) -> void:
 			_do_upgrade(peer_id, n)
 		&"tier_up":
 			_do_tier_up(peer_id, n)
+		&"load":
+			_do_load(peer_id, n)
 
 
 # ------------------------------------------------------------------ host logic
@@ -421,6 +450,33 @@ func _do_repair(peer_id: int, n: Node3D) -> void:
 	t.repair(REPAIR_CHUNK * Perks.more(peer_id, &"tinker")) # Perk: Tinker
 
 
+## Host: turret ammo. One load of the turret's crop from your own stockpile arms
+## a crop-fed turret on your own cliff until the wave ends (cross-canyon rule:
+## never the partner's turrets or stock).
+func _do_load(peer_id: int, n: Node3D) -> void:
+	var t := n as Turret
+	if t == null or not t.wants_load() or GameState.phase == GameState.Phase.GAME_OVER:
+		return
+	if _cpu_builder == "" and peer_id != -1 and not may_build(peer_id, t.cliff_id):
+		return
+	var item := t.def.load_item()
+	if item == &"" or not Economy.spend(t.cliff_id, {item: 1}):
+		Economy.notify(peer_id, "No %s loads. Harvest %s to load the %s." % [t.def.crop_name().to_lower(), t.def.crop_name().to_lower(), t.def.display_name])
+		return
+	t.load_turret()
+
+
+## Host (CPU teammates): load a turret on `cid` from that cliff's stock.
+func cpu_load(t: Turret) -> bool:
+	if t == null or not t.wants_load():
+		return false
+	var item := t.def.load_item()
+	if item == &"" or not Economy.spend(t.cliff_id, {item: 1}):
+		return false
+	t.load_turret()
+	return true
+
+
 ## Host: swap a built turret for its next tech tier in place (Defs.TIER_UP), for
 ## a bit less than building that tier new. Keeps its upgrade tier, scaffold level
 ## and how damaged it is.
@@ -447,6 +503,7 @@ func _do_tier_up(peer_id: int, n: Node3D) -> void:
 	var cell := t.cell
 	var level := t.level
 	var old_name := t.def.display_name
+	var was_loaded := t.loaded # Turret ammo: a loaded turret stays loaded through its step-up
 	t.queue_free()
 	_next_id += 1
 	var nt := _spawner.spawn({"id": _next_id, "type": next, "cliff": cid, "row": cell.x, "col": cell.y,
@@ -455,6 +512,8 @@ func _do_tier_up(peer_id: int, n: Node3D) -> void:
 		for i in upg:
 			nt.upgrade()
 		nt.health.hp = maxf(nt.health.max_hp * frac, 1.0)
+		if was_loaded and nt.def.is_crop_fed():
+			nt.loaded = true
 	Economy.notify(peer_id, "%s stepped up to a %s." % [old_name, Defs.name_of(next)])
 	_upgraded.rpc(t.global_position)
 

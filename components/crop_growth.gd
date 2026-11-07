@@ -57,7 +57,7 @@ func fraction() -> float:
 func harvest() -> Dictionary:
 	if stage != Stage.RIPE:
 		return {}
-	var out := crop.harvest.duplicate()
+	var out := crop.harvest_out()
 	clear()
 	return out
 

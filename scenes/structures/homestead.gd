@@ -13,6 +13,7 @@ const UPGRADES: Array[Dictionary] = [
 	{"id": &"reinforce", "name": "Reinforce the walls", "cost": {&"scrap": 80, &"chitin": 10}, "desc": "+250 max HP: iron bands and a stone skirt."},
 	{"id": &"floor2", "name": "Build a second floor", "cost": {&"scrap": 120, &"chitin": 15}, "desc": "A second storey and a front balcony with 2 house turret mounts."},
 	{"id": &"floor3", "name": "Build a lookout floor", "cost": {&"scrap": 180, &"chitin": 30}, "desc": "A top storey and a roof deck with 2 more mounts. The lookout spots for you: +8% range for every turret on this cliff."},
+	{"id": &"cellar", "name": "Dig a root cellar", "cost": {&"scrap": 70, &"chitin": 8}, "desc": "Ammo storage beside the house: a bin for every kind of turret ammo sack, 20 sacks each (4 without it)."},
 	{"id": &"porch", "name": "Build a shaded porch", "cost": {&"scrap": 60}, "desc": "Covered wings with benches either side of the porch. Rest under them to heal 3x as fast."},
 	{"id": &"workshop", "name": "Build a workshop", "cost": {&"scrap": 100, &"chitin": 12}, "desc": "A shed with a crafting bench: combine 3 turret parts (mount, barrel, load) into a new turret."},
 	{"id": &"tower", "name": "Build a zip-line tower", "cost": {&"scrap": 220, &"chitin": 40}, "desc": "A tall tower on the roof deck. Once both houses have one, a zip line joins them across the canyon."},
@@ -31,6 +32,8 @@ var reinforced := false
 var tower := false
 var workshop := false
 var porch := false
+## Turret ammo: the root cellar (ammo storage, RootCellar / AmmoStore).
+var cellar := false
 ## Cliffs whose house has the shaded porch (PlayerVitals heals faster on it).
 static var porch_cliffs: Dictionary = {}
 ## Health regen multiplier while resting under a shaded porch.
@@ -298,6 +301,18 @@ func _build_workshop() -> void:
 	add_child(w)
 
 
+## Turret ammo: the root cellar (ammo storage) against the house's left wall (-X local).
+func _build_cellar() -> void:
+	if not cellar or get_node_or_null("RootCellar") != null:
+		return
+	var c := RootCellar.new()
+	c.name = "RootCellar"
+	c.home = self
+	c.position = Vector3(-HouseBuilder.W * 0.5 - 1.0, 0, -1.6)
+	add_child(c)
+	Economy.resources_changed.emit(cliff_id) # the bins' caps change: redraw them
+
+
 func _build_tower_bits() -> void:
 	if not tower or _ladder != null:
 		return
@@ -368,6 +383,9 @@ func can_offer(id: StringName) -> String:
 				return "Already built."
 			if floors < 3:
 				return "Build the lookout floor first."
+		&"cellar":
+			if cellar:
+				return "Already dug."
 		&"workshop":
 			if workshop:
 				return "Already built."
@@ -401,6 +419,7 @@ func buy(peer_id: int, index: int) -> void:
 	var tw := tower
 	var ws := workshop
 	var pr := porch
+	var ce := cellar
 	match u["id"]:
 		&"patch":
 			GameState.heal_homestead(cliff_id, PATCH_HP)
@@ -419,13 +438,16 @@ func buy(peer_id: int, index: int) -> void:
 			ws = true
 		&"porch":
 			pr = true
-	_set_state.rpc(f, b, r, tw, ws, pr)
+		&"cellar":
+			ce = true
+	_set_state.rpc(f, b, r, tw, ws, pr, ce)
 	Economy.notify_cliff(cliff_id, "Homestead: %s done." % str(u["name"]).to_lower())
 
 
 @rpc("authority", "call_local", "reliable")
-func _set_state(f: int, b: bool, r: bool, tw: bool = false, ws: bool = false, pr: bool = false) -> void:
+func _set_state(f: int, b: bool, r: bool, tw: bool = false, ws: bool = false, pr: bool = false, ce: bool = false) -> void:
 	var changed := f != floors or b != boarded or r != reinforced or tw != tower or ws != workshop or pr != porch
+	cellar = ce or cellar # (older callers don't pass it; a cellar is never filled in)
 	floors = f
 	boarded = b
 	reinforced = r
@@ -442,6 +464,7 @@ func _set_state(f: int, b: bool, r: bool, tw: bool = false, ws: bool = false, pr
 	else:
 		lookout_cliffs.erase(cliff_id)
 	_build_workshop()
+	_build_cellar()
 	if changed:
 		_rebuild()
 		ZipLine.refresh(get_tree())

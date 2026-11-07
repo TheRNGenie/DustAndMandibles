@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"skeet_post"
+display_name = "Skeet Post"
+description = "An upward-angled rifle on a tall swivel with brass tracking gears. Follows fast fliers."
+role = "fast fliers"
+weakness = "weak against climbers"
+cost_scrap = 85
+max_hp = 165.0
+range = 50.0
+fire_interval = 1.1
+damage = 38.0
+armor_pierce = false
+heavy_mult = 1.0
+pitch_limit_deg = 40.0
+turn_speed = 210.0
+spread_deg = 4.0
+hit_chance = 0.92
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+anti_air = true
+ground_mult = 0.4
+sound = &"shotgun"
+tier = 1

@@ -87,7 +87,7 @@ func capture() -> Dictionary:
 		var h := Homestead.of(cid)
 		homes.append({"hp": GameState.homestead_hp[cid], "max": GameState.homestead_max[cid],
 				"floors": h.floors if h != null else 1, "boarded": h != null and h.boarded,
-				"reinforced": h != null and h.reinforced, "tower": h != null and h.tower, "workshop": h != null and h.workshop, "porch": h != null and h.porch})
+				"reinforced": h != null and h.reinforced, "tower": h != null and h.tower, "workshop": h != null and h.workshop, "porch": h != null and h.porch, "cellar": h != null and h.cellar})
 	data["homesteads"] = homes
 	var builds: Array = []
 	var bm := BuildManager.instance
@@ -142,7 +142,7 @@ func _capture_build(n: Node) -> Dictionary:
 		var t := n as Turret
 		if t.health.dead:
 			return {}
-		b.merge({"type": t.def.id, "level": t.level, "owner": t.owner_name, "tier": t.tier, "hp": t.health.hp,
+		b.merge({"type": t.def.id, "level": t.level, "owner": t.owner_name, "tier": t.tier, "hp": t.health.hp, "loaded": t.loaded,
 				"perk": [t.perk_range, t.perk_rate, t.perk_hp, t.perk_mend, Perks.kill_scrap_mult("%s's %s" % [t.owner_name, t.def.display_name])]}, true)
 	elif n is ScaffoldNode:
 		b.merge({"type": &"scaffold", "levels": (n as ScaffoldNode).levels, "paid": (n as ScaffoldNode).paid_levels}, true)
@@ -200,7 +200,7 @@ func resume(data: Dictionary) -> bool:
 		var h: Dictionary = homes[cid]
 		var home := Homestead.of(cid)
 		if home != null:
-			home._set_state.rpc(int(h["floors"]), bool(h["boarded"]), bool(h["reinforced"]), bool(h["tower"]), bool(h.get("workshop", false)), bool(h.get("porch", false)))
+			home._set_state.rpc(int(h["floors"]), bool(h["boarded"]), bool(h["reinforced"]), bool(h["tower"]), bool(h.get("workshop", false)), bool(h.get("porch", false)), bool(h.get("cellar", false)))
 		if float(h["max"]) > 0.0:
 			GameState.homestead_max[cid] = float(h["max"])
 			GameState.homestead_hp[cid] = clampf(float(h["hp"]), 1.0, float(h["max"]))
@@ -270,6 +270,7 @@ func _restore_builds(builds: Array) -> void:
 			if float(perk[4]) != 1.0: # Perk: Scrap Scavenger
 				(Perks.get("_turret_scrap") as Dictionary)["%s's %s" % [t.owner_name, t.def.display_name]] = float(perk[4])
 			t.tier = clampi(int(b["tier"]), 0, TurretDef.MAX_TIER)
+			t.loaded = bool(b.get("loaded", false)) and t.def.is_crop_fed() # Turret ammo
 			t.health.setup(t.def.hp_at(t.tier) * t.perk_hp)
 			if float(b["hp"]) > 0.0:
 				t.health.hp = minf(float(b["hp"]), t.health.max_hp)

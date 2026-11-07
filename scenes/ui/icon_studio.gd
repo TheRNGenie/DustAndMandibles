@@ -83,7 +83,8 @@ static func _render(host: Node, key: String, parts: Array, yaw_deg: float) -> vo
 		var xf: Transform3D = part[1]
 		var mi := MeshInstance3D.new()
 		mi.mesh = mesh
-		mi.material_override = mat
+		if mesh.get_surface_count() == 0 or mesh.surface_get_material(0) == null: # (the fal models keep their textures)
+			mi.material_override = mat
 		mi.transform = xf
 		root.add_child(mi)
 		var box := xf * mesh.get_aabb()

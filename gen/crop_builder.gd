@@ -31,6 +31,19 @@ const SARSA_LEAF_DARK := Color("#2F6C3A")
 const SARSA_ROOT := Color("#8A5432")
 const SARSA_BERRY := Color("#2E2440")
 const STAKE := Color("#9A7A52")
+# Turret ammo crops (farming redesign).
+const COTTON_LEAF := Color("#5C8F45")
+const COTTON_BOLL := Color("#7FA54E")
+const COTTON := Color("#F5F5DC")
+const SULFUR := Color("#DAA520")
+const SULFUR_SHOOT := Color("#A7B347")
+const SULFUR_CRYSTAL := Color("#F4D03F")
+const CACTUS := Color("#228B22")
+const CACTUS_RIB := Color("#1A6E1A")
+const CACTUS_FLOWER := Color("#D9302A")
+const TUMBLE := Color("#8B7355")
+const TUMBLE_DRY := Color("#B49A6E")
+const TUMBLE_GREEN := Color("#6E8A4A")
 
 static var _cache: Dictionary = {}
 
@@ -77,6 +90,22 @@ static func _plant(st: SurfaceTool, crop: StringName, stage: int, at: Vector3, t
 	if stage == 1:
 		# Sprout: a short stem and two seed leaves, the same for every crop but tinted.
 		var tint := SAGE if crop == &"herbs" else (PAD if crop == &"prickly_pear" else (SARSA_LEAF if crop == &"sarsaparilla" else LEAF))
+		if crop == &"sulfur_root":
+			# A curling yellow-green shoot out of yellow-tinged soil.
+			MeshKit.add_ellipsoid(st, Transform3D(b, at + Vector3(0, 0.015, 0)), Vector3(0.12, 0.02, 0.1), 3, 8, SULFUR.darkened(0.35))
+			MeshKit.add_limb(st, at, at + Vector3(0, 0.1, 0), 0.012, SULFUR_SHOOT, 4)
+			MeshKit.add_limb(st, at + Vector3(0, 0.1, 0), at + b * Vector3(0.04, 0.13, 0), 0.01, SULFUR_SHOOT, 4)
+			return
+		if crop == &"barrel_cactus":
+			MeshKit.add_ellipsoid(st, Transform3D(b, at + Vector3(0, 0.045, 0)), Vector3(0.05, 0.045, 0.05), 4, 8, CACTUS)
+			return
+		if crop == &"tumbleweed_vine":
+			for k in 3:
+				var a := float(k) * 2.1
+				MeshKit.add_limb(st, at, at + b * Vector3(cos(a) * 0.07, 0.06 + k * 0.02, sin(a) * 0.07), 0.006, TUMBLE, 3)
+			return
+		if crop == &"cotton":
+			tint = COTTON_LEAF
 		if crop == &"prickly_pear":
 			MeshKit.add_ellipsoid(st, Transform3D(b, at + Vector3(0, 0.1, 0)), Vector3(0.06, 0.1, 0.025), 4, 8, PAD)
 			return
@@ -93,6 +122,14 @@ static func _plant(st: SurfaceTool, crop: StringName, stage: int, at: Vector3, t
 			_chili(st, b, at, stage, size, rng)
 		&"sarsaparilla":
 			_sarsaparilla(st, b, at, stage, size, rng)
+		&"cotton":
+			_cotton(st, b, at, stage, size, rng)
+		&"sulfur_root":
+			_sulfur_root(st, b, at, stage, size, rng)
+		&"barrel_cactus":
+			_barrel_cactus(st, b, at, stage, size, rng)
+		&"tumbleweed_vine":
+			_tumbleweed(st, b, at, stage, size, rng)
 		_:
 			_sage(st, b, at, stage, size, rng)
 
@@ -257,10 +294,115 @@ static func _sarsaparilla(st: SurfaceTool, b: Basis, at: Vector3, stage: int, si
 		MeshKit.add_ellipsoid(st, Transform3D(b, at + Vector3(0, 0.03, 0)), Vector3(0.05, 0.035, 0.05), 4, 8, SARSA_ROOT)
 
 
+## Cotton: a bushy plant with broad leaves, green bolls, then bolls burst open
+## into white fluff when ripe.
+static func _cotton(st: SurfaceTool, b: Basis, at: Vector3, stage: int, size: float, rng: RandomNumberGenerator) -> void:
+	var h: float = [0.0, 0.0, 0.34, 0.6, 0.62][stage] * size
+	MeshKit.add_cylinder(st, Transform3D(b, at + Vector3(0, h * 0.5, 0)), 0.018, 0.012, h, 5, STEM.darkened(0.2))
+	var branches: int = [0, 0, 4, 6, 6][stage]
+	for i in branches:
+		var a := float(i) * TAU / branches + rng.randf_range(-0.3, 0.3)
+		var dir := b * Vector3(cos(a), 0, sin(a))
+		var from := at + Vector3(0, h * rng.randf_range(0.35, 0.85), 0)
+		var to := from + dir * 0.13 * size + Vector3.UP * 0.08 * size
+		MeshKit.add_limb(st, from, to, 0.008, STEM.darkened(0.2), 3)
+		# Broad three-lobed leaf.
+		var lb := MeshKit.basis_from_y((dir + Vector3.UP * 0.4).normalized())
+		MeshKit.add_ellipsoid(st, Transform3D(lb, to), Vector3(0.07, 0.05, 0.012) * size, 3, 7, COTTON_LEAF if i % 2 else COTTON_LEAF.darkened(0.15))
+		if stage >= 3:
+			var boll := to + Vector3(0, 0.06, 0) + dir * 0.02
+			if stage == 4:
+				# Burst boll: brown calyx with a fluffy white puff.
+				MeshKit.add_ellipsoid(st, Transform3D(b, boll - Vector3(0, 0.02, 0)), Vector3(0.025, 0.02, 0.025), 3, 6, TUMBLE)
+				for k in 4:
+					var ka := float(k) * 1.57 + rng.randf()
+					MeshKit.add_ellipsoid(st, Transform3D(b, boll + Vector3(cos(ka) * 0.018, 0.01, sin(ka) * 0.018)), Vector3.ONE * 0.026, 3, 6, COTTON, 0.0, null, 0.1)
+			else:
+				MeshKit.add_ellipsoid(st, Transform3D(b, boll), Vector3(0.025, 0.032, 0.025), 3, 6, COTTON_BOLL)
+
+
+## Sulfur root: a gnarly root that heaves out of cracked soil, sprouting yellow
+## crystals, bright and smoking faintly when ripe.
+static func _sulfur_root(st: SurfaceTool, b: Basis, at: Vector3, stage: int, size: float, rng: RandomNumberGenerator) -> void:
+	MeshKit.add_ellipsoid(st, Transform3D(b, at + Vector3(0, 0.015, 0)), Vector3(0.2, 0.025, 0.17), 3, 8, SULFUR.darkened(0.4))
+	var knots: int = [0, 0, 3, 5, 6][stage]
+	var prev := at + Vector3(0, 0.02, 0)
+	for i in knots:
+		var a := float(i) * 1.9 + rng.randf()
+		var p := at + b * Vector3(cos(a) * 0.09, 0.04 + 0.03 * float(i % 2), sin(a) * 0.09) * size
+		MeshKit.add_limb(st, prev, p, 0.028 * size, SULFUR.darkened(0.25 if stage < 4 else 0.0), 5)
+		MeshKit.add_ellipsoid(st, Transform3D(b, p), Vector3(0.035, 0.03, 0.035) * size, 3, 6, SULFUR.darkened(0.15 if stage < 4 else 0.0))
+		prev = p
+		if stage >= 3:
+			# Crystals: pointed yellow shards on the knots.
+			var c_dir := (b * Vector3(cos(a), 1.2, sin(a))).normalized()
+			var cb := MeshKit.basis_from_y(c_dir)
+			MeshKit.add_cylinder(st, Transform3D(cb, p + c_dir * 0.04), 0.018, 0.0, 0.07 * (1.3 if stage == 4 else 0.8), 4, SULFUR_CRYSTAL, true, 0.35 if stage == 4 else 0.0)
+	# A curl of yellow-green leaf on top.
+	MeshKit.add_limb(st, at + Vector3(0, 0.04, 0), at + Vector3(0, 0.16 * size, 0), 0.01, SULFUR_SHOOT, 4)
+	MeshKit.add_ellipsoid(st, Transform3D(b, at + Vector3(0, 0.17 * size, 0)), Vector3(0.04, 0.02, 0.03), 3, 6, SULFUR_SHOOT)
+	if stage == 4:
+		# Faint sulfur wisps.
+		for k in 2:
+			MeshKit.add_ellipsoid(st, Transform3D(b, at + Vector3(0.03 * k, 0.26 + 0.08 * k, 0.0)), Vector3(0.05, 0.035, 0.05) * (1.0 + k * 0.4), 3, 6, Color(0.95, 0.9, 0.6, 1.0), 0.0, null, 0.1)
+
+
+## Barrel cactus: a squat ribbed ball that swells into a barrel, spines along the
+## ribs, and a crown of red flowers when ripe (the harvest tell).
+static func _barrel_cactus(st: SurfaceTool, b: Basis, at: Vector3, stage: int, size: float, _rng: RandomNumberGenerator) -> void:
+	var r: float = [0.0, 0.0, 0.1, 0.17, 0.19][stage] * size
+	var h: float = [0.0, 0.0, 0.16, 0.3, 0.34][stage] * size
+	MeshKit.add_ellipsoid(st, Transform3D(b, at + Vector3(0, h * 0.5, 0)), Vector3(r, h * 0.55, r), 6, 12, CACTUS)
+	var ribs := 10
+	for i in ribs:
+		var a := float(i) * TAU / ribs
+		var dir := b * Vector3(cos(a), 0, sin(a))
+		var rb := Basis(dir.cross(Vector3.UP).normalized(), Vector3.UP, dir)
+		MeshKit.add_ellipsoid(st, Transform3D(rb, at + Vector3(0, h * 0.5, 0) + dir * r * 0.82), Vector3(0.018, h * 0.5, 0.03) * Vector3(1, 1, size), 4, 6, CACTUS_RIB)
+		for k in 3:
+			var y := h * (0.25 + 0.25 * k)
+			var spine_at := at + Vector3(0, y, 0) + dir * r * 1.02
+			MeshKit.add_limb(st, spine_at, spine_at + dir * 0.03 + Vector3.UP * 0.01, 0.003, SPINE, 3)
+	if stage == 4:
+		for k in 6:
+			var a := float(k) * TAU / 6.0
+			MeshKit.add_ellipsoid(st, Transform3D(b, at + Vector3(0, h * 1.02, 0) + b * Vector3(cos(a), 0, sin(a)) * r * 0.35), Vector3(0.028, 0.02, 0.028), 3, 6, CACTUS_FLOWER, 0.0, null, 0.2)
+		MeshKit.add_ellipsoid(st, Transform3D(b, at + Vector3(0, h * 1.05, 0)), Vector3.ONE * 0.02, 3, 6, BLOOM)
+
+
+## Tumbleweed vine: tendrils that spread into a thorny mat, then a dry round
+## tumbleweed ball forms over the vines, ready to break off.
+static func _tumbleweed(st: SurfaceTool, b: Basis, at: Vector3, stage: int, size: float, rng: RandomNumberGenerator) -> void:
+	var spread: float = [0.0, 0.0, 0.16, 0.26, 0.26][stage] * size
+	var vines: int = [0, 0, 5, 8, 8][stage]
+	for i in vines:
+		var a := float(i) * TAU / vines + rng.randf_range(-0.2, 0.2)
+		var mid := at + b * Vector3(cos(a) * spread * 0.5, 0.05, sin(a) * spread * 0.5)
+		var tip := at + b * Vector3(cos(a + 0.4) * spread, 0.02, sin(a + 0.4) * spread)
+		MeshKit.add_limb(st, at + Vector3(0, 0.02, 0), mid, 0.007, TUMBLE_GREEN if stage < 4 else TUMBLE, 3)
+		MeshKit.add_limb(st, mid, tip, 0.005, TUMBLE_GREEN if stage < 4 else TUMBLE, 3)
+		if stage >= 3:
+			for k in 2:
+				var tp := mid.lerp(tip, 0.3 + k * 0.4)
+				MeshKit.add_limb(st, tp, tp + Vector3.UP * 0.025 + b * Vector3(cos(a), 0, sin(a)) * 0.01, 0.002, SPINE, 3)
+	if stage == 4:
+		# The ball: a tangle of dry twigs round a hollow centre.
+		var c := at + Vector3(0, 0.2 * size, 0)
+		var br := 0.16 * size
+		for k in 18:
+			var u := rng.randf() * TAU
+			var v := rng.randf_range(-1.0, 1.0)
+			var d := Vector3(cos(u) * sqrt(1.0 - v * v), v, sin(u) * sqrt(1.0 - v * v))
+			var e := d.rotated(Vector3.UP, 1.3).rotated(Vector3.RIGHT, 0.7)
+			MeshKit.add_limb(st, c + d * br, c + e * br, 0.006, TUMBLE_DRY if k % 2 else TUMBLE, 3)
+		MeshKit.add_ellipsoid(st, Transform3D(b, c), Vector3.ONE * br * 0.7, 3, 7, TUMBLE.darkened(0.2))
+
+
 # ------------------------------------------------------------------ seed packets
 
 const PACKET_COLORS: Dictionary = {&"corn": Color("#E9C24A"), &"prickly_pear": Color("#C24A86"),
-	&"firecracker_chili": Color("#D2442A"), &"herbs": Color("#7FA07A"), &"sarsaparilla": Color("#7A4A2E")}
+	&"firecracker_chili": Color("#D2442A"), &"herbs": Color("#7FA07A"), &"sarsaparilla": Color("#7A4A2E"),
+	&"cotton": Color("#E4DFC4"), &"sulfur_root": Color("#DAA520"), &"barrel_cactus": Color("#2E8B3A"), &"tumbleweed_vine": Color("#8B7355")}
 
 
 ## A paper seed packet (about 9 x 13 cm) with a coloured band, a little
@@ -284,6 +426,18 @@ static func packet(crop: StringName) -> ArrayMesh:
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, h * 0.7, -0.0063)), Vector3(w, 0.004, 0.001), band.darkened(0.3))
 	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, h * 0.38, -0.0062)), Vector3(w * 0.78, h * 0.5, 0.001), Color("#FFF8E8"))
 	var pic := Vector3(0, h * 0.38, -0.0075)
+	_picture(st, crop, pic)
+	# Text lines suggested by thin ink bars.
+	for i in 2:
+		MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, h * 0.08 + i * 0.009, -0.0063)), Vector3(w * (0.7 - i * 0.2), 0.003, 0.001), Color("#3A2416"))
+	var mesh := MeshKit.finish(st)
+	_cache[key] = mesh
+	return mesh
+
+
+## The little picture of a crop on its seed packet (and on its ammo sack's
+## patch): about 5 cm across, centred on `pic`, facing -Z.
+static func _picture(st: SurfaceTool, crop: StringName, pic: Vector3) -> void:
 	match crop:
 		&"corn":
 			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, 0.4), pic), Vector3(0.012, 0.028, 0.002), 3, 8, CORN)
@@ -300,13 +454,32 @@ static func packet(crop: StringName) -> ArrayMesh:
 				MeshKit.add_ellipsoid(st, Transform3D(Basis(), pic + Vector3(s * 0.008, 0.018, 0)), Vector3(0.01, 0.011, 0.002), 3, 6, SARSA_LEAF)
 			MeshKit.add_ellipsoid(st, Transform3D(Basis(), pic + Vector3(0, 0.01, 0)), Vector3(0.007, 0.01, 0.002), 3, 6, SARSA_LEAF)
 			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, 0.5), pic + Vector3(0, -0.016, 0)), Vector3(0.007, 0.02, 0.002), 3, 6, SARSA_ROOT)
+		&"cotton":
+			for k in 3:
+				MeshKit.add_ellipsoid(st, Transform3D(Basis(), pic + Vector3(-0.009 + k * 0.009, 0.006 * (k % 2), 0)), Vector3(0.009, 0.009, 0.002), 3, 6, COTTON.darkened(0.05))
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), pic + Vector3(0, -0.014, 0)), Vector3(0.012, 0.006, 0.002), 3, 6, COTTON_LEAF)
+		&"sulfur_root":
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, 0.6), pic), Vector3(0.01, 0.024, 0.002), 3, 6, SULFUR)
+			MeshKit.add_box(st, Transform3D(Basis(Vector3.BACK, 0.3), pic + Vector3(0.01, 0.016, 0)), Vector3(0.005, 0.012, 0.002), SULFUR_CRYSTAL)
+		&"barrel_cactus":
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), pic + Vector3(0, -0.004, 0)), Vector3(0.018, 0.02, 0.002), 3, 8, CACTUS)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), pic + Vector3(0, 0.018, -0.0005)), Vector3(0.008, 0.005, 0.002), 3, 6, CACTUS_FLOWER)
+		&"tumbleweed_vine":
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), pic + Vector3(0, 0.004, 0)), Vector3(0.019, 0.019, 0.002), 3, 8, TUMBLE_DRY)
+			MeshKit.add_box(st, Transform3D(Basis(), pic + Vector3(0, -0.02, 0)), Vector3(0.03, 0.003, 0.002), TUMBLE_GREEN)
 		_:
 			for k in 3:
 				MeshKit.add_ellipsoid(st, Transform3D(Basis(Vector3.BACK, -0.5 + k * 0.5), pic + Vector3(-0.012 + k * 0.012, 0.004 * (k % 2), 0)), Vector3(0.007, 0.018, 0.002), 3, 6, SAGE_DARK)
 			MeshKit.add_ellipsoid(st, Transform3D(Basis(), pic + Vector3(0, 0.022, 0)), Vector3(0.006, 0.006, 0.002), 3, 6, SAGE_FLOWER)
-	# Text lines suggested by thin ink bars.
-	for i in 2:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, h * 0.08 + i * 0.009, -0.0063)), Vector3(w * (0.7 - i * 0.2), 0.003, 0.001), Color("#3A2416"))
+
+
+## The crop picture alone as a mesh at the origin, facing -Z (AmmoSackBuilder).
+static func picture(crop: StringName) -> ArrayMesh:
+	var key := "picture:%s" % crop
+	if _cache.has(key):
+		return _cache[key]
+	var st := MeshKit.begin()
+	_picture(st, crop, Vector3.ZERO)
 	var mesh := MeshKit.finish(st)
 	_cache[key] = mesh
 	return mesh
@@ -316,8 +489,12 @@ static func packet(crop: StringName) -> ArrayMesh:
 static func packet_rack() -> ArrayMesh:
 	var st := MeshKit.begin()
 	MeshKit.add_box(st, Transform3D(Basis(Vector3.RIGHT, -0.35), Vector3(0, 0.07, 0.02)), Vector3(0.48, 0.16, 0.02), Palette.WOOD)
-	var crops: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs", &"sarsaparilla"]
+	var crops: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs", &"sarsaparilla",
+		&"cotton", &"sulfur_root", &"barrel_cactus", &"tumbleweed_vine"]
 	for i in crops.size():
 		var tilt := Basis(Vector3.RIGHT, -0.35)
-		st.append_from(packet(crops[i]), 0, Transform3D(tilt, Vector3(-0.2 + i * 0.1, 0.02, -0.005) + tilt * Vector3(0, 0, -0.012)))
+		# Two rows: the first five on the bottom, the turret-ammo crops above.
+		var row := 0 if i < 5 else 1
+		var col := i if i < 5 else i - 5
+		st.append_from(packet(crops[i]), 0, Transform3D(tilt, Vector3(-0.2 + col * 0.1 + row * 0.05, 0.02 + row * 0.07, -0.005 + row * 0.03) + tilt * Vector3(0, 0, -0.012)))
 	return MeshKit.finish(st)

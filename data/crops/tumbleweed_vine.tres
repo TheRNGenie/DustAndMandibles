@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="CropDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/crop_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"tumbleweed_vine"
+display_name = "Tumbleweed Vine"
+grow_time = 160.0
+water_cost = 1
+harvest = {}
+color = Color(0.545, 0.451, 0.333, 1)
+role = "Fast, high-yield vine: 4 loads for the tripwire, bramble and dust devil traps."
+seed_item = &"seed_tumbleweed"
+loads_per_harvest = 4
+load_item = &"tumbleweed_load"
+turret_family = "Tripwire Fence line"

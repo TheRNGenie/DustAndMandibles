@@ -38,7 +38,8 @@ const WEIGHTS: Dictionary = {
 ## Walking speed at a full pack (straight line from 1.0 at empty).
 const FULL_SPEED := 0.62
 ## Pick-ups listed here weigh nothing (seeds, tokens' paperwork and such ride in a pocket).
-const POCKET: Array[StringName] = [&"seed_corn", &"seed_prickly_pear", &"seed_chili", &"seed_herbs", &"seed_sarsaparilla"]
+const POCKET: Array[StringName] = [&"seed_corn", &"seed_prickly_pear", &"seed_chili", &"seed_herbs", &"seed_sarsaparilla",
+	&"seed_cotton", &"seed_sulfur_root", &"seed_barrel_cactus", &"seed_tumbleweed"]
 
 var capacity := CAPACITY
 ## {item: units}

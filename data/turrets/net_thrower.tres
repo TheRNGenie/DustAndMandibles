@@ -24,4 +24,5 @@ flight_time = 0.0
 effect_size = 3.5
 anti_air = true
 sound = &"harpoon"
-tier = 1
+tier = 2
+crop_type = &"cotton"

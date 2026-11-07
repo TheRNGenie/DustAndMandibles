@@ -100,6 +100,10 @@ const HEAVY_HP := 100.0
 @export var special_pin: float = 0.0
 ## House turret that covers the whole yard (your plateau), not just near the house.
 @export var yard_wide: bool = false
+## Turret ammo (farming redesign): the crop that feeds it (a CropDef id, e.g.
+## &"corn"). Empty: self-powered, always fires. Set: crop-fed, fires only while
+## loaded, and one load (that crop's CropDef.load_item) lasts one wave.
+@export var crop_type: StringName = &""
 
 const SPECIAL_CHAIN := &"chain"
 const SPECIAL_PIERCE := &"pierce"
@@ -132,6 +136,34 @@ func era_name() -> String:
 ## Armour-plated or 100+ HP: the bugs big-game guns are for and swarm guns struggle with.
 static func is_heavy(bd: BugDef) -> bool:
 	return bd.front_armor > 0.0 or bd.max_hp >= HEAVY_HP
+
+
+## Crop-fed: needs a load of its crop each wave to fire.
+func is_crop_fed() -> bool:
+	return crop_type != &""
+
+
+## The load item that arms it (&"corn_load"), or &"" for self-powered turrets.
+func load_item() -> StringName:
+	if crop_type == &"":
+		return &""
+	var c := crop_def()
+	return c.load_item if c != null else &""
+
+
+## "Corn": the crop that loads it, for prompts and the build menu.
+func crop_name() -> String:
+	var c := crop_def()
+	return c.display_name if c != null else ""
+
+
+## The crop that feeds it. (Loaded by path, not through Defs: Defs preloads every
+## turret, so naming it here would be a load cycle.)
+func crop_def() -> CropDef:
+	if crop_type == &"":
+		return null
+	var path := "res://data/crops/%s.tres" % crop_type
+	return load(path) as CropDef if ResourceLoader.exists(path) else null
 
 
 ## Needs upkeep (ammo) to keep firing.
@@ -178,6 +210,8 @@ func role_line() -> String:
 		parts.append("Weak: %s" % weakness)
 	if has_upkeep():
 		parts.append("Upkeep: %s a shot" % upkeep_text())
+	if is_crop_fed():
+		parts.append("Crop-fed: 1 %s load a wave" % crop_name().to_lower())
 	return "   ·   ".join(parts)
 
 

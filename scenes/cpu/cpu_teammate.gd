@@ -113,6 +113,8 @@ func _decide() -> void:
 		GameState.Phase.BUILD:
 			if _salvage_task():
 				return
+			if _load_task(): # Turret ammo: arm the crop-fed turrets first
+				return
 			if _trip_task():
 				return
 			if not _carry.is_empty() and _deposit_task():
@@ -129,6 +131,8 @@ func _decide() -> void:
 				return
 			_go(Vector2(_rng.randf_range(2.0, 6.0), clampf(_z + _rng.randf_range(-6.0, 6.0), -16.0, 16.0)), Task.IDLE)
 		GameState.Phase.WARNING, GameState.Phase.WAVE:
+			if GameState.phase == GameState.Phase.WARNING and _load_task(): # last-second loading
+				return
 			# Hold the lip, roughly across from where bugs top your partner's cliff.
 			var z := _busiest_z() if quality == 2 else _z
 			_go(Vector2(2.2, clampf(z, -17.0, 17.0)), Task.GUARD)
@@ -245,6 +249,8 @@ func _farm_task() -> bool:
 			continue
 		match plot.growth.stage:
 			CropGrowth.Stage.RIPE:
+				if plot.crop_def != null and not AmmoStore.can_harvest(cliff_id, plot.crop_def, -1):
+					continue # its sacks of that are full: leave it on the plot
 				best = plot
 				act = "harvest"
 			CropGrowth.Stage.PLANTED:
@@ -267,6 +273,11 @@ func _farm_task() -> bool:
 
 
 func _seed_for() -> StringName:
+	# Turret ammo: the crops its hungriest crop-fed turrets eat come first.
+	for seed_id: StringName in _wanted_crops():
+		var want_res: StringName = CropPlot.seed_res(seed_id)
+		if Economy.amount(cliff_id, want_res) > 0 and Economy.cpu_can_spend(display_name, {want_res: 1}, cliff_id):
+			return seed_id
 	for seed_id: StringName in CropPlot.SEEDS:
 		var res: StringName = CropPlot.seed_res(seed_id)
 		if Economy.amount(cliff_id, res) > 0 and Economy.cpu_can_spend(display_name, {res: 1}, cliff_id):
@@ -285,11 +296,15 @@ func _farm(plot: CropPlot, act: String) -> void:
 		"harvest":
 			# Picks it itself: crops its turrets burn as upkeep go to the pool,
 			# the rest it carries to its chest for you to sell.
-			var got: Dictionary = plot.growth.harvest()
+			var crop := plot.crop_def
+			var got: Dictionary = AmmoStore.fit(cliff_id, crop, plot.growth.harvest(), -1) if crop != null else plot.growth.harvest()
 			plot.call("_broadcast")
 			var keep := _upkeep_crops()
 			for res: StringName in got:
-				if res == PartnerTonic.ITEM:
+				if String(res).ends_with("_load"):
+					# Turret ammo: loads go straight to the stockpile for its turrets.
+					Economy.earn(cliff_id, {res: int(got[res])})
+				elif res == PartnerTonic.ITEM:
 					# Sarsaparilla is grown for the partner: brew it straight into tonics.
 					Economy.earn(cliff_id, {res: int(got[res])})
 					for k in int(got[res]):
@@ -309,6 +324,55 @@ func _farm(plot: CropPlot, act: String) -> void:
 			if seed_id != &"":
 				plot.call("_use", -1, seed_id)
 				Economy.cpu_record(display_name, {CropPlot.seed_res(seed_id): 1})
+
+
+# ------------------------------------------------------------------ turret ammo
+
+## Crops its crop-fed turrets need, most short of loads first (crop ids).
+func _wanted_crops() -> Array[StringName]:
+	var short := {}
+	for t: Node in _my_turrets():
+		var tt := t as Turret
+		if tt == null or not tt.def.is_crop_fed():
+			continue
+		short[tt.def.crop_type] = int(short.get(tt.def.crop_type, 0)) + 1
+	for c: StringName in short.keys():
+		var crop := Defs.crop(c)
+		if crop != null:
+			short[c] = int(short[c]) - Economy.amount(cliff_id, crop.load_item)
+	var out: Array[StringName] = []
+	for c: StringName in short.keys():
+		if int(short[c]) > 0:
+			out.append(c)
+	out.sort_custom(func(a: StringName, b: StringName) -> bool: return int(short[a]) > int(short[b]))
+	return out
+
+
+## Walk to the nearest of its unloaded crop-fed turrets that it has a load for and
+## load it (BuildManager.cpu_load).
+func _load_task() -> bool:
+	var best: Turret = null
+	var best_d := INF
+	for t: Node in _my_turrets():
+		var tt := t as Turret
+		if tt == null or not tt.wants_load() or Economy.amount(cliff_id, tt.def.load_item()) <= 0:
+			continue
+		var d := global_position.distance_squared_to(tt.global_position)
+		if d < best_d:
+			best_d = d
+			best = tt
+	if best == null:
+		return false
+	var target := best
+	var pc := cliffs.plateau_coords(cliff_id, target.global_position)
+	_go(Vector2(pc.x + 1.4, pc.y), Task.FARM, func() -> void:
+		if not is_instance_valid(target):
+			return
+		_face(target.global_position)
+		_act(&"chest")
+		if BuildManager.instance.cpu_load(target) and GameState.has_flag("--cpulog"):
+			print("[cpu] %s loaded the %s" % [display_name, target.def.display_name]))
+	return true
 
 
 ## What it has picked and not yet put in the chest.
@@ -393,7 +457,7 @@ func _turret_choice() -> StringName:
 			if total > 0 and float(fliers) / total > 0.15 and air_built < 2:
 				options.append_array(air)
 			if big > 0:
-				options.append_array(best_first([&"buffalo_rifle", &"elephant_battery", &"rail_spike_driver"]))
+				options.append_array(best_first([&"buffalo_rifle", &"elephant_battery", &"long_tom_rifle", &"rail_spike_driver"]))
 			# Crewed: High builds a crewed gun or two once the line is up (it never
 			# sits in one: they fire on their own at half power for it).
 			var crewed_built := _my_turrets().filter(func(t: Node) -> bool: return t is CrewedTurret).size()
@@ -422,10 +486,20 @@ func _turret_choice() -> StringName:
 			if mine.size() >= 8 and not have.call(&"flood_gate"):
 				options.append(&"flood_gate")
 			options.append_array(cliff_turrets)
+	var can_feed := _can_feed_another()
 	for id: StringName in options:
+		if Defs.is_turret(id) and Defs.turret(id).is_crop_fed() and not can_feed:
+			continue # Turret ammo: no more crop-fed guns than its farm can load
 		if Defs.is_turret(id) and Defs.is_unlocked(id, GameState.tier_wave()) and Economy.cpu_can_spend(display_name, {&"scrap": Defs.cost_of(id)}, cliff_id):
 			return id
 	return &""
+
+
+## Turret ammo: room for one more crop-fed turret? About one and a half per farm
+## plot (a plot ripens roughly once a build phase and gives 2-4 loads).
+func _can_feed_another() -> bool:
+	var fed := _my_turrets().filter(func(t: Node) -> bool: return t is Turret and (t as Turret).def.is_crop_fed()).size()
+	return fed < int(_my_plots() * 1.5)
 
 
 ## Tiers: the unlocked ones of `ids`, newest tier first (Late, Mid, Early), so a
@@ -480,9 +554,15 @@ func _my_turrets() -> Array:
 	return get_tree().get_nodes_in_group("turrets").filter(func(t: Node) -> bool: return int(t.get("cliff_id")) == cliff_id)
 
 
+## Farm plots to keep: one or two, plus one for every two crop-fed turrets (up to 5).
+func _plots_wanted() -> int:
+	var fed := _my_turrets().filter(func(t: Node) -> bool: return t is Turret and (t as Turret).def.is_crop_fed()).size()
+	return mini(maxi(quality, quality + fed / 2), 5)
+
+
 func _build_task() -> bool:
 	# Medium and High keep a farm plot or two going (Low doesn't bother).
-	if quality >= 1 and _my_plots() < quality and Economy.cpu_can_spend(display_name, {&"scrap": Defs.cost_of(&"farm_plot")}, cliff_id) 			and _my_turrets().size() >= 2:
+	if quality >= 1 and _my_plots() < _plots_wanted() and Economy.cpu_can_spend(display_name, {&"scrap": Defs.cost_of(&"farm_plot")}, cliff_id) 			and _my_turrets().size() >= 2:
 		return _build_at(&"farm_plot", _pick_cell(&"farm_plot"))
 	var id := _turret_choice()
 	if id == &"":
@@ -848,7 +928,14 @@ func _sell_and_restock(vendor: VendorCart) -> void:
 			_carry.erase(res)
 	# Seeds: chilies (they sell for its own scrap) when the pot allows, corn otherwise.
 	var bought := 0
-	for seed_res: StringName in [&"seed_chili", &"seed_corn"]:
+	# Turret ammo: seeds for the crops its crop-fed turrets eat, then chili and corn.
+	var buy: Array[StringName] = []
+	for c: StringName in _wanted_crops():
+		var sr: StringName = CropPlot.seed_res(c)
+		if VendorCart.SEEDS.has(sr):
+			buy.append(sr)
+	buy.append_array([&"seed_chili", &"seed_corn"] as Array[StringName])
+	for seed_res: StringName in buy:
 		while _seed_count() < SEED_STOCK:
 			if not Economy.cpu_spend(display_name, {&"scrap": VendorCart.seed_cost(seed_res)}, cliff_id):
 				break

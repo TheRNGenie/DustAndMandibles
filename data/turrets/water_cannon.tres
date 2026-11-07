@@ -22,5 +22,5 @@ hit_chance = 0.90
 effect = 1
 flight_time = 0.00
 effect_size = 0.0
-ammo_cost = {}
 sound = &"water_blast"
+crop_type = &"prickly_pear"

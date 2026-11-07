@@ -1,0 +1,1371 @@
+{
+ "_doc": "Per-model split of the fal turrets (tools/rig/prep_turret.py). All points are in the model's own glTF frame as Trellis made it (a unit box, Y up). forward: the way the gun points (flat). yaw_y: everything above this height swivels. pitch: the gun's elevation pivot; gun_min_y: the gun is everything swivelling above this height (optionally gun_box). spin: box of parts that spin, with their axis point and axis. height: the finished turret's height in metres.",
+ "repeater_post": {
+  "forward": [
+   -1,
+   0,
+   0
+  ],
+  "height": 2.0,
+  "yaw_y": 0.06,
+  "pitch": [
+   0,
+   0.2,
+   0
+  ],
+  "gun_min_y": 0.06,
+  "muzzle": [
+   -0.5,
+   0.31,
+   0
+  ],
+  "spin": [
+   {
+    "box": [
+     -0.52,
+     -0.2,
+     0.2,
+     0.42,
+     -0.12,
+     0.12
+    ],
+    "at": [
+     0,
+     0.31,
+     0
+    ],
+    "axis": [
+     1,
+     0,
+     0
+    ]
+   }
+  ]
+ },
+ "brass_gatling": {
+  "forward": [
+   1,
+   0,
+   0
+  ],
+  "height": 1.8,
+  "yaw_y": -0.22,
+  "pitch": [
+   0,
+   0.13,
+   0
+  ],
+  "gun_min_y": -0.08,
+  "gun_box": [
+   -1,
+   1,
+   -1,
+   1,
+   -0.27,
+   0.27
+  ],
+  "muzzle": [
+   0.5,
+   0.18,
+   0
+  ],
+  "spin": [
+   {
+    "box": [
+     0.22,
+     0.55,
+     0.0,
+     0.36,
+     -0.16,
+     0.16
+    ],
+    "at": [
+     0,
+     0.18,
+     0
+    ],
+    "axis": [
+     1,
+     0,
+     0
+    ]
+   }
+  ]
+ },
+ "long_tom_rifle": {
+  "forward": [
+   -1,
+   0,
+   0
+  ],
+  "height": 1.9,
+  "yaw_y": 0.12,
+  "pitch": [
+   0,
+   0.14,
+   0
+  ],
+  "gun_min_y": 0.12,
+  "muzzle": [
+   -0.5,
+   0.26,
+   0
+  ]
+ },
+ "buck_blaster": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 2.0,
+  "yaw_y": -0.27,
+  "pitch": [
+   0,
+   0.12,
+   0
+  ],
+  "gun_min_y": 0.1,
+  "muzzle": [
+   0,
+   0.4,
+   0.48
+  ]
+ },
+ "grapeshot_turret": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 1.6,
+  "yaw_y": -0.31,
+  "pitch": [
+   0,
+   0.18,
+   0.01
+  ],
+  "gun_min_y": 0.05,
+  "gun_box": [
+   -0.17,
+   0.17,
+   -1,
+   1,
+   -1,
+   1
+  ],
+  "muzzle": [
+   0,
+   0.18,
+   0.5
+  ]
+ },
+ "skeet_post": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 2.2,
+  "yaw_y": 0.03,
+  "pitch": [
+   0,
+   0.1,
+   0.04
+  ],
+  "gun_min_y": 0.02,
+  "muzzle": [
+   0,
+   0.48,
+   0.38
+  ]
+ },
+ "flak_porch": {
+  "forward": [
+   1,
+   0,
+   0
+  ],
+  "height": 1.6,
+  "yaw_y": -0.15,
+  "pitch": [
+   0,
+   0.05,
+   0
+  ],
+  "gun_min_y": -0.02,
+  "muzzle": [
+   0.42,
+   0.34,
+   0
+  ]
+ },
+ "corn_hopper": {
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "height": 2.0,
+  "yaw_y": -0.1,
+  "pitch": [
+   0,
+   0.12,
+   0
+  ],
+  "gun_min_y": -0.1,
+  "muzzle": [
+   0,
+   0.1,
+   -0.44
+  ],
+  "spin": [
+   {
+    "box": [
+     -0.1,
+     0.1,
+     0.02,
+     0.2,
+     -0.5,
+     -0.15
+    ],
+    "at": [
+     0,
+     0.1,
+     0
+    ],
+    "axis": [
+     0,
+     0,
+     1
+    ]
+   }
+  ]
+ },
+ "twin_hopper": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 2.0,
+  "yaw_y": -0.2,
+  "pitch": [
+   0,
+   0.12,
+   0
+  ],
+  "gun_min_y": 0.0,
+  "muzzle": [
+   0.22,
+   0.15,
+   0.36
+  ],
+  "spin": [
+   {
+    "box": [
+     -0.32,
+     -0.12,
+     0.05,
+     0.25,
+     0.12,
+     0.45
+    ],
+    "at": [
+     -0.22,
+     0.15,
+     0
+    ],
+    "axis": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "box": [
+     0.12,
+     0.32,
+     0.05,
+     0.25,
+     0.12,
+     0.45
+    ],
+    "at": [
+     0.22,
+     0.15,
+     0
+    ],
+    "axis": [
+     0,
+     0,
+     1
+    ]
+   }
+  ]
+ },
+ "pepper_sprayer": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 2.0,
+  "yaw_y": -0.2,
+  "pitch": [
+   0,
+   0.08,
+   0
+  ],
+  "gun_min_y": 0.0,
+  "muzzle": [
+   0,
+   0.17,
+   0.45
+  ]
+ },
+ "sulfur_fume_vent": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 1.9,
+  "yaw_y": 0.17,
+  "pitch": [
+   0,
+   0.3,
+   0
+  ],
+  "gun_min_y": 0.17,
+  "muzzle": [
+   0,
+   0.3,
+   0.15
+  ],
+  "no_pitch": true
+ },
+ "herb_rifle": {
+  "forward": [
+   -0.3,
+   0,
+   0.95
+  ],
+  "height": 2.0,
+  "yaw_y": -0.08,
+  "pitch": [
+   0,
+   0.07,
+   0
+  ],
+  "gun_min_y": -0.08,
+  "muzzle": [
+   -0.14,
+   0.08,
+   0.44
+  ]
+ },
+ "tripwire_fence": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 1.0,
+  "static": true
+ },
+ "bramble_bomb": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 1.6,
+  "static_base": true,
+  "swing": {
+   "box": [
+    -0.31,
+    0.31,
+    -0.05,
+    0.55,
+    -0.35,
+    0.36
+   ],
+   "at": [
+    0,
+    0.2,
+    0
+   ],
+   "axis": [
+    1,
+    0,
+    0
+   ]
+  }
+ },
+ "dust_devil_trap": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 1.8,
+  "static_base": true,
+  "spin": [
+   {
+    "box": [
+     -0.5,
+     0.5,
+     0.0,
+     0.55,
+     -0.3,
+     0.3
+    ],
+    "at": [
+     0,
+     0.24,
+     0
+    ],
+    "axis": [
+     0,
+     0,
+     1
+    ]
+   }
+  ]
+ },
+ "siege_mortar": {
+  "forward": [
+   -1,
+   0,
+   0
+  ],
+  "height": 1.8,
+  "static_base": true,
+  "swing": {
+   "box": [
+    -0.52,
+    0.12,
+    -0.08,
+    0.52,
+    -0.2,
+    0.2
+   ],
+   "at": [
+    -0.1,
+    0.0,
+    0
+   ],
+   "axis": [
+    0,
+    0,
+    1
+   ]
+  },
+  "muzzle": [
+   -0.45,
+   0.42,
+   0
+  ]
+ },
+ "gatling_post": {
+  "forward": [
+   1,
+   0,
+   0
+  ],
+  "height": 2.0,
+  "yaw_y": -0.17,
+  "pitch": [
+   -0.03,
+   0.2,
+   0
+  ],
+  "gun_min_y": 0.03,
+  "gun_box": [
+   -0.5,
+   0.5,
+   0.03,
+   0.5,
+   -0.17,
+   0.17
+  ],
+  "muzzle": [
+   0.48,
+   0.18,
+   0
+  ],
+  "spin": [
+   {
+    "box": [
+     0.15,
+     0.52,
+     0.04,
+     0.33,
+     -0.13,
+     0.13
+    ],
+    "at": [
+     0,
+     0.18,
+     0
+    ],
+    "axis": [
+     1,
+     0,
+     0
+    ]
+   }
+  ]
+ },
+ "buffalo_rifle": {
+  "forward": [
+   1,
+   0,
+   0
+  ],
+  "height": 1.6,
+  "yaw_y": -0.26,
+  "pitch": [
+   0.05,
+   0.0,
+   0
+  ],
+  "gun_min_y": -0.1,
+  "gun_box": [
+   -0.3,
+   0.52,
+   -0.1,
+   0.1,
+   -0.07,
+   0.07
+  ],
+  "muzzle": [
+   0.48,
+   0.0,
+   0
+  ]
+ },
+ "water_cannon": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 1.8,
+  "yaw_y": -0.02,
+  "pitch": [
+   0,
+   0.15,
+   0.05
+  ],
+  "gun_min_y": 0.05,
+  "gun_box": [
+   -0.16,
+   0.16,
+   0.05,
+   0.42,
+   0.0,
+   0.56
+  ],
+  "muzzle": [
+   0,
+   0.27,
+   0.5
+  ]
+ },
+ "chili_mortar": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 1.6,
+  "yaw_y": -0.36,
+  "pitch": [
+   0,
+   0.05,
+   -0.15
+  ],
+  "gun_min_y": -0.08,
+  "gun_box": [
+   -0.2,
+   0.2,
+   -0.08,
+   0.45,
+   -0.32,
+   0.46
+  ],
+  "muzzle": [
+   0,
+   0.33,
+   0.38
+  ]
+ },
+ "dynamite_lobber": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 1.5,
+  "yaw_y": -0.28,
+  "pitch": [
+   0,
+   0.02,
+   0
+  ],
+  "gun_min_y": -0.12,
+  "gun_box": [
+   -0.15,
+   0.12,
+   -0.12,
+   0.42,
+   -0.5,
+   0.52
+  ],
+  "muzzle": [
+   0,
+   0.17,
+   0.48
+  ]
+ },
+ "lasso_harpoon": {
+  "forward": [
+   1,
+   0,
+   0
+  ],
+  "height": 1.8,
+  "yaw_y": -0.15,
+  "pitch": [
+   0,
+   0.2,
+   0
+  ],
+  "gun_min_y": 0.1,
+  "gun_box": [
+   -0.5,
+   0.52,
+   0.1,
+   0.45,
+   -0.12,
+   0.12
+  ],
+  "muzzle": [
+   0.45,
+   0.3,
+   0
+  ]
+ },
+ "scattergun_post": {
+  "forward": [
+   -1,
+   0,
+   0
+  ],
+  "height": 1.8,
+  "yaw_y": -0.16,
+  "pitch": [
+   -0.1,
+   0.2,
+   0
+  ],
+  "gun_min_y": 0.08,
+  "muzzle": [
+   -0.48,
+   0.38,
+   0
+  ]
+ },
+ "sharpshooter_tower": {
+  "forward": [
+   1,
+   0,
+   0
+  ],
+  "height": 2.6,
+  "yaw_y": 0.05,
+  "pitch": [
+   -0.13,
+   0.2,
+   0
+  ],
+  "gun_min_y": 0.08,
+  "gun_box": [
+   -0.35,
+   0.52,
+   0.08,
+   0.32,
+   -0.09,
+   0.09
+  ],
+  "muzzle": [
+   0.48,
+   0.25,
+   0
+  ]
+ },
+ "porch_repeater": {
+  "forward": [
+   1,
+   0,
+   0
+  ],
+  "height": 1.0,
+  "yaw_y": -0.45,
+  "pitch": [
+   0,
+   0.05,
+   0
+  ],
+  "gun_min_y": -0.45,
+  "muzzle": [
+   0.48,
+   0.22,
+   0
+  ]
+ },
+ "rooftop_cannon": {
+  "forward": [
+   -1,
+   0,
+   0
+  ],
+  "height": 1.4,
+  "yaw_y": -0.3,
+  "pitch": [
+   0.05,
+   0.1,
+   0
+  ],
+  "gun_min_y": 0.0,
+  "gun_box": [
+   -0.36,
+   0.26,
+   0.0,
+   0.4,
+   -0.12,
+   0.12
+  ],
+  "muzzle": [
+   -0.27,
+   0.3,
+   0
+  ]
+ },
+ "duck_gun": {
+  "forward": [
+   -1,
+   0,
+   0
+  ],
+  "height": 1.8,
+  "yaw_y": -0.2,
+  "pitch": [
+   0,
+   -0.02,
+   0
+  ],
+  "gun_min_y": -0.2,
+  "muzzle": [
+   -0.42,
+   0.32,
+   0
+  ]
+ },
+ "sky_sweeper": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 2.0,
+  "yaw_y": -0.05,
+  "pitch": [
+   0,
+   0.15,
+   0
+  ],
+  "gun_min_y": -0.05,
+  "muzzle": [
+   0,
+   0.42,
+   0.48
+  ]
+ },
+ "powder_flak": {
+  "forward": [
+   -1,
+   0,
+   0
+  ],
+  "height": 1.6,
+  "yaw_y": -0.33,
+  "pitch": [
+   0,
+   0.05,
+   0
+  ],
+  "gun_min_y": -0.15,
+  "gun_box": [
+   -0.52,
+   0.42,
+   -0.15,
+   0.48,
+   -0.15,
+   0.15
+  ],
+  "muzzle": [
+   -0.45,
+   0.3,
+   0
+  ]
+ },
+ "net_thrower": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 1.8,
+  "yaw_y": -0.3,
+  "pitch": [
+   0,
+   0.05,
+   0
+  ],
+  "gun_min_y": -0.05,
+  "gun_box": [
+   -0.52,
+   0.52,
+   -0.05,
+   0.52,
+   -0.6,
+   0.15
+  ],
+  "muzzle": [
+   0,
+   0.45,
+   0.05
+  ]
+ },
+ "firework_battery": {
+  "forward": [
+   1,
+   0,
+   0
+  ],
+  "height": 1.6,
+  "yaw_y": -0.25,
+  "pitch": [
+   0,
+   0.05,
+   0
+  ],
+  "gun_min_y": -0.2,
+  "muzzle": [
+   0.45,
+   0.2,
+   0
+  ]
+ },
+ "twin_gatling": {
+  "forward": [
+   1,
+   0,
+   0
+  ],
+  "height": 2.0,
+  "yaw_y": 0.0,
+  "pitch": [
+   -0.05,
+   0.18,
+   0
+  ],
+  "gun_min_y": 0.05,
+  "muzzle": [
+   0.48,
+   0.2,
+   0
+  ],
+  "spin": [
+   {
+    "box": [
+     0.05,
+     0.52,
+     0.05,
+     0.32,
+     -0.13,
+     0.13
+    ],
+    "at": [
+     0,
+     0.18,
+     0
+    ],
+    "axis": [
+     1,
+     0,
+     0
+    ]
+   }
+  ]
+ },
+ "hornets_nest": {
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "height": 1.9,
+  "yaw_y": -0.3,
+  "pitch": [
+   0,
+   0.15,
+   0
+  ],
+  "gun_min_y": -0.05,
+  "gun_box": [
+   -0.21,
+   0.21,
+   -0.05,
+   0.42,
+   -0.52,
+   0.5
+  ],
+  "muzzle": [
+   0,
+   0.17,
+   -0.45
+  ],
+  "spin": [
+   {
+    "box": [
+     -0.21,
+     0.21,
+     -0.05,
+     0.4,
+     -0.52,
+     -0.25
+    ],
+    "at": [
+     0,
+     0.17,
+     0
+    ],
+    "axis": [
+     0,
+     0,
+     1
+    ]
+   }
+  ]
+ },
+ "elephant_battery": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 2.0,
+  "yaw_y": 0.0,
+  "pitch": [
+   0,
+   0.12,
+   0
+  ],
+  "gun_min_y": 0.0,
+  "muzzle": [
+   0,
+   0.25,
+   0.5
+  ]
+ },
+ "rail_spike_driver": {
+  "forward": [
+   -0.75,
+   0,
+   0.66
+  ],
+  "height": 1.8,
+  "yaw_y": -0.2,
+  "pitch": [
+   0,
+   0.12,
+   0
+  ],
+  "gun_min_y": -0.05,
+  "muzzle": [
+   -0.45,
+   0.15,
+   0.37
+  ]
+ },
+ "gatling_porch": {
+  "forward": [
+   -1,
+   0,
+   0
+  ],
+  "height": 1.6,
+  "yaw_y": 0.02,
+  "pitch": [
+   0.05,
+   0.25,
+   0
+  ],
+  "gun_min_y": 0.12,
+  "muzzle": [
+   -0.48,
+   0.35,
+   0
+  ],
+  "spin": [
+   {
+    "box": [
+     -0.52,
+     -0.18,
+     0.24,
+     0.46,
+     -0.1,
+     0.1
+    ],
+    "at": [
+     0,
+     0.35,
+     0
+    ],
+    "axis": [
+     1,
+     0,
+     0
+    ]
+   }
+  ]
+ },
+ "big_bertha": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 2.4,
+  "yaw_y": -0.06,
+  "pitch": [
+   0,
+   0.15,
+   0
+  ],
+  "gun_min_y": 0.0,
+  "gun_box": [
+   -0.2,
+   0.2,
+   0.0,
+   0.42,
+   -0.15,
+   0.55
+  ],
+  "muzzle": [
+   0,
+   0.2,
+   0.5
+  ],
+  "spin": [
+   {
+    "box": [
+     -0.13,
+     0.13,
+     0.07,
+     0.33,
+     0.12,
+     0.55
+    ],
+    "at": [
+     0,
+     0.2,
+     0
+    ],
+    "axis": [
+     0,
+     0,
+     1
+    ]
+   }
+  ]
+ },
+ "whaler": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 2.4,
+  "yaw_y": -0.28,
+  "pitch": [
+   0,
+   0.2,
+   0
+  ],
+  "gun_min_y": 0.1,
+  "gun_box": [
+   -0.1,
+   0.1,
+   0.1,
+   0.36,
+   -0.5,
+   0.56
+  ],
+  "muzzle": [
+   0,
+   0.2,
+   0.5
+  ]
+ },
+ "thunder_mule": {
+  "forward": [
+   -1,
+   0,
+   0
+  ],
+  "height": 2.4,
+  "yaw_y": -0.12,
+  "pitch": [
+   -0.1,
+   0.05,
+   0
+  ],
+  "gun_min_y": -0.05,
+  "gun_box": [
+   -0.52,
+   0.1,
+   -0.05,
+   0.42,
+   -0.16,
+   0.16
+  ],
+  "muzzle": [
+   -0.45,
+   0.28,
+   0
+  ],
+  "drop": [
+   [
+    0.24,
+    0.365,
+    -0.03,
+    0.2,
+    -0.1,
+    0.09
+   ]
+  ]
+ },
+ "sky_hound": {
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "height": 2.4,
+  "yaw_y": -0.4,
+  "pitch": [
+   0,
+   0.0,
+   0
+  ],
+  "gun_min_y": -0.05,
+  "gun_box": [
+   -0.16,
+   0.16,
+   -0.05,
+   0.52,
+   -0.52,
+   0.06
+  ],
+  "muzzle": [
+   0,
+   0.45,
+   -0.4
+  ]
+ },
+ "steam_cannon": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 1.9,
+  "yaw_y": -0.3,
+  "pitch": [
+   0,
+   0.08,
+   -0.05
+  ],
+  "gun_min_y": -0.05,
+  "gun_box": [
+   -0.21,
+   0.21,
+   -0.05,
+   0.42,
+   -0.5,
+   0.52
+  ],
+  "muzzle": [
+   0,
+   0.17,
+   0.5
+  ]
+ },
+ "flood_gate": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 2.4,
+  "yaw_y": -0.12,
+  "pitch": [
+   0,
+   -0.02,
+   0.08
+  ],
+  "gun_min_y": -0.4,
+  "gun_box": [
+   -0.15,
+   0.15,
+   -0.4,
+   0.04,
+   0.06,
+   0.6
+  ],
+  "muzzle": [
+   0,
+   -0.3,
+   0.55
+  ]
+ },
+ "twin_mortar": {
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "height": 1.8,
+  "yaw_y": -0.25,
+  "pitch": [
+   0,
+   0.15,
+   0
+  ],
+  "gun_min_y": 0.0,
+  "gun_box": [
+   -0.36,
+   0.36,
+   0.0,
+   0.42,
+   -0.52,
+   0.5
+  ],
+  "muzzle": [
+   -0.15,
+   0.22,
+   -0.42
+  ]
+ },
+ "bola_launcher": {
+  "forward": [
+   1,
+   0,
+   0
+  ],
+  "height": 2.0,
+  "yaw_y": -0.02,
+  "pitch": [
+   0,
+   0.25,
+   0
+  ],
+  "gun_min_y": 0.05,
+  "muzzle": [
+   0.25,
+   0.3,
+   0
+  ]
+ },
+ "amber_kiln": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 2.2,
+  "yaw_y": 0.0,
+  "pitch": [
+   0,
+   0.27,
+   0
+  ],
+  "gun_min_y": 0.0,
+  "muzzle": [
+   0,
+   0.27,
+   0.48
+  ]
+ },
+ "queens_bell": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 2.2,
+  "yaw_y": -0.4,
+  "pitch": [
+   0,
+   -0.02,
+   0.15
+  ],
+  "gun_min_y": -0.15,
+  "gun_box": [
+   -0.12,
+   0.12,
+   -0.15,
+   0.1,
+   0.15,
+   0.56
+  ],
+  "muzzle": [
+   0,
+   -0.02,
+   0.52
+  ]
+ },
+ "mandible_lance": {
+  "forward": [
+   0,
+   0,
+   1
+  ],
+  "height": 2.0,
+  "yaw_y": -0.25,
+  "pitch": [
+   0,
+   0.0,
+   0
+  ],
+  "gun_min_y": -0.15,
+  "gun_box": [
+   -0.2,
+   0.2,
+   -0.15,
+   0.5,
+   -0.5,
+   0.56
+  ],
+  "muzzle": [
+   0,
+   0.25,
+   0.5
+  ]
+ }
+}

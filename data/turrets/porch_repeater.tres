@@ -26,4 +26,4 @@ guards_plateau = true
 guards_house = true
 ammo_cost = {}
 sound = &"repeater"
-tier = 1
+tier = 0

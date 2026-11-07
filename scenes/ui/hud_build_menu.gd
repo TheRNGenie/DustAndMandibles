@@ -263,6 +263,17 @@ func _tile(i: int, id: StringName, payer: int) -> Button:
 		tag.offset_top = 6.0
 		tag.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 		b.add_child(tag)
+		# Turret ammo: crop-fed cards wear the crop that loads them.
+		var td := Defs.turret(id)
+		if td.is_crop_fed():
+			var crop := UiStyle.crop_chip(td.crop_def())
+			crop.anchor_left = 1.0
+			crop.anchor_right = 1.0
+			crop.offset_left = -6.0
+			crop.offset_right = -6.0
+			crop.offset_top = 28.0
+			crop.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+			b.add_child(crop)
 	if locked:
 		b.tooltip_text = Defs.lock_reason(id, GameState.tier_wave())
 	return b

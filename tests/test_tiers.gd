@@ -18,9 +18,12 @@ func test_unlock_waves_live_in_one_place() -> void:
 func test_tier_chart() -> void:
 	var chart := {
 		0: [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar", &"dynamite_lobber", &"lasso_harpoon",
-				&"duck_gun", &"sky_sweeper", &"scattergun_post"],
-		1: [&"twin_gatling", &"elephant_battery", &"powder_flak", &"net_thrower", &"porch_repeater", &"sharpshooter_tower"],
-		2: [&"hornets_nest", &"rail_spike_driver", &"thunder_mule", &"whaler", &"firework_battery", &"sky_hound", &"gatling_porch"],
+				&"duck_gun", &"sky_sweeper", &"scattergun_post", &"porch_repeater", &"corn_hopper", &"herb_rifle", &"tripwire_fence"],
+		1: [&"twin_gatling", &"elephant_battery", &"powder_flak", &"sharpshooter_tower", &"repeater_post", &"buck_blaster",
+				&"skeet_post", &"twin_hopper", &"pepper_sprayer", &"sulfur_fume_vent", &"bramble_bomb"],
+		2: [&"hornets_nest", &"rail_spike_driver", &"thunder_mule", &"whaler", &"firework_battery", &"sky_hound", &"gatling_porch",
+				&"net_thrower", &"twin_mortar", &"brass_gatling", &"long_tom_rifle", &"grapeshot_turret", &"flak_porch",
+				&"dust_devil_trap", &"siege_mortar"],
 	}
 	for t: int in chart:
 		for id: StringName in chart[t]:
@@ -58,7 +61,7 @@ func test_categories_sort_by_tier_and_keep_everything() -> void:
 			assert_true(Defs.tier_of(sorted[i - 1]) <= Defs.tier_of(sorted[i]), "%s sorted by tier" % cat["name"])
 	var cliff := Defs.by_tier(Defs.category_items("Cliff Turrets"))
 	assert_eq(cliff[0], &"gatling_post", "Early first, in listed order")
-	assert_true(cliff.find(&"twin_gatling") < cliff.find(&"hornets_nest"), "Mid before Late")
+	assert_true(cliff.find(&"twin_gatling") < cliff.find(&"brass_gatling"), "Mid before Late")
 
 
 func test_new_turrets_are_registered() -> void:
@@ -87,7 +90,7 @@ func test_new_models_build_in_parts() -> void:
 		assert_true((p["gun"] as ArrayMesh).get_surface_count() > 0, "%s gun has geometry" % id)
 		assert_true((p["muzzle"] as Vector3).z < -0.5, "%s muzzle out front" % id)
 	var twin := TurretBuilder.build(&"twin_gatling", Color.RED)
-	assert_true(twin.has("spin_b") and twin.has("muzzle_b"), "twin barrels each spin and fire")
+	assert_true(twin.has("spin"), "the barrels spin") # (the fal model: one cluster of four barrels)
 	assert_true(TierBuilder.loose_spike().get_surface_count() > 0)
 
 
@@ -158,9 +161,15 @@ func test_tier_up_chains_go_up_one_tier_in_the_same_family() -> void:
 
 
 func test_tier_up_is_a_bit_cheaper_than_building_new() -> void:
-	assert_eq(Defs.tier_up_of(&"gatling_post"), &"twin_gatling")
-	assert_eq(Defs.tier_up_of(&"twin_gatling"), &"hornets_nest")
+	assert_eq(Defs.tier_up_of(&"gatling_post"), &"repeater_post")
+	assert_eq(Defs.tier_up_of(&"repeater_post"), &"brass_gatling")
+	assert_eq(Defs.tier_up_of(&"brass_gatling"), &"")
+	assert_eq(Defs.tier_up_of(&"corn_hopper"), &"twin_hopper")
+	assert_eq(Defs.tier_up_of(&"twin_hopper"), &"hornets_nest")
 	assert_eq(Defs.tier_up_of(&"hornets_nest"), &"")
+	# Turret ammo: a line never crosses between self-powered and crop-fed.
+	for id: StringName in Defs.TIER_UP:
+		assert_eq(Defs.turret(id).crop_type, Defs.turret(Defs.TIER_UP[id]).crop_type, "%s stays on its track" % id)
 	for id: StringName in Defs.TIER_UP:
 		var c := Defs.tier_up_cost(id)
 		var full := Defs.cost_of(Defs.tier_up_of(id))

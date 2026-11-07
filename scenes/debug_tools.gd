@@ -1,6 +1,6 @@
 class_name DebugTools
 extends Node
-## Debug cheats (with --debug or Settings > Debug mode): F6 skip phase, F7 +500 team scrap and +50 chitin for every cliff, F8 spawn the next
+## Debug cheats (with --debug or Settings > Debug mode): F6 skip phase, F7 +500 team scrap and +50 chitin and 3 turret loads of every crop for every cliff, F8 spawn the next
 ## bug type on a random lane of your partner's cliff, F9 god mode, F10 show lanes.
 ## Also the automation flags used for testing:
 ##   --shot=<png> [--frames=N] [--pos=d,z] [--look=yaw,pitch] [--autofire] [--autoskip]
@@ -208,6 +208,16 @@ func _ready() -> void:
 		_streak_test()
 	elif GameState.has_flag("--cpusim"):
 		_cpu_sim()
+	elif GameState.flag_value("--cellarshot") != "":
+		_cellar_shot(GameState.flag_value("--cellarshot"))
+	elif GameState.has_flag("--sackicons"):
+		_sack_icons()
+	elif GameState.flag_value("--cropshot") != "":
+		_crop_shot(GameState.flag_value("--cropshot"))
+	elif GameState.has_flag("--ammotest"):
+		_ammo_test()
+	elif GameState.flag_value("--turretbench") != "":
+		_turret_bench(int(GameState.flag_value("--turretbench")))
 	elif GameState.has_flag("--levertest"):
 		_lever_test()
 	elif HyperLearn.wanted():
@@ -1075,6 +1085,10 @@ func _cheat(kind: String) -> void:
 			Economy.earn(cid, {&"scrap": 500})
 			for side in WorldLayout.cliff_count():
 				Economy.earn(side, {&"chitin": 50})
+				# Turret ammo: 3 loads of every crop.
+				for c: CropDef in Defs.CROPS.values():
+					if c.load_item != &"":
+						Economy.earn(side, {c.load_item: 3})
 		"spawn":
 			var ids: Array = Defs.active_bug_ids()
 			var id: StringName = ids[_bug_index % ids.size()]
@@ -2986,4 +3000,260 @@ func _lever_test() -> void:
 		await get_tree().create_timer(1.0).timeout
 		print("[lever] t+%d: phase %d countdown %.1f ready_local %s levers %s cpu_levers %s" % [i + 1, GameState.phase, GameState.ready_countdown,
 				GameState.is_ready_local(), str(GameState.levers), str(GameState.cpu_levers)])
+	get_tree().quit()
+
+
+## --turretbench=N: N of the new fal turret models (assets/rigged/turrets, visuals
+## only) spread over every plateau, then frame timings for 6 s, looking across.
+func _turret_bench(n: int) -> void:
+	for i in 40:
+		await get_tree().process_frame
+	var cliffs := world.get("cliffs") as CliffBuilder
+	var files: Array[String] = []
+	for f: String in DirAccess.get_files_at("res://assets/rigged/turrets"):
+		if f.ends_with(".glb"):
+			files.append(f)
+	for i in n:
+		var scene := load("res://assets/rigged/turrets/" + files[i % files.size()]) as PackedScene
+		var t := scene.instantiate() as Node3D
+		var cid := i % WorldLayout.cliff_count()
+		var k := i / WorldLayout.cliff_count()
+		var d := 2.0 + float(k % 12) * 2.2
+		var z := -18.0 + float(k / 12) * 3.0
+		world.add_child(t)
+		t.global_position = cliffs.plateau_point(cid, d, fmod(z + 18.0, 36.0) - 18.0)
+		t.scale = Vector3.ONE * 2.2
+		t.rotation.y = WorldLayout.facing_canyon_yaw(cid)
+	var pl := world.call("local_player") as Player
+	if pl != null:
+		pl.global_position = cliffs.plateau_point(pl.cliff_id, 14.0, 0.0)
+		pl.head.rotation.x = -0.2
+	await get_tree().create_timer(2.0).timeout
+	var frames := Engine.get_frames_drawn()
+	var t0 := Time.get_ticks_msec()
+	await get_tree().create_timer(6.0).timeout
+	var fps := float(Engine.get_frames_drawn() - frames) / ((Time.get_ticks_msec() - t0) / 1000.0)
+	print("[tbench] %d turrets: %.1f fps  draw calls %d  primitives %d  video mem %d MB" % [n, fps,
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME),
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_VIDEO_MEM_USED) / 1048576])
+	var shot := GameState.flag_value("--tbenchshot")
+	if shot != "":
+		get_viewport().get_texture().get_image().save_png(shot)
+	get_tree().quit()
+
+
+## --ammotest: the farming redesign end to end. Puts up every new turret on the
+## west cliff, loads a Corn Hopper from a harvest's corn loads, ends a wave and
+## checks the load is spent; --ammoshot=<png> saves a view of the row (half
+## loaded, half resting skyward).
+func _ammo_test() -> void:
+	for i in 60:
+		await get_tree().process_frame
+	await get_tree().create_timer(4.0).timeout
+	var bm := BuildManager.instance
+	var me := world.call("local_player") as Player
+	var cid := me.cliff_id if me != null else WorldLayout.WEST
+	var ids: Array[StringName] = [&"corn_hopper", &"twin_hopper", &"herb_rifle", &"pepper_sprayer", &"sulfur_fume_vent", &"siege_mortar",
+		&"repeater_post", &"brass_gatling", &"long_tom_rifle", &"skeet_post", &"flak_porch", &"chili_mortar",
+		&"buck_blaster", &"grapeshot_turret", &"tripwire_fence", &"bramble_bomb", &"dust_devil_trap"]
+	if GameState.flag_value("--ammoids") != "": # any turrets you like, comma-separated
+		ids.clear()
+		for id: String in GameState.flag_value("--ammoids").split(","):
+			ids.append(StringName(id))
+	var placed: Array[Turret] = []
+	for id in ids:
+		var done := false
+		for row in Buildable.ROWS:
+			for col in range(2, Buildable.COLS, 2):
+				if done:
+					break
+				var cell := Vector2i(row, col)
+				if bm.is_free_for(id, cid, cell):
+					var n := bm.restore_built(id, cid, cell, 0, "Test")
+					if n is Turret:
+						placed.append(n as Turret)
+						done = true
+			if done:
+				break
+		print("[ammo] %s placed=%s" % [id, done])
+	# A corn harvest's worth of loads, then load the hopper.
+	var corn := CropGrowth.new()
+	corn.plant(Defs.crop(&"corn"))
+	corn.water()
+	corn.tick(10000.0)
+	var got := corn.harvest()
+	Economy.earn(cid, got)
+	print("[ammo] harvest gave %s" % got)
+	var hopper: Turret = null
+	for t in placed:
+		if t.def.id == &"corn_hopper":
+			hopper = t
+	if hopper != null:
+		print("[ammo] hopper wants load %s, can fire %s" % [hopper.wants_load(), hopper.can_fire()])
+		bm._handle(multiplayer.get_unique_id(), &"load", [hopper.name])
+		print("[ammo] after E: loaded %s, corn loads left %d" % [hopper.loaded, Economy.amount(cid, &"corn_load")])
+	# Load every other crop-fed turret for the picture.
+	var k := 0
+	for t in placed:
+		if t.def.is_crop_fed() and t != hopper:
+			k += 1
+			if k % 2 == 0:
+				t.loaded = true
+	if not placed.is_empty():
+		# A camera of its own, a few metres back from the row and looking along it.
+		var cam := Camera3D.new()
+		world.add_child(cam)
+		var a0 := placed[0].global_position
+		var a1 := placed[mini(5, placed.size() - 1)].global_position
+		var mid := (a0 + a1) * 0.5
+		cam.global_position = mid + WorldLayout.inward(cid) * 9.0 + Vector3.UP * 3.0
+		cam.look_at(mid + Vector3.UP * 1.0)
+		cam.fov = 60.0
+		cam.current = true
+		var hud := get_tree().current_scene.find_child("HUD", true, false) as CanvasItem
+		if hud != null:
+			hud.visible = false
+	await get_tree().create_timer(8.0).timeout
+	var shot := GameState.flag_value("--ammoshot")
+	if shot != "":
+		get_viewport().get_texture().get_image().save_png(shot)
+	# End a wave: every load is spent.
+	GameState.phase_changed.emit(GameState.Phase.WAVE)
+	GameState.phase_changed.emit(GameState.Phase.BUILD)
+	var still := 0
+	for t in placed:
+		if t.loaded:
+			still += 1
+	print("[ammo] after the wave: hopper loaded %s, %d turrets still loaded" % [hopper.loaded if hopper != null else false, still])
+	await get_tree().create_timer(1.0).timeout
+	var shot2 := GameState.flag_value("--ammoshot2")
+	if shot2 != "":
+		get_viewport().get_texture().get_image().save_png(shot2)
+	print("[ammo] done")
+	get_tree().quit()
+
+
+## --cropshot=<png>: the four turret-ammo crops on farm plots, the first row ripe
+## and the second still growing, from a camera of its own.
+func _crop_shot(path: String) -> void:
+	for i in 60:
+		await get_tree().process_frame
+	await get_tree().create_timer(4.0).timeout
+	var bm := BuildManager.instance
+	var me := world.call("local_player") as Player
+	var cid := me.cliff_id if me != null else WorldLayout.WEST
+	var crops: Array[StringName] = [&"cotton", &"sulfur_root", &"barrel_cactus", &"tumbleweed_vine"]
+	var plots: Array[CropPlot] = []
+	for row in range(4, Buildable.ROWS, 2):
+		for col in range(0, Buildable.COLS, 2):
+			if plots.size() >= 8:
+				break
+			var cell := Vector2i(row, col)
+			if bm.is_free_for(&"farm_plot", cid, cell):
+				var n := bm.restore_built(&"farm_plot", cid, cell, 0, "Test")
+				if n is CropPlot:
+					plots.append(n as CropPlot)
+	for i in plots.size():
+		var plot := plots[i]
+		plot.crop_def = Defs.crop(crops[i % 4])
+		plot.growth.plant(plot.crop_def)
+		plot.growth.water()
+		plot.growth.tick(plot.crop_def.grow_time * (2.0 if i < 4 else 0.6), 0.0, 0.0)
+		plot.call("_broadcast")
+	if plots.size() >= 4:
+		var cam := Camera3D.new()
+		world.add_child(cam)
+		var mid := (plots[0].global_position + plots[3].global_position) * 0.5
+		var side := (plots[3].global_position - plots[0].global_position).normalized()
+		var back := side.cross(Vector3.UP).normalized()
+		cam.global_position = mid + back * 7.0 + Vector3.UP * 4.0
+		if cam.global_position.distance_to(plots[4].global_position if plots.size() > 4 else mid) < mid.distance_to(plots[4].global_position if plots.size() > 4 else mid):
+			cam.global_position = mid - back * 7.0 + Vector3.UP * 4.0
+		cam.look_at(mid)
+		cam.fov = 55.0
+		cam.current = true
+	await get_tree().create_timer(3.0).timeout
+	get_viewport().get_texture().get_image().save_png(path)
+	print("[cropshot] %d plots, saved %s" % [plots.size(), path])
+	get_tree().quit()
+
+
+## --sackicons: render every ammo sack (AmmoSackBuilder) to assets/icons/<load item>.png
+## (UiStyle.painted_icon shows them wherever the item is listed), then quit.
+func _sack_icons() -> void:
+	for c: StringName in AmmoStore.crops():
+		var vp := SubViewport.new()
+		vp.size = Vector2i(256, 256)
+		vp.own_world_3d = true
+		vp.transparent_bg = true
+		vp.msaa_3d = Viewport.MSAA_4X
+		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		add_child(vp)
+		var mi := MeshInstance3D.new()
+		mi.mesh = AmmoSackBuilder.sack(c)
+		mi.material_override = Materials.toon(0.012)
+		mi.rotation.y = deg_to_rad(-18.0)
+		vp.add_child(mi)
+		var cam := Camera3D.new()
+		cam.fov = 30.0
+		cam.position = Vector3(0, 0.36, -1.05)
+		vp.add_child(cam)
+		cam.look_at(Vector3(0, 0.22, 0))
+		var env := Environment.new()
+		env.background_mode = Environment.BG_CLEAR_COLOR
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = Color.WHITE
+		env.ambient_light_energy = 0.8
+		cam.environment = env
+		var sun := DirectionalLight3D.new()
+		sun.rotation = Vector3(deg_to_rad(-40), deg_to_rad(160), 0)
+		sun.light_energy = 1.2
+		vp.add_child(sun)
+		for i in 6:
+			await RenderingServer.frame_post_draw
+		var item := Defs.crop(c).load_item
+		vp.get_texture().get_image().save_png("res://assets/icons/%s.png" % item)
+		print("[sackicons] %s" % item)
+		vp.queue_free()
+	get_tree().quit()
+
+
+## --cellarshot=<png>: dig the root cellar on your house, stock its bins
+## unevenly and photograph it.
+func _cellar_shot(path: String) -> void:
+	for i in 60:
+		await get_tree().process_frame
+	await get_tree().create_timer(4.0).timeout
+	var me := world.call("local_player") as Player
+	var cid := me.cliff_id if me != null else WorldLayout.WEST
+	var home := Homestead.of(cid)
+	home._set_state(home.floors, home.boarded, home.reinforced, home.tower, home.workshop, home.porch, true)
+	var k := 0
+	for c: StringName in AmmoStore.crops():
+		Economy.earn(cid, {Defs.crop(c).load_item: [0, 3, 7, 12, 20, 1, 5, 16, 9][k % 9]})
+		k += 1
+	await get_tree().create_timer(1.0).timeout
+	var cellar := home.get_node("RootCellar") as RootCellar
+	var hud := get_tree().current_scene.find_child("HUD", true, false) as CanvasItem
+	# Outside first: the doors beside the house.
+	var cam := Camera3D.new()
+	world.add_child(cam)
+	cam.global_position = cellar.to_global(Vector3(-3.8, 2.4, 2.6))
+	cam.look_at(cellar.global_position)
+	cam.fov = 55.0
+	cam.current = true
+	await get_tree().create_timer(1.5).timeout
+	get_viewport().get_texture().get_image().save_png(path.replace(".png", "_doors.png"))
+	cam.current = false
+	cam.queue_free()
+	# Then down the stairs, as a player.
+	(cellar.get_child(0) as CellarDoor).local_interact(false)
+	await get_tree().create_timer(1.5).timeout
+	if me != null:
+		me.head.rotation.x = -0.2
+	await get_tree().create_timer(1.0).timeout
+	print("[cellarshot] player at %s, cellar floor %.1f" % [str(me.global_position.snapped(Vector3.ONE * 0.1)), cellar.to_global(RootCellar.ROOM).y])
+	get_viewport().get_texture().get_image().save_png(path)
+	print("[cellarshot] saved %s" % path)
 	get_tree().quit()

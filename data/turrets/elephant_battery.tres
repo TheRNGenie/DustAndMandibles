@@ -26,3 +26,4 @@ special = &"pierce"
 special_count = 2
 special_radius = 1.5
 special_falloff = 0.75
+crop_type = &"herbs"

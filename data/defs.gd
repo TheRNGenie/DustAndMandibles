@@ -71,6 +71,24 @@ const TURRETS: Dictionary = {
 	&"flood_gate": preload("res://data/turrets/flood_gate.tres"),
 	&"twin_mortar": preload("res://data/turrets/twin_mortar.tres"),
 	&"bola_launcher": preload("res://data/turrets/bola_launcher.tres"),
+	# Turret ammo (farming redesign): self-powered lines.
+	&"repeater_post": preload("res://data/turrets/repeater_post.tres"),
+	&"brass_gatling": preload("res://data/turrets/brass_gatling.tres"),
+	&"long_tom_rifle": preload("res://data/turrets/long_tom_rifle.tres"),
+	&"buck_blaster": preload("res://data/turrets/buck_blaster.tres"),
+	&"grapeshot_turret": preload("res://data/turrets/grapeshot_turret.tres"),
+	&"skeet_post": preload("res://data/turrets/skeet_post.tres"),
+	&"flak_porch": preload("res://data/turrets/flak_porch.tres"),
+	# Turret ammo: crop-fed lines (TurretDef.crop_type).
+	&"corn_hopper": preload("res://data/turrets/corn_hopper.tres"),
+	&"twin_hopper": preload("res://data/turrets/twin_hopper.tres"),
+	&"pepper_sprayer": preload("res://data/turrets/pepper_sprayer.tres"),
+	&"sulfur_fume_vent": preload("res://data/turrets/sulfur_fume_vent.tres"),
+	&"herb_rifle": preload("res://data/turrets/herb_rifle.tres"),
+	&"tripwire_fence": preload("res://data/turrets/tripwire_fence.tres"),
+	&"bramble_bomb": preload("res://data/turrets/bramble_bomb.tres"),
+	&"dust_devil_trap": preload("res://data/turrets/dust_devil_trap.tres"),
+	&"siege_mortar": preload("res://data/turrets/siege_mortar.tres"),
 }
 
 ## Hive amber turrets (AmberRules): crafted at the Workshop from amber and rare
@@ -99,7 +117,12 @@ const CROPS: Dictionary = {
 	&"prickly_pear": preload("res://data/crops/prickly_pear.tres"),
 	&"firecracker_chili": preload("res://data/crops/firecracker_chili.tres"),
 	&"herbs": preload("res://data/crops/herbs.tres"),
-	&"sarsaparilla": preload("res://data/crops/sarsaparilla.tres"), # grown for your partner (PartnerTonic)
+	&"sarsaparilla": preload("res://data/crops/sarsaparilla.tres"), # grown for your partner (PartnerTonic); loads the crewed guns
+	# Turret ammo (farming redesign): crops grown only as turret loads.
+	&"cotton": preload("res://data/crops/cotton.tres"),
+	&"sulfur_root": preload("res://data/crops/sulfur_root.tres"),
+	&"barrel_cactus": preload("res://data/crops/barrel_cactus.tres"),
+	&"tumbleweed_vine": preload("res://data/crops/tumbleweed_vine.tres"),
 }
 
 ## Player guns (the gun shop sells them; Gun.WEAPONS points here).
@@ -132,19 +155,26 @@ const BUILD_ORDER: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"wat
 	&"duck_gun", &"sky_sweeper", &"net_thrower", &"powder_flak", &"firework_battery",
 	&"steam_cannon", &"bola_launcher", &"twin_mortar", &"flood_gate",
 	&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound", # Crewed
-	&"twin_gatling", &"hornets_nest", &"elephant_battery", &"rail_spike_driver", &"gatling_porch"] # Tiers
+	&"twin_gatling", &"hornets_nest", &"elephant_battery", &"rail_spike_driver", &"gatling_porch", # Tiers
+	&"repeater_post", &"brass_gatling", &"long_tom_rifle", &"buck_blaster", &"grapeshot_turret", &"skeet_post", &"flak_porch", # Turret ammo: self-powered
+	&"corn_hopper", &"twin_hopper", &"pepper_sprayer", &"sulfur_fume_vent", &"herb_rifle", &"tripwire_fence",
+	&"bramble_bomb", &"dust_devil_trap", &"siege_mortar"] # Turret ammo: crop-fed
 
 ## Build menu (B) categories, in tab order.
 const BUILD_CATEGORIES: Array[Dictionary] = [
 	{"name": "Farming", "items": [&"farm_plot", &"rain_catcher"]},
-	{"name": "Cliff Turrets", "items": [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar",
-		&"dynamite_lobber", &"lasso_harpoon", &"scaffold",
-		&"twin_gatling", &"elephant_battery", &"steam_cannon", &"twin_mortar", &"bola_launcher",
-		&"hornets_nest", &"rail_spike_driver", &"flood_gate"]}, # Tiers: shown sorted by tier
-	{"name": "Crewed Guns", "items": [&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound"]}, # Crewed
+	# Turret ammo: Cliff Turrets are the self-powered ones (always fire), Crop-Fed
+	# ones need a load of their crop each wave. Tabs show sorted by tier.
+	{"name": "Cliff Turrets", "items": [&"gatling_post", &"buffalo_rifle", &"scaffold",
+		&"repeater_post", &"twin_gatling", &"brass_gatling", &"long_tom_rifle"]},
+	{"name": "Crewed Guns", "items": [&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound"]}, # Crewed (sarsaparilla loads)
+	{"name": "Crop-Fed", "items": [&"corn_hopper", &"herb_rifle", &"chili_mortar", &"dynamite_lobber", &"water_cannon", &"lasso_harpoon",
+		&"twin_hopper", &"pepper_sprayer", &"sulfur_fume_vent", &"steam_cannon", &"bola_launcher", &"elephant_battery",
+		&"hornets_nest", &"twin_mortar", &"flood_gate", &"rail_spike_driver", &"siege_mortar"]},
 	{"name": "Tactical", "items": [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post"]},
-	{"name": "Air Defense", "items": [&"duck_gun", &"sky_sweeper", &"net_thrower", &"powder_flak", &"firework_battery"]},
-	{"name": "Last Resorts", "items": [&"scattergun_post", &"sharpshooter_tower", &"porch_repeater", &"rooftop_cannon", &"gatling_porch"]},
+	{"name": "Air Defense", "items": [&"duck_gun", &"sky_sweeper", &"skeet_post", &"powder_flak", &"flak_porch", &"net_thrower", &"firework_battery"]},
+	{"name": "Last Resorts", "items": [&"scattergun_post", &"porch_repeater", &"tripwire_fence", &"buck_blaster", &"sharpshooter_tower", &"rooftop_cannon",
+		&"bramble_bomb", &"grapeshot_turret", &"gatling_porch", &"dust_devil_trap"]},
 	# Crafted: filled at runtime with the crafted turret items your cliff holds (BuildMode.category_items).
 	{"name": "Crafted", "items": []},
 ]
@@ -298,15 +328,24 @@ static func name_of(id: StringName) -> String:
 ## Each turret's next tech tier (Early -> Mid -> Late in the same role). A built
 ## turret can be swapped for it in place (Y in build mode) for TIER_UP_RATE of the
 ## new turret's price, keeping its upgrade tier, scaffold level and health.
+## Turret ammo: lines never cross tracks, a self-powered turret steps up to a
+## self-powered one and a crop-fed one to one fed by the same crop.
 const TIER_UP: Dictionary = {
-	&"gatling_post": &"twin_gatling", &"twin_gatling": &"hornets_nest",
-	&"buffalo_rifle": &"elephant_battery", &"elephant_battery": &"rail_spike_driver",
+	# Self-powered.
+	&"gatling_post": &"repeater_post", &"repeater_post": &"brass_gatling",
+	&"buffalo_rifle": &"sharpshooter_tower", &"sharpshooter_tower": &"long_tom_rifle",
+	&"scattergun_post": &"buck_blaster", &"buck_blaster": &"grapeshot_turret",
+	&"porch_repeater": &"rooftop_cannon", &"rooftop_cannon": &"gatling_porch",
+	&"duck_gun": &"skeet_post", &"skeet_post": &"flak_porch",
+	&"sky_sweeper": &"powder_flak", &"twin_gatling": &"brass_gatling",
+	# Crop-fed.
+	&"corn_hopper": &"twin_hopper", &"twin_hopper": &"hornets_nest",
+	&"chili_mortar": &"pepper_sprayer", &"pepper_sprayer": &"twin_mortar",
+	&"dynamite_lobber": &"sulfur_fume_vent", &"sulfur_fume_vent": &"firework_battery",
 	&"water_cannon": &"steam_cannon", &"steam_cannon": &"flood_gate",
-	&"chili_mortar": &"twin_mortar", &"dynamite_lobber": &"twin_mortar",
-	&"lasso_harpoon": &"bola_launcher",
-	&"duck_gun": &"powder_flak", &"sky_sweeper": &"net_thrower",
-	&"powder_flak": &"firework_battery", &"net_thrower": &"firework_battery",
-	&"scattergun_post": &"sharpshooter_tower", &"rooftop_cannon": &"gatling_porch",
+	&"lasso_harpoon": &"bola_launcher", &"bola_launcher": &"net_thrower",
+	&"herb_rifle": &"elephant_battery", &"elephant_battery": &"rail_spike_driver",
+	&"tripwire_fence": &"bramble_bomb", &"bramble_bomb": &"dust_devil_trap",
 }
 ## Stepping up costs this share of building the higher tier outright.
 const TIER_UP_RATE := 0.85

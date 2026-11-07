@@ -28,3 +28,4 @@ crewed = true
 crew_yaw_arc_deg = 170.0
 crew_pitch_up_deg = 82.0
 tier = 2
+crop_type = &"sarsaparilla"

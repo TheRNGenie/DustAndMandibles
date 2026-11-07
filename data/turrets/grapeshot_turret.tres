@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"grapeshot_turret"
+display_name = "Grapeshot Turret"
+description = "Last line: a naval carronade loaded with grapeshot. One blast clears a patch of your plateau."
+role = "splash blast on your plateau"
+weakness = "short range; never fires at cliffs"
+cost_scrap = 180
+max_hp = 230.0
+range = 24.0
+fire_interval = 1.8
+damage = 160.0
+armor_pierce = true
+heavy_mult = 1.0
+pitch_limit_deg = 70.0
+turn_speed = 200.0
+spread_deg = 4.0
+hit_chance = 1.0
+effect = 3
+flight_time = 0.0
+effect_size = 2.5
+guards_plateau = true
+sound = &"cannon"
+tier = 2

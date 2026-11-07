@@ -36,6 +36,9 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 		&"bola":
 			_bola(t, target, aim, dir, source)
 			return
+		&"bramble", &"dust_devil": # Turret ammo: the tumbleweed traps
+			_trap(t, target, aim, damage, source)
+			return
 		TurretDef.SPECIAL_CHAIN, TurretDef.SPECIAL_PIERCE, TurretDef.SPECIAL_SPIKE: # Tiers: ricochet, pierce and rail spike
 			_special(t, target, aim, dir, damage, source)
 			return
@@ -106,6 +109,40 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 					bugs.splash(cliff, aim, radius, damage, source, owner_cliff)
 				else:
 					bugs.add_fire(cliff, aim, radius, damage, 5.0, source, owner_cliff))
+
+
+# ------------------------------------------------------------------ turret ammo: traps
+
+## The tumbleweed traps (plateau guards): every bug on your ground within
+## effect_size of the shot is hit. Bramble Bomb pins them in thorns (special_pin s)
+## and sets them burning; Dust Devil Trap whirls them away (knocked down a level,
+## heavy bugs just shoved back).
+static func _trap(t: Turret, target: Bug, aim: Vector3, damage: float, source: String) -> void:
+	var radius := t.def.effect_size * t.range_multiplier()
+	var devil := t.def.special == &"dust_devil"
+	for n: Node in t.get_tree().get_nodes_in_group("bugs"):
+		var b := n as Bug
+		if b == null or not b.is_alive() or b.cliff_id != target.cliff_id:
+			continue
+		var d := b.global_position.distance_to(aim)
+		if d > radius:
+			continue
+		var away := (b.global_position - aim)
+		away.y = 0.0
+		away = away.normalized() if away.length() > 0.01 else Vector3.FORWARD
+		b.receive_hit(damage * lerpf(1.0, 0.6, d / radius), b.global_position, away, t.def.armor_pierce, 1.0, source, t.cliff_id)
+		if not b.is_alive():
+			continue
+		if devil:
+			if TurretDef.is_heavy(b.def):
+				b.status.slow(0.5, 2.0)
+			else:
+				b.knock_off(source, t.cliff_id)
+		else:
+			b.status.root(t.def.special_pin)
+			b.status.burn(damage * 0.25, 3.0, source, t.cliff_id)
+	if Turret.bug_manager != null:
+		Turret.bug_manager._explode.rpc(aim, radius)
 
 
 # ------------------------------------------------------------------ tiers: specials

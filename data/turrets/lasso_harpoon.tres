@@ -22,5 +22,5 @@ hit_chance = 0.95
 effect = 4
 flight_time = 0.00
 effect_size = 3.0
-ammo_cost = {}
 sound = &"harpoon"
+crop_type = &"cotton"

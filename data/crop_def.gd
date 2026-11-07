@@ -18,3 +18,21 @@ extends Resource
 ## corn is fast cheap scrap, pear is slow but heals, chili is mortar ammo and sells
 ## for chitin, herbs are medicine.
 @export var role: String = ""
+## Turret ammo (farming redesign): turret loads one harvest gives. One load arms
+## one crop-fed turret (TurretDef.crop_type == id) for a whole wave.
+@export var loads_per_harvest: int = 0
+## The load item a harvest adds to the stockpile ("corn_load"). Not sold anywhere.
+@export var load_item: StringName = &""
+## The turret line this crop feeds, for the catalog and field guide ("Corn Hopper line").
+@export var turret_family: String = ""
+
+
+## Everything one harvest adds to the stockpile: the turret loads first (so a
+## Bumper Crop's extra is a load), then the side crop it still gives.
+func harvest_out() -> Dictionary:
+	var out := {}
+	if loads_per_harvest > 0 and load_item != &"":
+		out[load_item] = loads_per_harvest
+	for k: Variant in harvest:
+		out[k] = int(out.get(k, 0)) + int(harvest[k])
+	return out

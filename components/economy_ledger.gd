@@ -11,7 +11,11 @@ extends RefCounted
 ## amount / spend / earn on a cliff read and write the right pile.
 
 const RESOURCES: Array[StringName] = [&"scrap", &"chitin", &"water", &"corn", &"prickly_pear", &"chili", &"herbs",
-	&"seed_corn", &"seed_prickly_pear", &"seed_chili", &"seed_herbs", &"upgrade_token", &"sarsaparilla", &"seed_sarsaparilla", &"amber"]
+	&"seed_corn", &"seed_prickly_pear", &"seed_chili", &"seed_herbs", &"upgrade_token", &"sarsaparilla", &"seed_sarsaparilla", &"amber",
+	# Turret ammo (farming redesign): new crops' seeds and every crop's turret loads.
+	&"seed_cotton", &"seed_sulfur_root", &"seed_barrel_cactus", &"seed_tumbleweed",
+	&"corn_load", &"chili_load", &"prickly_pear_load", &"herb_load", &"sarsaparilla_load",
+	&"cotton_load", &"sulfur_load", &"cactus_load", &"tumbleweed_load"]
 
 ## The team pot's key in `stock`.
 const TEAM := -1

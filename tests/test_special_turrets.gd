@@ -65,7 +65,7 @@ func test_registered_and_buildable() -> void:
 		assert_true(d != null, "%s registered" % id)
 		assert_eq(d.id, id)
 		assert_true(Defs.BUILD_ORDER.has(id), "%s in the build order" % id)
-		assert_true(cliff.has(id), "%s on the Cliff Turrets tab" % id)
+		assert_true(cliff.has(id) or Defs.category_items("Crop-Fed").has(id), "%s on a cliff turret tab" % id)
 		assert_true(Defs.gets_scaffold(id), "%s stands on a scaffold like other cliff turrets" % id)
 		assert_true(d.role != "" and d.weakness != "", "%s has a job and a weakness" % id)
 		assert_true(d.special != &"", "%s has a special shot" % id)
@@ -91,7 +91,7 @@ func test_stat_lines_name_the_special() -> void:
 	var bola := Defs.turret(&"bola_launcher").stat_line()
 	assert_true(bola.contains("Tangles 2 Bugs 5.3 s"), bola)
 	assert_false(bola.contains("Pins"), bola)
-	assert_true(Defs.turret(&"twin_mortar").role_line().contains("Upkeep: 1 chili, 1 chitin a shot"), Defs.turret(&"twin_mortar").role_line())
+	assert_true(Defs.turret(&"twin_mortar").role_line().contains("Crop-fed: 1 firecracker chili load a wave"), Defs.turret(&"twin_mortar").role_line())
 	# Older turrets keep their plain lines.
 	assert_true(Defs.turret(&"water_cannon").stat_line().contains("Knocks Bugs Off"))
 	assert_true(Defs.turret(&"chili_mortar").stat_line().contains("Burning Patch 3 m"))

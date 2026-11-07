@@ -4,7 +4,7 @@ extends StaticBody3D
 
 signal menu_changed
 
-const ICONS: Dictionary = {&"patch": &"hammer", &"board": &"planks", &"reinforce": &"shield", &"floor2": &"house", &"floor3": &"house", &"tower": &"house", &"workshop": &"hammer", &"porch": &"planks"}
+const ICONS: Dictionary = {&"patch": &"hammer", &"board": &"planks", &"reinforce": &"shield", &"floor2": &"house", &"floor3": &"house", &"tower": &"house", &"workshop": &"hammer", &"porch": &"planks", &"cellar": &"corn_load"}
 
 var home: Homestead
 

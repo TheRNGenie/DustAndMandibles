@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"buck_blaster"
+display_name = "Buck Blaster"
+description = "Last line: a sawed-off double barrel on a swivel. Brutal on bugs that reach your plateau."
+role = "point-blank blast on your plateau"
+weakness = "tiny range; never fires at cliffs"
+cost_scrap = 100
+max_hp = 200.0
+range = 20.0
+fire_interval = 2.0
+damage = 120.0
+armor_pierce = true
+heavy_mult = 1.0
+pitch_limit_deg = 70.0
+turn_speed = 220.0
+spread_deg = 4.0
+hit_chance = 1.0
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+guards_plateau = true
+sound = &"scattergun"
+tier = 1

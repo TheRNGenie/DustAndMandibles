@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"tripwire_fence"
+display_name = "Tripwire Fence"
+description = "Last line: tumbleweed wire strung low across your yard. Snares a bug that reaches your plateau for 3 s."
+role = "snares bugs on your plateau"
+weakness = "tiny range; never fires at cliffs"
+cost_scrap = 35
+max_hp = 80.0
+range = 15.0
+fire_interval = 8.0
+damage = 10.0
+armor_pierce = false
+heavy_mult = 1.0
+pitch_limit_deg = 40.0
+turn_speed = 720.0
+spread_deg = 0.0
+hit_chance = 1.0
+effect = 4
+flight_time = 0.0
+effect_size = 3.0
+guards_plateau = true
+sound = &"harpoon"
+tier = 0
+crop_type = &"tumbleweed_vine"

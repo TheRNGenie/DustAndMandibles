@@ -43,7 +43,8 @@ func test_crop_numbers() -> void:
 	for id: StringName in Defs.CROPS.keys():
 		var c: CropDef = Defs.CROPS[id]
 		assert_true(c.grow_time > 0.0, "%s grow time" % id)
-		assert_false(c.harvest.is_empty(), "%s harvests something" % id)
+		assert_false(c.harvest_out().is_empty(), "%s harvests something" % id)
+		assert_true(c.loads_per_harvest > 0 and c.load_item != &"", "%s gives turret loads" % id)
 
 
 func test_every_bug_wave_is_reachable() -> void:

@@ -12,7 +12,9 @@ const SYNC_INTERVAL := 1.5
 ## Seeds for sale: seed resource -> [name, crop id]. Price = MarketPrices.seed_price.
 const SEEDS: Dictionary = {&"seed_corn": ["Corn Seeds", &"corn"], &"seed_prickly_pear": ["Prickly Pear Seeds", &"prickly_pear"],
 	&"seed_chili": ["Chili Seeds", &"firecracker_chili"], &"seed_herbs": ["Herb Seeds", &"herbs"],
-	&"seed_sarsaparilla": ["Sarsaparilla Seeds", &"sarsaparilla"]}
+	&"seed_sarsaparilla": ["Sarsaparilla Seeds", &"sarsaparilla"],
+	&"seed_cotton": ["Cotton Seeds", &"cotton"], &"seed_sulfur_root": ["Sulfur Root Seeds", &"sulfur_root"],
+	&"seed_barrel_cactus": ["Barrel Cactus Seeds", &"barrel_cactus"], &"seed_tumbleweed": ["Tumbleweed Seeds", &"tumbleweed_vine"]}
 
 
 static func seed_cost(seed_res: StringName) -> int:
