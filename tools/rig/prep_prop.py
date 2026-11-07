@@ -63,7 +63,7 @@ def main():
         d.ratio = o["max_tris"] / tris
         bpy.ops.object.modifier_apply(modifier=d.name)
     print("[prop] triangles:", sum(len(p.vertices) - 2 for p in body.data.polygons), "scale", round(s, 4))
-    slim_textures(2048, True)  # as sent: keep every map
+    slim_textures(1 << 16, True)  # as sent: every map, full size (Logan, 2026-11-07)
     if o["preview"]:
         scene = bpy.context.scene
         cam = bpy.data.objects.new("cam", bpy.data.cameras.new("c"))
@@ -77,7 +77,7 @@ def main():
         scene.render.filepath = o["preview"]
         bpy.ops.render.render(write_still=True)
     bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.export_scene.gltf(filepath=o["out"], export_format="GLB", use_selection=True, export_image_format="JPEG", export_jpeg_quality=90)
+    bpy.ops.export_scene.gltf(filepath=o["out"], export_format="GLB", use_selection=True, export_image_format="AUTO")
     print("[prop] wrote", o["out"])
 
 

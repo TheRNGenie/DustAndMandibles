@@ -34,6 +34,6 @@ static func heat_color(n: int) -> Color:
 static func count_covering(arcs: Array, point: Vector3) -> int:
 	var k := 0
 	for a: Array in arcs:
-		if Targeting.in_arc(a[0], point, a[1], a[2]):
+		if Targeting.in_arc(a[0], point, a[1], a[2], a[3] if a.size() > 3 else Vector3.ZERO, Targeting.AIM_HALF_DEG):
 			k += 1
 	return k

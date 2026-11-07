@@ -82,6 +82,7 @@ func _far_patch(cid: int, muzzle: Vector3, pitch: float, rng: float) -> void:
 	var cell := Buildable.world_to_cell(cliffs, cid, muzzle)
 	if cell.y >= 0:
 		other = m.covered_cliff(cid, cell.y) # bigger maps: the spot decides which neighbour
+	var aim := Targeting.wall_aim(cliffs, other, muzzle)
 	var zs: Array[float] = []
 	# Only the far wall inside the play area (the wild canyon beyond bends away).
 	var z_lo := maxf(muzzle.z - rng, -WorldLayout.PLAY_HALF_Z + 2.0)
@@ -107,7 +108,7 @@ func _far_patch(cid: int, muzzle: Vector3, pitch: float, rng: float) -> void:
 		for zz in zs:
 			var p := cliffs.face_point(other, yy, zz)
 			prow.append(p + cliffs.face_normal(other, yy, zz) * FACE_OFFSET)
-			irow.append(Targeting.in_arc(muzzle, p, pitch, rng))
+			irow.append(Targeting.in_arc(muzzle, p, pitch, rng, aim, Targeting.AIM_HALF_DEG))
 		pts.append(prow)
 		inside.append(irow)
 	var st := MeshKit.begin()

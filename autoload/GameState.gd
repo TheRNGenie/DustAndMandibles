@@ -112,6 +112,10 @@ func reset() -> void:
 	wave = 0
 	time_left = 0.0
 	_voters.clear()
+	_local_ready = false
+	# Leaving a run mid-way never passes through LOBBY's signal: nobody is still
+	# "down in the canyon" from it (that locked the next run's lever).
+	Expedition._clear()
 	skip_votes = 0
 	ready_countdown = -1.0
 	won = false

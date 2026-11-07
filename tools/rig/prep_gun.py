@@ -115,7 +115,7 @@ def main():
         bm.to_mesh(obj.data)
         bm.free()
     obj.data.update()
-    slim_textures(2048 if o.get("keep_maps") else 1024, bool(o.get("keep_maps")))
+    slim_textures((1 << 16) if o.get("keep_maps") else 1024, bool(o.get("keep_maps")))  # keep-maps: as sent (Logan, 2026-11-07)
     info = {}
     # Cut out the moving parts.
     for name, box in o["parts"]:
@@ -145,11 +145,11 @@ def main():
         bpy.ops.object.select_all(action="DESELECT")
         part.select_set(True)
         bpy.ops.export_scene.gltf(filepath="%s/%s_%s.glb" % (o["out"], o["name"], name), export_format="GLB",
-                                  use_selection=True, export_image_format="JPEG", export_jpeg_quality=90)
+                                  use_selection=True, export_image_format="AUTO")
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
     bpy.ops.export_scene.gltf(filepath="%s/%s_body.glb" % (o["out"], o["name"]), export_format="GLB",
-                              use_selection=True, export_image_format="JPEG", export_jpeg_quality=90)
+                              use_selection=True, export_image_format="AUTO")
     with open("%s/%s.json" % (o["out"], o["name"]), "w") as fh:
         json.dump({"scale": s, "parts": info}, fh)
     print("[gun] wrote", o["name"])

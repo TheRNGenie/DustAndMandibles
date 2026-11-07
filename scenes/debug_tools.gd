@@ -208,6 +208,8 @@ func _ready() -> void:
 		_streak_test()
 	elif GameState.has_flag("--cpusim"):
 		_cpu_sim()
+	elif GameState.has_flag("--levertest"):
+		_lever_test()
 	elif HyperLearn.wanted():
 		var hl := HyperLearn.new()
 		hl.name = "HyperLearn"
@@ -2959,3 +2961,29 @@ func _tier_up_test() -> void:
 		if step < 2:
 			bm._do_tier_up(me, t)
 		await get_tree().create_timer(0.5).timeout
+
+
+## --levertest: throw your lever (as the generator's E does) and report what the
+## build phase made of it.
+func _lever_test() -> void:
+	await get_tree().create_timer(4.0).timeout
+	print("[lever] before: phase %d story %s hold %s solo %s players %d cpu %s" % [GameState.phase, Story.chapter_id, GameState.story_hold,
+			GameState.is_solo(), NetworkManager.players.size(), NetworkManager.has_cpu()])
+	# Through the generator, as the E key would.
+	var me := world.call("local_player") as Player
+	var gens := get_tree().get_nodes_in_group("generators")
+	var hit := false
+	for g: Node in get_tree().current_scene.find_children("*", "", true, false):
+		if g.has_method("local_interact") and g.get("cliff_id") == me.cliff_id and str(g.get_script().resource_path).contains("generator"):
+			print("[lever] generator %s mine %s prompt: %s" % [g.name, g.call("is_mine"), str(g.call("interact_prompt")).replace("
+", " | ")])
+			g.call("local_interact", false)
+			hit = true
+			break
+	if not hit:
+		print("[lever] no generator found for cliff %d" % me.cliff_id)
+	for i in 12:
+		await get_tree().create_timer(1.0).timeout
+		print("[lever] t+%d: phase %d countdown %.1f ready_local %s levers %s cpu_levers %s" % [i + 1, GameState.phase, GameState.ready_countdown,
+				GameState.is_ready_local(), str(GameState.levers), str(GameState.cpu_levers)])
+	get_tree().quit()

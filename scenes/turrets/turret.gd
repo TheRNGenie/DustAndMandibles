@@ -17,6 +17,8 @@ var cliff_id: int = 0
 var cell: Vector2i
 ## The cliff whose climbers this turret shoots (from its grid column, see MapDef).
 var covers: int = 1
+## Straight across to the wall it covers (flat); its aiming cone is centred on it.
+var _aim := Vector3.ZERO
 var owner_name: String = ""
 ## Scaffold level this turret stands on (0 = ground): +5 degrees look-down and
 ## +5% range per level (TurretDef.RANGE_PER_LEVEL).
@@ -313,7 +315,11 @@ func _valid_cheap(b: Bug, muzzle: Vector3, seen: float, pitch: float, max_range:
 		return false
 	if seen < 1.0 and _lit_near(b.global_position):
 		seen = 1.0 # a lantern or a lit lighter shows this bug through the murk
-	return Targeting.in_arc(muzzle, b.global_position, pitch, max_range * seen)
+	if def.anti_air or def.guards_plateau:
+		return Targeting.in_arc(muzzle, b.global_position, pitch, max_range * seen)
+	if _aim == Vector3.ZERO:
+		_aim = Targeting.wall_aim(Bug.cliffs, covers, muzzle)
+	return Targeting.in_arc(muzzle, b.global_position, pitch, max_range * seen, _aim, Targeting.AIM_HALF_DEG)
 
 
 ## Line of sight from the muzzle to the bug (rock and buildings block it).
