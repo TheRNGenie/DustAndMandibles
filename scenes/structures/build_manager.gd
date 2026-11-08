@@ -91,6 +91,17 @@ func free_turret_level(cid: int, cell: Vector2i) -> int:
 	return -1
 
 
+## Air guns only ever go on the third level, the top of a full stack (Logan,
+## Nov 2026): never the first or second. The scaffold is raised to full height
+## for free if it isn't already. -1 = the top slot is taken (or the cell is
+## taken on the ground).
+func top_level(cid: int, cell: Vector2i) -> int:
+	var levels := scaffold_levels(cid, cell)
+	if levels == 0 and _occupied.has(_key(cid, cell, 0)):
+		return -1
+	return -1 if levels >= MAX_SCAFFOLD and _slot_taken(cid, cell, MAX_SCAFFOLD) else MAX_SCAFFOLD
+
+
 ## Where a new turret would go on a cell: the lowest free slot, or, when every
 ## level is taken, one more scaffold level on top (added free), up to MAX_SCAFFOLD.
 ## Only where a scaffold already stands (not on ground-mounted last resorts). -1 = full.
@@ -108,9 +119,19 @@ func stack_level(cid: int, cell: Vector2i) -> int:
 ## build ghost and coverage preview show): normal turrets on a bare cell get a
 ## free scaffold put up around them, so they go in at level 1. -1 = no room.
 func placement_level(id: StringName, cid: int, cell: Vector2i) -> int:
+	if Defs.is_crewed(id): # Crewed: the ground, or the tower over another crewed gun
+		return crewed_level(cid, cell)
+	if Defs.is_turret(id) and Defs.turret(id).anti_air:
+		return top_level(cid, cell) # air guns: the top of the stack, where they see the sky
 	var level := stack_level(cid, cell)
 	if level == 0 and Defs.gets_scaffold(id):
 		return 1
+	# Air guns stay on top: nothing else goes in over one.
+	if level > 0 and Defs.is_turret(id):
+		for below in range(level - 1, 0, -1):
+			var t := turret_at(cid, cell, below)
+			if t != null and t.def.anti_air:
+				return -1
 	return level
 
 
@@ -120,13 +141,15 @@ func is_free_for(id: StringName, cid: int, cell: Vector2i) -> bool:
 	if Defs.is_house_turret(id):
 		var home := Homestead.of(cid)
 		return home != null and cell.y < home.mount_count() and not _occupied.has(_key(cid, cell, 0))
-	# Crewed: crewed guns sit on bare ground only (no scaffold, nothing stacked on
-	# or under them), and nothing else goes on a cell one covers.
+	# Crewed: on bare ground in the crewed spot, or up on a tower over a crewed
+	# gun of a different kind there (crewed_level). Nothing else goes on a cell
+	# one covers.
 	if Defs.is_crewed(id):
-		for c in Buildable.footprint(id, cell):
-			if cell_taken(cid, c) or not turrets_on(cid, c).is_empty():
-				return false
-		return true
+		var lvl := crewed_level(cid, cell)
+		if lvl < 0:
+			return false
+		var low := turret_at(cid, cell, 0)
+		return lvl == 0 or (low != null and low.def.id != id)
 	if crewed_at(cid, cell):
 		return false
 	# Hive amber turrets: bare ground only (no scaffold under or over them).
@@ -135,11 +158,26 @@ func is_free_for(id: StringName, cid: int, cell: Vector2i) -> bool:
 	if id == &"scaffold":
 		return scaffold_levels(cid, cell) < MAX_SCAFFOLD
 	if Defs.is_turret(id) and Buildable.is_turret_cell(cell):
-		return stack_level(cid, cell) >= 0
+		return placement_level(id, cid, cell) >= 0
 	for c in Buildable.footprint(id, cell):
 		if _occupied.has(_key(cid, c, 0)) or scaffold_levels(cid, c) > 0:
 			return false
 	return true
+
+
+## Crewed: the level a crewed gun would go in at here: 0 on bare ground,
+## CrewedTower.UPPER_LEVEL on the tower over a crewed gun already there, -1 if
+## there's no room (both taken, or something else on the spot).
+func crewed_level(cid: int, cell: Vector2i) -> int:
+	var low := turret_at(cid, cell, 0)
+	if low == null:
+		for c in Buildable.footprint(&"cf_iron_mule", cell): # (any crewed gun's 2 x 2; Big Bertha is archived)
+			if cell_taken(cid, c) or not turrets_on(cid, c).is_empty():
+				return -1
+		return 0
+	if not low.def.crewed or turret_at(cid, cell, CrewedTower.UPPER_LEVEL) != null:
+		return -1
+	return CrewedTower.UPPER_LEVEL
 
 
 # Crewed: is this cell under a crewed gun's 2 x 2 footprint?
@@ -420,6 +458,10 @@ func _do_demolish(peer_id: int, n: Node3D) -> void:
 			sc.queue_free()
 		else:
 			sc.set_levels(sc.levels - 1)
+		return
+	# Crewed: the lower gun holds the tower up; sell the one on top first.
+	if n is CrewedTurret and (n as CrewedTurret).level == 0 and turret_at(cid, (n as CrewedTurret).cell, CrewedTower.UPPER_LEVEL) != null:
+		Economy.notify(peer_id, "Sell the gun on the tower first.")
 		return
 	# Crafted turrets go back into the stockpile as their item, to place again.
 	var t_id: Variant = n.get("def").get("id") if n is Turret else null

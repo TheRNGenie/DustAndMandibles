@@ -100,3 +100,27 @@ func test_build_menu_lists_agree() -> void:
 		assert_true(Defs.TURRETS.has(id) or Defs.STRUCTURES.has(id), "%s has no def" % id)
 	for id: StringName in in_cats:
 		assert_true(Defs.BUILD_ORDER.has(id), "%s in a category but not BUILD_ORDER" % id)
+
+
+func test_crewed_guns_only_in_the_middle_of_the_lip() -> void:
+	assert_true(Buildable.cell_ok_for(&"cf_iron_mule", Buildable.CREWED_CELL))
+	assert_false(Buildable.cell_ok_for(&"cf_iron_mule", Vector2i(0, 3)), "not along the rest of the lip")
+	assert_false(Buildable.cell_ok_for(&"cf_crop_howitzer", Vector2i(4, 9)), "not back in the yard")
+	assert_true(Buildable.cell_ok_for(&"gatling_post", Vector2i(0, 3)), "other turrets still go anywhere")
+	assert_eq(ScaffoldNode.turret_height(CrewedTower.UPPER_LEVEL), ScaffoldNode.turret_height(3), "the tower gun stands where a third stacked turret would")
+
+
+func test_cliff_turrets_front_row_last_resorts_by_the_house() -> void:
+	assert_true(Buildable.cell_ok_for(&"gatling_post", Vector2i(0, 4)))
+	assert_false(Buildable.cell_ok_for(&"gatling_post", Vector2i(3, 4)), "cliff turrets: front row only")
+	var h := Buildable.house_cells()
+	var beside := Vector2i(h.position.x + 2, h.position.y - 1) # just past the house's south side
+	assert_true(Buildable.cell_ok_for(&"scattergun_post", beside), "last resorts beside the house")
+	assert_false(Buildable.cell_ok_for(&"scattergun_post", Vector2i(0, 4)), "not out on the lip")
+
+
+func test_air_guns_are_cliff_guns() -> void:
+	assert_true(Defs.is_cliff_turret(&"duck_gun"), "air guns go on the lip now")
+	assert_false(Buildable.cell_ok_for(&"duck_gun", Vector2i(3, 4)), "not back in the yard")
+	assert_true(Buildable.cell_ok_for(&"duck_gun", Vector2i(0, 4)))
+	assert_eq(BuildManager.MAX_SCAFFOLD, 3, "air guns go on the third level")

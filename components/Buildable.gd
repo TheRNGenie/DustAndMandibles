@@ -44,6 +44,11 @@ const CAMPFIRE := Vector2(14.0, -9.0)
 const FIELD_COLS := [14, 16, 18]
 const FIELD_ROWS := [8]
 
+## Crewed guns (Logan, Nov 2026): the one spot they can go, the middle of the lip
+## (its 2 x 2 footprint anchored here: rows 0-1, cols 9-10). A second crewed gun
+## of a different kind can stand on a tower over the first (CrewedTower).
+const CREWED_CELL := Vector2i(0, 9)
+
 const TACTICAL: Array[StringName] = [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post"]
 
 
@@ -156,10 +161,26 @@ static func cell_ok_for(id: StringName, cell: Vector2i) -> bool:
 		return cell.x == -1 and cell.y >= 0 and cell.y < HouseBuilder.MOUNTS.size()
 	if cell.x < 0:
 		return false
+	if Defs.is_crewed(id) and cell != CREWED_CELL:
+		return false # crewed guns: the middle of the lip only
+	if Defs.is_cliff_turret(id) and cell.x != 0:
+		return false # cliff turrets: the front row only, stacked up to 3 high (Logan, Nov 2026)
+	if Defs.is_last_resort(id) and not near_house(cell):
+		return false # last resorts: the squares round the house only
 	for c in footprint(id, cell):
 		if not zone_ok(id, c):
 			return false
 	return true
+
+
+## The squares round the house (two deep), where the ground last resorts go:
+## not the house itself, and not the walkway from the front door to the bridge.
+static func near_house(cell: Vector2i) -> bool:
+	var h := house_cells()
+	if h.has_point(cell) or not h.grow(2).has_point(cell):
+		return false
+	var door := door_cell()
+	return not (cell.x == door.x and cell.y <= door.y)
 
 
 ## Turrets stack on scaffolds anywhere on the grid now.

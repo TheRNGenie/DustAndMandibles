@@ -65,7 +65,14 @@ var _hot_hiss := 0.0
 
 
 func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: String, _stack_level: int = 0) -> void:
-	super.setup(d, cid, c, pos, owner_label, 0)
+	super.setup(d, cid, c, pos, owner_label, _stack_level) # the tower gun gets the third level's reach
+	if _stack_level > 0:
+		# Crewed: up on the tower over the lower crewed gun (CrewedTower), which
+		# also lets you take this seat from the ground.
+		var tower := CrewedTower.new()
+		tower.name = "Tower"
+		tower.gun = self
+		add_child(tower)
 	add_to_group("crewed_turrets")
 	_seat_eye = CrewedBuilder.seat(d.id)
 	if not RiggedTurret.has(d.id): # (the fal models swivel about their own centre)
@@ -616,7 +623,9 @@ func _leave_seat(tell_host: bool = true) -> void:
 	if me.fp_hands != null:
 		me.fp_hands.visible = bool(_was_visible.get("hands", true))
 	if is_inside_tree() and me.is_inside_tree() and not is_queued_for_deletion():
-		me.global_position = global_position + global_basis.z * 2.4 + Vector3.UP * 0.3
+		# Off the back of the gun; from the tower, down the ladder to the ground.
+		var drop := ScaffoldNode.turret_height(level) if level > 0 else 0.0
+		me.global_position = global_position + global_basis.z * (2.9 if level > 0 else 2.4) + Vector3.UP * (0.3 - drop)
 		me.velocity = Vector3.ZERO
 	if tell_host:
 		if multiplayer.is_server():

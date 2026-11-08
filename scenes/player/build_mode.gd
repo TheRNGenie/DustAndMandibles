@@ -509,10 +509,17 @@ func _rebuild_grid() -> void:
 			for i in (home.mount_count() if home != null else 0):
 				cells.append([cid, Vector2i(-1, i)])
 			continue
+		if Defs.is_crewed(id):
+			# Crewed: just the crewed spot in the middle of the lip (its 2 x 2).
+			for c in Buildable.footprint(id, Buildable.CREWED_CELL):
+				cells.append([cid, c])
+			continue
 		for row in Buildable.ROWS:
 			for col in Buildable.COLS:
 				var c := Vector2i(row, col)
-				if Buildable.zone_ok(id, c):
+				# Turrets light up only the squares they may go on (cliff turrets the
+				# front row, last resorts round the house); everything else its zone.
+				if (Buildable.cell_ok_for(id, c) if Defs.is_turret(id) else Buildable.zone_ok(id, c)):
 					cells.append([cid, c])
 	var aimed: Array[Vector2i] = []
 	if _cell.x >= 0:
@@ -535,6 +542,8 @@ func _rebuild_grid() -> void:
 		var pos := (Buildable.cell_center(cliffs, cid, c) if c.x >= 0 else Homestead.of(cid).mount_global(c.y)) + Vector3.UP * 0.06
 		mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, WorldLayout.facing_canyon_yaw(cid)), pos))
 		var taken := bm.cell_taken(cid, c) if (c.x >= 0 and not Defs.is_turret(id) and id != &"scaffold") else not bm.is_free_for(id, cid, c)
+		if Defs.is_crewed(id):
+			taken = not bm.is_free_for(id, cid, Buildable.CREWED_CELL) # the spot as a whole
 		var col: Color = ZONE_COLORS.get(Buildable.zone(c), Color("#9FD27A")) if c.x >= 0 else Color("#9FD27A")
 		if c.x >= 0 and Defs.is_turret(id) and not WorldLayout.map().is_canyon():
 			# Bigger maps: tint each spot by the cliff it covers.

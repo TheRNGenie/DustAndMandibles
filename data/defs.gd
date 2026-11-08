@@ -336,8 +336,28 @@ static func by_tier(items: Array) -> Array:
 
 ## Turrets that come standing on a free scaffold (every turret except the last
 ## resorts and the house turrets).
+## A cliff turret: one that goes on the lip (not a last resort, house turret,
+## crewed gun or hive amber turret). Anti-air guns count too (Logan, Nov 2026):
+## front row only, stacked up to 3 high, and they go in at the top of a stack.
+static func is_cliff_turret(id: StringName) -> bool:
+	if not TURRETS.has(id) or is_house_turret(id) or is_crewed(id):
+		return false
+	return not turret(id).guards_plateau
+
+
+## A ground last resort (the Last Resorts tab, less the house turrets that go on
+## the house's own mounts): placed on the squares round the house only.
+static func is_last_resort(id: StringName) -> bool:
+	if not TURRETS.has(id) or is_house_turret(id):
+		return false
+	for cat: Dictionary in BUILD_CATEGORIES:
+		if cat["name"] == "Last Resorts":
+			return (cat["items"] as Array).has(id)
+	return false
+
+
 static func gets_scaffold(id: StringName) -> bool:
-	if not is_turret(id) or is_house_turret(id) or is_crewed(id) or AMBER_TURRETS.has(id): # Crewed / amber: never on scaffolding
+	if not is_turret(id) or is_house_turret(id) or is_crewed(id) or AMBER_TURRETS.has(id) or turret(id).obstruction: # Crewed / amber / obstructions: never on scaffolding
 		return false
 	for cat: Dictionary in BUILD_CATEGORIES:
 		if cat["name"] == "Last Resorts" and (cat["items"] as Array).has(id):

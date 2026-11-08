@@ -216,6 +216,12 @@ func _ready() -> void:
 		_cellar_shot(GameState.flag_value("--cellarshot"))
 	elif GameState.has_flag("--sackicons"):
 		_sack_icons()
+	elif GameState.flag_value("--crewedtower") != "":
+		_crewed_tower_test(GameState.flag_value("--crewedtower"))
+	elif GameState.has_flag("--airtest"):
+		_air_test()
+	elif GameState.flag_value("--gridshot") != "":
+		_grid_shot(GameState.flag_value("--gridshot"))
 	elif GameState.flag_value("--fieldshot") != "":
 		_field_shot(GameState.flag_value("--fieldshot"))
 	elif GameState.flag_value("--cropshot") != "":
@@ -1239,6 +1245,8 @@ func _take_screenshot(path: String) -> void:
 	if GameState.flag_value("--buildmode") != "" and player != null:
 		player.build_mode.toggle()
 		player.build_mode._select(int(GameState.flag_value("--buildmode")))
+		if GameState.flag_value("--buildpick") != "": # pick a build item by id (the grid highlight)
+			player.build_mode._select_id(StringName(GameState.flag_value("--buildpick")))
 		if GameState.has_flag("--buildmenu"): # the build menu open too (its costs, for screenshots)
 			player.build_mode.open_menu()
 	if GameState.flag_value("--house") != "":
@@ -3304,4 +3312,97 @@ func _field_shot(path: String) -> void:
 	await get_tree().create_timer(2.5).timeout
 	get_viewport().get_texture().get_image().save_png(path)
 	print("[fieldshot] %d plots on cliff %d, saved %s" % [plots.size(), cid, path])
+	get_tree().quit()
+
+
+## --crewedtower=<png>: a crewed gun in the crewed spot and a second one on the
+## tower over it; checks the rules, then takes the upper seat from the ground.
+func _crewed_tower_test(path: String) -> void:
+	for i in 60:
+		await get_tree().process_frame
+	await get_tree().create_timer(4.0).timeout
+	var bm := BuildManager.instance
+	var me := world.call("local_player") as Player
+	var cid := me.cliff_id if me != null else WorldLayout.WEST
+	var spot := Buildable.CREWED_CELL
+	print("[tower] bertha off the spot ok: %s, on the spot: %s" % [bm.is_free_for(&"cf_iron_mule", cid, Vector2i(0, 3)), bm.is_free_for(&"cf_iron_mule", cid, spot)])
+	var low := bm.restore_built(&"cf_iron_mule", cid, spot, bm.placement_level(&"cf_iron_mule", cid, spot), "Test") as CrewedTurret
+	await get_tree().process_frame
+	print("[tower] second bertha allowed: %s, whaler allowed: %s at level %d" % [bm.is_free_for(&"cf_iron_mule", cid, spot), bm.is_free_for(&"cf_crop_howitzer", cid, spot), bm.placement_level(&"cf_crop_howitzer", cid, spot)])
+	var up := bm.restore_built(&"cf_crop_howitzer", cid, spot, bm.placement_level(&"cf_crop_howitzer", cid, spot), "Test") as CrewedTurret
+	await get_tree().process_frame
+	print("[tower] lower at y %.1f, upper at y %.1f (3rd normal level %.1f), third allowed: %s" % [low.global_position.y, up.global_position.y,
+			low.global_position.y + ScaffoldNode.turret_height(3), bm.is_free_for(&"cf_iron_mule", cid, spot)])
+	# Neighbours: a normal turret beside the stack.
+	bm.restore_built(&"gatling_post", cid, spot + Vector2i(0, 2), 1, "Test")
+	bm.restore_built(&"scaffold", cid, spot + Vector2i(0, -1), 0, "Test")
+	var cam := Camera3D.new()
+	world.add_child(cam)
+	var back := WorldLayout.inward(cid)
+	var side := back.cross(Vector3.UP).normalized()
+	cam.global_position = low.global_position + back * 11.0 + side * 6.0 + Vector3.UP * 6.0
+	cam.look_at(low.global_position + Vector3.UP * 4.0)
+	cam.fov = 60.0
+	cam.current = true
+	await get_tree().create_timer(2.5).timeout
+	get_viewport().get_texture().get_image().save_png(path)
+	cam.current = false
+	# Take the upper seat from the ground, through the tower.
+	if me != null:
+		me.global_position = low.global_position + back * 4.0 + Vector3.UP * 0.5
+		(up.get_node("Tower") as CrewedTower).local_interact(false)
+		await get_tree().create_timer(1.5).timeout
+		print("[tower] seated in: %s, player y %.1f" % [me.crewing.def.id if me.crewing != null else "nothing", me.global_position.y])
+		get_viewport().get_texture().get_image().save_png(path.replace(".png", "_seat.png"))
+	get_tree().quit()
+
+
+## --gridshot=<item id>:<png>: build mode with that item picked, seen from above
+## the player's plateau (the squares it may go on light up).
+func _grid_shot(arg: String) -> void:
+	var parts := arg.split(":", true, 1)
+	for i in 60:
+		await get_tree().process_frame
+	await get_tree().create_timer(4.0).timeout
+	var me := world.call("local_player") as Player
+	if me == null:
+		get_tree().quit()
+		return
+	me.build_mode.toggle()
+	me.build_mode._select_id(StringName(parts[0]))
+	var cliffs := world.get("cliffs") as CliffBuilder
+	var mid := cliffs.plateau_point(me.cliff_id, 15.0, 0.0)
+	var cam := Camera3D.new()
+	world.add_child(cam)
+	cam.global_position = mid + Vector3.UP * 34.0 - WorldLayout.inward(me.cliff_id) * 6.0
+	cam.look_at(mid + WorldLayout.inward(me.cliff_id) * 2.0)
+	cam.fov = 60.0
+	cam.current = true
+	await get_tree().create_timer(2.0).timeout
+	get_viewport().get_texture().get_image().save_png(parts[1])
+	print("[gridshot] %s saved" % parts[0])
+	get_tree().quit()
+
+
+## --airtest: air guns only go on the third level of a stack.
+func _air_test() -> void:
+	for i in 60:
+		await get_tree().process_frame
+	await get_tree().create_timer(3.0).timeout
+	var bm := BuildManager.instance
+	var me := world.call("local_player") as Player
+	var cid := me.cliff_id
+	Economy.earn(cid, {&"scrap": 5000})
+	var a := Vector2i(0, 4)
+	bm._do_build(multiplayer.get_unique_id(), &"duck_gun", cid, a)
+	await get_tree().process_frame
+	var duck := bm.turret_at(cid, a, 3)
+	print("[air] bare cell: duck at level 3 %s, scaffold levels %d" % [duck != null, bm.scaffold_levels(cid, a)])
+	bm._do_build(multiplayer.get_unique_id(), &"gatling_post", cid, a)
+	await get_tree().process_frame
+	print("[air] gatling under it at level 1: %s; second duck allowed: %s" % [bm.turret_at(cid, a, 1) != null, bm.is_free_for(&"duck_gun", cid, a)])
+	var b := Vector2i(0, 6)
+	bm._do_build(multiplayer.get_unique_id(), &"gatling_post", cid, b)
+	await get_tree().process_frame
+	print("[air] beside a gatling: duck goes to level %d" % bm.placement_level(&"duck_gun", cid, b))
 	get_tree().quit()
