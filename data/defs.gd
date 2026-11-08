@@ -150,6 +150,16 @@ const WEAPONS: Dictionary = {
 	&"telescope_rifle": preload("res://data/weapons/telescope_rifle.tres"),
 }
 
+## Retired for now (Logan, 2026-11-08): still registered so the code and saves
+## keep working, but not sold, not unlockable and not in the field guide. The
+## Dino Rifle's models and notes are archived in D:\DustAndMandibles-archive\dino_rifle.
+const RETIRED: Array[StringName] = [&"dino_rifle"]
+
+
+static func is_retired(id: StringName) -> bool:
+	return RETIRED.has(id)
+
+
 ## Every registry, by kind (the content test walks these: ids unique, files load).
 const REGISTRIES: Dictionary = {"bugs": BUGS, "turrets": TURRETS, "structures": STRUCTURES, "crops": CROPS, "weapons": WEAPONS}
 

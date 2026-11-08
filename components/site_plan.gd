@@ -268,7 +268,7 @@ static func loot_for(site_kind: int, site_seed: int, wave: int) -> Array[Loot]:
 				add.call({&"scrap": _scrap_pile(wave, rng) + 10}, &"chitin", "Chitin", true)
 			var rare := _rare_part(rng)
 			add.call({rare: 1}, &"part", CraftTable.part_name(rare), false)
-			add.call({&"upgrade_token": 1, &"chitin": 10 + wave}, &"trophy", "Boss Trophy", false)
+			add.call({&"upgrade_token": 1, &"chitin": 10 + wave, GunRarity.ITEM: 1}, &"trophy", "Boss Trophy", false) # (Meteor Iron: a Legendary gun)
 		Kind.CAMP:
 			var designs := CraftTable.all_designs()
 			var design: StringName = designs[rng.randi() % designs.size()]

@@ -363,6 +363,7 @@ const PART_CHANCE_HEAVY := 0.06
 
 
 func _drop_parts(bug: Bug) -> void:
+	_drop_meteor_iron(bug)
 	var n := 0
 	if bug.def.boss_tip != "":
 		n = 2
@@ -376,6 +377,16 @@ func _drop_parts(bug: Bug) -> void:
 		Economy.earn(bug.cliff_id, {key: 1})
 		got.append(CraftTable.part_name(key))
 	Economy.notify_cliff(bug.cliff_id, "Turret part%s from the %s: %s. Craft at the Workshop." % ["s" if n > 1 else "", bug.def.display_name.trim_prefix("The "), ", ".join(got)])
+
+
+## Gun rarity: Meteor Iron, the rare drop a Legendary gun takes (GunRarity).
+## Every boss leaves a piece, and now and then a heavy bug does.
+func _drop_meteor_iron(bug: Bug) -> void:
+	if bug.cliff_id < 0:
+		return
+	if bug.def.boss_tip != "" or (TurretDef.is_heavy(bug.def) and randf() < GunRarity.HEAVY_CHANCE):
+		Economy.earn(bug.cliff_id, {GunRarity.ITEM: 1})
+		Economy.notify_cliff(bug.cliff_id, "A lump of %s from the %s! The gunsmith can make a gun Legendary with it." % [GunRarity.ITEM_NAME, bug.def.display_name.trim_prefix("The ")])
 
 
 func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:

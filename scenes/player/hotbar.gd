@@ -152,7 +152,8 @@ func slot_info(i: int) -> Dictionary:
 		info["selected"] = player.gun.holding == &"" and player.gun.def != null and player.gun.def.id == id
 		var lvl := player.gun.level_of(id)
 		var mods := WeaponMods.count(player.gun.code_of(id))
-		info["count"] = ("+%d" % lvl if lvl > 0 else "") + "*".repeat(mods)
+		info["count"] = (GunRarity.name_of(lvl)[0] if lvl > 0 else "") + "*".repeat(mods) # Rarity: U, R, E, L
+		info["rarity"] = lvl
 		if AmberRules.is_lucky(player.gun.code_of(id)): # Hive amber: Lucky Moreau's finish
 			info["label"] = AmberRules.finish_name(id, player.gun.code_of(id)).split(" ")[0]
 			info["count"] += "$"

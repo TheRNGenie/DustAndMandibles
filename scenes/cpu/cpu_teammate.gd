@@ -973,8 +973,10 @@ func _gun_deal() -> Dictionary:
 		return best
 	var lvl := WeaponMods.level(gun_code)
 	var gw := Gun.weapon(gun_id)
-	if lvl < gw.upgrade_costs.size() and int(gw.upgrade_costs[lvl]) <= own:
-		return {"kind": "upgrade", "id": gun_id, "cost": int(gw.upgrade_costs[lvl])}
+	var next := GunRarity.cost(gw.upgrade_costs, lvl)
+	# Rarity: up to Epic on scrap; Legendary only with Meteor Iron in the stock.
+	if next >= 0 and next <= own and (not GunRarity.needs_item(lvl) or Economy.amount(cliff_id, GunRarity.ITEM) > 0):
+		return {"kind": "upgrade", "id": gun_id, "cost": next}
 	return {}
 
 
@@ -997,7 +999,9 @@ func _visit_gunsmith() -> void:
 			gun_code = 0
 			_rig.set_weapon(gun_id)
 		else:
-			gun_code += 1 # (the level bits: WeaponMods.level)
+			if GunRarity.needs_item(WeaponMods.level(gun_code)):
+				Economy.spend(cliff_id, {GunRarity.ITEM: 1})
+			gun_code = WeaponMods.with_level(gun_code, WeaponMods.level(gun_code) + 1)
 		done.append("%s %s" % [deal["kind"], deal["id"]])
 	if GameState.has_flag("--cpulog") and not done.is_empty():
 		print("[cpu] %s at the gunsmith: %s (now %s level %d)" % [display_name, ", ".join(done), gun_id, WeaponMods.level(gun_code)])

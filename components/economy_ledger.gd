@@ -15,7 +15,8 @@ const RESOURCES: Array[StringName] = [&"scrap", &"chitin", &"water", &"corn", &"
 	# Turret ammo (farming redesign): new crops' seeds and every crop's turret loads.
 	&"seed_cotton", &"seed_sulfur_root", &"seed_barrel_cactus", &"seed_tumbleweed",
 	&"corn_load", &"chili_load", &"prickly_pear_load", &"herb_load", &"sarsaparilla_load",
-	&"cotton_load", &"sulfur_load", &"cactus_load", &"tumbleweed_load"]
+	&"cotton_load", &"sulfur_load", &"cactus_load", &"tumbleweed_load",
+	&"meteor_iron"] # Gun rarity: the rare drop Legendary takes (GunRarity)
 
 ## The team pot's key in `stock`.
 const TEAM := -1

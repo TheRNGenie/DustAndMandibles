@@ -117,8 +117,18 @@ const MODS: Dictionary = {
 }
 
 
+## Level (gun rarity, GunRarity: 0 Common .. 4 Legendary; the whip and the
+## dynamite use 0-2). Bits 0-1, with bit 10 as the high bit for Legendary.
+const LEVEL_HIGH_BIT := 1 << 10
+
+
 static func level(code: int) -> int:
-	return code & 3
+	return (code & 3) | (4 if code & LEVEL_HIGH_BIT != 0 else 0)
+
+
+## `code` with its level set to `n`, everything else kept.
+static func with_level(code: int, n: int) -> int:
+	return (code & ~3 & ~LEVEL_HIGH_BIT) | (n & 3) | (LEVEL_HIGH_BIT if n & 4 != 0 else 0)
 
 
 static func has_mod(code: int, i: int) -> bool:

@@ -124,11 +124,11 @@ func menu_title() -> String:
 
 
 func menu_tagline() -> String:
-	return StyleCombo.streak_note() + "New irons and upgrades, paid in your own %s. You can carry three guns; drop one with Q to make room." % ResNames.personal()
+	return StyleCombo.streak_note() + "New irons, and every gun upgraded from Common up to Legendary, paid in your own %s. You can carry three guns; drop one with Q to make room." % ResNames.personal()
 
 
 func menu_tabs() -> Array:
-	return ["Guns", "Upgrades", "Workshop Mods"]
+	return ["Guns", "Rarity", "Workshop Mods"]
 
 
 func menu_items(tab: int) -> Array:
@@ -140,6 +140,8 @@ func menu_items(tab: int) -> Array:
 	for item: Dictionary in SHELF:
 		var id: StringName = item["id"]
 		var w := Gun.weapon(id)
+		if Defs.is_retired(id) and not gun.owns(id):
+			continue # retired for now (Defs.RETIRED)
 		if id == &"dino_rifle" and not Perks.has_secret(multiplayer.get_unique_id(), &"weapon", id) and not gun.owns(id):
 			continue # secret: only once its code has been entered
 		if tab == 0 and item["kind"] == "buy":
@@ -153,17 +155,26 @@ func menu_items(tab: int) -> Array:
 					"price": UiStyle.cost(w.price_chitin, "chitin"), "price_ok": chitin >= w.price_chitin, "disabled": why,
 					"buttons": [[&"buy", "Buy"]]})
 		elif tab == 1 and item["kind"] == "upgrade":
-			var level := gun.level_of(id)
-			var maxed := level >= w.upgrade_costs.size()
+			# Rarity: Common (white) up through Uncommon, Rare and Epic; Legendary takes Meteor Iron too.
+			var level := gun.level_of(id) if gun.owns(id) else 0
+			var maxed := level >= GunRarity.MAX
 			var why := ""
 			if not gun.owns(id):
 				why = "Buy it first."
 			elif maxed:
-				why = "Fully upgraded."
-			var cost: int = 0 if maxed else int(w.upgrade_costs[level])
-			out.append({"id": "upgrade:%s" % id, "name": "%s  ·  Level %d" % [w.display_name, level], "icon": id,
-					"desc": _upgrade_desc(w), "price": "" if maxed else UiStyle.cost(cost, "chitin"),
-					"price_ok": chitin >= cost, "disabled": why, "buttons": [[&"buy", "Upgrade"]]})
+				why = "Legendary. It can't go any higher."
+			var cost: int = 0 if maxed else GunRarity.cost(w.upgrade_costs, level)
+			var price := "" if maxed else UiStyle.cost(cost, "chitin")
+			var ok := chitin >= cost
+			if not maxed and GunRarity.needs_item(level):
+				var iron := Economy.amount(NetworkManager.cliff_of(multiplayer.get_unique_id()), GunRarity.ITEM)
+				price += " + 1 %s" % GunRarity.ITEM_NAME
+				ok = ok and iron > 0
+				if why == "" and iron <= 0:
+					why = "Needs a piece of %s. Every boss drops one." % GunRarity.ITEM_NAME
+			out.append({"id": "upgrade:%s" % id, "name": "%s  ·  %s" % [w.display_name, GunRarity.label(level)], "icon": id,
+					"desc": _upgrade_desc(w, level), "price": price, "rarity": level,
+					"price_ok": ok, "disabled": why, "buttons": [[&"buy", "Upgrade to %s" % GunRarity.name_of(level + 1) if not maxed else "Upgrade"]]})
 		elif tab == 2 and item["kind"] == "mods":
 			# Only guns you carry, so the list stays short.
 			if not gun.owns(id):
@@ -205,16 +216,16 @@ func menu_items(tab: int) -> Array:
 						"desc": str(m["desc"]), "price": "" if fitted else UiStyle.cost(int(m["cost"]), "chitin"),
 						"price_ok": chitin >= int(m["cost"]), "disabled": "Fitted." if fitted else "", "buttons": [[&"buy", "Fit it"]]})
 	if p != null and p.dynamite != null:
-		# The Powder Satchel heads the Upgrades (it's new, and not a gun); its mods follow the rest.
-		var dyn := _dynamite_items(tab, p.dynamite.code, chitin)
-		out = dyn + out if tab == 1 else out + dyn
+		# The Powder Satchel and its mods come after the guns (the Rarity tab is about the guns).
+		out = out + _dynamite_items(tab, p.dynamite.code, chitin)
 	if tab == 0:
 		# Cheapest first (Logan).
 		out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return _price_of(a) < _price_of(b))
 	elif tab == 1:
 		# What you carry first, then the rest, each keeping the shelf's order (Logan).
-		var mine := out.filter(func(it: Dictionary) -> bool: return str(it["disabled"]) != "Buy it first.")
-		out = mine + out.filter(func(it: Dictionary) -> bool: return str(it["disabled"]) == "Buy it first.")
+		var mine := out.filter(func(it: Dictionary) -> bool: return str(it["disabled"]) != "Buy it first." and it.has("rarity"))
+		mine.append_array(out.filter(func(it: Dictionary) -> bool: return not it.has("rarity"))) # whip and satchel after your guns
+		out = mine + out.filter(func(it: Dictionary) -> bool: return str(it["disabled"]) == "Buy it first." and it.has("rarity"))
 	if tab == 2 and out.is_empty():
 		out.append({"id": "", "name": "Nothing to work on", "icon": &"hammer", "desc": "Mods are fitted to the guns you carry.",
 				"price": "", "price_ok": true, "disabled": "Buy a gun first.", "buttons": []})
@@ -247,11 +258,13 @@ static func _dynamite_items(tab: int, c: int, chitin: int) -> Array:
 	return out
 
 
-## What one level does for this gun (the smoker does no damage: it smokes longer).
-static func _upgrade_desc(w: WeaponDef) -> String:
+## What the next rarity does for this gun (the smoker does no damage: it smokes longer).
+static func _upgrade_desc(w: WeaponDef, level: int = 0) -> String:
 	if w.special == &"smoke":
-		return "Smoke keeps bugs drowsy %s s longer and the fuel refills 25%% faster per level." % str(GunRules.SMOKE_TIME_PER_LEVEL)
-	return "+25% damage and a 15% faster reload per level."
+		if level >= GunRarity.MAX:
+			return "Legendary: the longest smoke and the quickest refill."
+		return "To %s: smoke keeps bugs drowsy %s s longer and the fuel refills 25%% faster per step." % [GunRarity.label(level + 1), str(GunRules.SMOKE_TIME_PER_LEVEL)]
+	return GunRarity.step_text(level)
 
 
 func menu_press(id: Variant, _action: StringName) -> void:
@@ -295,6 +308,8 @@ func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
 			return
 		if id == &"dino_rifle" and not Perks.has_secret(peer_id, &"weapon", id):
 			return
+		if Defs.is_retired(id):
+			return # retired for now
 		cost = w.price_chitin
 		if id == &"dino_rifle":
 			level = DinoGlass.with_variant(0, DinoGlass.roll()) # every glass is tied on differently
@@ -306,14 +321,21 @@ func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
 		level = WeaponMods.with_mod(int(owned[id]), slot)
 	else:
 		var lvl := WeaponMods.level(int(owned[id])) if owned.has(id) else 99
-		if lvl >= w.upgrade_costs.size():
+		if lvl >= GunRarity.MAX:
 			return
-		cost = w.upgrade_costs[lvl]
-		level = int(owned[id]) + 1 # bumps the level bits, keeps the mods
+		cost = GunRarity.cost(w.upgrade_costs, lvl)
+		level = WeaponMods.with_level(int(owned[id]), lvl + 1) # the next rarity, mods kept
+		# Legendary takes a piece of Meteor Iron as well (checked here, taken with the scrap below).
+		if GunRarity.needs_item(lvl) and Economy.amount(payer, GunRarity.ITEM) <= 0:
+			Economy.notify(peer_id, "Legendary needs a piece of %s. Every boss drops one." % GunRarity.ITEM_NAME)
+			return
 	cost = Perks.discount(peer_id, &"gunsmiths_friend", cost) # Perk: Gunsmith's Friend
 	var streak := StyleCombo.streak_for(peer_id) # Hot Streak: off this one purchase
 	cost = ComboRules.cut_price(cost, streak)
-	if not Economy.spend(payer, {&"chitin": cost}):
+	var bill := {&"chitin": cost}
+	if kind == "upgrade" and GunRarity.needs_item(WeaponMods.level(int(owned.get(id, 0)))):
+		bill[GunRarity.ITEM] = 1
+	if not Economy.spend(payer, bill):
 		Economy.notify(peer_id, "That costs %s. Salvage the junk heap by your house each build phase, or sell chilies at the market." % UiStyle.cost(cost, ResNames.PERSONAL_ID))
 		return
 	if streak > 0.0:

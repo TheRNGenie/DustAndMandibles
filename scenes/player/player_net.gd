@@ -159,7 +159,7 @@ func _apply_grant(id: StringName, level: int) -> void:
 		player.gun.equip(id)
 		Economy.notice.emit("You got the %s! It's on your hotbar." % gun_name)
 	elif WeaponMods.level(level) > WeaponMods.level(before):
-		Economy.notice.emit("%s upgraded to level %d." % [gun_name, WeaponMods.level(level)])
+		Economy.notice.emit("%s is now %s." % [gun_name, GunRarity.label(WeaponMods.level(level))])
 	elif WeaponMods.names(id, level & ~before) != "": # (Lucky's finish alone: Amber.buy says so itself)
 		Economy.notice.emit("%s fitted with: %s." % [gun_name, WeaponMods.names(id, level & ~before)])
 

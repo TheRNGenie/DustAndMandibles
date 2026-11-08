@@ -25,7 +25,8 @@ const GRAPPLE_ANY := &"grapple_any"
 const ABILITY_NAMES := {"grapple_any": "Free Hands: any weapon out on the grapple rope"}
 ## sha256 hex -> Array of {"kind", "id"}. Empty until the owner picks codes.
 const TABLE: Dictionary = {
-	"a2bc441e9bd7ae562183d029f1224f0debf316ecbf147ef64753d6dea2f4c067": [{"kind": "weapon", "id": "dino_rifle"}],
+	# Dino Rifle: retired for now (Defs.RETIRED). Restore this line when it comes back.
+	# "a2bc441e9bd7ae562183d029f1224f0debf316ecbf147ef64753d6dea2f4c067": [{"kind": "weapon", "id": "dino_rifle"}],
 	"0f581a4a1816b73337ada44143a18bf27f7a332afcbea5d3c0aab40985d30787": [{"kind": "notches", "id": "120"}],
 	"1f848874bfdb5b2d6359bf153b838dd939a96475ab8494b2b55514abc9fbb12d": [{"kind": "ability", "id": "grapple_any"}],
 }

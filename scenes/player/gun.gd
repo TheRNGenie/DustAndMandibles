@@ -17,7 +17,8 @@ signal flourished(kind: StringName)
 
 ## [Foundation] Guns are registered in Defs.WEAPONS with the rest of the content.
 const WEAPONS: Dictionary = Defs.WEAPONS
-const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun", &"dino_rifle",
+## (The Dino Rifle is retired for now, Defs.RETIRED: out of the list until it comes back.)
+const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun",
 	&"derringer_pair", &"pepperbox", &"salt_shotgun", &"harpoon_pistol", &"bee_smoker", &"flare_gun", &"punt_gun", &"telescope_rifle"]
 ## Frontier guns that load every round in one go (a reload is one step).
 const LOAD_ALL: Array[StringName] = [&"crank_gatling", &"pepperbox", &"derringer_pair"]
@@ -367,7 +368,7 @@ func grant(id: StringName, level: int) -> void:
 
 ## Damage per pellet for a weapon with its level and mods (same formula on every peer).
 static func damage_for(id: StringName, code: int) -> float:
-	return weapon(id).damage * (1.0 + 0.25 * WeaponMods.level(code)) * WeaponMods.mult(id, code, "damage")
+	return weapon(id).damage * GunRarity.damage_mult(WeaponMods.level(code)) * WeaponMods.mult(id, code, "damage")
 
 
 static func range_for(id: StringName, code: int) -> float:
@@ -545,7 +546,7 @@ func _feel_offset() -> Array:
 
 ## Times for this gun: tipping in, each round, closing up (faster with upgrades).
 func _times() -> Vector3:
-	var k := pow(0.85, level_of(def.id)) * Perks.local_less(&"quick_hands") * Brand.reload_mult() # Perk: Quick Hands; Brand: Crossed Irons
+	var k := GunRarity.reload_mult(level_of(def.id)) * Perks.local_less(&"quick_hands") * Brand.reload_mult() # Perk: Quick Hands; Brand: Crossed Irons
 	match def.id:
 		&"lever_rifle":
 			return Vector3(0.3, reload_time() * 0.2, 0.35) * k
