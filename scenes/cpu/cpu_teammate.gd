@@ -355,7 +355,8 @@ func _load_task() -> bool:
 	var best_d := INF
 	for t: Node in _my_turrets():
 		var tt := t as Turret
-		if tt == null or not tt.wants_load() or Economy.amount(cliff_id, tt.def.load_item()) <= 0:
+		var sack: StringName = tt.call("cpu_sack") if tt != null and tt.has_method("cpu_sack") else (tt.def.load_item() if tt != null else &"") # universal turrets: any crop
+		if tt == null or not tt.wants_load() or sack == &"" or Economy.amount(cliff_id, sack) <= 0:
 			continue
 		var d := global_position.distance_squared_to(tt.global_position)
 		if d < best_d:
@@ -370,7 +371,8 @@ func _load_task() -> bool:
 			return
 		_face(target.global_position)
 		_act(&"chest")
-		if BuildManager.instance.cpu_load(target) and GameState.has_flag("--cpulog"):
+		var ok: bool = target.call("cpu_load_any") if target.has_method("cpu_load_any") else BuildManager.instance.cpu_load(target)
+		if ok and GameState.has_flag("--cpulog"):
 			print("[cpu] %s loaded the %s" % [display_name, target.def.display_name]))
 	return true
 
@@ -457,7 +459,7 @@ func _turret_choice() -> StringName:
 			if total > 0 and float(fliers) / total > 0.15 and air_built < 2:
 				options.append_array(air)
 			if big > 0:
-				options.append_array(best_first([&"buffalo_rifle", &"big_fifty", &"elephant_battery", &"long_tom_rifle", &"rail_spike_driver"]))
+				options.append_array(best_first([&"buffalo_rifle", &"big_fifty", &"long_tom_rifle"]))
 			# Crewed: High builds a crewed gun or two once the line is up (it never
 			# sits in one: they fire on their own at half power for it).
 			var crewed_built := _my_turrets().filter(func(t: Node) -> bool: return t is CrewedTurret).size()
@@ -488,6 +490,8 @@ func _turret_choice() -> StringName:
 			options.append_array(cliff_turrets)
 	var can_feed := _can_feed_another()
 	for id: StringName in options:
+		if Defs.RETIRED_TURRETS.has(id):
+			continue # off the build menu for everyone (the universal crop-fed redesign)
 		if Defs.is_turret(id) and Defs.turret(id).is_crop_fed() and not can_feed:
 			continue # Turret ammo: no more crop-fed guns than its farm can load
 		if Defs.is_turret(id) and Defs.is_unlocked(id, GameState.tier_wave()) and Economy.cpu_can_spend(display_name, {&"scrap": Defs.cost_of(id)}, cliff_id):

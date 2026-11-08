@@ -810,7 +810,7 @@ func show_bola(seconds: float) -> void:
 
 ## Host only: a hit from a player, turret or blast, via a Hitbox.
 func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, multiplier: float,
-		source: String, source_cliff: int) -> void:
+		source: String, source_cliff: int, armour_ignored: float = 0.0) -> void:
 	if not multiplayer.is_server() or not is_alive() or is_hidden():
 		return
 	if entombed > 0.0: # Hive amber: any hit shatters a statue (a small loot burst)
@@ -820,7 +820,7 @@ func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, mul
 		if _rider_close(source):
 			unlatch_kill(source, source_cliff)
 		return
-	var dmg := damage * multiplier
+	var dmg := damage * multiplier * status.damage_taken_mult() # Sarsaparilla's mark (CropEffects)
 	if status.is_stripped():
 		pierce = true # Rust Duster / Acid Drencher: the armour's eaten away
 	# Kill-method variants take more or less from bullets, fire or explosives.
@@ -831,7 +831,7 @@ func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, mul
 	# The armour plate faces away from the cliff: shots from the canyon side bounce off it.
 	if def.front_armor > 0.0 and not pierce and state == State.CLIMBING:
 		if dir.normalized().dot(global_basis.y) < -0.3:
-			dmg *= 1.0 - def.front_armor
+			dmg *= 1.0 - def.front_armor * (1.0 - armour_ignored) # Prickly Pear: half the plate ignored
 	health.take_damage(dmg, source, source_cliff)
 	if hunter != null:
 		hunter.wake() # Canyon Expeditions: a shot wakes a sleeper
@@ -867,6 +867,32 @@ func _on_died(source: String, source_cliff: int) -> void:
 	died_in = state
 	state = State.DEAD
 	died.emit(self, source, source_cliff)
+	if multiplayer.is_server() and status.is_volatile(): # Sulfur Root: it goes up
+		CropEffects.volatile_burst(self)
+
+
+# ------------------------------------------------------------------ universal crop-fed turrets
+
+## Host: last time each crop tag was sent (so a gatling's every hit doesn't send one).
+var _tag_sent: Dictionary = {}
+
+
+## Host: show a crop effect on this bug on every peer, unless it went out recently.
+func crop_tag_once(kind: int, seconds: float) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - float(_tag_sent.get(kind, -100.0)) < maxf(seconds * 0.5, 0.25):
+		return
+	_tag_sent[kind] = now
+	crop_tag.rpc(kind, seconds)
+
+
+## Every peer: a crop effect drawn on the bug for `seconds` (CropTagFx): the
+## sarsaparilla mark's amber diamond, tumbleweed vines, herb poison, cotton thread.
+@rpc("authority", "call_local", "unreliable")
+func crop_tag(kind: int, seconds: float) -> void:
+	if not is_inside_tree():
+		return
+	CropTagFx.show_on(self, kind, seconds, float(spec["body_radius"]), float(spec["clearance"]))
 
 
 # ------------------------------------------------------------------ hive amber

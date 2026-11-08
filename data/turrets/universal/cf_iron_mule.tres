@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_iron_mule"
+display_name = "Iron Mule"
+description = "Six barrels you crank yourself. Spins up over two seconds, overheats after eight."
+role = "walls of small bugs"
+weakness = "overheats"
+cost_scrap = 200
+max_hp = 300.0
+range = 100.0
+fire_interval = 0.05
+damage = 6.0
+heavy_mult = 0.5
+pitch_limit_deg = 40.0
+turn_speed = 180.0
+spread_deg = 1.5
+hit_chance = 0.75
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+sound = &"gatling"
+crewed = true
+tier = 1
+universal = true
+job = "H"
+crop_splash = 1.5

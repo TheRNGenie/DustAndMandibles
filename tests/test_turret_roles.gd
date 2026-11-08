@@ -2,7 +2,7 @@ extends TestCase
 ## Turret roles, upkeep rules, upgrade tiers and the scaffold range bonus.
 
 ## The cheap basic cliff turrets: never any ammo or upkeep.
-const BASIC: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"lasso_harpoon"]
+const BASIC: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"scattergun_post", &"duck_gun"]
 
 
 func test_every_turret_has_a_job_and_a_weakness() -> void:
@@ -23,14 +23,14 @@ func test_basic_turrets_need_no_upkeep() -> void:
 
 
 func test_special_turrets_show_their_upkeep() -> void:
-	# Turret ammo: crop-fed turrets take a load a wave instead of per-shot upkeep.
-	assert_false(Defs.turret(&"chili_mortar").has_upkeep())
-	assert_true(Defs.turret(&"dynamite_lobber").is_crop_fed())
+	# Turret ammo: crop-fed turrets take a sack a wave (any crop: universal) instead of per-shot upkeep.
+	assert_false(Defs.turret(&"cf_harvest_mortar").has_upkeep())
+	assert_true(Defs.turret(&"cf_harvest_mortar").is_crop_fed())
 	assert_false(Defs.turret(&"gatling_post").is_crop_fed(), "self-powered")
-	assert_true(Defs.turret(&"chili_mortar").role_line().contains("Crop-fed: 1 firecracker chili load a wave"))
+	assert_true(Defs.turret(&"cf_harvest_mortar").role_line().contains("Any crop: 1 sack a wave"))
 	for id: StringName in Defs.TURRETS:
 		var d := Defs.turret(id)
-		if d.is_crop_fed():
+		if d.is_crop_fed() and not d.universal:
 			assert_true(d.load_item() != &"" and EconomyLedger.RESOURCES.has(d.load_item()), "%s loads from a known item" % id)
 
 

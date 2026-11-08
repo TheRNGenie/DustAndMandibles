@@ -19,6 +19,11 @@ static func head_y(id: StringName) -> float:
 static func build(id: StringName, team: Color) -> Dictionary:
 	if RiggedTurret.has(id): # the fal models (gen/rigged_turret.gd, tools/rig/prep_turret.py)
 		return RiggedTurret.build(id, team)
+	if UniversalBuilder.has(id): # Universal crop-fed turrets (gen/universal_builder.gd)
+		var ukey := "uni|%s|%s" % [id, team.to_html()]
+		if not _built.has(ukey):
+			_built[ukey] = UniversalBuilder.turret_parts(id, team)
+		return _built[ukey]
 	# Code-built models are the same every time for an id and team colour: build
 	# each once (every placement, ghost and icon shares it; nobody changes them).
 	var key := "%s|%s" % [id, team.to_html()]

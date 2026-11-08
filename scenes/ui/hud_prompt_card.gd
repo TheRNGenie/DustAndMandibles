@@ -20,6 +20,12 @@ func _ready() -> void:
 	visible = false
 
 
+func _process(_delta: float) -> void:
+	# The crop wheel covers the middle: the card steps aside while it's open.
+	var wheel := CropWheel.instance != null and CropWheel.instance.is_open()
+	modulate.a = 0.0 if wheel else 1.0
+
+
 ## An interaction prompt as plain text ("E: plant corn   F: change seed").
 func show_text(prompt: String) -> void:
 	if prompt.strip_edges() == "":
@@ -28,6 +34,11 @@ func show_text(prompt: String) -> void:
 	if prompt == _shown_key:
 		return
 	_shown_key = prompt
+	if prompt.begins_with("@turret:"): # a universal crop-fed turret's card
+		var info: Variant = JSON.parse_string(prompt.substr(8))
+		if info is Dictionary:
+			show_turret(info)
+			return
 	var parsed := KeyHints.parse(prompt)
 	var col := _fresh()
 	var titles: Array = parsed["title"]
@@ -90,6 +101,73 @@ func show_build(info: Dictionary) -> void:
 	col.add_child(_rule())
 	col.add_child(KeyHints.row(info.get("keys", [])))
 	_settle()
+
+
+## A universal crop-fed turret's card (UniversalTurret.card_info): its name and
+## tier, the crop it's loaded with (a dot and words in the crop's colour, or a
+## hollow grey dot: Empty (Idle)), the last crop, and the keys that work now.
+func show_turret(info: Dictionary) -> void:
+	var col := _fresh()
+	var top := HBoxContainer.new()
+	top.alignment = BoxContainer.ALIGNMENT_CENTER
+	top.add_theme_constant_override("separation", 10)
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(top)
+	var nm := KeyHints.ink(UiStyle.tc(str(info.get("name", ""))), 18)
+	nm.add_theme_font_override("font", UiStyle.font("bold"))
+	top.add_child(nm)
+	var tier := KeyHints.plate("pill")
+	tier.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tier.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var tl := KeyHints.text("Tier %d" % int(info.get("tier", 1)), 13, UiStyle.c("accent_hi"))
+	tier.add_child(tl)
+	top.add_child(tier)
+	var crop_row := HBoxContainer.new()
+	crop_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	crop_row.add_theme_constant_override("separation", 8)
+	crop_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(crop_row)
+	var loaded := str(info.get("crop", "")) != ""
+	var cc := Color.html(str(info.get("color", "808080"))) if loaded else CropEffects.EMPTY_COLOR
+	var dot := CropDot.new()
+	dot.color = cc
+	dot.filled = loaded
+	crop_row.add_child(dot)
+	var words := "%s (%s)" % [str(info.get("crop_name")), str(info.get("effect"))] if loaded else "Empty (Idle)"
+	var cl := KeyHints.text(words, 16, cc.lightened(0.15) if loaded else Color(0.62, 0.62, 0.62))
+	cl.add_theme_font_override("font", UiStyle.font("bold"))
+	crop_row.add_child(cl)
+	var last := KeyHints.ink("Last: %s   ·   HP %s" % [str(info.get("last", "None")), str(info.get("hp", ""))], 13, true)
+	last.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(last)
+	for n: Variant in info.get("notes", []):
+		var nl := KeyHints.ink(str(n), 13, true)
+		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(nl)
+	var keys: Array = info.get("keys", [])
+	if not keys.is_empty():
+		col.add_child(_rule())
+		col.add_child(KeyHints.row(keys))
+	_settle()
+
+
+## The crop dot: a 12 px circle in the crop's colour, or a hollow grey ring.
+class CropDot extends Control:
+	var color := Color.GRAY
+	var filled := true
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(14, 14)
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var c := size * 0.5
+		if filled:
+			draw_circle(c, 6.5, Color(0, 0, 0, 0.5))
+			draw_circle(c, 6.0, color)
+		else:
+			draw_arc(c, 5.5, 0, TAU, 24, color, 2.0, true)
 
 
 func _price(cost: int, afford: bool) -> PanelContainer:

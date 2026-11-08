@@ -70,13 +70,13 @@ func show_for(id: StringName, cid: int, base: Vector3, level: int, ok: bool) -> 
 		_head_y[id] = TurretBuilder.head_y(id)
 	var muzzle := base + Vector3(0, float(_head_y[id]), 0)
 	var pitch := def.pitch_limit_deg + Turret.look_down_bonus(level)
-	_far_patch(cid, muzzle, pitch, def.range_at(0, level))
+	_far_patch(cid, muzzle, pitch, def.range_at(0, level), def.aim_half_deg()) # universal turrets: 15/30/45 degree cones
 	if GameState.has_flag("--coverlog"):
 		print("[cover] %s cliff %d muzzle %s pitch %.0f -> patch %s" % [id, cid, str(muzzle.snapped(Vector3.ONE * 0.1)), pitch, str(_patch.mesh.get_aabb() if _patch.mesh else null)])
 
 
 ## The covered patch of the far wall, and the cone from the muzzle to its edge.
-func _far_patch(cid: int, muzzle: Vector3, pitch: float, rng: float) -> void:
+func _far_patch(cid: int, muzzle: Vector3, pitch: float, rng: float, half: float = Targeting.AIM_HALF_DEG) -> void:
 	var m := WorldLayout.map()
 	var other := m.main_target(cid)
 	var cell := Buildable.world_to_cell(cliffs, cid, muzzle)
@@ -108,7 +108,7 @@ func _far_patch(cid: int, muzzle: Vector3, pitch: float, rng: float) -> void:
 		for zz in zs:
 			var p := cliffs.face_point(other, yy, zz)
 			prow.append(p + cliffs.face_normal(other, yy, zz) * FACE_OFFSET)
-			irow.append(Targeting.in_arc(muzzle, p, pitch, rng, aim, Targeting.AIM_HALF_DEG))
+			irow.append(Targeting.in_arc(muzzle, p, pitch, rng, aim, half))
 		pts.append(prow)
 		inside.append(irow)
 	var st := MeshKit.begin()

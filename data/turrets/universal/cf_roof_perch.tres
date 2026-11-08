@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_roof_perch"
+display_name = "Roof Perch"
+description = "A long rifle on a bipod at the peak of your roof. Sees the whole yard."
+role = "big breachers anywhere in the yard"
+weakness = "slow"
+cost_scrap = 85
+max_hp = 150.0
+range = 45.0
+fire_interval = 3.6
+damage = 160.0
+armor_pierce = true
+pitch_limit_deg = 80.0
+turn_speed = 25.0
+spread_deg = 1.5
+hit_chance = 0.97
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+guards_plateau = true
+guards_house = true
+sound = &"sharpshooter"
+yard_wide = true
+universal = true
+job = "ST"
+crop_splash = 1.5

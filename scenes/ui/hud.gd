@@ -87,6 +87,9 @@ func _ready() -> void:
 	var emotes := Emotes.new()
 	emotes.name = "Emotes"
 	add_child(emotes)
+	var wheel := CropWheel.new() # universal crop-fed turrets: Q picks the crop
+	wheel.name = "CropWheel"
+	add_child(wheel)
 	tutorial = HudTutorial.new()
 	add_child(tutorial)
 	_speed_lines = SpeedLines.new()
@@ -154,10 +157,10 @@ func _ready() -> void:
 	ammo_row.add_child(_ammo_max)
 	_pips = AmmoPips.new()
 	ammo_col.add_child(_pips)
+	ammo_col.add_child(SpecialBadge.new()) # special weapons: crop badge and base effect
 	var heavy := HeavyAmmoPanel.new() # universal heavies: the crop, EMPTY, the low-ammo pulse
 	heavy.ammo_label = _ammo_label
 	ammo_col.add_child(heavy)
-	ammo_col.add_child(SpecialBadge.new()) # special weapons: crop badge and base effect
 	heavy.make_glow(ammo_sign)
 
 

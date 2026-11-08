@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_crop_flak_post"
+display_name = "Crop Flak Post"
+description = "A bell-mouthed scatter cannon on a post, fed from a drum. Every shot sprays a wide patch of the wall."
+role = "a wide spread of small bugs"
+weakness = "long reloads"
+cost_scrap = 80
+max_hp = 170.0
+range = 100.0
+fire_interval = 1.6
+damage = 18.0
+pitch_limit_deg = 40.0
+turn_speed = 35.0
+spread_deg = 1.5
+hit_chance = 0.95
+effect = 3
+flight_time = 0.2
+effect_size = 2.5
+sound = &"scattergun"
+universal = true
+job = "H"
+cone_deg = 45.0
+crop_splash = 2.5

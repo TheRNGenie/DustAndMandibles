@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_vortex_engine"
+display_name = "Vortex Engine"
+description = "A crop-fired turbine that throws a spinning vortex onto the far wall. Bugs are dragged into it and take the crop every second."
+role = "gathering and holding crowds"
+weakness = "cools down between vortices"
+cost_scrap = 240
+max_hp = 300.0
+range = 100.0
+fire_interval = 8.0
+damage = 8.0
+pitch_limit_deg = 40.0
+turn_speed = 60.0
+spread_deg = 1.5
+hit_chance = 1.0
+effect = 0
+flight_time = 0.0
+effect_size = 5.0
+sound = &"steam"
+crewed = true
+tier = 1
+special = &"vortex"
+special_pin = 4.0
+universal = true
+job = "CC"
+crop_splash = 2.0

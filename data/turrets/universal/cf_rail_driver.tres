@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_rail_driver"
+display_name = "Rail Driver"
+description = "Copper rails and four coils fling a crop spike straight through a line of climbers."
+role = "lines of bugs, armour"
+weakness = "charges between shots"
+cost_scrap = 130
+max_hp = 160.0
+range = 100.0
+fire_interval = 2.6
+damage = 95.0
+armor_pierce = true
+heavy_mult = 1.4
+pitch_limit_deg = 40.0
+turn_speed = 25.0
+spread_deg = 1.5
+hit_chance = 1.0
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+sound = &"harpoon"
+special = &"pierce"
+special_count = 3
+special_radius = 1.2
+special_falloff = 0.75
+universal = true
+job = "ST"
+cone_deg = 15.0
+crop_splash = 1.5

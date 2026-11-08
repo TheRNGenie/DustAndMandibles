@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_crop_hopper"
+display_name = "Crop Hopper"
+description = "Three brass barrels fed from an open hopper of whatever crop you pour in. Fires them in turn, and spins faster the longer it fires."
+role = "swarms on the far wall"
+weakness = "armour"
+cost_scrap = 70
+max_hp = 170.0
+range = 100.0
+fire_interval = 0.11
+damage = 4.5
+heavy_mult = 0.55
+pitch_limit_deg = 40.0
+turn_speed = 45.0
+spread_deg = 1.5
+hit_chance = 0.72
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+sound = &"repeater"
+universal = true
+job = "H"
+cone_deg = 30.0
+crop_splash = 1.5

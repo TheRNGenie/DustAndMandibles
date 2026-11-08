@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_crop_cannon"
+display_name = "Crop Cannon"
+description = "The biggest gun on the cliff: one crop-packed round, a cloud of smoke, and something on the far wall stops climbing."
+role = "the biggest bugs and bosses"
+weakness = "one shot every five seconds"
+cost_scrap = 150
+max_hp = 220.0
+range = 100.0
+fire_interval = 5.0
+damage = 220.0
+armor_pierce = true
+heavy_mult = 1.6
+pitch_limit_deg = 40.0
+turn_speed = 15.0
+spread_deg = 1.5
+hit_chance = 1.0
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+sound = &"cannon"
+universal = true
+job = "ST"
+cone_deg = 15.0
+crop_splash = 3.0
+heavy_gun = true

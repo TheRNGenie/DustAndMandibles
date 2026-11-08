@@ -1,8 +1,9 @@
 class_name HudFeed
 extends Control
-## Right side: the shared kill feed (who saved whom), structure events and the
+## Right side: the round's takings badge (HudChitinBadge: the Chitin icon and
+## "+N" counting up with every kill; it replaced the per-kill "X saved Y from Z"
+## lines, Logan: too much text in the way), structure events and the
 ## warning-phase lane report. Center: interaction prompt, build status, game over.
-## Seeing "your turret saved your partner" is what makes the cross-defense click.
 
 const FEED_LINES := 6
 const FEED_LIFETIME := 7.0
@@ -11,6 +12,7 @@ var cliff_id: int = 0
 var _feed: VBoxContainer
 var _spare: Array[Label] = []
 var _card: HudPromptCard
+var _badge: HudChitinBadge
 var _prompt_text := ""
 ## Debug: --prompttest="Title|E: Do this   F: That" pins the prompt card ("|" breaks lines).
 var _prompt_test := ""
@@ -49,6 +51,16 @@ func _ready() -> void:
 
 	_card = HudPromptCard.new()
 	add_child(_card)
+
+	_badge = HudChitinBadge.new()
+	_badge.name = "ChitinBadge"
+	_badge.anchor_left = 1.0
+	_badge.anchor_right = 1.0
+	_badge.offset_right = -24
+	_badge.offset_left = -24
+	_badge.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_badge.offset_top = 90
+	add_child(_badge)
 
 	# End of the run: the shared menu frame (scrim, strap, paper, footer buttons)
 	# around the newsprint front page and the Notches report.
@@ -189,7 +201,8 @@ func _process(_delta: float) -> void:
 	var hud_root := get_parent() as Hud
 	if hud_root != null and hud_root.combo != null:
 		top = maxf(top, hud_root.combo.bottom() + 6.0)
-	_feed.offset_top = top
+	_badge.offset_top = top
+	_feed.offset_top = top + (_badge.size.y + 8.0 if _badge.visible else 0.0)
 	if _build_mode != null and _build_mode.active and not _build_mode.menu_open:
 		var hud := get_parent() as Hud
 		var icon: Texture2D = hud.build_menu.icon_for(_build_mode.selected_id()) if hud != null else null
@@ -309,16 +322,8 @@ func _on_bug_killed(bug_name: String, bug_cliff: int, source: String, source_cli
 		return
 	var scrap := int(loot.get(&"scrap", 0))
 	RunStats.note_kill(bug_name, source, scrap) # for the end-of-run newspaper
-	var saved := _cliff_owner_name(bug_cliff)
-	var text: String
-	if source_cliff >= 0 and source_cliff != bug_cliff:
-		text = "%s saved %s from %s (+%s to %s)" % [source, saved, _a(bug_name), UiStyle.cost(scrap, ResNames.TEAM_ID), saved]
-	elif source != "":
-		text = "%s got %s (+%s)" % [source, _a(bug_name), UiStyle.cost(scrap, ResNames.TEAM_ID)]
-	else:
-		text = "%s went down (+%s)" % [bug_name if bug_name.begins_with("The ") else "A " + bug_name, UiStyle.cost(scrap, ResNames.TEAM_ID)]
-	var mine := source_cliff == cliff_id or bug_cliff == cliff_id
-	add_line(text, UiStyle.c("title") if mine else UiStyle.c("hud"))
+	# No line per kill any more: the badge counts the round's takings (Logan).
+	_badge.add(scrap)
 
 
 ## "a Dust Mite", but "The Hive Mother" (a boss's name already has its article).

@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_frontier_sentinel"
+display_name = "Frontier Sentinel"
+description = "Two barrels in one housing: a quick one for swarms, a heavy one it swaps to when something big climbs into view."
+role = "a bit of everything"
+weakness = "master of none"
+cost_scrap = 120
+max_hp = 200.0
+range = 100.0
+fire_interval = 0.12
+damage = 5.0
+heavy_mult = 0.6
+pitch_limit_deg = 40.0
+turn_speed = 40.0
+spread_deg = 1.5
+hit_chance = 0.8
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+sound = &"repeater"
+universal = true
+job = "Hybrid"
+cone_deg = 30.0
+crop_splash = 2.0
+heavy_damage = 70.0
+heavy_interval = 1.8

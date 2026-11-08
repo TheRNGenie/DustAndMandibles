@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_crop_howitzer"
+display_name = "Crop Howitzer"
+description = "A howitzer you aim with a big iron wheel: four crop shells in a volley, then the rack refills."
+role = "crowds on the far wall"
+weakness = "slow to refill"
+cost_scrap = 220
+max_hp = 300.0
+range = 110.0
+fire_interval = 6.0
+damage = 40.0
+pitch_limit_deg = 40.0
+turn_speed = 80.0
+spread_deg = 1.5
+hit_chance = 1.0
+effect = 3
+flight_time = 1.4
+effect_size = 3.5
+sound = &"mortar"
+crewed = true
+tier = 1
+special_count = 4
+universal = true
+job = "H"
+crop_splash = 3.0
+heavy_gun = true

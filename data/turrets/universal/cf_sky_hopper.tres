@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_sky_hopper"
+display_name = "Sky Hopper"
+description = "Twin short barrels on a swivel, fed from a crop box. Fills the sky over your homestead with crop shot."
+role = "flocks of fliers"
+weakness = "armoured fliers"
+cost_scrap = 80
+max_hp = 160.0
+range = 55.0
+fire_interval = 0.09
+damage = 5.0
+pitch_limit_deg = 30.0
+turn_speed = 90.0
+spread_deg = 1.5
+hit_chance = 0.72
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+anti_air = true
+ground_mult = 0.4
+sound = &"repeater"
+universal = true
+job = "H"
+crop_splash = 1.5

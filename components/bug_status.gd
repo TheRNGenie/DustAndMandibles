@@ -26,6 +26,22 @@ var _tar_t := 0.0
 var _stun_t := 0.0
 ## Tar doubles burn damage.
 const TAR_BURN_MULT := 2.0
+## Universal crop-fed turrets (CropEffects): Cotton's stacking slow, Herbs'
+## poison stacks, Sulfur Root's volatile, Sarsaparilla's mark.
+var _cslow_t := 0.0
+var _cslow := 0.0
+var _poison: Array = [] # [dps, seconds left] per stack
+var _poison_source := ""
+var _poison_cliff := -1
+var _vol_t := 0.0
+var _vol_k := 1.0
+var _vol_source := ""
+var _vol_cliff := -1
+var _cmark_t := 0.0
+var _cmark_bonus := 0.0
+## Special weapons (Crop Syringe, Venom Needle): shell weakened, takes more damage.
+var _weak_t := 0.0
+var _weak_bonus := 0.0
 
 
 func _init(b: Object) -> void:
@@ -118,10 +134,91 @@ func is_rooted() -> bool:
 	return _root_t > 0.0 or frozen
 
 
+## Cotton: each hit takes `step` more off its speed (up to `most`) for `seconds`.
+func crop_slow(step: float, most: float, seconds: float) -> void:
+	_cslow = minf((_cslow if _cslow_t > 0.0 else 0.0) + step, most)
+	_cslow_t = seconds
+
+
+func crop_slowed() -> float:
+	return _cslow if _cslow_t > 0.0 else 0.0
+
+
+## Herbs: a poison stack of `dps` for `seconds`; at most `most` stacks (a new
+## one past that replaces the one closest to running out).
+func poison(dps: float, seconds: float, most: int, source: String, source_cliff: int) -> void:
+	if _encased():
+		return
+	_poison_source = source
+	_poison_cliff = source_cliff
+	if _poison.size() < most:
+		_poison.append([dps, seconds])
+		return
+	var low := 0
+	for i in _poison.size():
+		if float(_poison[i][1]) < float(_poison[low][1]):
+			low = i
+	_poison[low] = [dps, seconds]
+
+
+func poison_stacks() -> int:
+	return _poison.size()
+
+
+## Sulfur Root: for `seconds`, dying sets off a blast (CropEffects.volatile_burst).
+func volatile(seconds: float, k: float, source: String, source_cliff: int) -> void:
+	_vol_t = maxf(_vol_t, seconds)
+	_vol_k = maxf(_vol_k if _vol_t > 0.0 else 0.0, k)
+	_vol_source = source
+	_vol_cliff = source_cliff
+
+
+func is_volatile() -> bool:
+	return _vol_t > 0.0
+
+
+func volatile_k() -> float:
+	return _vol_k
+
+
+func volatile_source() -> String:
+	return _vol_source
+
+
+func volatile_cliff() -> int:
+	return _vol_cliff
+
+
+## Sarsaparilla: +`bonus` damage from everything for `seconds` (refreshed, not stacked).
+func crop_mark(seconds: float, bonus: float) -> void:
+	_cmark_t = seconds
+	_cmark_bonus = maxf(_cmark_bonus if _cmark_t > 0.0 else 0.0, bonus)
+
+
+func is_crop_marked() -> bool:
+	return _cmark_t > 0.0
+
+
+## Special weapons: +`bonus` damage from everything for `seconds` (the strongest
+## one running counts). Multiplies with Sarsaparilla's mark.
+func weaken(seconds: float, bonus: float) -> void:
+	_weak_bonus = maxf(_weak_bonus if _weak_t > 0.0 else 0.0, bonus)
+	_weak_t = maxf(_weak_t, seconds)
+
+
+func is_weakened() -> bool:
+	return _weak_t > 0.0
+
+
+## Every hit's damage multiplier from statuses (Sarsaparilla's mark, a weakened shell).
+func damage_taken_mult() -> float:
+	return (1.0 + (_cmark_bonus if _cmark_t > 0.0 else 0.0)) * (1.0 + (_weak_bonus if _weak_t > 0.0 else 0.0))
+
+
 func speed_multiplier() -> float:
 	if is_rooted():
 		return 0.0
-	return _slow_factor if _slow_t > 0.0 else 1.0
+	return (_slow_factor if _slow_t > 0.0 else 1.0) * (1.0 - crop_slowed())
 
 
 func tick(delta: float) -> void:
@@ -133,6 +230,21 @@ func tick(delta: float) -> void:
 	_strip_t = maxf(_strip_t - delta, 0.0)
 	_tar_t = maxf(_tar_t - delta, 0.0)
 	_stun_t = maxf(_stun_t - delta, 0.0)
+	_cslow_t = maxf(_cslow_t - delta, 0.0)
+	_vol_t = maxf(_vol_t - delta, 0.0)
+	_cmark_t = maxf(_cmark_t - delta, 0.0)
+	_weak_t = maxf(_weak_t - delta, 0.0)
+	if not _poison.is_empty():
+		var hurt := 0.0
+		for i in range(_poison.size() - 1, -1, -1):
+			var s: Array = _poison[i]
+			var dt := minf(delta, float(s[1]))
+			hurt += float(s[0]) * dt
+			s[1] = float(s[1]) - delta
+			if float(s[1]) <= 0.0:
+				_poison.remove_at(i)
+		if hurt > 0.0 and not _encased():
+			bug.health.take_damage(hurt, _poison_source, _poison_cliff)
 	if _burn_t > 0.0 and not _encased():
 		_burn_t -= delta
 		bug.health.take_damage(_burn_dps * delta, _burn_source, _burn_cliff)

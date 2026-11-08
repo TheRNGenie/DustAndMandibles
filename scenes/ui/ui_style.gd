@@ -1422,6 +1422,52 @@ static func tier_chip(tier: int, locked: bool = false, size: int = 12) -> PanelC
 	return p
 
 
+## The Air Defense tag on an anti-air turret's build card (they share the Cliff
+## Turrets tab, Logan): sky blue, in the same chip as the tier tags.
+const AIR_COLOR := Color("#7FC4EE")
+
+
+static func air_chip(size: int = 12) -> PanelContainer:
+	var p := PanelContainer.new()
+	var sb := chip_flat()
+	sb.border_color = AIR_COLOR
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(4)
+	sb.content_margin_left = 6
+	sb.content_margin_right = 6
+	sb.content_margin_top = 0
+	sb.content_margin_bottom = 1
+	p.add_theme_stylebox_override("panel", sb)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var l := strap_text(tc("Air Defense"), size)
+	l.add_theme_color_override("font_color", AIR_COLOR)
+	p.add_child(l)
+	return p
+
+
+## Universal crop-fed turrets: "Any Crop" with a dot of each crop's colour.
+static func any_crop_chip(size: int = 12) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", chip_flat())
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 1)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(h)
+	for c: StringName in [&"corn", &"firecracker_chili", &"herbs", &"sarsaparilla"]:
+		var dot := ColorRect.new()
+		dot.color = CropEffects.color_of(c)
+		dot.custom_minimum_size = Vector2(4, 8)
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.add_child(dot)
+	var gap := Control.new()
+	gap.custom_minimum_size.x = 3
+	h.add_child(gap)
+	h.add_child(strap_text(tc("Any Crop"), size))
+	return p
+
+
 ## Turret ammo: a small chip naming the crop that loads a crop-fed turret, with
 ## a dot of the crop's colour ("● Corn").
 static func crop_chip(crop: CropDef, size: int = 12) -> PanelContainer:

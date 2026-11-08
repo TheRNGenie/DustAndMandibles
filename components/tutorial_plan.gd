@@ -89,7 +89,7 @@ const STEPS: Array[Dictionary] = [
 		"body": "",
 		"tasks": ["Sell the Rifle Nest", "Place a Gatling Post"], "keys": [["demolish", "Sell"], ["build_menu", "Build Menu"]], "marker": "Rifle Nest"},
 	{"title": "Kinds of Turret", "voice": "stroud", "line": "Turrets come in kinds. Gatlings for swarms. Rifle nests for the big, armoured brutes. Mortars for crowds. Water knocks them off the wall, lassos pin them, and Duck Guns and flak take the fliers. Any turret can be upgraded, and better designs turn up as time goes on.",
-		"body": "Cliff Turrets always fire. Crop-Fed turrets hit harder, but each needs one load of its crop every wave: harvest the crop, then press E on the turret.",
+		"body": "Cliff Turrets always fire. Crop-Fed turrets hit harder and take any crop: Q on one picks the crop (it sets what each hit does), E reloads the last one. One sack lasts a wave.",
 		"tasks": [], "keys": [["upgrade", "Upgrade a Turret"], ["accept", "Continue"]], "marker": "Your Turret", "read": true},
 	{"title": "Start the Pump", "voice": "stroud", "line": "Only way to get water in these parts is a deep mechanical well, and if we're getting any farming done around here, we need water. Trouble is, that pump wakes up the critters nearby whenever it's running. Throw the breaker on your generator when you're set.",
 		"body": "",

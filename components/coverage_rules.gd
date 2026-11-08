@@ -30,10 +30,10 @@ static func heat_color(n: int) -> Color:
 	return Color(0.35, 0.9, 0.38)
 
 
-## How many arcs ([muzzle, pitch_limit_deg, range]) reach `point`.
+## How many arcs ([muzzle, pitch_limit_deg, range, aim, half-cone deg]) reach `point`.
 static func count_covering(arcs: Array, point: Vector3) -> int:
 	var k := 0
 	for a: Array in arcs:
-		if Targeting.in_arc(a[0], point, a[1], a[2], a[3] if a.size() > 3 else Vector3.ZERO, Targeting.AIM_HALF_DEG):
+		if Targeting.in_arc(a[0], point, a[1], a[2], a[3] if a.size() > 3 else Vector3.ZERO, float(a[4]) if a.size() > 4 else Targeting.AIM_HALF_DEG):
 			k += 1
 	return k

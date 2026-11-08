@@ -81,14 +81,19 @@ func menu_items(tab: int) -> Array:
 				out.append(_item(id, b.display_name, icon, str(e.get("lore", "")), stats, tips, ""))
 		2:
 			for id: StringName in Defs.BUILD_ORDER:
-				if not Defs.is_turret(id):
+				if not Defs.is_turret(id) or Defs.RETIRED_TURRETS.has(id): # (the old crop-specific turrets are gone)
 					continue
 				var t := Defs.turret(id)
 				var e := FieldGuide.entry("turrets", id)
 				var stats := t.stat_line() + "  ·  %d HP" % int(t.max_hp) # the same numbers as in the build menu
 				stats += "  ·  %s Tier" % t.era_name() + ("" if t.tier == 0 else " (Wave %d)" % t.unlock_wave()) # Tiers
 				var icon: Variant = IconStudio.turret(MenuScreen.instance, id) if MenuScreen.instance != null else null
-				out.append(_item(id, t.display_name, icon, str(e.get("lore", t.description)), stats, e.get("tips", []), UiStyle.cost(t.cost_scrap, "scrap")))
+				var tips: Array = (e.get("tips", []) as Array).duplicate()
+				if t.universal: # Universal crop-fed: any crop, and what each does
+					tips.append("Takes any crop sack: Q on it picks one, E reloads the last. One sack lasts a wave%s." % (
+							" (an obstruction keeps its sack until it goes off)" if t.obstruction else ""))
+					tips.append("Tier 2 from wave 5, Tier 3 from wave 10 (U on it): more damage, faster, stronger crop.")
+				out.append(_item(id, t.display_name, icon, str(e.get("lore", t.description)), stats, tips, UiStyle.cost(t.cost_scrap, "scrap")))
 			# Hive amber turrets: crafted from amber and parts once the blueprint is known, one of each per team.
 			for id: StringName in AmberRules.IDS:
 				var t := Defs.turret(id)
@@ -112,6 +117,8 @@ func menu_items(tab: int) -> Array:
 						_minutes(c.grow_time), c.water_cost, ", ".join(yields),
 						("Sells for " + ", ".join(sells)) if not sells.is_empty() else "Not Sold: Grown for Your Partner"]
 				var tips: Array = [c.role] if c.role != "" else []
+				if CropEffects.is_crop(id): # in a universal crop-fed turret
+					tips.append("In a crop-fed turret: %s." % _crop_effect_text(id))
 				tips.append_array(e.get("tips", []))
 				var crop_icon: Variant = c.harvest.keys()[0] if not c.harvest.is_empty() else null
 				if UiStyle.plate(id) != null:
@@ -178,6 +185,21 @@ func _floor_items() -> Array:
 
 
 const CROP_ORDER: Array[StringName] = [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs", &"sarsaparilla"]
+
+
+## What a crop does loaded in a universal turret, in a few words.
+static func _crop_effect_text(id: StringName) -> String:
+	match id:
+		&"corn": return "Ricochet, every hit bounces to a second bug at half damage"
+		&"firecracker_chili": return "Explosive, every hit splashes the bugs round it"
+		&"prickly_pear": return "Armour Pierce, hits ignore half a bug's armour"
+		&"cotton": return "Slow, a quarter off its speed for 2 s, stacking to half"
+		&"herbs": return "Poison, damage over 3 s, stacking three times"
+		&"sulfur_root": return "Volatile, a bug killed bursts and hurts the bugs beside it"
+		&"barrel_cactus": return "Stagger, every hit stops it for a moment"
+		&"tumbleweed_vine": return "Entangle, now and then vines root it for a second"
+		&"sarsaparilla": return "Mark, it takes a fifth more damage from everything for 3 s"
+	return CropEffects.effect_name(id)
 
 
 static func _minutes(secs: float) -> String:

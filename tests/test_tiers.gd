@@ -3,7 +3,9 @@ extends TestCase
 ## the CPU's picks, and the new turrets' ricochet, pierce and rail-spike maths.
 
 const KillMethod := preload("res://scenes/bugs/kill_method.gd")
-const NEW: Array[StringName] = [&"twin_gatling", &"hornets_nest", &"elephant_battery", &"rail_spike_driver", &"gatling_porch"]
+## (The Hornet's Nest, Elephant Battery and Rail Spike Driver are archived with
+## the other crop-specific turrets: D:/DustAndMandibles-archive/retired/turrets.)
+const NEW: Array[StringName] = [&"twin_gatling", &"gatling_porch"]
 
 
 func test_unlock_waves_live_in_one_place() -> void:
@@ -17,13 +19,10 @@ func test_unlock_waves_live_in_one_place() -> void:
 
 func test_tier_chart() -> void:
 	var chart := {
-		0: [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar", &"dynamite_lobber", &"lasso_harpoon",
-				&"duck_gun", &"sky_sweeper", &"scattergun_post", &"porch_repeater", &"corn_hopper", &"herb_rifle", &"tripwire_fence"],
-		1: [&"twin_gatling", &"elephant_battery", &"powder_flak", &"sharpshooter_tower", &"repeater_post", &"buck_blaster",
-				&"skeet_post", &"twin_hopper", &"pepper_sprayer", &"sulfur_fume_vent", &"bramble_bomb", &"big_fifty"],
-		2: [&"hornets_nest", &"rail_spike_driver", &"thunder_mule", &"whaler", &"firework_battery", &"sky_hound", &"gatling_porch",
-				&"net_thrower", &"twin_mortar", &"brass_gatling", &"long_tom_rifle", &"grapeshot_turret", &"flak_porch",
-				&"dust_devil_trap", &"siege_mortar", &"brimstone_bellows", &"cotton_bale_cannon"],
+		0: [&"gatling_post", &"buffalo_rifle", &"duck_gun", &"sky_sweeper", &"scattergun_post", &"porch_repeater", &"cf_crop_hopper"],
+		1: [&"twin_gatling", &"powder_flak", &"sharpshooter_tower", &"repeater_post", &"buck_blaster", &"skeet_post", &"big_fifty",
+				&"cf_iron_mule"],
+		2: [&"gatling_porch", &"brass_gatling", &"long_tom_rifle", &"grapeshot_turret", &"flak_porch"],
 	}
 	for t: int in chart:
 		for id: StringName in chart[t]:
@@ -35,13 +34,13 @@ func test_mid_unlocks_at_wave_five_late_at_ten() -> void:
 		assert_true(Defs.is_unlocked(&"gatling_post", w), "early from the start")
 		assert_false(Defs.is_unlocked(&"twin_gatling", w), "mid locked on wave %d" % w)
 	assert_true(Defs.is_unlocked(&"twin_gatling", 5))
-	assert_false(Defs.is_unlocked(&"hornets_nest", 9))
-	assert_true(Defs.is_unlocked(&"hornets_nest", 10))
+	assert_false(Defs.is_unlocked(&"brass_gatling", 9))
+	assert_true(Defs.is_unlocked(&"brass_gatling", 10))
 	assert_true(Defs.is_unlocked(&"farm_plot", 0), "structures are never locked")
 	assert_true(Defs.is_unlocked(&"scaffold", 1))
-	assert_eq(Defs.lock_reason(&"elephant_battery", 2), "Unlocks at Wave 5")
-	assert_eq(Defs.lock_reason(&"rail_spike_driver", 6), "Unlocks at Wave 10")
-	assert_eq(Defs.lock_reason(&"rail_spike_driver", 10), "")
+	assert_eq(Defs.lock_reason(&"big_fifty", 2), "Unlocks at Wave 5")
+	assert_eq(Defs.lock_reason(&"long_tom_rifle", 6), "Unlocks at Wave 10")
+	assert_eq(Defs.lock_reason(&"long_tom_rifle", 10), "")
 
 
 func test_crafted_turrets_are_never_locked() -> void:
@@ -103,24 +102,15 @@ func test_twin_gatling_doubles_the_rate() -> void:
 
 
 func test_new_turret_numbers_and_stat_lines() -> void:
-	assert_eq(Defs.cost_of(&"hornets_nest"), 200)
-	assert_eq(Defs.cost_of(&"elephant_battery"), 120)
-	assert_eq(Defs.cost_of(&"rail_spike_driver"), 220)
 	assert_eq(Defs.cost_of(&"gatling_porch"), 180)
-	assert_true(Defs.turret(&"hornets_nest").stat_line().contains("Ricochets to 2 More"))
-	assert_true(Defs.turret(&"elephant_battery").stat_line().contains("Pierces 2 Bugs"))
-	assert_true(Defs.turret(&"elephant_battery").stat_line().contains("x1.5 vs Heavy"))
-	assert_true(Defs.turret(&"rail_spike_driver").stat_line().contains("Pins 2.5 s"))
 	assert_true(Defs.turret(&"gatling_porch").stat_line().contains("Whole Yard"))
-	assert_true(Defs.turret(&"rail_spike_driver").fire_interval > Defs.turret(&"elephant_battery").fire_interval, "the spike is very slow")
-	assert_true(Defs.turret(&"elephant_battery").heavy_mult >= 1.5)
 
 
 func test_cpu_moves_on_to_new_tiers_once_unlocked() -> void:
-	var ids: Array = [&"gatling_post", &"twin_gatling", &"hornets_nest", &"buffalo_rifle"]
+	var ids: Array = [&"gatling_post", &"twin_gatling", &"brass_gatling", &"buffalo_rifle"]
 	assert_eq(TierRules.best_first(ids, 1), [&"gatling_post", &"buffalo_rifle"], "only Early before wave 5")
 	assert_eq(TierRules.best_first(ids, 5), [&"twin_gatling", &"gatling_post", &"buffalo_rifle"], "Mid first from wave 5")
-	assert_eq(TierRules.best_first(ids, 10), [&"hornets_nest", &"twin_gatling", &"gatling_post", &"buffalo_rifle"], "Late first from wave 10")
+	assert_eq(TierRules.best_first(ids, 10), [&"brass_gatling", &"twin_gatling", &"gatling_post", &"buffalo_rifle"], "Late first from wave 10")
 
 
 func test_ricochet_hops_to_close_bugs_only() -> void:
@@ -173,22 +163,21 @@ func test_tier_up_never_changes_the_turret_kind() -> void:
 		assert_eq(b.anti_air, a.anti_air, "%s -> %s anti-air" % [id, next])
 	assert_eq(Defs.kind_of(&"buffalo_rifle"), &"cliff")
 	assert_eq(Defs.kind_of(&"sharpshooter_tower"), &"last_resort")
-	assert_eq(Defs.kind_of(&"net_thrower"), &"air")
+	assert_eq(Defs.kind_of(&"duck_gun"), &"air")
 	assert_eq(Defs.kind_of(&"rooftop_cannon"), &"house")
 	assert_eq(Defs.tier_up_of(&"buffalo_rifle"), &"big_fifty")
 	assert_eq(Defs.tier_up_of(&"big_fifty"), &"long_tom_rifle")
-	assert_eq(Defs.tier_up_of(&"sulfur_fume_vent"), &"brimstone_bellows")
-	assert_eq(Defs.tier_up_of(&"bola_launcher"), &"cotton_bale_cannon")
 	# The turrets the lines used to cross into still stand on their own.
-	for id: StringName in [&"sharpshooter_tower", &"firework_battery", &"net_thrower"]:
+	for id: StringName in [&"sharpshooter_tower"]:
 		assert_true(Defs.TURRETS.has(id) and Defs.BUILD_ORDER.has(id), "%s still buildable" % id)
 		assert_false(Defs.TIER_UP.values().has(id), "nothing steps up into %s" % id)
 
 
-## The three turrets that close those lines: registered, modelled, in the guide.
+## The turret that closes the Buffalo line: registered, modelled, in the guide.
+## (The Brimstone Bellows and Cotton Bale Cannon are archived.)
 func test_line_turrets_are_complete() -> void:
 	var guide: Dictionary = (JSON.parse_string(FileAccess.get_file_as_string("res://data/field_guide.json")) as Dictionary)["turrets"]
-	for id: StringName in [&"big_fifty", &"brimstone_bellows", &"cotton_bale_cannon"]:
+	for id: StringName in [&"big_fifty"]:
 		assert_true(Defs.BUILD_ORDER.has(id), "%s in BUILD_ORDER" % id)
 		var listed := false
 		for cat: Dictionary in Defs.BUILD_CATEGORIES:
@@ -201,25 +190,18 @@ func test_line_turrets_are_complete() -> void:
 			assert_true(p.has(k), "%s model has %s" % [id, k])
 		assert_true((p["gun"] as ArrayMesh).get_surface_count() > 0, "%s gun has geometry" % id)
 	assert_eq(KillMethod.classify("Logan's Big Fifty"), KillMethod.BULLET)
-	assert_eq(KillMethod.classify("Logan's Brimstone Bellows"), KillMethod.FIRE)
-	assert_eq(KillMethod.classify("Logan's Cotton Bale Cannon"), KillMethod.TRAP)
-	assert_eq(Defs.turret(&"cotton_bale_cannon").special, &"bola")
-	assert_true(Defs.turret(&"cotton_bale_cannon").special_count > Defs.turret(&"bola_launcher").special_count, "holds more climbers than the Bola Launcher")
 	# Each step is a real step: more damage per second than the turret before it.
 	var dps := func(id: StringName) -> float:
 		var d := Defs.turret(id)
 		return d.damage * d.hit_chance / d.fire_interval
 	assert_true(dps.call(&"big_fifty") > dps.call(&"buffalo_rifle") and dps.call(&"big_fifty") < dps.call(&"long_tom_rifle"))
-	assert_true(dps.call(&"brimstone_bellows") > dps.call(&"sulfur_fume_vent"))
 
 
 func test_tier_up_is_a_bit_cheaper_than_building_new() -> void:
 	assert_eq(Defs.tier_up_of(&"gatling_post"), &"repeater_post")
 	assert_eq(Defs.tier_up_of(&"repeater_post"), &"brass_gatling")
 	assert_eq(Defs.tier_up_of(&"brass_gatling"), &"")
-	assert_eq(Defs.tier_up_of(&"corn_hopper"), &"twin_hopper")
-	assert_eq(Defs.tier_up_of(&"twin_hopper"), &"hornets_nest")
-	assert_eq(Defs.tier_up_of(&"hornets_nest"), &"")
+	assert_eq(Defs.tier_up_of(&"cf_crop_hopper"), &"", "universal turrets go up by tiers instead")
 	# Turret ammo: a line never crosses between self-powered and crop-fed.
 	for id: StringName in Defs.TIER_UP:
 		assert_eq(Defs.turret(id).crop_type, Defs.turret(Defs.TIER_UP[id]).crop_type, "%s stays on its track" % id)

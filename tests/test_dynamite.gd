@@ -23,11 +23,10 @@ func test_blast_falls_off_and_stops_at_the_rim() -> void:
 
 
 func test_moderate_to_high_damage() -> void:
-	# More than a Dynamite Lobber shell (45 in 3.5 m), kills a wolf spider (60 HP) all but
-	# at the very rim, and a rattler beetle (120 HP) near the middle.
-	var lobber := Defs.turret(&"dynamite_lobber")
-	assert_true(DynamiteRules.DAMAGE > lobber.damage * 3.0)
-	assert_true(DynamiteRules.RADIUS > lobber.effect_size * 1.5)
+	# More than the old Dynamite Lobber's shell (45 in 3.5 m; archived), kills a wolf
+	# spider (60 HP) all but at the very rim, and a rattler beetle (120 HP) near the middle.
+	assert_true(DynamiteRules.DAMAGE > 45.0 * 3.0)
+	assert_true(DynamiteRules.RADIUS > 3.5 * 1.5)
 	assert_true(DynamiteRules.damage_at(1, DynamiteRules.RADIUS) < Defs.bug(&"wolf_spider").max_hp)
 	assert_true(DynamiteRules.damage_at(1, DynamiteRules.RADIUS * 0.6) >= Defs.bug(&"wolf_spider").max_hp)
 	assert_true(DynamiteRules.damage_at(1, 1.0) >= Defs.bug(&"rattler_beetle").max_hp)

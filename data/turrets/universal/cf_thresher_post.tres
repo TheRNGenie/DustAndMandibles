@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_thresher_post"
+display_name = "Thresher Post"
+description = "A revolver drum on a post: three quick shots, a click while the drum resets, three more."
+role = "steady pressure on a lane"
+weakness = "pauses between bursts"
+cost_scrap = 75
+max_hp = 160.0
+range = 100.0
+fire_interval = 0.09
+damage = 9.0
+heavy_mult = 0.7
+pitch_limit_deg = 40.0
+turn_speed = 40.0
+spread_deg = 1.5
+hit_chance = 0.8
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+sound = &"repeater"
+universal = true
+job = "H"
+cone_deg = 30.0
+crop_splash = 1.5
+burst = 3
+burst_pause = 0.6

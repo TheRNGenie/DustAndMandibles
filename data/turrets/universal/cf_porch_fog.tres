@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_porch_fog"
+display_name = "Porch Fog"
+description = "A tank of crop brew that breathes a coloured fog round the house. Bugs in it take the crop every second."
+role = "a zone round the house"
+weakness = "light damage"
+cost_scrap = 75
+max_hp = 170.0
+range = 8.0
+fire_interval = 1.0
+damage = 6.0
+pitch_limit_deg = 80.0
+turn_speed = 0.0
+spread_deg = 1.5
+hit_chance = 1.0
+effect = 0
+flight_time = 0.0
+effect_size = 7.0
+guards_plateau = true
+guards_house = true
+sound = &"steam"
+special = &"fog"
+universal = true
+job = "CC"
+crop_splash = 1.5

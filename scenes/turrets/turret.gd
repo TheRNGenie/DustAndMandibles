@@ -346,7 +346,7 @@ func _valid_cheap(b: Bug, muzzle: Vector3, seen: float, pitch: float, max_range:
 		if _aim == Vector3.ZERO:
 			_aim = Targeting.wall_aim(Bug.cliffs, covers, muzzle)
 		aim = _aim
-		half = Targeting.AIM_HALF_DEG
+		half = def.aim_half_deg() # universal turrets: 15, 30 or 45 degree cones
 	if Targeting.in_arc(muzzle, b.global_position, pitch, max_range * seen, aim, half):
 		return true
 	# A lantern or a lit lighter shows this bug through the murk.

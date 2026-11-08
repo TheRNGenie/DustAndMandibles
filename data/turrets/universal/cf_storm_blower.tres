@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_storm_blower"
+display_name = "Storm Blower"
+description = "A brass horn on a pressure tank. Each blast is a shockwave that throws small bugs off the wall."
+role = "knocking bugs off"
+weakness = "heavy bugs only slip"
+cost_scrap = 85
+max_hp = 160.0
+range = 100.0
+fire_interval = 2.2
+damage = 8.0
+pitch_limit_deg = 40.0
+turn_speed = 35.0
+spread_deg = 1.5
+hit_chance = 1.0
+effect = 1
+flight_time = 0.0
+effect_size = 0.0
+sound = &"steam"
+universal = true
+job = "CC"
+cone_deg = 30.0
+crop_splash = 2.0
+heavy_gun = true

@@ -1,21 +1,22 @@
 extends TestCase
-## Crewed: the four 2 x 2 crewed guns: data, footprint, build rules and the pure
-## maths in CrewRules (unmanned power, Bertha's heat, the Whaler's drop, Thunder
-## Mule's salvo and arc, Sky Hound's fuse, aim arcs).
+## Crewed: the 2 x 2 crewed guns (now the five universal crop-fed ones; Big
+## Bertha, the Whaler and the old Thunder Mule and Sky Hound are archived): data,
+## footprint, build rules and the pure maths in CrewRules (unmanned power, heat,
+## the drop, the salvo and arc, the fuse, aim arcs).
 
-const CREWED: Array[StringName] = [&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound"]
+const CREWED: Array[StringName] = [&"cf_iron_mule", &"cf_crop_howitzer", &"cf_sky_hound", &"cf_vortex_engine", &"cf_thunder_mule"]
 
 
 func test_crewed_defs_are_registered_and_listed() -> void:
 	var cat := Defs.category_items("Crewed Guns")
-	assert_eq(cat.size(), CREWED.size(), "Crewed Guns tab lists all four")
+	assert_eq(cat.size(), CREWED.size(), "Crewed Guns tab lists all five")
 	var names: Array = Defs.BUILD_CATEGORIES.map(func(c: Dictionary) -> String: return str(c["name"]))
 	assert_eq(names.find("Crewed Guns"), names.find("Cliff Turrets") + 1, "tab sits right after Cliff Turrets")
 	for id in CREWED:
 		assert_true(Defs.is_crewed(id), "%s is crewed" % id)
 		assert_true(cat.has(id), "%s in the tab" % id)
 		assert_true(Defs.BUILD_ORDER.has(id), "%s in BUILD_ORDER" % id)
-		assert_true(CrewedBuilder.has(id), "%s has a model" % id)
+		assert_true(UniversalBuilder.has(id), "%s has a model" % id)
 	assert_false(Defs.is_crewed(&"gatling_post"))
 	assert_false(Defs.is_crewed(&"farm_plot"))
 
@@ -26,13 +27,12 @@ func test_crewed_guns_cost_more_than_any_normal_turret() -> void:
 	var priciest := 0
 	# The original basic turrets (the Mid / Late tier and the newer turrets sit in
 	# the crewed price band by design).
-	for id: StringName in [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar", &"dynamite_lobber", &"lasso_harpoon",
-			&"scattergun_post", &"sharpshooter_tower", &"porch_repeater", &"rooftop_cannon", &"duck_gun", &"sky_sweeper",
-			&"powder_flak", &"net_thrower", &"firework_battery"]:
+	for id: StringName in [&"gatling_post", &"buffalo_rifle", &"scattergun_post", &"sharpshooter_tower", &"porch_repeater",
+			&"rooftop_cannon", &"duck_gun", &"sky_sweeper", &"powder_flak"]:
 		priciest = maxi(priciest, Defs.cost_of(id))
 	for id in CREWED:
 		var c := Defs.cost_of(id)
-		assert_true(c >= priciest * 1.5 and c <= priciest * 2, "%s costs %d (1.5-2x %d)" % [id, c, priciest])
+		assert_true(c >= priciest * 2 and c <= priciest * 3, "%s costs %d (2-3x %d)" % [id, c, priciest])
 
 
 func test_crewed_roles_and_no_upkeep() -> void:
@@ -41,9 +41,9 @@ func test_crewed_roles_and_no_upkeep() -> void:
 		assert_true(d.role != "" and d.weakness != "", "%s has a job and a weakness" % id)
 		assert_false(d.has_upkeep(), "%s keeps it simple: no upkeep" % id)
 		assert_true(d.crew_yaw_arc_deg > 0.0 and d.crew_yaw_arc_deg <= 180.0, "%s arc" % id)
-	assert_true(Defs.turret(&"sky_hound").anti_air, "Sky Hound is air defence")
-	assert_true(Defs.turret(&"whaler").heavy_mult > 1.0, "Whaler is a big-game gun")
-	assert_true(Defs.turret(&"big_bertha").heavy_mult < 1.0, "Bertha is a swarm gun")
+	assert_true(Defs.turret(&"cf_sky_hound").anti_air, "Sky Hound takes fliers")
+	assert_true(Defs.turret(&"cf_sky_hound").heavy_mult > 1.0, "Sky Hound is a big-game gun")
+	assert_true(Defs.turret(&"cf_iron_mule").heavy_mult < 1.0, "the Iron Mule is a swarm gun")
 
 
 func test_crewed_footprint_is_two_by_two_and_no_scaffold() -> void:
@@ -108,9 +108,8 @@ func test_whaler_reel_and_drop() -> void:
 	assert_eq(CrewRules.drop_damage(0.0, 0), 0.0)
 	assert_almost(CrewRules.drop_damage(10.0, 0), 10.0 * CrewRules.DROP_DAMAGE_PER_M)
 	assert_true(CrewRules.drop_damage(10.0, 2) > CrewRules.drop_damage(10.0, 0), "upgrades hit harder")
-	# A full chain's worth of reeling is a big hit, a boss-sized one.
-	var d := Defs.turret(&"whaler")
-	assert_true(CrewRules.drop_damage(CrewRules.REEL_SPEED * d.effect_size, 0) >= 100.0)
+	# A full chain's worth of reeling (the archived Whaler's 6 s) is a big hit, a boss-sized one.
+	assert_true(CrewRules.drop_damage(CrewRules.REEL_SPEED * 6.0, 0) >= 100.0)
 
 
 func test_mule_salvo_is_three_shells_and_deterministic() -> void:

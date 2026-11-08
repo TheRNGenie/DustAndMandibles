@@ -105,6 +105,31 @@ const HEAVY_HP := 100.0
 ## loaded, and one load (that crop's CropDef.load_item) lasts one wave.
 @export var crop_type: StringName = &""
 
+# ---- Universal crop-fed turrets (Nov 2026 handoff, UniversalTurret) ----
+## Universal crop-fed: takes any of the nine crop sacks (CropEffects), and the
+## crop sets what every hit does. One sack lasts one wave. Uses its own upgrade
+## tiers (UNI_*), bought at waves 5 and 10.
+@export var universal: bool = false
+## Cliff turrets: the whole width of the aiming cone in degrees (15 precise,
+## 30 balanced, 45 wide). 0 = the standard cone (Targeting.AIM_HALF_DEG each side).
+@export var cone_deg: float = 0.0
+## Universal: its job on the turret card: "H" horde, "ST" single target,
+## "CC" crowd control, "Hybrid".
+@export var job: String = ""
+## Universal: Firecracker Chili's splash radius on this gun's hits (1.5 to 3 m).
+@export var crop_splash: float = 2.0
+## Universal: a heavy gun (Barrel Cactus staggers for 0.5 s instead of 0.3).
+@export var heavy_gun: bool = false
+## Universal: shots in a burst and the pause after it (Thresher Post); 0 = steady.
+@export var burst: int = 0
+@export var burst_pause: float = 0.0
+## Universal hybrids: the heavy mode's damage and interval (Frontier Sentinel,
+## Skyward Battery): it switches when the target is heavy. 0 = one mode.
+@export var heavy_damage: float = 0.0
+@export var heavy_interval: float = 0.0
+## Universal obstruction: placed on the ground, inert until loaded, goes off once
+## and is gone (UniversalObstruction). Not repaired or reloaded.
+@export var obstruction: bool = false
 const SPECIAL_CHAIN := &"chain"
 const SPECIAL_PIERCE := &"pierce"
 const SPECIAL_SPIKE := &"spike"
@@ -112,6 +137,16 @@ const SPECIAL_SPIKE := &"spike"
 const SPECIAL_KILN := &"kiln"
 const SPECIAL_BELL := &"bell"
 const SPECIAL_LANCE := &"lance"
+## Universal upgrade tiers (Tier 1 as built, Tier 2 from wave 5, Tier 3 from
+## wave 10): damage and fire-rate multipliers, crop-effect strength, the build
+## price multiplier, and the share of the next tier's price an upgrade costs.
+const UNI_DAMAGE: Array[float] = [1.0, 1.4, 2.0]
+const UNI_RATE: Array[float] = [1.0, 1.15, 1.3]
+const UNI_EFFECT: Array[float] = [1.0, 1.25, 1.5]
+const UNI_COST: Array[float] = [1.0, 1.8, 3.0]
+const UNI_UPGRADE_SHARE := 0.85
+const UNI_TIER_WAVES: Array[int] = [1, 5, 10]
+const UNI_TIER_NAMES: Array[String] = ["Tier 1", "Tier 2", "Tier 3"]
 ## Tech tier names, for the build menu's tag chips.
 const ERA_NAMES: Array[String] = ["Early", "Mid", "Late"]
 ## The wave each tech tier unlocks at (Early from the start). The one place to change it.
@@ -138,9 +173,26 @@ static func is_heavy(bd: BugDef) -> bool:
 	return bd.front_armor > 0.0 or bd.max_hp >= HEAVY_HP
 
 
-## Crop-fed: needs a load of its crop each wave to fire.
+## Crop-fed: needs a load of its crop each wave to fire (universal: any crop).
 func is_crop_fed() -> bool:
-	return crop_type != &""
+	return crop_type != &"" or universal
+
+
+## Universal: the scrap an upgrade to tier `to` (1 or 2) costs: 85% of what a
+## turret of that tier costs to build.
+func uni_upgrade_cost(to: int) -> int:
+	return int(roundf(cost_scrap * UNI_COST[clampi(to, 0, 2)] * UNI_UPGRADE_SHARE))
+
+
+## The standard aiming cone's half-width (Targeting.AIM_HALF_DEG: not named
+## here, because Targeting -> Defs -> the turret .tres files -> this script would
+## be a load cycle).
+const STANDARD_HALF_DEG := 15.0
+
+
+## Universal: half the aiming cone, in degrees (the standard cone when unset).
+func aim_half_deg() -> float:
+	return cone_deg * 0.5 if cone_deg > 0.0 else STANDARD_HALF_DEG
 
 
 ## The load item that arms it (&"corn_load"), or &"" for self-powered turrets.
@@ -181,6 +233,8 @@ func upkeep_text() -> String:
 
 ## Damage of one shot at an upgrade tier, against a heavy bug or not.
 func damage_at(upgrade: int, heavy: bool = false) -> float:
+	if universal:
+		return damage * UNI_DAMAGE[clampi(upgrade, 0, 2)] * (heavy_mult if heavy else 1.0)
 	return damage * TIER_DAMAGE[clampi(upgrade, 0, MAX_TIER)] * (heavy_mult if heavy else 1.0)
 
 
@@ -194,6 +248,8 @@ static func range_mult(upgrade: int, level: int) -> float:
 
 
 func interval_at(upgrade: int) -> float:
+	if universal:
+		return fire_interval / UNI_RATE[clampi(upgrade, 0, 2)]
 	return fire_interval * TIER_INTERVAL[clampi(upgrade, 0, MAX_TIER)]
 
 
@@ -210,7 +266,11 @@ func role_line() -> String:
 		parts.append("Weak: %s" % weakness)
 	if has_upkeep():
 		parts.append("Upkeep: %s a shot" % upkeep_text())
-	if is_crop_fed():
+	if universal and obstruction:
+		parts.append("Any crop: 1 sack, goes off once")
+	elif universal:
+		parts.append("Any crop: 1 sack a wave")
+	elif is_crop_fed():
 		parts.append("Crop-fed: 1 %s load a wave" % crop_name().to_lower())
 	return "   ·   ".join(parts)
 
@@ -256,6 +316,8 @@ func stat_line(upgrade: int = 0) -> String:
 		parts.append("Fliers Only")
 	if yard_wide:
 		parts.append("Whole Yard")
+	if cone_deg > 0.0 and not anti_air:
+		parts.append("%d° Cone" % int(cone_deg))
 	return "  ·  ".join(parts)
 
 

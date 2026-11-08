@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_skyward_battery"
+display_name = "Skyward Battery"
+description = "Three small barrels for flocks and one heavy one it swaps to for the big fliers."
+role = "any fliers"
+weakness = "costly"
+cost_scrap = 130
+max_hp = 190.0
+range = 62.0
+fire_interval = 0.1
+damage = 5.0
+heavy_mult = 0.6
+pitch_limit_deg = 30.0
+turn_speed = 60.0
+spread_deg = 1.5
+hit_chance = 0.8
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+anti_air = true
+ground_mult = 0.4
+sound = &"repeater"
+universal = true
+job = "Hybrid"
+crop_splash = 2.0
+heavy_damage = 55.0
+heavy_interval = 1.4

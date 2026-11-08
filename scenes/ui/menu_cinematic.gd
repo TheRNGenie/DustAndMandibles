@@ -17,8 +17,8 @@ const SKY_SHADER: Shader = preload("res://shaders/sky.gdshader")
 const STAGE_TURRETS: Array = [
 	[],
 	[[&"gatling_post", 6], [&"buffalo_rifle", 10], [&"gatling_post", 14]],
-	[[&"gatling_post", 2], [&"buffalo_rifle", 4], [&"chili_mortar", 6], [&"water_cannon", 8], [&"gatling_post", 10],
-		[&"dynamite_lobber", 12], [&"buffalo_rifle", 14], [&"lasso_harpoon", 16], [&"gatling_post", 18]],
+	[[&"gatling_post", 2], [&"buffalo_rifle", 4], [&"cf_harvest_mortar", 6], [&"cf_storm_blower", 8], [&"gatling_post", 10],
+		[&"cf_crop_cannon", 12], [&"buffalo_rifle", 14], [&"cf_snare_launcher", 16], [&"gatling_post", 18]],
 ]
 const FORT_EXTRAS: Array = [[&"duck_gun", Vector2i(3, 3)], [&"sky_sweeper", Vector2i(3, 17)], [&"sharpshooter_tower", Vector2i(5, 1)],
 	[&"scattergun_post", Vector2i(5, 19)]]

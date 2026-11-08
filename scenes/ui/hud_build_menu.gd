@@ -104,7 +104,10 @@ func _ready() -> void:
 		kb.add_theme_font_override("font", UiStyle.font("label"))
 		kb.add_theme_font_size_override("font_size", UiStyle.ts(15))
 		kb.tooltip_text = ["Every build in this tab.", "Turrets that always fire, and builds that need no crop.",
-			"Turrets that need one load of their crop each wave (harvest it, then E on the turret)."][k]
+			"Turrets that take a sack of any crop each wave (Q on one picks the crop).",
+			"Air defense: guns that shoot fliers first. They go on the cliff edge, always at the top of a 3-high stack (the scaffold goes up free)."][k]
+		if k == Defs.KIND_AIR:
+			kb.add_theme_color_override("font_color", UiStyle.AIR_COLOR)
 		if k == Defs.KIND_CROP_FED:
 			kb.icon = UiStyle.painted_icon(&"corn")
 			kb.expand_icon = true
@@ -255,9 +258,17 @@ func refresh() -> void:
 	for c in _tabs.size():
 		_style_tab(_tabs[c], c == build_mode.category)
 	# The selector: the open tab's count of each kind; a kind with none here is greyed.
+	# Cliff Turrets splits into three subsections (Logan): Standard, Crop-Fed and
+	# Air Defense, no "All"; the other tabs keep All / Standard / Crop-Fed.
+	var cliff_tab := str(Defs.build_tabs()[build_mode.category]["name"]) == "Cliff Turrets"
+	if cliff_tab and build_mode.kind == Defs.KIND_ALL:
+		build_mode.kind = Defs.KIND_STANDARD
+	elif not cliff_tab and build_mode.kind == Defs.KIND_AIR:
+		build_mode.kind = Defs.KIND_ALL
 	for k in _kinds.size():
 		var n := build_mode.category_items_of(build_mode.category, k).size()
 		_kinds[k].text = "%s  %d" % [Defs.KIND_NAMES[k], n]
+		_kinds[k].visible = (k != Defs.KIND_ALL) if cliff_tab else (k != Defs.KIND_AIR)
 		_style_kind(_kinds[k], k == build_mode.kind, n == 0 and k != Defs.KIND_ALL)
 	for n in _grid.get_children():
 		_grid.remove_child(n)
@@ -371,7 +382,7 @@ func _tile(i: int, id: StringName, payer: int) -> Button:
 	price_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(price_row)
 	if Defs.TURRETS.has(id) and Defs.turret(id).is_crop_fed() and not locked:
-		price_row.add_child(UiStyle.crop_chip(Defs.turret(id).crop_def()))
+		price_row.add_child(UiStyle.any_crop_chip() if Defs.turret(id).universal else UiStyle.crop_chip(Defs.turret(id).crop_def()))
 	if locked:
 		price_row.add_child(UiStyle.mark("lock", UiStyle.c("warn"), 13))
 		var wave := UiStyle.label("Wave %d" % Defs.unlock_wave(id), 14, UiStyle.c("warn"))
@@ -456,6 +467,8 @@ func _show_detail(id: StringName, payer: int) -> void:
 	if Defs.TURRETS.has(id): # Tiers: which tier, and when it opens
 		var d := Defs.turret(id)
 		_detail_where.text = "%s Tier%s.  %s" % [d.era_name(), "" if d.tier == 0 else " (from Wave %d)" % d.unlock_wave(), _detail_where.text]
+		if d.anti_air:
+			_detail_where.text = "Air Defense: shoots fliers first. Sits on top of a 3-high stack on the cliff edge (the scaffold goes up free).  " + _detail_where.text
 
 
 ## One of the detail card's numbers as a small chip ("Range 98 m").

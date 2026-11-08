@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_crop_mine"
+display_name = "Crop Mine"
+description = "A pressure mine packed with crop. The first bug to step on it goes up with everything near it. One use."
+role = "a crowd at one spot"
+weakness = "one use"
+cost_scrap = 30
+max_hp = 60.0
+range = 6.0
+fire_interval = 1.0
+damage = 140.0
+armor_pierce = true
+pitch_limit_deg = 90.0
+turn_speed = 0.0
+spread_deg = 1.5
+hit_chance = 0.9
+effect = 3
+flight_time = 0.0
+effect_size = 3.5
+guards_plateau = true
+sound = &"dynamite"
+special_radius = 1.2
+universal = true
+job = "H"
+crop_splash = 3.5
+obstruction = true

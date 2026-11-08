@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_hawk_eye"
+display_name = "Hawk Eye"
+description = "A scoped rifle on a counterweighted cradle that picks the biggest flier out of the sky."
+role = "big and armoured fliers"
+weakness = "flocks"
+cost_scrap = 95
+max_hp = 150.0
+range = 70.0
+fire_interval = 1.5
+damage = 60.0
+armor_pierce = true
+heavy_mult = 1.4
+pitch_limit_deg = 30.0
+turn_speed = 35.0
+spread_deg = 1.5
+hit_chance = 0.95
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+anti_air = true
+ground_mult = 0.4
+sound = &"sharpshooter"
+universal = true
+job = "ST"
+crop_splash = 1.5

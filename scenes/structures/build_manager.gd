@@ -321,7 +321,7 @@ func _spawn_built(data: Variant) -> Node:
 	var pos := Buildable.footprint_center(cliffs, cid, id, cell) if cell.x >= 0 else Homestead.of(cid).mount_global(cell.y)
 	var node: Node3D
 	if Defs.is_turret(id):
-		var t: Turret = CrewedTurret.new() if Defs.is_crewed(id) else (AmberTurret.new() if AmberRules.is_amber(id) else Turret.new()) # Crewed; hive amber turrets
+		var t: Turret = TurretFactory.make(id) # crewed, hive amber, universal crop-fed or plain (scenes/turrets/turret_factory.gd)
 		t.setup(Defs.turret(id), cid, cell, pos + Vector3.UP * ScaffoldNode.turret_height(level), str(d["owner"]), level)
 		Perks.apply_turret(t, int(d.get("peer", 0))) # Perk: Long Sights / Well Oiled / Reinforced Frames
 		node = t

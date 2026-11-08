@@ -549,6 +549,15 @@ func _explode(center: Vector3, radius: float) -> void:
 		vfx.pop(center, Palette.ROCK_C, radius * 0.5)
 
 
+## Every peer: a crop-coloured blast (Sulfur Root's volatile deaths, the Crop Mine).
+@rpc("authority", "call_local", "unreliable")
+func crop_burst(center: Vector3, radius: float, color: Color) -> void:
+	Audio.play_at(&"dynamite", center, -5.0, randf_range(1.1, 1.3))
+	if vfx != null:
+		vfx.pop(center, color, radius * 0.8)
+		vfx.pop(center, color.darkened(0.4), radius * 0.45)
+
+
 @rpc("authority", "call_local", "reliable")
 func _draw_fire(center: Vector3, radius: float, seconds: float) -> void:
 	if vfx != null:

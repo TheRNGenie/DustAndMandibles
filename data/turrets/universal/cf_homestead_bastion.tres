@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_homestead_bastion"
+display_name = "Homestead Bastion"
+description = "An armoured box on the house wall with a drum and an auto-loader: steady shots with a small splash."
+role = "holding the yard"
+weakness = "nothing special"
+cost_scrap = 90
+max_hp = 260.0
+range = 30.0
+fire_interval = 0.9
+damage = 28.0
+pitch_limit_deg = 80.0
+turn_speed = 40.0
+spread_deg = 1.5
+hit_chance = 0.95
+effect = 3
+flight_time = 0.0
+effect_size = 1.5
+guards_plateau = true
+guards_house = true
+sound = &"buffalo"
+universal = true
+job = "Hybrid"
+crop_splash = 2.0

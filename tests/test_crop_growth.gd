@@ -95,9 +95,8 @@ func test_corn_seeds_are_cheapest() -> void:
 
 
 func test_chili_feeds_the_mortar_and_sells_for_chitin() -> void:
-	assert_eq(Defs.turret(&"chili_mortar").crop_type, &"firecracker_chili")
-	assert_eq(Defs.turret(&"chili_mortar").load_item(), &"chili_load")
-	assert_true(Defs.turret(&"chili_mortar").ammo_cost.is_empty(), "no per-shot upkeep any more")
+	assert_eq(CropEffects.sack_of(&"firecracker_chili"), &"chili_load", "a chili sack loads any crop-fed turret with chili")
+	assert_true(Defs.turret(&"cf_harvest_mortar").ammo_cost.is_empty(), "no per-shot upkeep any more")
 	assert_eq(MarketPrices.currency(&"chili"), &"chitin")
 	assert_true(Defs.crop(&"firecracker_chili").water_cost > Defs.crop(&"corn").water_cost, "chili is thirsty")
 

@@ -43,34 +43,15 @@ const TURRETS: Dictionary = {
 	&"duck_gun": preload("res://data/turrets/duck_gun.tres"),
 	&"sky_sweeper": preload("res://data/turrets/sky_sweeper.tres"),
 	&"powder_flak": preload("res://data/turrets/powder_flak.tres"),
-	&"net_thrower": preload("res://data/turrets/net_thrower.tres"),
-	&"firework_battery": preload("res://data/turrets/firework_battery.tres"),
 	&"gatling_post": preload("res://data/turrets/gatling_post.tres"),
 	&"buffalo_rifle": preload("res://data/turrets/buffalo_rifle.tres"),
-	&"water_cannon": preload("res://data/turrets/water_cannon.tres"),
-	&"chili_mortar": preload("res://data/turrets/chili_mortar.tres"),
-	&"dynamite_lobber": preload("res://data/turrets/dynamite_lobber.tres"),
-	&"lasso_harpoon": preload("res://data/turrets/lasso_harpoon.tres"),
 	&"scattergun_post": preload("res://data/turrets/scattergun_post.tres"),
 	&"sharpshooter_tower": preload("res://data/turrets/sharpshooter_tower.tres"),
 	&"porch_repeater": preload("res://data/turrets/porch_repeater.tres"),
 	&"rooftop_cannon": preload("res://data/turrets/rooftop_cannon.tres"),
 	# Tiers: Mid and Late turrets (TurretDef.tier, unlocked at TurretDef.UNLOCK_WAVES).
 	&"twin_gatling": preload("res://data/turrets/twin_gatling.tres"),
-	&"hornets_nest": preload("res://data/turrets/hornets_nest.tres"),
-	&"elephant_battery": preload("res://data/turrets/elephant_battery.tres"),
-	&"rail_spike_driver": preload("res://data/turrets/rail_spike_driver.tres"),
 	&"gatling_porch": preload("res://data/turrets/gatling_porch.tres"),
-	# Crewed: 2 x 2 guns you sit in and fire yourself (CrewedTurret).
-	&"big_bertha": preload("res://data/turrets/big_bertha.tres"),
-	&"whaler": preload("res://data/turrets/whaler.tres"),
-	&"thunder_mule": preload("res://data/turrets/thunder_mule.tres"),
-	&"sky_hound": preload("res://data/turrets/sky_hound.tres"),
-	# Control / area / pin additions (special shots in TurretEffects).
-	&"steam_cannon": preload("res://data/turrets/steam_cannon.tres"),
-	&"flood_gate": preload("res://data/turrets/flood_gate.tres"),
-	&"twin_mortar": preload("res://data/turrets/twin_mortar.tres"),
-	&"bola_launcher": preload("res://data/turrets/bola_launcher.tres"),
 	# Turret ammo (farming redesign): self-powered lines.
 	&"repeater_post": preload("res://data/turrets/repeater_post.tres"),
 	&"brass_gatling": preload("res://data/turrets/brass_gatling.tres"),
@@ -79,22 +60,64 @@ const TURRETS: Dictionary = {
 	&"grapeshot_turret": preload("res://data/turrets/grapeshot_turret.tres"),
 	&"skeet_post": preload("res://data/turrets/skeet_post.tres"),
 	&"flak_porch": preload("res://data/turrets/flak_porch.tres"),
-	# Turret ammo: crop-fed lines (TurretDef.crop_type).
-	&"corn_hopper": preload("res://data/turrets/corn_hopper.tres"),
-	&"twin_hopper": preload("res://data/turrets/twin_hopper.tres"),
-	&"pepper_sprayer": preload("res://data/turrets/pepper_sprayer.tres"),
-	&"sulfur_fume_vent": preload("res://data/turrets/sulfur_fume_vent.tres"),
-	&"herb_rifle": preload("res://data/turrets/herb_rifle.tres"),
-	&"tripwire_fence": preload("res://data/turrets/tripwire_fence.tres"),
-	&"bramble_bomb": preload("res://data/turrets/bramble_bomb.tres"),
-	&"dust_devil_trap": preload("res://data/turrets/dust_devil_trap.tres"),
-	&"siege_mortar": preload("res://data/turrets/siege_mortar.tres"),
-	# Lines keep their kind: the Mid cliff rifle and the Late sulfur and cotton
-	# cliff guns that close the Buffalo, Dynamite and Lasso lines.
+	# Lines keep their kind: the Mid cliff rifle that closes the Buffalo line.
 	&"big_fifty": preload("res://data/turrets/big_fifty.tres"),
-	&"brimstone_bellows": preload("res://data/turrets/brimstone_bellows.tres"),
-	&"cotton_bale_cannon": preload("res://data/turrets/cotton_bale_cannon.tres"),
+	# Universal crop-fed turrets (Nov 2026 handoff): any of the nine crop sacks,
+	# the crop sets the effect (CropEffects, UniversalTurret). Cliff, air defense,
+	# last resorts (house mounts), obstructions (one use) and crewed.
+	&"cf_crop_hopper": preload("res://data/turrets/universal/cf_crop_hopper.tres"),
+	&"cf_harvest_mortar": preload("res://data/turrets/universal/cf_harvest_mortar.tres"),
+	&"cf_crop_flak_post": preload("res://data/turrets/universal/cf_crop_flak_post.tres"),
+	&"cf_thresher_post": preload("res://data/turrets/universal/cf_thresher_post.tres"),
+	&"cf_homestead_rifle": preload("res://data/turrets/universal/cf_homestead_rifle.tres"),
+	&"cf_rail_driver": preload("res://data/turrets/universal/cf_rail_driver.tres"),
+	&"cf_crop_cannon": preload("res://data/turrets/universal/cf_crop_cannon.tres"),
+	&"cf_storm_blower": preload("res://data/turrets/universal/cf_storm_blower.tres"),
+	&"cf_snare_launcher": preload("res://data/turrets/universal/cf_snare_launcher.tres"),
+	&"cf_frontier_sentinel": preload("res://data/turrets/universal/cf_frontier_sentinel.tres"),
+	&"cf_sky_hopper": preload("res://data/turrets/universal/cf_sky_hopper.tres"),
+	&"cf_cloud_popper": preload("res://data/turrets/universal/cf_cloud_popper.tres"),
+	&"cf_hawk_eye": preload("res://data/turrets/universal/cf_hawk_eye.tres"),
+	&"cf_flyswatter": preload("res://data/turrets/universal/cf_flyswatter.tres"),
+	&"cf_skyward_battery": preload("res://data/turrets/universal/cf_skyward_battery.tres"),
+	&"cf_crop_blaster": preload("res://data/turrets/universal/cf_crop_blaster.tres"),
+	&"cf_feed_porch_gun": preload("res://data/turrets/universal/cf_feed_porch_gun.tres"),
+	&"cf_roof_perch": preload("res://data/turrets/universal/cf_roof_perch.tres"),
+	&"cf_porch_fog": preload("res://data/turrets/universal/cf_porch_fog.tres"),
+	&"cf_homestead_bastion": preload("res://data/turrets/universal/cf_homestead_bastion.tres"),
+	&"cf_crop_mine": preload("res://data/turrets/universal/cf_crop_mine.tres"),
+	&"cf_stake_pit": preload("res://data/turrets/universal/cf_stake_pit.tres"),
+	&"cf_tangle_line": preload("res://data/turrets/universal/cf_tangle_line.tres"),
+	&"cf_crop_palisade": preload("res://data/turrets/universal/cf_crop_palisade.tres"),
+	&"cf_scatter_patch": preload("res://data/turrets/universal/cf_scatter_patch.tres"),
+	&"cf_iron_mule": preload("res://data/turrets/universal/cf_iron_mule.tres"),
+	&"cf_crop_howitzer": preload("res://data/turrets/universal/cf_crop_howitzer.tres"),
+	&"cf_sky_hound": preload("res://data/turrets/universal/cf_sky_hound.tres"),
+	&"cf_vortex_engine": preload("res://data/turrets/universal/cf_vortex_engine.tres"),
+	&"cf_thunder_mule": preload("res://data/turrets/universal/cf_thunder_mule.tres"),
 }
+
+## Universal crop-fed turrets, by kind (the build menu, the gallery, the tests).
+const UNIVERSAL_CLIFF: Array[StringName] = [&"cf_crop_hopper", &"cf_harvest_mortar", &"cf_crop_flak_post", &"cf_thresher_post", &"cf_homestead_rifle", &"cf_rail_driver", &"cf_crop_cannon", &"cf_storm_blower", &"cf_snare_launcher", &"cf_frontier_sentinel"]
+const UNIVERSAL_AA: Array[StringName] = [&"cf_sky_hopper", &"cf_cloud_popper", &"cf_hawk_eye", &"cf_flyswatter", &"cf_skyward_battery"]
+const UNIVERSAL_LAST: Array[StringName] = [&"cf_crop_blaster", &"cf_feed_porch_gun", &"cf_roof_perch", &"cf_porch_fog", &"cf_homestead_bastion"]
+const UNIVERSAL_OBSTRUCTIONS: Array[StringName] = [&"cf_crop_mine", &"cf_stake_pit", &"cf_tangle_line", &"cf_crop_palisade", &"cf_scatter_patch"]
+const UNIVERSAL_CREWED: Array[StringName] = [&"cf_iron_mule", &"cf_crop_howitzer", &"cf_sky_hound", &"cf_vortex_engine", &"cf_thunder_mule"]
+
+## The crop-specific turrets the universal ones replace (the handoff), plus Big
+## Bertha (Logan): archived (Logan, 2026-11-08: "they don't need to be directly in
+## the game but don't delete them"). Not registered any more; their data and
+## models are in D:/DustAndMandibles-archive/retired/turrets. Listed here so the
+## CPU partner skips them and the tests can check they stay out.
+const RETIRED_TURRETS: Array[StringName] = [&"corn_hopper", &"twin_hopper", &"hornets_nest", &"chili_mortar",
+	&"pepper_sprayer", &"twin_mortar", &"dynamite_lobber", &"sulfur_fume_vent", &"brimstone_bellows", &"water_cannon",
+	&"steam_cannon", &"flood_gate", &"lasso_harpoon", &"bola_launcher", &"cotton_bale_cannon", &"herb_rifle",
+	&"elephant_battery", &"rail_spike_driver", &"tripwire_fence", &"bramble_bomb", &"dust_devil_trap", &"siege_mortar",
+	&"net_thrower", &"firework_battery", &"big_bertha", &"whaler", &"thunder_mule", &"sky_hound"] # (Big Bertha cut for now too: Logan)
+
+
+static func is_universal(id: StringName) -> bool:
+	return TURRETS.has(id) and (TURRETS[id] as TurretDef).universal
 
 ## Hive amber turrets (AmberRules): crafted at the Workshop from amber and rare
 ## parts once their blueprint is known, placed from the Crafted tab like any
@@ -171,6 +194,17 @@ const WEAPONS: Dictionary = {
 	&"bola_launcher": preload("res://data/weapons/bola_launcher.tres"),
 	&"powder_keg_launcher": preload("res://data/weapons/powder_keg_launcher.tres"),
 	&"crop_blunderbuss": preload("res://data/weapons/crop_blunderbuss.tres"),
+	# Special weapons (slot 2; SpecialRules, Nov 2026 special weapons handoff):
+	&"crop_duster": preload("res://data/weapons/special/crop_duster.tres"),
+	&"barb_sling": preload("res://data/weapons/special/barb_sling.tres"),
+	&"signal_flare": preload("res://data/weapons/special/signal_flare.tres"),
+	&"crop_syringe": preload("res://data/weapons/special/crop_syringe.tres"),
+	&"smoke_bellows": preload("res://data/weapons/special/smoke_bellows.tres"),
+	&"bramble_pistol": preload("res://data/weapons/special/bramble_pistol.tres"),
+	&"spore_launcher": preload("res://data/weapons/special/spore_launcher.tres"),
+	&"venom_needle": preload("res://data/weapons/special/venom_needle.tres"),
+	&"trip_wire_gun": preload("res://data/weapons/special/trip_wire_gun.tres"),
+	&"spark_pistol": preload("res://data/weapons/special/spark_pistol.tres"),
 }
 
 ## Retired for now (Logan, 2026-11-08): still registered so the code and saves
@@ -187,28 +221,14 @@ static func is_retired(id: StringName) -> bool:
 const REGISTRIES: Dictionary = {"bugs": BUGS, "turrets": TURRETS, "structures": STRUCTURES, "crops": CROPS, "weapons": WEAPONS}
 
 ## Build menu order: number keys 1-9 and 0, mouse wheel cycles through all.
-const BUILD_ORDER: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"water_cannon",
-	&"chili_mortar", &"dynamite_lobber", &"lasso_harpoon", &"scaffold", &"scattergun_post", &"sharpshooter_tower", &"barbed_wire", &"bear_trap",
+const BUILD_ORDER: Array[StringName] = [&"gatling_post", &"buffalo_rifle",
+	&"scaffold", &"scattergun_post", &"sharpshooter_tower", &"barbed_wire", &"bear_trap",
 	&"dynamite_crate", &"palisade", &"lantern_post", &"rain_catcher", &"farm_plot", &"porch_repeater", &"rooftop_cannon",
-	&"duck_gun", &"sky_sweeper", &"net_thrower", &"powder_flak", &"firework_battery",
-	&"steam_cannon", &"bola_launcher", &"twin_mortar", &"flood_gate",
-	&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound", # Crewed
-	&"twin_gatling", &"hornets_nest", &"elephant_battery", &"rail_spike_driver", &"gatling_porch", # Tiers
-	# Special weapons (slot 2; SpecialRules, Nov 2026 special weapons handoff):
-	&"crop_duster": preload("res://data/weapons/special/crop_duster.tres"),
-	&"barb_sling": preload("res://data/weapons/special/barb_sling.tres"),
-	&"signal_flare": preload("res://data/weapons/special/signal_flare.tres"),
-	&"crop_syringe": preload("res://data/weapons/special/crop_syringe.tres"),
-	&"smoke_bellows": preload("res://data/weapons/special/smoke_bellows.tres"),
-	&"bramble_pistol": preload("res://data/weapons/special/bramble_pistol.tres"),
-	&"spore_launcher": preload("res://data/weapons/special/spore_launcher.tres"),
-	&"venom_needle": preload("res://data/weapons/special/venom_needle.tres"),
-	&"trip_wire_gun": preload("res://data/weapons/special/trip_wire_gun.tres"),
-	&"spark_pistol": preload("res://data/weapons/special/spark_pistol.tres"),
+	&"duck_gun", &"sky_sweeper", &"powder_flak",
+	&"twin_gatling", &"gatling_porch", # Tiers
 	&"repeater_post", &"brass_gatling", &"long_tom_rifle", &"buck_blaster", &"grapeshot_turret", &"skeet_post", &"flak_porch", # Turret ammo: self-powered
-	&"corn_hopper", &"twin_hopper", &"pepper_sprayer", &"sulfur_fume_vent", &"herb_rifle", &"tripwire_fence",
-	&"bramble_bomb", &"dust_devil_trap", &"siege_mortar", # Turret ammo: crop-fed
-	&"big_fifty", &"brimstone_bellows", &"cotton_bale_cannon"] # Lines keep their kind
+	&"big_fifty", # Lines keep their kind
+	&"cf_crop_hopper", &"cf_harvest_mortar", &"cf_crop_flak_post", &"cf_thresher_post", &"cf_homestead_rifle", &"cf_rail_driver", &"cf_crop_cannon", &"cf_storm_blower", &"cf_snare_launcher", &"cf_frontier_sentinel", &"cf_sky_hopper", &"cf_cloud_popper", &"cf_hawk_eye", &"cf_flyswatter", &"cf_skyward_battery", &"cf_crop_blaster", &"cf_feed_porch_gun", &"cf_roof_perch", &"cf_porch_fog", &"cf_homestead_bastion", &"cf_crop_mine", &"cf_stake_pit", &"cf_tangle_line", &"cf_crop_palisade", &"cf_scatter_patch", &"cf_iron_mule", &"cf_crop_howitzer", &"cf_sky_hound", &"cf_vortex_engine", &"cf_thunder_mule"] # Universal crop-fed (the retired crop-specific turrets are off the menu)
 
 ## Build menu (B) categories, in tab order.
 const BUILD_CATEGORIES: Array[Dictionary] = [
@@ -217,14 +237,17 @@ const BUILD_CATEGORIES: Array[Dictionary] = [
 	# ones need a load of their crop each wave. Tabs show sorted by tier.
 	{"name": "Cliff Turrets", "items": [&"gatling_post", &"buffalo_rifle", &"scaffold",
 		&"repeater_post", &"twin_gatling", &"big_fifty", &"brass_gatling", &"long_tom_rifle"]},
-	{"name": "Crewed Guns", "items": [&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound"]}, # Crewed (sarsaparilla loads)
-	{"name": "Crop-Fed", "items": [&"corn_hopper", &"herb_rifle", &"chili_mortar", &"dynamite_lobber", &"water_cannon", &"lasso_harpoon",
-		&"twin_hopper", &"pepper_sprayer", &"sulfur_fume_vent", &"steam_cannon", &"bola_launcher", &"elephant_battery",
-		&"hornets_nest", &"twin_mortar", &"flood_gate", &"rail_spike_driver", &"siege_mortar", &"brimstone_bellows", &"cotton_bale_cannon"]},
-	{"name": "Tactical", "items": [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post"]},
-	{"name": "Air Defense", "items": [&"duck_gun", &"sky_sweeper", &"skeet_post", &"powder_flak", &"flak_porch", &"net_thrower", &"firework_battery"]},
-	{"name": "Last Resorts", "items": [&"scattergun_post", &"porch_repeater", &"tripwire_fence", &"buck_blaster", &"sharpshooter_tower", &"rooftop_cannon",
-		&"bramble_bomb", &"grapeshot_turret", &"gatling_porch", &"dust_devil_trap"]},
+	{"name": "Crewed Guns", "items": [&"cf_iron_mule", &"cf_crop_howitzer", &"cf_sky_hound", &"cf_vortex_engine", &"cf_thunder_mule"]}, # Crewed: universal crop-fed
+	# Universal crop-fed cliff turrets (any crop). Merged into the Cliff Turrets tab
+	# (MENU_MERGE); kept apart so the CPU partner, which can't pick crops, builds
+	# from the standard list.
+	{"name": "Crop-Fed", "items": [&"cf_crop_hopper", &"cf_harvest_mortar", &"cf_crop_flak_post", &"cf_thresher_post", &"cf_homestead_rifle", &"cf_rail_driver", &"cf_crop_cannon", &"cf_storm_blower", &"cf_snare_launcher", &"cf_frontier_sentinel"]},
+	{"name": "Tactical", "items": [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post",
+		&"cf_crop_mine", &"cf_stake_pit", &"cf_tangle_line", &"cf_crop_palisade", &"cf_scatter_patch"]},
+	{"name": "Air Defense", "items": [&"duck_gun", &"sky_sweeper", &"skeet_post", &"powder_flak", &"flak_porch",
+		&"cf_sky_hopper", &"cf_cloud_popper", &"cf_hawk_eye", &"cf_flyswatter", &"cf_skyward_battery"]},
+	{"name": "Last Resorts", "items": [&"scattergun_post", &"porch_repeater", &"buck_blaster", &"sharpshooter_tower", &"rooftop_cannon",
+		&"grapeshot_turret", &"gatling_porch", &"cf_crop_blaster", &"cf_feed_porch_gun", &"cf_roof_perch", &"cf_porch_fog", &"cf_homestead_bastion"]},
 	# Crafted: filled at runtime with the crafted turret items your cliff holds (BuildMode.category_items).
 	{"name": "Crafted", "items": []},
 ]
@@ -233,7 +256,7 @@ const BUILD_CATEGORIES: Array[Dictionary] = [
 ## Crop-Fed turrets sit in the Cliff Turrets tab with the self-powered ones; the
 ## menu's Standard / Crop-Fed selector sorts the two kinds in every tab. (The
 ## categories themselves stay as they are: the CPU builds from "Cliff Turrets".)
-const MENU_MERGE: Dictionary = {"Crop-Fed": "Cliff Turrets"}
+const MENU_MERGE: Dictionary = {"Crop-Fed": "Cliff Turrets", "Air Defense": "Cliff Turrets"} # air guns sit with the cliff guns (Logan, Nov 2026)
 static var _tabs: Array[Dictionary] = []
 
 
@@ -255,17 +278,25 @@ static func build_tabs() -> Array[Dictionary]:
 const KIND_ALL := 0
 const KIND_STANDARD := 1
 const KIND_CROP_FED := 2
-const KIND_NAMES: Array[String] = ["All", "Standard", "Crop-Fed"]
+## Air guns share the Cliff Turrets tab (Logan, Nov 2026): their own filter too.
+const KIND_AIR := 3
+const KIND_NAMES: Array[String] = ["All", "Standard", "Crop-Fed", "Air Defense"]
 
 
 static func is_crop_fed(id: StringName) -> bool:
-	return is_turret(id) and turret(id).crop_type != &""
+	return is_turret(id) and turret(id).is_crop_fed() # (universal ones too)
+
+
+static func _is_air(id: StringName) -> bool:
+	return is_turret(id) and turret(id).anti_air
 
 
 static func of_kind(id: StringName, kind: int) -> bool:
 	match kind:
-		KIND_STANDARD: return not is_crop_fed(id)
-		KIND_CROP_FED: return is_crop_fed(id)
+		# Air guns are their own subsection (Logan): not in Standard or Crop-Fed.
+		KIND_STANDARD: return not is_crop_fed(id) and not _is_air(id)
+		KIND_CROP_FED: return is_crop_fed(id) and not _is_air(id)
+		KIND_AIR: return _is_air(id)
 	return true
 
 
@@ -432,14 +463,6 @@ const TIER_UP: Dictionary = {
 	&"porch_repeater": &"rooftop_cannon", &"rooftop_cannon": &"gatling_porch",
 	&"duck_gun": &"skeet_post", &"skeet_post": &"flak_porch",
 	&"sky_sweeper": &"powder_flak", &"twin_gatling": &"brass_gatling",
-	# Crop-fed.
-	&"corn_hopper": &"twin_hopper", &"twin_hopper": &"hornets_nest",
-	&"chili_mortar": &"pepper_sprayer", &"pepper_sprayer": &"twin_mortar",
-	&"dynamite_lobber": &"sulfur_fume_vent", &"sulfur_fume_vent": &"brimstone_bellows",
-	&"water_cannon": &"steam_cannon", &"steam_cannon": &"flood_gate",
-	&"lasso_harpoon": &"bola_launcher", &"bola_launcher": &"cotton_bale_cannon",
-	&"herb_rifle": &"elephant_battery", &"elephant_battery": &"rail_spike_driver",
-	&"tripwire_fence": &"bramble_bomb", &"bramble_bomb": &"dust_devil_trap",
 }
 ## Stepping up costs this share of building the higher tier outright.
 const TIER_UP_RATE := 0.85

@@ -23,6 +23,9 @@ static func apply(t: Turret, target: Bug, aim: Vector3, damage: float) -> void:
 	if t is AmberTurret: # Hive amber: the Amber Kiln's molten lob (the bell and lance never come here)
 		(t as AmberTurret).amber_shot(target, aim, damage)
 		return
+	if t is UniversalTurret: # Universal crop-fed turrets: the crop's effect on every hit
+		(t as UniversalTurret).universal_hit(target, aim, damage)
+		return
 	match t.def.special:
 		&"steam":
 			_steam(t, target, aim, source)

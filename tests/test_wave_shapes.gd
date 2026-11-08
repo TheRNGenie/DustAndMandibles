@@ -117,13 +117,13 @@ func test_boss_wave_brings_brutes_and_boss() -> void:
 
 func test_kill_methods() -> void:
 	assert_eq(KillMethod.classify("Logan's Gatling Post"), KillMethod.BULLET)
-	assert_eq(KillMethod.classify("Logan's Chili Mortar"), KillMethod.FIRE)
-	assert_eq(KillMethod.classify("Sam's Dynamite Lobber"), KillMethod.BLAST)
+	assert_eq(KillMethod.classify("Logan's Fire Lance"), KillMethod.FIRE)
+	assert_eq(KillMethod.classify("Sam's Harvest Mortar"), KillMethod.BLAST)
 	assert_eq(KillMethod.classify("Sam's dynamite crate"), KillMethod.BLAST)
 	assert_eq(KillMethod.classify("Sam's bear trap"), KillMethod.TRAP)
 	assert_eq(KillMethod.classify("Logan"), KillMethod.BULLET) # a player's gun
 	assert_eq(KillMethod.classify("Lightning"), KillMethod.OTHER)
-	assert_eq(KillMethod.classify("Logan's Water Cannon"), KillMethod.OTHER)
+	assert_eq(KillMethod.classify("Logan's Storm Blower"), KillMethod.OTHER)
 
 
 func test_variant_defs() -> void:

@@ -357,7 +357,7 @@ func _shot_lineup() -> void:
 ## Turret line-up: every turret in a row on the west plateau, tier 2 so stars show.
 func _shot_turrets() -> void:
 	_set_time(10.5)
-	var ids: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"water_cannon", &"chili_mortar", &"dynamite_lobber", &"lasso_harpoon"]
+	var ids: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"cf_storm_blower", &"cf_harvest_mortar", &"cf_crop_cannon", &"cf_snare_launcher"]
 	if GameState.flag_value("--lineup") != "":
 		ids.clear()
 		for x in GameState.flag_value("--lineup").split(","):

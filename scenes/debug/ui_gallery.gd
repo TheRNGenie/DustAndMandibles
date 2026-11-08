@@ -487,7 +487,7 @@ func _world_tour(world: Node) -> void:
 		await _wait(0.5)
 	# Tabs: 0 Farming, 1 Cliff Turrets (both kinds), 4 Air Defense; then the
 	# Cliff Turrets tab sorted to Standard and to Crop-Fed (Defs.build_tabs()).
-	for pick: Array in [["build_menu_c1", 1, 0], ["build_menu_c0", 0, 0], ["build_menu_c4", 4, 0], ["build_menu_std", 1, 1], ["build_menu_crop", 1, 2]]:
+	for pick: Array in [["build_menu_c1", 1, 0], ["build_menu_c0", 0, 0], ["build_menu_c4", 4, 0], ["build_menu_std", 1, 1], ["build_menu_crop", 1, 2], ["build_menu_air", 1, 3]]:
 		await _step(str(pick[0]), func() -> void:
 			player.build_mode.toggle()
 			player.build_mode.set_kind(int(pick[2]))
@@ -508,6 +508,9 @@ func _world_tour(world: Node) -> void:
 		await _armory_shots(player)
 	if Array(_only).any(func(o: String) -> bool: return o.begins_with("armfx_")):
 		await _armory_fx_shots(world, hud, player)
+	# Universal crop-fed turrets, live (scenes/debug/universal_views.gd).
+	if Array(_only).any(func(o: String) -> bool: return o.begins_with("uni_")):
+		await UniversalViews.new().run(self, world, hud, player)
 	# The land beyond the play area, as the player sees it (no HUD): land_<view>.
 	if _only.is_empty() or Array(_only).any(func(o: String) -> bool: return o.begins_with("land_")):
 		await _land_shots(world, hud)

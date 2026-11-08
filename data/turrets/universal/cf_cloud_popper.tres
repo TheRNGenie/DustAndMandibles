@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_cloud_popper"
+display_name = "Cloud Popper"
+description = "A steep mortar with a fuse dial: its shells burst in the air among the fliers."
+role = "packs of fliers"
+weakness = "slow to turn"
+cost_scrap = 95
+max_hp = 170.0
+range = 62.0
+fire_interval = 1.4
+damage = 26.0
+armor_pierce = true
+pitch_limit_deg = 30.0
+turn_speed = 45.0
+spread_deg = 1.5
+hit_chance = 0.95
+effect = 3
+flight_time = 0.55
+effect_size = 4.0
+anti_air = true
+ground_mult = 0.4
+sound = &"mortar"
+universal = true
+job = "H"
+crop_splash = 3.0
+heavy_gun = true

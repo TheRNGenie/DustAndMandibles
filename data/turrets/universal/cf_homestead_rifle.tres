@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="TurretDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/turret_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"cf_homestead_rifle"
+display_name = "Homestead Rifle"
+description = "A long bolt-action rifle on a pivot bracket, loaded at the breech with crop rounds. Picks off the big ones."
+role = "armoured and big bugs"
+weakness = "swarms; a narrow cone"
+cost_scrap = 90
+max_hp = 140.0
+range = 100.0
+fire_interval = 1.6
+damage = 85.0
+armor_pierce = true
+heavy_mult = 1.5
+pitch_limit_deg = 40.0
+turn_speed = 20.0
+spread_deg = 1.5
+hit_chance = 0.97
+effect = 0
+flight_time = 0.0
+effect_size = 0.0
+sound = &"buffalo"
+universal = true
+job = "ST"
+cone_deg = 15.0
+crop_splash = 1.5

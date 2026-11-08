@@ -112,7 +112,7 @@ func rebuild() -> void:
 		var muzzle := head.global_position if head != null else t.global_position + Vector3.UP * 1.5
 		if t.covers < 0 or t.covers >= arcs.size():
 			continue
-		arcs[t.covers].append([muzzle, t.pitch_limit(), t.def.range_at(t.tier, t.level), Targeting.wall_aim(cliffs, t.covers, muzzle)])
+		arcs[t.covers].append([muzzle, t.pitch_limit(), t.def.range_at(t.tier, t.level), Targeting.wall_aim(cliffs, t.covers, muzzle), t.def.aim_half_deg()])
 	for w in points.size():
 		var pts := points[w]
 		var cnt := counts[w]
