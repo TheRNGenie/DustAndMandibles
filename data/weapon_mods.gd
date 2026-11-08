@@ -155,62 +155,62 @@ const MODS: Dictionary = {
 		{"name": "Quick latch", "desc": "Reloads 30% faster.", "cost": 25, "fx": {"reload": 0.7}},
 		{"name": "Buckhorn sight", "desc": "Reaches a third further.", "cost": 20, "fx": {"range": 1.35}},
 	],
-	# ---------------------------------------------------------------- Weapon Slots: secondaries
-	&"screamer_pistol": [
-		{"name": "Bigger bell", "desc": "The shriek carries 40% further.", "cost": 20, "fx": {"radius": 1.4}},
-		{"name": "Banshee round", "desc": "They panic half again as long.", "cost": 25, "fx": {"effect": 1.5}},
-		{"name": "Spare round", "desc": "One more round in the gun.", "cost": 20, "fx": {"mag": 1}},
-	],
-	&"tar_sprayer": [
-		{"name": "Hot pitch", "desc": "Tar stays on 50% longer.", "cost": 20, "fx": {"effect": 1.5}},
-		{"name": "Wide nozzle", "desc": "Sprays 30% further.", "cost": 20, "fx": {"radius": 1.3}},
-		{"name": "Big can", "desc": "Forty more puffs before it runs dry.", "cost": 20, "fx": {"mag": 40}},
-	],
-	&"flashbang_pistol": [
-		{"name": "Pure magnesium", "desc": "Stuns half again as long.", "cost": 25, "fx": {"effect": 1.5}},
-		{"name": "Polished dish", "desc": "The flash reaches 40% further.", "cost": 25, "fx": {"radius": 1.4}},
-		{"name": "Third chamber", "desc": "One more shell in the gun.", "cost": 25, "fx": {"mag": 1}},
-	],
-	&"pepper_bomb_pistol": [
-		{"name": "Ghost peppers", "desc": "They rage half again as long.", "cost": 25, "fx": {"effect": 1.5}},
-		{"name": "Wide cloud", "desc": "The cloud spreads 40% further.", "cost": 25, "fx": {"radius": 1.4}},
-		{"name": "Quick break", "desc": "Reloads 30% faster.", "cost": 20, "fx": {"reload": 0.7}},
-	],
-	&"concussion_pistol": [
-		{"name": "Double charge", "desc": "Knocks bugs half again as far.", "cost": 25, "fx": {"effect": 1.5}},
-		{"name": "Wide brake", "desc": "The blast reaches 40% further.", "cost": 20, "fx": {"radius": 1.4}},
-		{"name": "Third chamber", "desc": "One more charge in the gun.", "cost": 20, "fx": {"mag": 1}},
-	],
-	&"chain_binder": [
-		{"name": "Longer chain", "desc": "Reaches half again as far.", "cost": 20, "fx": {"range": 1.5}},
-		{"name": "Barbed links", "desc": "Binds 50% longer.", "cost": 25, "fx": {"effect": 1.5}},
-		{"name": "Ratchet drum", "desc": "Rewinds 30% faster.", "cost": 25, "fx": {"reload": 0.7}},
-	],
-	&"rust_duster": [
-		{"name": "Battery acid", "desc": "Armour stays off 50% longer.", "cost": 25, "fx": {"effect": 1.5}},
-		{"name": "Long nozzle", "desc": "Sprays 30% further.", "cost": 20, "fx": {"radius": 1.3}},
-		{"name": "Bigger reservoir", "desc": "Twenty more puffs per fill.", "cost": 20, "fx": {"mag": 20}},
-	],
-	&"glow_worm_launcher": [
-		{"name": "Fat grubs", "desc": "Glow half again as long.", "cost": 20, "fx": {"effect": 1.5}},
-		{"name": "Bright strain", "desc": "Pulls bugs from 40% further.", "cost": 25, "fx": {"radius": 1.4}},
-		{"name": "Second jar", "desc": "One more grub in the tube.", "cost": 20, "fx": {"mag": 1}},
-	],
-	&"caltrops_launcher": [
-		{"name": "Rusty points", "desc": "Patches last half again as long and slow harder.", "cost": 25, "fx": {"effect": 1.5}},
-		{"name": "Wide canister", "desc": "Scatters 30% wider.", "cost": 20, "fx": {"radius": 1.3}},
-		{"name": "Third bag", "desc": "One more patch on the ground at once.", "cost": 25, "fx": {"patches": 1}},
-	],
-	&"phosphor_grenade": [
-		{"name": "Long burn", "desc": "Burns half again as long.", "cost": 25, "fx": {"effect": 1.5}},
-		{"name": "Big can", "desc": "The fire spreads 30% wider.", "cost": 25, "fx": {"radius": 1.3}},
-		{"name": "Hotter phosphor", "desc": "+40% burn damage.", "cost": 20, "fx": {"damage": 1.4}},
-	],
 	# ---------------------------------------------------------------- Weapon Slots: heavies
 	&"swivel_gun": [
 		{"name": "Grapeshot", "desc": "Ten more pellets in the charge.", "cost": 30, "fx": {"pellets": 10}},
 		{"name": "Choke", "desc": "A 30% tighter cone that carries further.", "cost": 25, "fx": {"spread": 0.7, "range": 1.3}},
 		{"name": "Powder horn", "desc": "Reloads 30% faster.", "cost": 30, "fx": {"reload": 0.7}},
+	],
+	# ---------------------------------------------------------------- Special weapons (slot 2; design doc numbers)
+	&"crop_duster": [
+		{"name": "Wider barrel", "desc": "+15 degrees of cone, 3 m less reach.", "cost": 10, "fx": {"spread": 1.43, "range": 0.7}},
+		{"name": "Bigger canister", "desc": "Six more puffs (18).", "cost": 10, "fx": {"mag": 6}},
+		{"name": "Finer grind", "desc": "+50% damage; the crop lasts a little longer.", "cost": 15, "fx": {"damage": 1.5, "linger": 1.25}},
+	],
+	&"barb_sling": [
+		{"name": "Extra barbs", "desc": "Two more barbs a throw (7), a wider spread.", "cost": 10, "fx": {"pellets": 2, "spread": 1.3}},
+		{"name": "Hardened tips", "desc": "+50% damage a barb.", "cost": 15, "fx": {"damage": 1.5}},
+		{"name": "Quick pouch", "desc": "Reloads 30% faster.", "cost": 10, "fx": {"reload": 0.7}},
+	],
+	&"signal_flare": [
+		{"name": "Magnesium core", "desc": "Burns 9 s instead of 6, and 30% hotter.", "cost": 15, "fx": {"burn_time": 1.5, "burn_dps": 1.3}},
+		{"name": "Quick breech", "desc": "Reloads 35% faster.", "cost": 15, "fx": {"reload": 0.65}},
+		{"name": "Tracer flare", "desc": "Half again the range.", "cost": 20, "fx": {"range": 1.5}},
+	],
+	&"crop_syringe": [
+		{"name": "Concentrated dose", "desc": "The bug carries the crop 8 s, at 1.5x strength.", "cost": 15, "fx": {"carrier": 1.6, "dose": 1.5}},
+		{"name": "Bigger reservoir", "desc": "Six needles a load.", "cost": 15, "fx": {"mag": 2}},
+		{"name": "Pressurized chamber", "desc": "Half again the range; reloads 20% faster.", "cost": 20, "fx": {"range": 1.5, "reload": 0.8}},
+	],
+	&"smoke_bellows": [
+		{"name": "Bigger can", "desc": "Fifty more puffs of fuel (150).", "cost": 10, "fx": {"mag": 50}},
+		{"name": "Wider spout", "desc": "The cloud spreads 1.5 m wider (5.5 m).", "cost": 15, "fx": {"radius": 1.375}},
+		{"name": "Dense smoke", "desc": "The cloud hangs 6 s, and bugs in it crawl at 40% speed.", "cost": 15, "fx": {"effect": 1.5, "slow": 0.8}},
+	],
+	&"bramble_pistol": [
+		{"name": "Extra bounce", "desc": "One more bounce (4) and 5 m more reach.", "cost": 15, "fx": {"bounces": 1, "range": 1.167}},
+		{"name": "Heavier thorns", "desc": "+50% damage a bounce, 0.5 m wider.", "cost": 15, "fx": {"damage": 1.5, "radius": 1.25}},
+		{"name": "Quick load", "desc": "Eight balls a load; reloads 25% faster.", "cost": 10, "fx": {"mag": 2, "reload": 0.75}},
+	],
+	&"spore_launcher": [
+		{"name": "Bigger pods", "desc": "Bursts 1 m wider (4 m), 30% harder.", "cost": 15, "fx": {"radius": 1.333, "damage": 1.3}},
+		{"name": "Sticky coating", "desc": "Pods stick to bugs and ride into the crowd.", "cost": 10, "fx": {"sticky": true}},
+		{"name": "Quick tube", "desc": "Reloads 30% faster and holds four pods.", "cost": 15, "fx": {"reload": 0.7, "mag": 1}},
+	],
+	&"venom_needle": [
+		{"name": "Hollow needle", "desc": "The crop lasts half again as long.", "cost": 15, "fx": {"linger": 1.5}},
+		{"name": "Bigger reservoir", "desc": "Two needles before a reload.", "cost": 15, "fx": {"mag": 1}},
+		{"name": "Coated tip", "desc": "The crop at 3x strength instead of 2x.", "cost": 20, "fx": {"dose": 1.5}},
+	],
+	&"trip_wire_gun": [
+		{"name": "Reinforced wire", "desc": "Eight triggers instead of five; lasts 20 s.", "cost": 15, "fx": {"triggers": 3, "effect": 1.333}},
+		{"name": "Barbed line", "desc": "+60% damage a trigger, and bugs it trips are slowed.", "cost": 15, "fx": {"damage": 1.6, "barbed": true}},
+		{"name": "Quick anchors", "desc": "Reloads 30% faster; anchors 0.25 s apart.", "cost": 10, "fx": {"reload": 0.7, "fire_interval": 0.625}},
+	],
+	&"spark_pistol": [
+		{"name": "Bigger coil", "desc": "Chains to 3 bugs instead of 2, 2 m further (7 m).", "cost": 20, "fx": {"chains": 1, "radius": 1.4}},
+		{"name": "Overcharge", "desc": "+40% damage, and the chain hits as hard as the bolt.", "cost": 15, "fx": {"damage": 1.4, "chain_full": true}},
+		{"name": "Rapid discharge", "desc": "Fires every 0.4 s; two more shots (10).", "cost": 15, "fx": {"fire_interval": 0.667, "mag": 2}},
 	],
 }
 

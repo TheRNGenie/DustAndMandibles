@@ -38,6 +38,8 @@ static func has(id: StringName) -> bool:
 
 ## Which slot `id` belongs to (-1: not one of these).
 static func slot_of(id: StringName) -> int:
+	if SpecialGuns.has(id):
+		return SECONDARY # Special weapons (SpecialGuns) ride the secondary tables
 	if UniHeavies.has(id):
 		return HEAVY # the universal crop-loaded heavies (UniHeavies)
 	for s in 3:
@@ -47,6 +49,8 @@ static func slot_of(id: StringName) -> int:
 
 
 static func display_name(id: StringName) -> String:
+	if SpecialGuns.has(id):
+		return str(SpecialGuns.NAMES[id])
 	if UniHeavies.has(id):
 		return str(UniHeavies.NAMES[id])
 	return str(_names(slot_of(id)).get(id, String(id).capitalize())) if has(id) else String(id).capitalize()
@@ -57,20 +61,22 @@ static func _names(slot: int) -> Dictionary:
 		PRIMARY:
 			return ArmoryPrimaries.NAMES
 		SECONDARY:
-			return ArmorySecondaries.NAMES
+			return {} # (the Weapon Slots secondaries are retired and archived)
 		HEAVY:
 			return ArmoryHeavies.NAMES
 	return {}
 
 
 static func _table(id: StringName, which: String) -> Dictionary:
+	if SpecialGuns.has(id):
+		return _const(SpecialGuns, which)
 	if UniHeavies.has(id):
 		return _const(UniHeavies, which)
 	match slot_of(id):
 		PRIMARY:
 			return _const(ArmoryPrimaries, which)
 		SECONDARY:
-			return _const(ArmorySecondaries, which)
+			return {}
 		HEAVY:
 			return _const(ArmoryHeavies, which)
 	return {}
@@ -115,6 +121,8 @@ const LOADED_PARTS: Array[String] = ["shell", "rocket", "trap", "anchor"]
 
 ## The older gun `id` handles like (itself when it isn't one of these).
 static func acts_like(id: StringName) -> StringName:
+	if SpecialGuns.has(id):
+		return SpecialGuns.ACTS_LIKE.get(id, &"flare_gun")
 	if UniHeavies.has(id):
 		return UniHeavies.ACTS_LIKE.get(id, id)
 	return ACTS_LIKE.get(id, id)
@@ -163,6 +171,10 @@ static func parts(id: StringName) -> Dictionary:
 	if _cache.has(id):
 		return _cache[id]
 	var out: Dictionary = {}
+	if SpecialGuns.has(id):
+		out = SpecialGuns.build(id)
+		_cache[id] = out
+		return out
 	if UniHeavies.has(id):
 		out = UniHeavies.build(id)
 		_cache[id] = out
@@ -171,7 +183,7 @@ static func parts(id: StringName) -> Dictionary:
 		PRIMARY:
 			out = ArmoryPrimaries.build(id)
 		SECONDARY:
-			out = ArmorySecondaries.build(id)
+			out = {}
 		HEAVY:
 			out = ArmoryHeavies.build(id)
 	_cache[id] = out

@@ -157,6 +157,7 @@ func _ready() -> void:
 	var heavy := HeavyAmmoPanel.new() # universal heavies: the crop, EMPTY, the low-ammo pulse
 	heavy.ammo_label = _ammo_label
 	ammo_col.add_child(heavy)
+	ammo_col.add_child(SpecialBadge.new()) # special weapons: crop badge and base effect
 	heavy.make_glow(ammo_sign)
 
 

@@ -278,6 +278,8 @@ func fire(origin: Vector3, dir: Vector3) -> void:
 		_smoke_fx(muzzle, dir)
 	elif ArmoryEffects.is_spray(def.special):
 		pass # the new sprays: the host's puff comes back to everyone (armory_fx)
+	elif SpecialRules.is_special(id):
+		pass # special weapons: the host's special_fx draws the shot for everyone
 	elif multiplayer.is_server():
 		pass # the host's own shot: _server_fire casts each pellet once and draws it too
 	else:
@@ -310,7 +312,7 @@ func _request_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, se
 	var code := int(owned.get(id, 0))
 	if GameState.has_flag("--netlog"):
 		print("[host] %s shot from peer %d: host code %d (sender said %d), %.1f damage a pellet" % [String(id), multiplayer.get_remote_sender_id(), code, level, Gun.damage_for(id, code)])
-	if Gun.weapon(id).special == &"smoke" or ArmoryEffects.is_spray(Gun.weapon(id).special):
+	if Gun.weapon(id).special == &"smoke" or ArmoryEffects.is_spray(Gun.weapon(id).special) or SpecialRules.is_special(id):
 		_show_remote_shot(origin, dir, id, seed_value, code)
 		_server_fire(origin, dir, id, code, seed_value)
 		return
@@ -328,6 +330,11 @@ func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, see
 	var def := Gun.weapon(id)
 	if def.crop_ammo:
 		_server_heavy(origin, dir, def, level, seed_value, muzzle, remote_muzzle) # universal crop-loaded heavies
+		return
+	if SpecialRules.is_special(id):
+		# Special weapons (slot 2): their own rules, crop upgrade and visuals.
+		SpecialRules.fire(self, def, origin, dir.normalized(), level, seed_value)
+		_fire_fx.rpc(origin, dir, id, seed_value, level)
 		return
 	if def.special == &"smoke":
 		_server_smoke(origin, dir.normalized(), level)
@@ -474,6 +481,14 @@ func armory_fx(kind: StringName, a: Vector3, b: Vector3, x: float) -> void:
 	ArmoryEffects.play_fx(kind, a, b, x)
 
 
+## Every peer: a special weapon's visual (SpecialFx.play), tinted `c` by its crop.
+@rpc("any_peer", "call_local", "reliable")
+func special_fx(kind: StringName, a: Vector3, b: Vector3, x: float, c: Color) -> void:
+	if multiplayer.get_remote_sender_id() != 1 and multiplayer.get_remote_sender_id() != 0:
+		return # only the host sends these
+	SpecialFx.play(kind, a, b, x, c)
+
+
 ## Every peer: a flare burning at `pos` (`sky`: it hangs in the air and sinks).
 @rpc("any_peer", "call_local", "reliable")
 func _flare_at(pos: Vector3, sky: bool) -> void:
@@ -504,6 +519,9 @@ func _show_remote_shot(origin: Vector3, dir: Vector3, id: StringName, seed_value
 		return
 	if ArmoryEffects.is_spray(def.special):
 		return # the host's armory_fx draws the puff
+	if SpecialRules.is_special(id):
+		player.flash_body()
+		return # the host's special_fx draws it
 	for d in Gun.shot_dirs(id, dir.normalized(), seed_value, code):
 		if ArmoryEffects.skips_direct(def.special):
 			break # (shells, rockets, grubs: the host's armory_fx draws them)

@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"venom_needle"
+slot = 1
+display_name = "Venom Needle"
+description = "A long thin brass blowgun. The needle weakens what it hits, and carries the crop at double strength: the one to put on a boss."
+damage = 10.0
+mag_size = 1
+fire_interval = 0.4
+reload_time = 1.5
+pellets = 1
+spread_deg = 0.0
+range = 120.0
+price_chitin = 35
+upgrade_costs = PackedInt32Array(14, 28)
+shake = 0.15
+automatic = false
+sound = &"throw"
+recoil_deg = 0.3
+recoil_yaw_deg = 0.2
+recoil_recover = 0.25
+role = "Debuffer"
+special = &""
+sound_pitch = 1.9
+draw_speed = 1.25

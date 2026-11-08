@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"derringer_pair"
-slot = 1
+slot = 0
 display_name = "Derringer Pair"
 description = "Two palm-sized over-under pistols, one in each hand. Out in a blink and empty in another: the answer to a spider on your back, not to anything across the canyon."
 damage = 34.0

@@ -24,6 +24,13 @@ func _ready() -> void:
 	col.shape = shape
 	col.position = Vector3(0, 0.5, 0.35)
 	add_child(col)
+	# Special weapons: the crop fitting tab, with its jars on the bench (CropBench).
+	var crops := CropBench.new()
+	crops.name = "CropBench"
+	crops.home = home
+	crops.workshop = self
+	crops.position = Vector3(0.45, 0.95, 0.62)
+	add_child(crops)
 	Economy.resources_changed.connect(_on_resources)
 
 
@@ -84,11 +91,11 @@ func menu_title() -> String:
 
 
 func menu_tagline() -> String:
-	return "Combine a mount, a barrel and a load into a new turret (or, with a blueprint, hive amber and parts into an amber turret). Place it from the Crafted tab of the build menu (B)."
+	return "Combine a mount, a barrel and a load into a new turret (or, with a blueprint, hive amber and parts into an amber turret). Place it from the Crafted tab of the build menu (B). The Special Weapon tab fits your special weapon with a crop for good."
 
 
 func menu_tabs() -> Array:
-	return ["Craft", "Parts", "Amber", "Gear"]
+	return ["Craft", "Parts", "Amber", "Gear", "Special Weapon"]
 
 
 func _cliff() -> int:
@@ -98,6 +105,8 @@ func _cliff() -> int:
 func menu_items(tab: int) -> Array:
 	var cid := _cliff()
 	var out: Array = []
+	if tab == 4:
+		return (get_node("CropBench") as CropBench).menu_items()
 	if tab == 2:
 		return _amber_items(cid)
 	if tab == 3:
@@ -163,6 +172,9 @@ Parts: %s" % [d.stat_line(), d.role, ", ".join(need)],
 
 
 func menu_press(id: Variant, _action: StringName) -> void:
+	if CropBench.handles(id):
+		(get_node("CropBench") as CropBench).menu_press(id, _action)
+		return
 	if str(id).begins_with("gear:"):
 		if multiplayer.is_server():
 			_make_gear(multiplayer.get_unique_id())

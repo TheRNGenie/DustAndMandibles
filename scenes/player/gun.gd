@@ -22,11 +22,12 @@ const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun",
 	&"derringer_pair", &"pepperbox", &"salt_shotgun", &"harpoon_pistol", &"bee_smoker", &"flare_gun", &"punt_gun", &"telescope_rifle",
 	# Weapon Slots Redesign: primaries, secondaries, heavies (ArmoryGuns models).
 	&"volcanic_repeater", &"mares_leg", &"double_rifle", &"trench_broom", &"ricochet_rifle", &"howdah_pistol", &"sharps_carbine", &"trapdoor_springfield",
-	&"screamer_pistol", &"tar_sprayer", &"flashbang_pistol", &"pepper_bomb_pistol", &"concussion_pistol", &"chain_binder", &"rust_duster", &"glow_worm_launcher", &"caltrops_launcher", &"phosphor_grenade",
 	&"swivel_gun",
 	# Universal crop-loaded heavies (HeavyRules, UniHeavies models).
 	&"crop_mortar", &"hand_cannon", &"crop_sprayer", &"spike_driver", &"drum_launcher", &"harvest_gatling",
-	&"crop_crossbow", &"bola_launcher", &"powder_keg_launcher", &"crop_blunderbuss"]
+	&"crop_crossbow", &"bola_launcher", &"powder_keg_launcher", &"crop_blunderbuss",
+	# Special weapons (slot 2; SpecialRules, SpecialGuns models).
+	&"crop_duster", &"barb_sling", &"signal_flare", &"crop_syringe", &"smoke_bellows", &"bramble_pistol", &"spore_launcher", &"venom_needle", &"trip_wire_gun", &"spark_pistol"]
 ## Frontier guns that load every round in one go (a reload is one step).
 const LOAD_ALL: Array[StringName] = [&"crank_gatling", &"pepperbox", &"derringer_pair"]
 ## Where some guns sit lower or closer than the standard rest spot (the smoker's
@@ -45,7 +46,7 @@ var owned: Dictionary = {&"revolver": 0}
 ## 3 heavy ("" = empty). Each holds one gun of its kind (WeaponDef.slot).
 var slots: Array[StringName] = [&"revolver", &"", &""]
 const MAX_WEAPONS := 3
-const SLOT_NAMES: Array[String] = ["Primary", "Secondary", "Heavy"]
+const SLOT_NAMES: Array[String] = ["Primary", "Special", "Heavy"]
 ## Heavies: rounds loaded from crop harvests waiting to go into the magazine (id -> rounds).
 var reserve: Dictionary = {}
 ## Universal heavies (WeaponDef.crop_ammo): the crop each is loaded with (&"" empty),

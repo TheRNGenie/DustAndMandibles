@@ -159,16 +159,6 @@ const WEAPONS: Dictionary = {
 	&"sharps_carbine": preload("res://data/weapons/sharps_carbine.tres"),
 	&"trapdoor_springfield": preload("res://data/weapons/trapdoor_springfield.tres"),
 	# Secondaries:
-	&"screamer_pistol": preload("res://data/weapons/screamer_pistol.tres"),
-	&"tar_sprayer": preload("res://data/weapons/tar_sprayer.tres"),
-	&"flashbang_pistol": preload("res://data/weapons/flashbang_pistol.tres"),
-	&"pepper_bomb_pistol": preload("res://data/weapons/pepper_bomb_pistol.tres"),
-	&"concussion_pistol": preload("res://data/weapons/concussion_pistol.tres"),
-	&"chain_binder": preload("res://data/weapons/chain_binder.tres"),
-	&"rust_duster": preload("res://data/weapons/rust_duster.tres"),
-	&"glow_worm_launcher": preload("res://data/weapons/glow_worm_launcher.tres"),
-	&"caltrops_launcher": preload("res://data/weapons/caltrops_launcher.tres"),
-	&"phosphor_grenade": preload("res://data/weapons/phosphor_grenade.tres"),
 	&"swivel_gun": preload("res://data/weapons/swivel_gun.tres"),
 	# Universal crop-loaded heavies (HeavyRules; Nov 2026 heavy weapons handoff):
 	&"crop_mortar": preload("res://data/weapons/crop_mortar.tres"),
@@ -204,6 +194,17 @@ const BUILD_ORDER: Array[StringName] = [&"gatling_post", &"buffalo_rifle", &"wat
 	&"steam_cannon", &"bola_launcher", &"twin_mortar", &"flood_gate",
 	&"big_bertha", &"whaler", &"thunder_mule", &"sky_hound", # Crewed
 	&"twin_gatling", &"hornets_nest", &"elephant_battery", &"rail_spike_driver", &"gatling_porch", # Tiers
+	# Special weapons (slot 2; SpecialRules, Nov 2026 special weapons handoff):
+	&"crop_duster": preload("res://data/weapons/special/crop_duster.tres"),
+	&"barb_sling": preload("res://data/weapons/special/barb_sling.tres"),
+	&"signal_flare": preload("res://data/weapons/special/signal_flare.tres"),
+	&"crop_syringe": preload("res://data/weapons/special/crop_syringe.tres"),
+	&"smoke_bellows": preload("res://data/weapons/special/smoke_bellows.tres"),
+	&"bramble_pistol": preload("res://data/weapons/special/bramble_pistol.tres"),
+	&"spore_launcher": preload("res://data/weapons/special/spore_launcher.tres"),
+	&"venom_needle": preload("res://data/weapons/special/venom_needle.tres"),
+	&"trip_wire_gun": preload("res://data/weapons/special/trip_wire_gun.tres"),
+	&"spark_pistol": preload("res://data/weapons/special/spark_pistol.tres"),
 	&"repeater_post", &"brass_gatling", &"long_tom_rifle", &"buck_blaster", &"grapeshot_turret", &"skeet_post", &"flak_porch", # Turret ammo: self-powered
 	&"corn_hopper", &"twin_hopper", &"pepper_sprayer", &"sulfur_fume_vent", &"herb_rifle", &"tripwire_fence",
 	&"bramble_bomb", &"dust_devil_trap", &"siege_mortar", # Turret ammo: crop-fed

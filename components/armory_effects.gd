@@ -9,8 +9,8 @@ extends RefCounted
 ## Impact-only specials (projectiles that burst, lures, traps) deal no direct hit
 ## damage: the hitscan only finds where they land.
 
-const SECONDARY: Array[StringName] = [&"scream", &"tar", &"flash", &"pepper", &"concuss", &"chain", &"rust", &"lure",
-	&"caltrops", &"phosphor"]
+## (The Weapon Slots secondaries are retired and archived, Nov 2026: none left here.)
+const SECONDARY: Array[StringName] = []
 const HEAVY: Array[StringName] = [&"mortar", &"fire", &"ballista", &"acid", &"rocket", &"beartrap", &"ricochet", &"pierce_line"]
 ## Continuous cone sprays (each shot is one puff).
 const SPRAYS: Array[StringName] = [&"tar", &"rust", &"fire", &"acid"]
@@ -33,10 +33,7 @@ static func skips_direct(special: StringName) -> bool:
 
 ## Host: one puff of a spray gun from `origin` along `dir` (normalised).
 static func spray(net: PlayerNet, def: WeaponDef, origin: Vector3, dir: Vector3, level: int) -> void:
-	if SECONDARY.has(def.special):
-		ArmorySecondaryRules.spray(net, def, origin, dir, level)
-	else:
-		ArmoryHeavyRules.spray(net, def, origin, dir, level)
+	ArmoryHeavyRules.spray(net, def, origin, dir, level)
 
 
 ## Host: once per shot, after the ordinary hitscan: what happens where the first
@@ -44,14 +41,10 @@ static func spray(net: PlayerNet, def: WeaponDef, origin: Vector3, dir: Vector3,
 ## `point` is the end of the ray, `normal` zero); `dir` the ray's direction.
 static func impact(net: PlayerNet, def: WeaponDef, origin: Vector3, dir: Vector3, point: Vector3, normal: Vector3,
 		hit: Dictionary, level: int) -> void:
-	if SECONDARY.has(def.special):
-		ArmorySecondaryRules.impact(net, def, origin, dir, point, normal, hit, level)
-	else:
-		ArmoryHeavyRules.impact(net, def, origin, dir, point, normal, hit, level)
+	ArmoryHeavyRules.impact(net, def, origin, dir, point, normal, hit, level)
 
 
 ## Every peer: a visual (PlayerNet.armory_fx). `kind` names it; a, b, x are its
 ## points and number (each kind says what they mean).
 static func play_fx(kind: StringName, a: Vector3, b: Vector3, x: float) -> void:
-	if not ArmorySecondaryFx.play(kind, a, b, x):
-		ArmoryHeavyFx.play(kind, a, b, x)
+	ArmoryHeavyFx.play(kind, a, b, x)
