@@ -5,9 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"elephant_gun"
-shots_per_harvest = 8
-crop = &"cotton"
-slot = 2
+slot = 0
 display_name = "Elephant Gun"
 description = "A double-barrelled big-game rifle with a magnifying glass lashed on for a scope. Hits like a runaway train and goes straight through armour, then takes an age to reload."
 damage = 220.0

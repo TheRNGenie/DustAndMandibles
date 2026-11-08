@@ -169,15 +169,18 @@ const WEAPONS: Dictionary = {
 	&"glow_worm_launcher": preload("res://data/weapons/glow_worm_launcher.tres"),
 	&"caltrops_launcher": preload("res://data/weapons/caltrops_launcher.tres"),
 	&"phosphor_grenade": preload("res://data/weapons/phosphor_grenade.tres"),
-	# Heavies (fed with crops):
-	&"mortar_tube": preload("res://data/weapons/mortar_tube.tres"),
-	&"fire_lance": preload("res://data/weapons/fire_lance.tres"),
-	&"organ_gun": preload("res://data/weapons/organ_gun.tres"),
-	&"harpoon_ballista": preload("res://data/weapons/harpoon_ballista.tres"),
-	&"acid_drencher": preload("res://data/weapons/acid_drencher.tres"),
 	&"swivel_gun": preload("res://data/weapons/swivel_gun.tres"),
-	&"congreve_rocket": preload("res://data/weapons/congreve_rocket.tres"),
-	&"bear_trap_launcher": preload("res://data/weapons/bear_trap_launcher.tres"),
+	# Universal crop-loaded heavies (HeavyRules; Nov 2026 heavy weapons handoff):
+	&"crop_mortar": preload("res://data/weapons/crop_mortar.tres"),
+	&"hand_cannon": preload("res://data/weapons/hand_cannon.tres"),
+	&"crop_sprayer": preload("res://data/weapons/crop_sprayer.tres"),
+	&"spike_driver": preload("res://data/weapons/spike_driver.tres"),
+	&"drum_launcher": preload("res://data/weapons/drum_launcher.tres"),
+	&"harvest_gatling": preload("res://data/weapons/harvest_gatling.tres"),
+	&"crop_crossbow": preload("res://data/weapons/crop_crossbow.tres"),
+	&"bola_launcher": preload("res://data/weapons/bola_launcher.tres"),
+	&"powder_keg_launcher": preload("res://data/weapons/powder_keg_launcher.tres"),
+	&"crop_blunderbuss": preload("res://data/weapons/crop_blunderbuss.tres"),
 }
 
 ## Retired for now (Logan, 2026-11-08): still registered so the code and saves

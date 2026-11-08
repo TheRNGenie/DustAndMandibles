@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"powder_keg_launcher"
+slot = 2
+crop_ammo = true
+display_name = "Powder Keg Launcher"
+description = "A stubby launcher that lobs crop-charged powder kegs. They stick wherever they land and wait: a bug that comes within 1.5 metres sets one off, 120 damage across 3 metres. Fired near bugs, the fuse lights and it goes in 2 seconds. Eight down at once; laid in the build phase, they wait for the wave. Fifteen kegs to a sack."
+damage = 120.0
+mag_size = 15
+fire_interval = 1.0
+reload_time = 3.0
+pellets = 1
+spread_deg = 0.0
+range = 60.0
+price_chitin = 75
+upgrade_costs = PackedInt32Array(30, 60)
+shake = 0.5
+sound = &"mortar"
+recoil_deg = 5.0
+recoil_yaw_deg = 0.8
+recoil_recover = 0.35
+role = "Minefield"
+special = &"uh_keg"
+sound_pitch = 1.1
+draw_speed = 0.7

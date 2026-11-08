@@ -154,6 +154,10 @@ func _ready() -> void:
 	ammo_row.add_child(_ammo_max)
 	_pips = AmmoPips.new()
 	ammo_col.add_child(_pips)
+	var heavy := HeavyAmmoPanel.new() # universal heavies: the crop, EMPTY, the low-ammo pulse
+	heavy.ammo_label = _ammo_label
+	ammo_col.add_child(heavy)
+	heavy.make_glow(ammo_sign)
 
 
 	_blackout = ColorRect.new()
@@ -432,6 +436,9 @@ func _on_ammo_changed(current: int, max_ammo: int) -> void:
 	if g != null and is_instance_valid(g) and g.def != null and g.def.special == &"smoke":
 		# Bee Smoker: its fuel, as a share (the cartridges become a gauge).
 		_ammo_show("%d%%" % roundi(100.0 * current / maxf(max_ammo, 1)), "Fuel", current, max_ammo, true)
+		return
+	if g != null and is_instance_valid(g) and g.def != null and g.def.crop_ammo and (current <= 0 or g.heavy_crop_of(g.def.id) == &""):
+		_ammo_show("— EMPTY —", "", 0, max_ammo) # a universal heavy with no sack in it (HeavyAmmoPanel)
 		return
 	_ammo_show(str(current), "/ %d" % max_ammo, current, max_ammo)
 

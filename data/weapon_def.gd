@@ -13,6 +13,9 @@ enum Slot { PRIMARY, SECONDARY, HEAVY }
 ## Heavies: rounds one harvest of `crop` loads (they wait in the gun's crop
 ## reserve and go into the magazine as you reload).
 @export var shots_per_harvest: int = 0
+## Universal crop-loaded heavies (HeavyRules): loads any crop sack; one sack
+## fills it with `mag_size` shots, which stay in it between waves.
+@export var crop_ammo: bool = false
 @export var display_name: String = ""
 @export var description: String = ""
 @export var damage: float = 25.0
@@ -88,6 +91,16 @@ func stat_line() -> String:
 		# Weapon Slots sprays that do no harm themselves (tar, rust).
 		return "  ·  ".join(PackedStringArray(["No Damage", "%d s of Spray" % roundi(mag_size * fire_interval),
 				"Reaches %d m" % int(range), "Refills Itself" if reload_time <= 0.0 else "%.1f s Reload" % reload_time]))
+	if crop_ammo:
+		# Universal heavies: the crop is whatever sack you load.
+		var hit := "Damage %d%s" % [int(damage), (" x%d" % pellets) if pellets > 1 else ""]
+		if special == &"uh_spray":
+			hit = "Damage %d a Pump" % int(damage)
+		elif special in [&"uh_mortar", &"uh_drum", &"uh_keg"]:
+			hit += " Splash"
+		var bits: PackedStringArray = [hit, "%d Shots a Sack" % mag_size, "Reaches %d m" % int(range),
+				"Pierces Armour" if pierce_armor else "Any Crop"]
+		return "  ·  ".join(bits)
 	if automatic and crop != &"":
 		# Heavy sprays (fire, acid): damage a puff, seconds a harvest.
 		return "  ·  ".join(PackedStringArray(["Damage %d a Puff" % int(damage), "%d s a Crop Load" % roundi(shots_per_harvest * fire_interval),

@@ -263,18 +263,16 @@ func _armory_fx_shots(world: Node, hud: Hud, player: Player) -> void:
 			tally["frenzied"] += int(st.is_frenzied())
 			tally["slowed"] += int(st.speed_multiplier() < 0.99)
 		print("[armfx] %s: %s (of %d bugs; ammo %d, reserve %d)" % [id, str(tally), hp_before.size(), gun.ammo, int(gun.reserve.get(id, 0))])
-	# The heavy reload from a crop load: empty the mortar and its reserve, reload.
+	# A universal heavy takes a sack: an empty Crop Mortar loads a chili sack.
 	if _only.has("armfx_all") or _wants("armfx_cropload"):
 		var gun := player.gun
-		GunShop.loadouts[multiplayer.get_unique_id()][&"mortar_tube"] = 0
-		gun.grant(&"mortar_tube", 0)
-		gun.equip(&"mortar_tube")
-		gun.ammo = 0
-		gun.reserve[&"mortar_tube"] = 0
+		GunShop.loadouts[multiplayer.get_unique_id()][&"crop_mortar"] = 0
+		gun.grant(&"crop_mortar", 0)
+		gun.equip(&"crop_mortar")
 		var before := Economy.amount(cid, &"chili_load")
-		gun.reload()
+		gun.request_load(&"firecracker_chili")
 		await _wait(4.0)
-		print("[armfx] cropload: chili loads %d -> %d, mortar ammo %d, reserve %d" % [before, Economy.amount(cid, &"chili_load"), gun.ammo, int(gun.reserve.get(&"mortar_tube", 0))])
+		print("[armfx] cropload: chili sacks %d -> %d, mortar %d / %d (%s)" % [before, Economy.amount(cid, &"chili_load"), gun.ammo, gun.mag_size(), gun.heavy_crop_of(&"crop_mortar")])
 
 
 ## Each Weapon Slots gun in first person (given straight to the local rider):

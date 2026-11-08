@@ -38,6 +38,8 @@ static func has(id: StringName) -> bool:
 
 ## Which slot `id` belongs to (-1: not one of these).
 static func slot_of(id: StringName) -> int:
+	if UniHeavies.has(id):
+		return HEAVY # the universal crop-loaded heavies (UniHeavies)
 	for s in 3:
 		if _names(s).has(id):
 			return s
@@ -45,6 +47,8 @@ static func slot_of(id: StringName) -> int:
 
 
 static func display_name(id: StringName) -> String:
+	if UniHeavies.has(id):
+		return str(UniHeavies.NAMES[id])
 	return str(_names(slot_of(id)).get(id, String(id).capitalize())) if has(id) else String(id).capitalize()
 
 
@@ -60,6 +64,8 @@ static func _names(slot: int) -> Dictionary:
 
 
 static func _table(id: StringName, which: String) -> Dictionary:
+	if UniHeavies.has(id):
+		return _const(UniHeavies, which)
 	match slot_of(id):
 		PRIMARY:
 			return _const(ArmoryPrimaries, which)
@@ -101,9 +107,7 @@ const ACTS_LIKE: Dictionary = {
 	&"pepper_bomb_pistol": &"flare_gun", &"concussion_pistol": &"pepperbox", &"chain_binder": &"harpoon_pistol",
 	&"rust_duster": &"bee_smoker", &"glow_worm_launcher": &"flare_gun", &"caltrops_launcher": &"flare_gun",
 	&"phosphor_grenade": &"flare_gun",
-	&"mortar_tube": &"blunderbuss", &"fire_lance": &"bee_smoker", &"organ_gun": &"crank_gatling",
-	&"harpoon_ballista": &"harpoon_pistol", &"acid_drencher": &"bee_smoker", &"swivel_gun": &"punt_gun",
-	&"congreve_rocket": &"harpoon_pistol", &"bear_trap_launcher": &"harpoon_pistol",
+	&"swivel_gun": &"punt_gun",
 }
 ## Parts that are the loaded round (shown only while loaded, like the harpoon's dart).
 const LOADED_PARTS: Array[String] = ["shell", "rocket", "trap", "anchor"]
@@ -111,6 +115,8 @@ const LOADED_PARTS: Array[String] = ["shell", "rocket", "trap", "anchor"]
 
 ## The older gun `id` handles like (itself when it isn't one of these).
 static func acts_like(id: StringName) -> StringName:
+	if UniHeavies.has(id):
+		return UniHeavies.ACTS_LIKE.get(id, id)
 	return ACTS_LIKE.get(id, id)
 
 
@@ -143,8 +149,6 @@ static func rest_offset(id: StringName) -> Vector3:
 ## Where rounds go in (gun space): the breech just ahead of the hand for most,
 ## the muzzle for the mortar.
 static func load_point(id: StringName) -> Vector3:
-	if id == &"mortar_tube":
-		return muzzle(id)
 	var m := muzzle(id)
 	return Vector3(0.0, m.y, clampf(m.z * 0.18, -0.12, -0.02))
 
@@ -159,6 +163,10 @@ static func parts(id: StringName) -> Dictionary:
 	if _cache.has(id):
 		return _cache[id]
 	var out: Dictionary = {}
+	if UniHeavies.has(id):
+		out = UniHeavies.build(id)
+		_cache[id] = out
+		return out
 	match slot_of(id):
 		PRIMARY:
 			out = ArmoryPrimaries.build(id)

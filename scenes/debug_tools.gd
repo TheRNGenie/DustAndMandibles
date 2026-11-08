@@ -97,6 +97,8 @@ func _ready() -> void:
 			print("[lever] t=%d phase %d countdown %.1f levers %s cpu %s" % [Time.get_ticks_msec() / 1000, GameState.phase, GameState.ready_countdown, str(GameState.levers), str(GameState.cpu_levers)]))
 	if GameState.flag_value("--act") != "":
 		_act_shot(GameState.flag_value("--act"))
+	if GameState.flag_value("--heavyview") != "": # Universal heavies (scenes/debug/heavy_views.gd)
+		add_child(load("res://scenes/debug/heavy_views.gd").new())
 	if GameState.flag_value("--amberview") != "": # Hive amber: the amber turrets, Lucky's stall (scenes/debug/amber_views.gd)
 		add_child(load("res://scenes/debug/amber_views.gd").new())
 	if GameState.flag_value("--ambermp") != "": # Hive amber: the two-window network test (scenes/debug/amber_mp.gd)

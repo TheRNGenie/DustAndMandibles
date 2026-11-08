@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"spike_driver"
+slot = 2
+crop_ammo = true
+display_name = "Spike Driver"
+description = "A railroad spike driver with a crop-powered pneumatic chamber. Drives a spike into the far wall: 200 where it lands, a 5 metre shockwave across the rock for 100 more, and every climber within 3 metres shaken clean off. Five spikes to a sack."
+damage = 200.0
+mag_size = 5
+fire_interval = 1.5
+reload_time = 4.5
+pellets = 1
+spread_deg = 0.0
+range = 150.0
+price_chitin = 90
+upgrade_costs = PackedInt32Array(36, 72)
+shake = 1.1
+sound = &"cannon"
+recoil_deg = 10.0
+recoil_yaw_deg = 1.5
+recoil_recover = 0.6
+role = "Wall shaker"
+special = &"uh_spike"
+sound_pitch = 1.25
+kickback = 6.0
+draw_speed = 0.7

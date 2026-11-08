@@ -5,9 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"punt_gun"
-shots_per_harvest = 4
-crop = &"cotton"
-slot = 2
+slot = 0
 display_name = "Sawn-Off Punt Gun"
 description = "A duck-hunting cannon somebody took a hacksaw to. One enormous shell, one enormous cone of shot, and a kick that shoves you back a few steps. Then a long, long reload."
 damage = 16.0

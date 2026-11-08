@@ -1,26 +1,23 @@
 class_name ArmoryPrimaries
 extends RefCounted
-## The eleven new primaries (Weapon Slots Redesign, section 7 prompts), built in
-## code. See ArmoryGuns for the conventions; helpers and colours are
+## The Weapon Slots primaries that are sold (Weapon Slots Redesign, section 7
+## prompts), built in code. The four never sold (Coach Gun, Lever-Action Rifle,
+## Bolt-Action Long Rifle, Gatling Pistol) are archived in
+## D:/DustAndMandibles-archive/retired/weapons/gen/armory_primaries.gd. See ArmoryGuns for the conventions; helpers and colours are
 ## FrontierGuns' (F) and WeaponBuilder's (W).
 
 const F := preload("res://gen/frontier_guns.gd")
 const W := preload("res://gen/weapon_builder.gd")
 
 const NAMES: Dictionary = {
-	&"coach_gun": "Coach Gun", &"volcanic_repeater": "Volcanic Repeater", &"mares_leg": "Mare's Leg", &"lever_action_rifle": "Lever-Action Rifle",
-	&"bolt_long_rifle": "Bolt-Action Long Rifle", &"gatling_pistol": "Gatling Pistol", &"double_rifle": "Double Rifle",
+	&"volcanic_repeater": "Volcanic Repeater", &"mares_leg": "Mare's Leg",
+	&"double_rifle": "Double Rifle",
 	&"trench_broom": "Trench Broom", &"ricochet_rifle": "Ricochet Rifle", &"howdah_pistol": "Howdah Pistol",
 	&"sharps_carbine": "Sharps Carbine", &"trapdoor_springfield": "Trapdoor Springfield",
 }
 const PIVOTS: Dictionary = {
-	"coach_gun_barrels": Vector3(0.0, -0.008, -0.052),
 	"volcanic_repeater_lever": Vector3(0.0, -0.02, -0.04),
-	"lever_action_rifle_lever": Vector3(0.0, -0.02, -0.04),
 	"mares_leg_lever": Vector3(0.0, -0.02, -0.04),
-	"bolt_long_rifle_bolt": Vector3(0.0, 0.022, 0.02),
-	"gatling_pistol_barrels": Vector3(0.0, 0.03, -0.1),
-	"gatling_pistol_crank": Vector3(0.034, 0.03, -0.035),
 	"double_rifle_barrels": Vector3(0.0, -0.01, -0.056),
 	"trench_broom_pump": Vector3(0.0, -0.012, -0.2),
 	"ricochet_rifle_lever": Vector3(0.0, -0.02, -0.04),
@@ -29,12 +26,8 @@ const PIVOTS: Dictionary = {
 	"trapdoor_springfield_trapdoor": Vector3(0.0, 0.04, -0.05),
 }
 const MUZZLE: Dictionary = {
-	&"coach_gun": Vector3(0.0, 0.022, -0.5),
 	&"volcanic_repeater": Vector3(0.0, 0.028, -0.53),
-	&"lever_action_rifle": Vector3(0.0, 0.028, -0.71),
 	&"mares_leg": Vector3(0.0, 0.028, -0.4),
-	&"bolt_long_rifle": Vector3(0.0, 0.022, -0.86),
-	&"gatling_pistol": Vector3(0.0, 0.03, -0.24),
 	&"double_rifle": Vector3(0.0, 0.024, -0.66),
 	&"trench_broom": Vector3(0.0, 0.022, -0.55),
 	&"ricochet_rifle": Vector3(0.0, 0.028, -0.68),
@@ -44,12 +37,8 @@ const MUZZLE: Dictionary = {
 }
 ## [right fist centre, right grip axis, left support fist centre] (gun space).
 const HANDS: Dictionary = {
-	&"coach_gun": [Vector3(0.0, -0.03, 0.075), Vector3(0, 0.6, -0.8), Vector3(0.0, -0.012, -0.16)],
 	&"volcanic_repeater": [Vector3(0.0, -0.035, 0.1), Vector3(0, 0.55, -0.83), Vector3(0.0, 0.0, -0.2)],
-	&"lever_action_rifle": [Vector3(0.0, -0.035, 0.1), Vector3(0, 0.55, -0.83), Vector3(0.0, -0.01, -0.2)],
 	&"mares_leg": [Vector3(0.0, -0.05, 0.075), Vector3(0, 0.8, -0.6), Vector3(0.0, -0.005, -0.17)],
-	&"bolt_long_rifle": [Vector3(0.0, -0.04, 0.09), Vector3(0, 0.75, -0.66), Vector3(0.0, -0.016, -0.26)],
-	&"gatling_pistol": [Vector3(0.0, -0.05, 0.035), Vector3(0, 0.92, -0.39), Vector3(0.05, 0.03, -0.035)],
 	&"double_rifle": [Vector3(0.0, -0.045, 0.09), Vector3(0, 0.75, -0.66), Vector3(0.0, -0.014, -0.17)],
 	&"trench_broom": [Vector3(0.0, -0.04, 0.09), Vector3(0, 0.6, -0.8), Vector3(0.0, -0.02, -0.2)],
 	&"ricochet_rifle": [Vector3(0.0, -0.035, 0.1), Vector3(0, 0.55, -0.83), Vector3(0.0, -0.008, -0.2)],
@@ -69,18 +58,10 @@ const POOL := [Color("#E8B82A"), Color("#2A4FA8"), Color("#C0302A"), Color("#1A1
 
 static func build(id: StringName) -> Dictionary:
 	match id:
-		&"coach_gun":
-			return _coach_gun()
 		&"volcanic_repeater":
 			return _volcanic_repeater()
-		&"lever_action_rifle":
-			return _lever_action_rifle()
 		&"mares_leg":
 			return _mares_leg()
-		&"bolt_long_rifle":
-			return _bolt_long_rifle()
-		&"gatling_pistol":
-			return _gatling_pistol()
 		&"double_rifle":
 			return _double_rifle()
 		&"trench_broom":
@@ -190,75 +171,6 @@ static func leather_wrap(k: F.Kit, a: Vector3, b: Vector3, ha: float, wa: float,
 		var t := (float(i) + 0.5) / (bands * 3)
 		var c := a.lerp(b, t)
 		F.box(k.x(), c + Vector3(0, -lerpf(ha, hb, t) - 0.0018, 0), Vector3(0.0035, 0.0012, 0.0016), F.ROPE.lightened(0.15))
-
-
-# ------------------------------------------------------------------ coach gun
-
-## A side-by-side coach gun: barrels sawn to coach length (filed muzzles, a
-## matted rib, a brass bead), a case-hardened boxlock with engraved side plates
-## and two exposed hammers, a top lever, double triggers in a brass guard, and a
-## worn straight walnut stock with leather wrapped round the wrist.
-static func _coach_gun() -> Dictionary:
-	var k := F.Kit.new()
-	var b := F.Kit.new()
-	var hinge: Vector3 = PIVOTS["coach_gun_barrels"]
-	# --- action
-	case_block(k, Vector3(0, 0.012, -0.004), Vector3(0.05, 0.05, 0.096), 11)
-	F.box(k.m(), Vector3(0, 0.012, -0.0525), Vector3(0.05, 0.05, 0.004), F.IRON_DARK) # standing breech face
-	for side: float in [-1.0, 1.0]:
-		F.box(k.m(), Vector3(side * 0.0258, 0.01, 0.012), Vector3(0.0018, 0.034, 0.062), F.STEEL.lightened(0.05))
-		W.scroll(k.m(), Vector3(side * 0.0268, 0.01, 0.012), Vector3(side, 0, 0), 0.032, F.BRASS)
-		F.screw(k.m(), Vector3(side * 0.0262, 0.0, -0.03), side, F.STEEL)
-		side_hammer(k, Vector3(side * 0.019, 0.03, 0.03), side, F.IRON)
-		# Firing-pin bosses on the breech face.
-		F.cz(k.m(), Vector3(side * 0.0172, 0.022, -0.0545), 0.004, 0.004, 0.002, F.STEEL, 8)
-	# Top lever on the tang, swung to the right.
-	F.box(k.m(), Vector3(0, 0.038, 0.03), Vector3(0.012, 0.006, 0.05), CASE[0])
-	F.box(k.m(), Vector3(0.008, 0.039, 0.052), Vector3(0.024, 0.006, 0.01), CASE[2], Basis(Vector3.UP, -0.35))
-	# Triggers and the brass guard.
-	for z: float in [0.004, 0.024]:
-		W.bent(k.m(), [Vector3(0, -0.013, z), Vector3(0, -0.024, z + 0.003), Vector3(0, -0.032, z + 0.009)], 0.0026, F.STEEL)
-	W.bent(k.m(), W.arc(Vector3(0, -0.016, 0.018), 0.026, -0.28 * PI, -1.12 * PI, 10), 0.0036, F.BRASS)
-	F.box(k.m(), Vector3(0, -0.014, -0.012), Vector3(0.012, 0.004, 0.03), F.BRASS)
-	F.box(k.m(), Vector3(0, -0.014, 0.05), Vector3(0.012, 0.004, 0.022), F.BRASS)
-	# --- stock: straight English hand, worn walnut, leather round the wrist
-	var stock := [[Vector3(0, 0.012, 0.048), 0.026, 0.0235], [Vector3(0, 0.004, 0.09), 0.02, 0.0175],
-		[Vector3(0, -0.008, 0.15), 0.024, 0.0185], [Vector3(0, -0.026, 0.24), 0.04, 0.0205], [Vector3(0, -0.044, 0.33), 0.053, 0.0215],
-		[Vector3(0, -0.05, 0.37), 0.057, 0.022]]
-	W.loft(k.w(), stock, F.WALNUT, 16)
-	W.buttplate(k.m(), stock, F.IRON_DARK)
-	# Worn patches: lighter wood where hands and shoulders rub.
-	MeshKit.add_ellipsoid(k.w(), Transform3D(Basis(), Vector3(0, -0.04, 0.3)), Vector3(0.0222, 0.03, 0.04), 4, 10, F.WALNUT_LIGHT)
-	leather_sleeve(k, [[Vector3(0, 0.0055, 0.078), 0.0202, 0.0177], [Vector3(0, 0.002, 0.1), 0.0205, 0.0177],
-			[Vector3(0, -0.004, 0.125), 0.022, 0.018], [Vector3(0, -0.007, 0.142), 0.0234, 0.0184]])
-	# Brass escutcheon and a sling bar.
-	MeshKit.add_ellipsoid(k.m(), Transform3D(Basis(), Vector3(0.0, -0.0105, 0.2)), Vector3(0.006, 0.002, 0.012), 3, 8, F.BRASS)
-	# --- barrels (drop open about the hinge pin)
-	for side: float in [-1.0, 1.0]:
-		F.cz(b.m(), Vector3(side * 0.0172, 0.022, -0.282), 0.0164, 0.0178, 0.448, F.BLUED, 18)
-		# Filed muzzles, bright where the saw went through, dark bores.
-		F.cz(b.m(), Vector3(side * 0.0172, 0.022, -0.5065), 0.0164, 0.0164, 0.002, F.STEEL.lightened(0.15), 18)
-		F.cz(b.x(), Vector3(side * 0.0172, 0.022, -0.5078), 0.0122, 0.0122, 0.001, F.BORE, 14)
-		# Chamber mouths and brass shell rims seated in them.
-		F.cz(b.m(), Vector3(side * 0.0172, 0.022, -0.0565), 0.0178, 0.0178, 0.004, F.BLUED.darkened(0.25), 18)
-		F.cz(b.m(), Vector3(side * 0.0172, 0.022, -0.0535), 0.0135, 0.0135, 0.002, F.BRASS_LIGHT, 14)
-	# Matted rib between the barrels, bead at the muzzle; lumps under the breech.
-	F.box(b.m(), Vector3(0, 0.0395, -0.28), Vector3(0.01, 0.004, 0.44), F.BLUED.darkened(0.2))
-	for i in 22:
-		F.box(b.m(), Vector3(0, 0.0418, -0.07 - i * 0.02), Vector3(0.009, 0.0006, 0.002), F.BLUED.lightened(0.08))
-	F.ball(b.m(), Vector3(0, 0.0432, -0.495), Vector3.ONE * 0.0028, F.BRASS_LIGHT, 4, 8)
-	F.box(b.m(), Vector3(0, -0.002, -0.08), Vector3(0.02, 0.018, 0.05), F.BLUED.darkened(0.3))
-	F.cx(b.m(), hinge, 0.005, 0.03, F.STEEL, 10)
-	# Splinter forend under the barrels, its iron and a release tab.
-	var forend := [[Vector3(0, 0.0, -0.11), 0.016, 0.026], [Vector3(0, -0.003, -0.14), 0.019, 0.029],
-		[Vector3(0, -0.002, -0.24), 0.017, 0.027], [Vector3(0, 0.003, -0.262), 0.012, 0.022]]
-	W.loft(b.w(), forend, F.WALNUT_DARK, 16)
-	F.box(b.m(), Vector3(0, -0.0215, -0.15), Vector3(0.012, 0.003, 0.05), CASE[0])
-	F.box(b.m(), Vector3(0, -0.022, -0.235), Vector3(0.008, 0.004, 0.012), F.STEEL)
-	# Barrel band near the muzzle where the gun was cut down.
-	for side: float in [-1.0, 1.0]:
-		F.cz(b.m(), Vector3(side * 0.0172, 0.022, -0.465), 0.0182, 0.0182, 0.012, F.IRON_DARK, 18)
-	return {"body": k.commit(), "barrels": b.commit()}
 
 
 # ------------------------------------------------------------------ more shared bits
@@ -430,163 +342,6 @@ static func _volcanic_repeater() -> Dictionary:
 	# --- lever
 	lever_loop(lv.m(), PIVOTS["volcanic_repeater_lever"], F.BLUED)
 	return {"body": k.commit(), "lever": lv.commit()}
-
-
-# ------------------------------------------------------------------ lever-action rifle
-
-## A full-length Winchester-style lever rifle: a long octagonal barrel over a
-## full-length magazine, a case-hardened receiver with a loading gate and dust
-## cover, a walnut forend with a steel cap, buckhorn and blade sights, and a
-## straight stock with a deep steel crescent buttplate.
-static func _lever_action_rifle() -> Dictionary:
-	var k := F.Kit.new()
-	var lv := F.Kit.new()
-	var by := 0.028
-	case_block(k, Vector3(0, 0.012, -0.012), Vector3(0.034, 0.058, 0.13), 23)
-	F.box(k.m(), Vector3(0, 0.0435, -0.02), Vector3(0.022, 0.006, 0.07), F.BLUED) # dust cover
-	F.box(k.m(), Vector3(0, 0.0465, -0.02), Vector3(0.004, 0.002, 0.066), F.BLUED.lightened(0.1))
-	F.box(k.x(), Vector3(0.0174, -0.001, -0.035), Vector3(0.0014, 0.016, 0.036), F.BORE) # loading gate
-	F.box(k.m(), Vector3(0.0178, -0.001, -0.035), Vector3(0.0012, 0.014, 0.032), F.BLUED)
-	for side: float in [-1.0, 1.0]:
-		F.screw(k.m(), Vector3(side * 0.018, 0.026, -0.06), side, F.STEEL)
-		F.screw(k.m(), Vector3(side * 0.018, 0.026, 0.035), side, F.STEEL)
-		F.screw(k.m(), Vector3(side * 0.018, -0.008, 0.02), side, F.STEEL)
-	rifle_hammer(k.m(), Vector3(0, 0.04, 0.05), F.BLUED.darkened(0.2))
-	W.bent(k.m(), [Vector3(0, -0.017, 0.01), Vector3(0, -0.03, 0.016), Vector3(0, -0.036, 0.024)], 0.0026, F.STEEL)
-	# Long octagonal barrel, full-length magazine, forend and cap.
-	octagon(k.m(), Vector3(0, by, -0.39), 0.0124, 0.0138, 0.63, F.BLUED)
-	F.cz(k.m(), Vector3(0, 0.003, -0.38), 0.0102, 0.0102, 0.6, F.BLUED.darkened(0.12), 14)
-	F.cz(k.m(), Vector3(0, 0.003, -0.683), 0.0112, 0.0112, 0.01, F.STEEL, 14)
-	F.box(k.m(), Vector3(0, 0.016, -0.67), Vector3(0.012, 0.024, 0.01), F.BLUED.darkened(0.2))
-	muzzle(k, Vector3(0, by, -0.706), 0.0124, 0.0056, F.BLUED, 8)
-	blade(k.m(), Vector3(0, by + 0.0122, -0.69), F.BLUED)
-	buckhorn(k.m(), Vector3(0, by + 0.013, -0.26), F.BLUED)
-	var forend := [[Vector3(0, 0.006, -0.078), 0.019, 0.0172], [Vector3(0, 0.004, -0.12), 0.022, 0.0188],
-		[Vector3(0, 0.004, -0.27), 0.021, 0.018], [Vector3(0, 0.006, -0.3), 0.0175, 0.016]]
-	W.loft(k.w(), forend, F.WALNUT, 14)
-	F.cz(k.m(), Vector3(0, 0.008, -0.305), 0.0172, 0.0172, 0.01, F.BLUED.darkened(0.25), 14)
-	var stock := rifle_stock(0.055, 0.006, 0.38, 0.046, 0.056)
-	W.loft(k.w(), stock, F.WALNUT, 16)
-	crescent(k, stock[stock.size() - 1], CASE[0])
-	# Chequering on the wrist.
-	for side: float in [-1.0, 1.0]:
-		chequer(k, Vector3(side * 0.0162, -0.006, 0.11), side, 0.05, 0.022)
-	lever_loop(lv.m(), PIVOTS["lever_action_rifle_lever"], CASE[0])
-	return {"body": k.commit(), "lever": lv.commit()}
-
-
-# ------------------------------------------------------------------ bolt-action long rifle
-
-## A heavy Mauser-pattern military rifle: a long stepped barrel in a full
-## stock with a top handguard, two barrel bands and a nose cap, a hooded front
-## sight and a ladder rear sight, a round receiver with the stripper-clip guide
-## on its bridge, worn blued steel bright on the edges, and a canvas sling.
-static func _bolt_long_rifle() -> Dictionary:
-	var k := F.Kit.new()
-	var bo := F.Kit.new()
-	var by := 0.022
-	var worn := F.BLUED.lightened(0.1)
-	# Receiver ring and bridge with the stripper-clip guide.
-	F.cz(k.m(), Vector3(0, by, -0.055), 0.0168, 0.0168, 0.04, F.BLUED, 18)
-	F.cz(k.m(), Vector3(0, by, 0.0), 0.0158, 0.0158, 0.09, F.BLUED.darkened(0.08), 18)
-	F.cz(k.m(), Vector3(0, by, 0.045), 0.0166, 0.0166, 0.024, F.BLUED, 18)
-	F.box(k.x(), Vector3(0.0145, by + 0.004, -0.005), Vector3(0.004, 0.012, 0.05), F.BORE) # ejection port
-	for side: float in [-1.0, 1.0]:
-		F.box(k.m(), Vector3(side * 0.0072, by + 0.019, 0.045), Vector3(0.0035, 0.008, 0.014), worn)
-	F.box(k.m(), Vector3(0, by + 0.016, 0.045), Vector3(0.0105, 0.002, 0.014), F.BLUED.darkened(0.3))
-	# Barrel: stepped toward the muzzle, worn bright at the crown.
-	F.cz(k.m(), Vector3(0, by, -0.2), 0.0132, 0.0145, 0.25, F.BLUED, 16)
-	F.cz(k.m(), Vector3(0, by, -0.56), 0.0108, 0.0122, 0.47, F.BLUED, 16)
-	F.cz(k.m(), Vector3(0, by, -0.8), 0.0102, 0.0104, 0.04, worn, 16)
-	muzzle(k, Vector3(0, by, -0.821), 0.0102, 0.0048, F.BLUED, 16)
-	ladder(k.m(), Vector3(0, by + 0.014, -0.17), F.BLUED, 0.07)
-	# Hooded front sight on its band.
-	F.cz(k.m(), Vector3(0, by, -0.79), 0.0118, 0.0118, 0.02, F.BLUED.darkened(0.15), 16)
-	F.box(k.m(), Vector3(0, by + 0.0145, -0.79), Vector3(0.002, 0.008, 0.008), F.STEEL)
-	F.box(k.m(), Vector3(0, by + 0.022, -0.79), Vector3(0.016, 0.0022, 0.02), F.BLUED.darkened(0.15))
-	for side: float in [-1.0, 1.0]:
-		F.box(k.m(), Vector3(side * 0.0078, by + 0.016, -0.79), Vector3(0.0022, 0.014, 0.02), F.BLUED.darkened(0.15))
-	# Full stock: pistol-grip butt, the forestock under the barrel to the nose cap,
-	# the handguard over the barrel, two bands.
-	var stock := rifle_stock(0.065, -0.002, 0.42, 0.05, 0.058, true)
-	W.loft(k.w(), stock, F.WALNUT_DARK, 16)
-	W.buttplate(k.m(), stock, F.BLUED.darkened(0.2))
-	var fore := [[Vector3(0, 0.002, 0.06), 0.03, 0.019], [Vector3(0, 0.004, -0.08), 0.026, 0.019], [Vector3(0, 0.01, -0.3), 0.02, 0.0172],
-		[Vector3(0, 0.014, -0.62), 0.016, 0.0152], [Vector3(0, 0.016, -0.7), 0.0145, 0.0145]]
-	W.loft(k.w(), fore, F.WALNUT_DARK, 16)
-	var guard := [[Vector3(0, by + 0.01, -0.09), 0.006, 0.015], [Vector3(0, by + 0.011, -0.2), 0.0072, 0.0152], [Vector3(0, by + 0.009, -0.38), 0.006, 0.0135]]
-	W.loft(k.w(), guard, F.WALNUT, 12)
-	for z: float in [-0.39, -0.6]:
-		MeshKit.add_rim(k.m(), Transform3D(F.Z, Vector3(0, 0.012, z)), 0.0215, 0.0, 0.016, 18, F.BLUED)
-	F.box(k.m(), Vector3(0, 0.009, -0.71), Vector3(0.028, 0.038, 0.026), F.BLUED.darkened(0.1))
-	F.box(k.m(), Vector3(0, -0.006, -0.715), Vector3(0.008, 0.008, 0.03), F.STEEL) # bayonet lug
-	# Trigger, guard and magazine floorplate in one strap.
-	F.box(k.m(), Vector3(0, -0.026, -0.02), Vector3(0.022, 0.008, 0.07), F.BLUED.darkened(0.15))
-	F.trigger_and_guard(k, Vector3(0, -0.028, 0.04), 0.022, F.BLUED.darkened(0.2))
-	# Sling swivels and the canvas sling.
-	sling(k, Vector3(-0.002, -0.012, -0.6), Vector3(-0.002, -0.07, 0.36), 0.07, CANVAS)
-	# --- bolt: body, shroud with the safety flag, straight handle with a ball
-	var piv: Vector3 = PIVOTS["bolt_long_rifle_bolt"]
-	F.cz(bo.m(), piv + Vector3(0, 0, -0.02), 0.0092, 0.0092, 0.1, F.STEEL, 14)
-	F.cz(bo.m(), piv + Vector3(0, 0, 0.042), 0.012, 0.0108, 0.026, F.BLUED, 14)
-	F.box(bo.m(), piv + Vector3(0, 0.012, 0.05), Vector3(0.004, 0.012, 0.01), F.STEEL)
-	W.rod(bo.m(), piv + Vector3(0.008, 0, 0.022), piv + Vector3(0.05, -0.006, 0.026), 0.0036, 0.0036, 8, F.STEEL)
-	F.ball(bo.m(), piv + Vector3(0.054, -0.007, 0.026), Vector3.ONE * 0.0088, F.STEEL.lightened(0.1), 5, 10)
-	return {"body": k.commit(), "bolt": bo.commit()}
-
-
-# ------------------------------------------------------------------ gatling pistol
-
-## A handheld three-barrel Gatling: the barrel cluster turns between an iron
-## front plate and a brass breech housing, a side crank on a brass gear case
-## turns it, a little feed magazine stands on top, and a walnut pistol grip
-## hangs under a riveted brass frame.
-static func _gatling_pistol() -> Dictionary:
-	var k := F.Kit.new()
-	var br := F.Kit.new()
-	var cr := F.Kit.new()
-	var ax := Vector3(0, 0.03, 0)
-	# Frame and breech housing.
-	F.cz(k.m(), ax + Vector3(0, 0, -0.03), 0.032, 0.032, 0.07, F.BRASS, 22)
-	F.cz(k.m(), ax + Vector3(0, 0, -0.066), 0.034, 0.034, 0.006, F.BRASS_DARK, 22)
-	F.cz(k.m(), ax + Vector3(0, 0, 0.006), 0.034, 0.034, 0.006, F.BRASS_DARK, 22)
-	for i in 10:
-		var a := TAU * float(i) / 10.0
-		F.ball(k.m(), ax + Vector3(cos(a) * 0.0335, sin(a) * 0.0335, -0.066), Vector3.ONE * 0.0022, F.BRASS_LIGHT, 3, 6)
-	F.box(k.m(), Vector3(0, -0.012, -0.02), Vector3(0.026, 0.026, 0.08), F.IRON)
-	# Gear case on the right side for the crank.
-	MeshKit.add_cylinder(k.m(), Transform3D(F.X, Vector3(0.028, 0.03, -0.035)), 0.02, 0.02, 0.016, 18, F.BRASS_DARK)
-	MeshKit.add_cylinder(k.m(), Transform3D(F.X, Vector3(0.0365, 0.03, -0.035)), 0.016, 0.016, 0.002, 18, F.BRASS_LIGHT)
-	# Feed magazine on top.
-	F.box(k.m(), ax + Vector3(0, 0.05, -0.03), Vector3(0.02, 0.05, 0.034), F.BRASS)
-	F.box(k.x(), ax + Vector3(0.0102, 0.05, -0.03), Vector3(0.001, 0.04, 0.008), F.BORE)
-	for i in 4:
-		F.cz(k.m(), ax + Vector3(0.0104, 0.034 + i * 0.01, -0.03), 0.0032, 0.0032, 0.004, F.BRASS_LIGHT, 8)
-	F.box(k.m(), ax + Vector3(0, 0.077, -0.03), Vector3(0.022, 0.004, 0.036), F.BRASS_DARK)
-	# Rear sight notch and the grip.
-	F.box(k.m(), ax + Vector3(0, 0.035, 0.004), Vector3(0.014, 0.008, 0.006), F.IRON_DARK)
-	F.pistol_grip(k, Vector3(0, -0.018, 0.018), Vector3(0, -0.098, 0.05), F.WALNUT, F.BRASS, 1.1)
-	F.trigger_and_guard(k, Vector3(0, -0.03, -0.004), 0.02, F.BRASS)
-	# --- barrels: three in a cluster round the axle, held by two plates
-	var piv: Vector3 = PIVOTS["gatling_pistol_barrels"]
-	for i in 3:
-		var a := TAU * float(i) / 3.0 + PI * 0.5
-		var off := Vector3(cos(a), sin(a), 0) * 0.017
-		F.cz(br.m(), piv + off + Vector3(0, 0, -0.035), 0.0085, 0.0095, 0.21, F.BLUED, 14)
-		muzzle(br, piv + off + Vector3(0, 0, -0.141), 0.0085, 0.0045, F.BLUED, 14)
-	F.cz(br.m(), piv + Vector3(0, 0, -0.04), 0.006, 0.006, 0.22, F.STEEL, 10)
-	for z: float in [-0.13, 0.04]:
-		F.cz(br.m(), piv + Vector3(0, 0, z), 0.028, 0.028, 0.008, F.IRON_DARK, 18)
-		for i in 3:
-			var a := TAU * float(i) / 3.0 + PI * 0.5 + PI / 3.0
-			F.ball(br.m(), piv + Vector3(cos(a) * 0.022, sin(a) * 0.022, z - 0.004), Vector3.ONE * 0.0022, F.BRASS, 3, 6)
-	F.cz(br.m(), piv + Vector3(0, 0, -0.152), 0.004, 0.004, 0.006, F.BRASS_LIGHT, 8)
-	# --- crank: arm and a turned walnut knob, on the gear case
-	var cp: Vector3 = PIVOTS["gatling_pistol_crank"]
-	MeshKit.add_cylinder(cr.m(), Transform3D(F.X, cp + Vector3(0.006, 0, 0)), 0.0055, 0.0055, 0.012, 10, F.STEEL)
-	F.box(cr.m(), cp + Vector3(0.012, -0.02, 0.0), Vector3(0.005, 0.044, 0.01), F.IRON)
-	MeshKit.add_cylinder(cr.w(), Transform3D(F.X, cp + Vector3(0.026, -0.038, 0.0)), 0.0065, 0.0075, 0.026, 12, F.WALNUT_DARK)
-	return {"body": k.commit(), "barrels": br.commit(), "crank": cr.commit()}
 
 
 # ------------------------------------------------------------------ double rifle

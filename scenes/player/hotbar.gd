@@ -109,6 +109,8 @@ func use_slot(i: int, toggle: bool = true) -> void:
 		player.gun.equip(id)
 	else:
 		player.gun.hold_item(id)
+		if i < 6:
+			player.gun.heavy_pick = HeavyRules.crop_of_item(id) # a crop picked on 4-6: R on the heavy loads its sack
 		if id == PartnerTonic.ITEM:
 			Economy.notice.emit("Left Click: send your partner a sarsaparilla tonic (their turrets fire %d%% faster)." % int(round(PartnerTonic.FIRE_RATE_BONUS * 100.0)))
 	selected = i
@@ -143,9 +145,12 @@ const SHORT_NAMES: Dictionary = {&"coach_shotgun": "Shotgun", &"salt_shotgun": "
 	&"ricochet_rifle": "Ricochet", &"howdah_pistol": "Howdah", &"sharps_carbine": "Sharps", &"trapdoor_springfield": "Trapdoor",
 	&"screamer_pistol": "Screamer", &"tar_sprayer": "Tar", &"flashbang_pistol": "Flashbang", &"pepper_bomb_pistol": "Pepper",
 	&"concussion_pistol": "Concussion", &"chain_binder": "Chain", &"rust_duster": "Duster", &"glow_worm_launcher": "Glow-Worm",
-	&"caltrops_launcher": "Caltrops", &"phosphor_grenade": "Phosphor", &"mortar_tube": "Mortar", &"fire_lance": "Lance",
-	&"organ_gun": "Organ Gun", &"harpoon_ballista": "Ballista", &"acid_drencher": "Acid", &"swivel_gun": "Swivel",
-	&"congreve_rocket": "Rocket", &"bear_trap_launcher": "Traps"}
+	&"caltrops_launcher": "Caltrops", &"phosphor_grenade": "Phosphor",
+	&"swivel_gun": "Swivel",
+	# Universal crop-loaded heavies.
+	&"crop_mortar": "Mortar", &"hand_cannon": "Cannon", &"crop_sprayer": "Sprayer", &"spike_driver": "Spikes",
+	&"drum_launcher": "Drum", &"harvest_gatling": "Gatling", &"crop_crossbow": "Crossbow", &"bola_launcher": "Bolas",
+	&"powder_keg_launcher": "Kegs", &"crop_blunderbuss": "Bell"}
 
 
 ## For the HUD: item id, label, count text, selected?

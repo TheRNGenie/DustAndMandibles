@@ -132,6 +132,13 @@ static func normalize(raw: Dictionary) -> Dictionary:
 			guns[int(str(key))] = _amounts(raw_guns[key])
 	out["perks"] = perks
 	out["guns"] = guns
+	# Universal heavies: cliff -> {gun: [crop, shots]} (HeavyAmmo; older saves: none).
+	var heavy := {}
+	var raw_heavy: Dictionary = raw.get("heavy_loads", {}) if raw.get("heavy_loads") is Dictionary else {}
+	for key: Variant in raw_heavy:
+		if str(key).is_valid_int():
+			heavy[int(str(key))] = HeavyAmmo.from_save(raw_heavy[key])
+	out["heavy_loads"] = heavy
 	# The bullwhip and the Powder Satchel: cliff -> WeaponMods code (older saves: none).
 	for field: String in ["whips", "dynamite"]:
 		var codes := {}

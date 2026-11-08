@@ -6,6 +6,8 @@ var weapon_id: StringName = &""
 ## Set instead of weapon_id for a dropped crop / medicine / water.
 var item_id: StringName = &""
 var level: int = 0
+## A universal heavy's [crop, shots] as it was dropped (HeavyAmmo; empty otherwise).
+var heavy_load: Array = []
 var _mi: MeshInstance3D
 var _t := 0.0
 
@@ -35,6 +37,17 @@ func setup(id: StringName, lvl: int, pos: Vector3) -> void:
 	shape.radius = 0.7
 	col.shape = shape
 	add_child(col)
+
+
+## A dropped universal heavy keeps its crop: its ring glows with it on the ground.
+func set_heavy_load(l: Array) -> void:
+	heavy_load = l
+	if _mi != null and _mi.get_child_count() > 0 and UniHeavies.has(weapon_id):
+		UniHeavies.show_trim(_mi.get_child(0), WeaponMods.level(level)) # its upgrade trim
+		if l.size() < 2 or int(l[1]) <= 0:
+			UniHeavies.tint(_mi.get_child(0), &"") # empty: a dark ring
+	if l.size() >= 2 and int(l[1]) > 0 and _mi != null and _mi.get_child_count() > 0:
+		UniHeavies.tint(_mi.get_child(0), StringName(l[0]))
 
 
 func setup_item(item: StringName, pos: Vector3) -> void:
@@ -68,6 +81,9 @@ func interact_prompt() -> String:
 	if item_id != &"":
 		return "E: pick up %s" % String(Hotbar.NAMES.get(item_id, String(item_id))).to_lower()
 	var w := Gun.weapon(weapon_id)
+	if w.crop_ammo:
+		var loaded := heavy_load.size() >= 2 and int(heavy_load[1]) > 0
+		return "E: pick up %s (%s)" % [w.display_name, ("%d %s shots" % [int(heavy_load[1]), CropEffects.short_name(StringName(heavy_load[0])).to_lower()]) if loaded else "empty"]
 	return "E: pick up %s%s" % [w.display_name, (" (level %d)" % WeaponMods.level(level)) if WeaponMods.level(level) > 0 else ""] # the code also holds mods and the Dino glass
 
 

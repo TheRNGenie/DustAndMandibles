@@ -486,6 +486,8 @@ func _physics_process(delta: float) -> void:
 		if cigarette != null:
 			target_speed *= cigarette.speed_multiplier()
 		target_speed *= Expedition.local_speed_mult() # Canyon Expeditions: a heavy backpack slows you
+		if gun != null and gun.def != null and gun.holding == &"":
+			target_speed *= HeavyRules.walk_mult(gun.def.id, gun.spin) # Hand Cannon's weight, the Gatling's crank
 		if gun.aiming:
 			target_speed *= 0.6
 		if gun.def != null and gun.holding == &"" and gun.def.slot == WeaponDef.Slot.HEAVY:

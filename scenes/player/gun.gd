@@ -23,7 +23,10 @@ const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun",
 	# Weapon Slots Redesign: primaries, secondaries, heavies (ArmoryGuns models).
 	&"volcanic_repeater", &"mares_leg", &"double_rifle", &"trench_broom", &"ricochet_rifle", &"howdah_pistol", &"sharps_carbine", &"trapdoor_springfield",
 	&"screamer_pistol", &"tar_sprayer", &"flashbang_pistol", &"pepper_bomb_pistol", &"concussion_pistol", &"chain_binder", &"rust_duster", &"glow_worm_launcher", &"caltrops_launcher", &"phosphor_grenade",
-	&"mortar_tube", &"fire_lance", &"organ_gun", &"harpoon_ballista", &"acid_drencher", &"swivel_gun", &"congreve_rocket", &"bear_trap_launcher"]
+	&"swivel_gun",
+	# Universal crop-loaded heavies (HeavyRules, UniHeavies models).
+	&"crop_mortar", &"hand_cannon", &"crop_sprayer", &"spike_driver", &"drum_launcher", &"harvest_gatling",
+	&"crop_crossbow", &"bola_launcher", &"powder_keg_launcher", &"crop_blunderbuss"]
 ## Frontier guns that load every round in one go (a reload is one step).
 const LOAD_ALL: Array[StringName] = [&"crank_gatling", &"pepperbox", &"derringer_pair"]
 ## Where some guns sit lower or closer than the standard rest spot (the smoker's
@@ -45,6 +48,24 @@ const MAX_WEAPONS := 3
 const SLOT_NAMES: Array[String] = ["Primary", "Secondary", "Heavy"]
 ## Heavies: rounds loaded from crop harvests waiting to go into the magazine (id -> rounds).
 var reserve: Dictionary = {}
+## Universal heavies (WeaponDef.crop_ammo): the crop each is loaded with (&"" empty),
+## and the last crop loaded into each (a quick tap of R loads it again).
+var heavy_crop: Dictionary = {}
+var heavy_last: Dictionary = {}
+## A universal heavy took a sack: `old` was in it (&"" none), `crop` now.
+signal heavy_loaded(id: StringName, old: StringName, crop: StringName)
+## The crop last picked on the hotbar's slots 4-6: a tap of R loads it into the heavy.
+var heavy_pick: StringName = &""
+## R held with a universal heavy out: seconds held (-1 = not watching).
+var _r_held := -1.0
+## The shots a sack load brings, waiting for the load animation to finish.
+var _heavy_pending := -1
+## Harvest Gatling: rounds of steady fire (the spread widens with it).
+var heat := 0.0
+## The crop wheel reads this (CropWheel: the gun is its target while a heavy is out).
+var crop: StringName:
+	get:
+		return StringName(heavy_crop.get(def.id, &"")) if def != null else &""
 ## Right-click aim: where the gun sits, and how far the view zooms in.
 const AIM_POS: Dictionary = {&"revolver": Vector3(0.0, -0.075, -0.5), &"lever_rifle": Vector3(0.0, -0.056, -0.44),
 	&"coach_shotgun": Vector3(0.0, -0.058, -0.4), &"blunderbuss": Vector3(0.0, -0.05, -0.4), &"crank_gatling": Vector3(0.06, -0.12, -0.45),
@@ -313,6 +334,8 @@ func code_of(id: StringName) -> int:
 
 # Effective stats of the gun in hand, with its mods.
 func mag_size() -> int:
+	if def != null and def.crop_ammo:
+		return def.mag_size + WeaponMods.add(def.id, code_of(def.id), "mag") # a sack's worth (the host counts the same)
 	return def.mag_size + WeaponMods.add(def.id, code_of(def.id), "mag") + PerkTable.bandolier_bonus(def.mag_size, Perks.local_rank(&"bandolier")) if def != null else 0 # Perk: Bandolier
 
 
@@ -343,8 +366,11 @@ func equip(id: StringName) -> void:
 	holding = &""
 	_item_mi.visible = false
 	_hand.visible = false
-	ammo = int(_ammo_by_weapon.get(id, mag_size()))
+	if _heavy_pending >= 0:
+		_heavy_finish() # (switched away mid-load: the sack is in all the same)
+	ammo = int(_ammo_by_weapon.get(id, 0 if def.crop_ammo else mag_size()))
 	_stage = Reload.NONE
+	_r_held = -1.0
 	_open = 0.0
 	_cycle = 1.0
 	_ensure_model(id)
@@ -379,6 +405,7 @@ func remove_weapon(id: StringName) -> void:
 		slots[i] = &""
 	_ammo_by_weapon.erase(id)
 	reserve.erase(id)
+	heavy_crop.erase(id)
 	if def != null and def.id == id:
 		def = null
 		for w in slots:
@@ -429,9 +456,14 @@ func grant(id: StringName, level: int) -> void:
 		owned.erase(prev)
 		_ammo_by_weapon.erase(prev)
 		reserve.erase(prev)
+		heavy_crop.erase(prev)
 		if def != null and def.id == prev:
 			def = null
 	var fresh := not owned.has(id)
+	if fresh and weapon(id).crop_ammo:
+		# A universal heavy arrives empty (or as it was dropped: heavy_set follows).
+		_ammo_by_weapon[id] = 0
+		heavy_crop[id] = &""
 	owned[id] = level
 	slots[s] = id
 	if fresh and weapon(id).crop != &"":
@@ -492,6 +524,8 @@ static func shot_dirs(id: StringName, dir: Vector3, seed_value: int, code: int =
 	var spread := tan(deg_to_rad(d.spread_deg * WeaponMods.mult(id, code, "spread")))
 	if seed_value & 1:
 		spread *= AIM_SPREAD # odd seed = the shooter was aiming
+	if d.special == &"uh_cannon" and (seed_value & 1 or WeaponMods.flag(id, code, "steady")):
+		spread = 0.0 # Hand Cannon: aimed (or with Rifled Bore) it doesn't sway
 	for i in maxi(pellets, 1):
 		var a := rng.randf() * TAU
 		var r := sqrt(rng.randf()) * spread
@@ -506,6 +540,7 @@ var spin := 0.0
 
 func _process(delta: float) -> void:
 	_cooldown = maxf(_cooldown - delta, 0.0)
+	_heavy_tick(delta)
 	if def != null and def.automatic:
 		var want := 1.0 if trigger_held and holding == &"" and _stage == Reload.NONE else 0.0
 		spin = move_toward(spin, want, delta / maxf(spin_up_time() if want > 0.0 else spin_up_time() * 2.0, 0.05))
@@ -527,6 +562,10 @@ func _process(delta: float) -> void:
 		_refill_fuel(delta)
 	if vm != null:
 		vm.frontier_tick(delta)
+		if vm.uni != null:
+			vm.uni.tick(heavy_crop_of(def.id), ammo, _shot_count, delta, level_of(def.id))
+			if vm.get("_round") != null:
+				UniHeavies.tint(vm.get("_round"), heavy_last.get(def.id, heavy_crop_of(def.id)) if _heavy_pending >= 0 or _stage != Reload.NONE else heavy_crop_of(def.id))
 		vm.set_loaded(ammo > 0 or _stage == Reload.CLOSE)
 		var load_t := clampf(_stage_t / maxf(_stage_len, 0.001), 0.0, 1.0)
 		var catch_t := load_t if (_stage == Reload.OPEN and _catching) else -1.0
@@ -638,6 +677,8 @@ func _feel_offset() -> Array:
 ## Times for this gun: tipping in, each round, closing up (faster with upgrades).
 func _times() -> Vector3:
 	var k := GunRarity.reload_mult(level_of(def.id)) * Perks.local_less(&"quick_hands") * Brand.reload_mult() # Perk: Quick Hands; Brand: Crossed Irons
+	if def.crop_ammo:
+		return Vector3(0.25, 0.5, 0.25) * reload_time() * k # a universal heavy: port open, the sack in, shut
 	if ArmoryGuns.has(def.id) and (self_filling(def) or ArmoryEffects.is_spray(def.special)):
 		return Vector3(0.3, reload_time() * 0.6, 0.3) * k # a spray's canister: off, on, done
 	match acts(def.id):
@@ -685,6 +726,10 @@ func _advance_reload(delta: float) -> void:
 				ammo = 0
 				ammo_changed.emit(ammo, mag_size())
 			_begin(Reload.LOAD, times.y * (SPEED_LOAD_ROUNDS if _speedloads() else 1.0))
+		Reload.LOAD when def.crop_ammo:
+			_heavy_finish()
+			_foley("load", -6.0)
+			_begin(Reload.CLOSE, times.z)
 		Reload.LOAD:
 			# The gatling swaps a whole drum at once.
 			var all := LOAD_ALL.has(acts(def.id)) or _speedloads() or ArmoryEffects.is_spray(def.special)
@@ -738,6 +783,8 @@ func _begin(stage: Reload, length: float) -> void:
 func trigger(camera: Camera3D) -> bool:
 	if holding != &"" or def == null:
 		return false
+	if _stage != Reload.NONE and def.crop_ammo:
+		return false # a sack going in: wait for it
 	if _stage != Reload.NONE:
 		# Like Hunt: fire between rounds to stop reloading (the shotgun has to
 		# snap shut first).
@@ -753,6 +800,11 @@ func trigger(camera: Camera3D) -> bool:
 	if def.automatic and spin < 1.0:
 		return false # still winding the crank up
 	if ammo <= 0:
+		if def.crop_ammo:
+			# Universal heavies click dry: load a sack (R).
+			Audio.play_at(&"hit_tick", global_position, -12.0, 0.6)
+			_cooldown = 0.35
+			return false
 		if not self_filling(def): # the smoker (and the tar can) just waits for its fuel
 			reload()
 		return false
@@ -783,6 +835,8 @@ func trigger(camera: Camera3D) -> bool:
 		_flash.rotation.z = randf() * TAU
 		_flash_light.light_energy = 2.5 if def.id != &"flare_gun" else 5.0
 		_flash_light.light_color = Color("#FF5A3A") if def.id == &"flare_gun" else Palette.GLOW_YELLOW
+		if def.crop_ammo:
+			_flash_light.light_color = HeavyRules.color_of(heavy_crop_of(def.id)) # the crop's colour at the muzzle
 		_flash_left = 0.05 if def.id != &"flare_gun" else 0.18
 	ammo_changed.emit(ammo, mag_size())
 	play_shot_sound(def, global_position, -2.0, _shot_count)
@@ -843,13 +897,18 @@ func is_scoped() -> bool:
 func zoom_factor() -> float:
 	if def == null:
 		return 1.0
-	var zoom := float(AIM_ZOOM.get(def.id, 1.3)) * WeaponMods.mult(def.id, code_of(def.id), "zoom")
+	var zoom := float(AIM_ZOOM.get(def.id, HeavyRules.CROSSBOW_ZOOM if def.id == &"crop_crossbow" else 1.3)) * WeaponMods.mult(def.id, code_of(def.id), "zoom")
 	if def.id == &"dino_rifle":
 		zoom *= float(DinoGlass.get_fit(code_of(def.id))["zoom"])
 	return lerpf(1.0, zoom, aim)
 
 
 func reload() -> void:
+	if def != null and def.crop_ammo and holding == &"":
+		# Universal heavies: tap R for the last crop again, hold it for the crop wheel.
+		if _stage == Reload.NONE and _r_held < 0.0:
+			_r_held = 0.0
+		return
 	if holding != &"" or def == null or _stage != Reload.NONE or ammo == mag_size() or self_filling(def):
 		return
 	if def.crop != &"" and int(reserve.get(def.id, 0)) <= 0:
@@ -958,3 +1017,123 @@ static func apply_hit_result(hit: Dictionary, dir: Vector3, dmg: float, pierce: 
 		collider.call("apply_hit", dmg, hit["position"], dir, pierce, source, source_cliff)
 	elif collider != null and not collider.has_method("apply_hit"):
 		BossFx.on_world_hit(hit["position"]) # Boss: shooting the corpse pile apart starves the Bone Collector
+
+
+# ------------------------------------------------------------------ universal crop-loaded heavies
+
+## The crop a universal heavy is loaded with (&"" empty or not one).
+func heavy_crop_of(id: StringName) -> StringName:
+	return StringName(heavy_crop.get(id, &""))
+
+
+## Owner: R being held with a universal heavy out (tap = last crop, hold = the
+## wheel), and the gatling's heat.
+func _heavy_tick(delta: float) -> void:
+	if def != null and def.id == &"harvest_gatling" and trigger_held and spin >= 1.0 and ammo > 0:
+		heat = minf(heat + delta / maxf(fire_interval(), 0.02), HeavyRules.GATLING_HEAT_ROUNDS * 2.0)
+	else:
+		heat = maxf(heat - HeavyRules.GATLING_COOL * delta, 0.0)
+	if _r_held < 0.0:
+		return
+	if def == null or not def.crop_ammo or holding != &"" or _stage != Reload.NONE:
+		_r_held = -1.0
+		return
+	_r_held += delta
+	var down := Input.is_action_pressed("reload")
+	if down and _r_held >= HeavyRules.WHEEL_HOLD:
+		_r_held = -1.0
+		CropWheel.open_for(self, &"reload")
+	elif not down:
+		_r_held = -1.0
+		var again: StringName = heavy_last.get(def.id, heavy_crop_of(def.id))
+		if heavy_pick != &"" and sacks_of(heavy_pick) > 0:
+			again = heavy_pick # picked on the hotbar (4-6) on the way to the heavy
+		heavy_pick = &""
+		if again == &"" or sacks_of(again) <= 0:
+			CropWheel.open_for(self, &"reload") # nothing to repeat: pick one
+		elif ammo < mag_size() or heavy_crop_of(def.id) != again:
+			request_load(again)
+
+
+## CropWheel: may a sack go in now?
+func can_load_now() -> bool:
+	return def != null and def.crop_ammo and holding == &"" and _stage == Reload.NONE \
+			and GameState.phase != GameState.Phase.GAME_OVER
+
+
+## CropWheel: sacks of `c` the local player can load from (the cliff's shared stores).
+func sacks_of(c: StringName) -> int:
+	var item := CropEffects.sack_of(c)
+	if item == &"":
+		return 0
+	var p := get_parent().get_parent().get_parent() as Player
+	var cliff := p.cliff_id if p != null else NetworkManager.cliff_of(multiplayer.get_unique_id())
+	return Economy.amount(Economy.payer_cliff(multiplayer.get_unique_id(), cliff), item)
+
+
+## CropWheel: may `c` be picked? (A fresh sack of the crop already in is fine
+## once some of it is spent.)
+func can_pick(c: StringName) -> bool:
+	return sacks_of(c) > 0 and (c != crop or ammo < mag_size())
+
+
+## CropWheel / tap R: ask the host to load a sack of `c` into the heavy in hand.
+func request_load(c: StringName) -> void:
+	var p := get_parent().get_parent().get_parent() as Player
+	if def == null or not def.crop_ammo or p == null or not p.is_multiplayer_authority():
+		return
+	p.net.request_heavy_load(def.id, c)
+
+
+## (The wheel asks a looked-at turret this; a gun is never looked at.)
+func local_swap() -> bool:
+	return false
+
+
+## The wheel's keys line.
+func wheel_keys() -> String:
+	return "Release R: Load   ·   Right Click: Close"
+
+
+## Owner: the host took the sack: `c` is in `id` with `shots` shots. Plays the
+## load (the gun tips into its loading posture) when it's in hand.
+func heavy_confirmed(id: StringName, c: StringName, shots: int) -> void:
+	var old := heavy_crop_of(id)
+	heavy_crop[id] = c
+	heavy_last[id] = c
+	heavy_loaded.emit(id, old, c)
+	var hvm := _models.get(id) as ViewModel
+	if hvm != null and hvm.uni != null:
+		hvm.uni.loaded(old, c)
+	if def != null and def.id == id and holding == &"":
+		_heavy_pending = shots
+		var times := _times()
+		reload_started.emit(times.x + times.y + times.z)
+		_begin(Reload.OPEN, times.x)
+		_foley("open", -5.0)
+	else:
+		_ammo_by_weapon[id] = shots
+	loadout_changed.emit()
+
+
+## Owner: the host says what's in a heavy (picked up as dropped, or a saved run).
+func heavy_set(id: StringName, c: StringName, shots: int) -> void:
+	if not owns(id):
+		return
+	heavy_crop[id] = c
+	if c != &"":
+		heavy_last[id] = c
+	if def != null and def.id == id:
+		ammo = shots
+		ammo_changed.emit(ammo, mag_size())
+	else:
+		_ammo_by_weapon[id] = shots
+	loadout_changed.emit()
+
+
+func _heavy_finish() -> void:
+	if _heavy_pending < 0:
+		return
+	ammo = _heavy_pending
+	_heavy_pending = -1
+	ammo_changed.emit(ammo, mag_size())

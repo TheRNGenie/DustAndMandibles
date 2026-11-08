@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"bola_launcher"
+slot = 2
+crop_ammo = true
+display_name = "Bola Launcher"
+description = "A brass drum launcher that fires crop-soaked bolas. The one it wraps is held fast for a second and a half (bosses half a second) and takes 80; the swinging weights clip one or two bugs beside it for 40. Ten bolas to a sack."
+damage = 80.0
+mag_size = 10
+fire_interval = 1.0
+reload_time = 3.0
+pellets = 1
+spread_deg = 0.0
+range = 70.0
+price_chitin = 70
+upgrade_costs = PackedInt32Array(28, 56)
+shake = 0.45
+sound = &"harpoon"
+recoil_deg = 5.0
+recoil_yaw_deg = 0.8
+recoil_recover = 0.35
+role = "Lockdown"
+special = &"uh_bola"
+sound_pitch = 0.65
+draw_speed = 0.7

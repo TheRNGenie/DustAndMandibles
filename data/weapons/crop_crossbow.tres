@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"crop_crossbow"
+slot = 2
+crop_ammo = true
+display_name = "Crop Crossbow"
+description = "A heavy repeating crossbow with a brass bolt magazine. Crop-tipped bolts fly fast enough to see, hit for 110 and stay stuck where they land. Aim zooms 2.5 times. Twenty bolts to a sack."
+damage = 110.0
+mag_size = 20
+fire_interval = 1.4
+reload_time = 3.0
+pellets = 1
+spread_deg = 0.0
+range = 250.0
+price_chitin = 75
+upgrade_costs = PackedInt32Array(30, 60)
+shake = 0.25
+sound = &"harpoon"
+recoil_deg = 3.0
+recoil_yaw_deg = 0.4
+recoil_recover = 0.3
+role = "Precision"
+special = &"uh_crossbow"
+sound_pitch = 0.8
+draw_speed = 0.7

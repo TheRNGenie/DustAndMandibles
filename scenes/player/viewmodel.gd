@@ -48,6 +48,8 @@ var _reel_angle := 0.0
 var _puff_phase := 0.0
 ## Derringers: the recoil of the last shot, per hand (0 right, 1 left).
 var _hand_kick := Vector2.ZERO
+## A universal crop-loaded heavy's own moving parts and loading posture (UniHeavyVM).
+var uni: UniHeavyVM
 
 
 func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) -> void:
@@ -79,6 +81,8 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 			held_round = WeaponBuilder.gatling_drum()
 		&"flare_gun", &"salt_shotgun", &"punt_gun", &"harpoon_pistol", &"telescope_rifle", &"pepperbox":
 			held_round = FrontierGuns.held_round(id)
+	if UniHeavies.has(id):
+		held_round = UniHeavies.sack() # the support hand fetches a crop sack
 	_round = _mi(left, held_round)
 	if FrontierGuns.has(id) or ArmoryGuns.has(id) or _rv:
 		_round.material_override = null
@@ -103,6 +107,8 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 		_flyer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_flyer.visible = false
 		add_child(_flyer)
+	if UniHeavies.has(id):
+		uni = UniHeavyVM.new(self)
 	set_look(look)
 
 
@@ -353,6 +359,8 @@ func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: f
 			transform = Transform3D(Basis.from_euler(Vector3(0.25 * e, -0.15 * e, -0.55 * e)), Vector3(-0.03, 0.07, 0.07) * e)
 		_:
 			transform = Transform3D(Basis.from_euler(Vector3(0.4 * e, 0.12 * e, 0.3 * e)), Vector3(-0.04, 0.06, 0.06) * e)
+	if uni != null:
+		uni.pose(e, load_t, loading, cycle) # a universal heavy: its own posture and parts
 	if drum != null:
 		drum.rotation.z = drum_angle
 	if _rv:
@@ -506,6 +514,9 @@ var _spin_angle := 0.0
 
 
 func turn_crank(amount: float, delta: float) -> void:
+	if uni != null:
+		uni.crank(amount, delta)
+		return
 	if bellows != null:
 		# Bee Smoker: the bellows pump while the trigger's held.
 		if amount > 0.01:

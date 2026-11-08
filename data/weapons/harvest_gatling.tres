@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"harvest_gatling"
+slot = 2
+crop_ammo = true
+display_name = "Harvest Gatling"
+description = "A hand-cranked four-barrel gatling with a crop hopper on top. Winds up, then pours out eight rounds a second; the spread widens the longer you hold it, and you walk at half pace while it turns. A hundred and fifty rounds to a sack."
+damage = 18.0
+mag_size = 150
+fire_interval = 0.12
+reload_time = 3.5
+pellets = 1
+spread_deg = 3.0
+range = 100.0
+price_chitin = 85
+upgrade_costs = PackedInt32Array(34, 68)
+shake = 0.12
+automatic = true
+spin_up = 0.8
+sound = &"gatling_2"
+recoil_deg = 0.35
+recoil_yaw_deg = 0.25
+recoil_recover = 0.6
+role = "Suppression"
+special = &"uh_gatling"
+sound_pitch = 0.9
+draw_speed = 0.7

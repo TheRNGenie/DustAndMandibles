@@ -39,6 +39,7 @@ func _physics_process(delta: float) -> void:
 			sync_look = JSON.stringify(look)
 	else:
 		player.rig.set_weapon(sync_weapon)
+	_heavy_ring_tick()
 	if sync_look != _applied_look and sync_look != "":
 		_applied_look = sync_look
 		player.rig.apply_look(DummyLook.clean(JSON.parse_string(sync_look)))
@@ -254,7 +255,9 @@ func _host_drop(peer_id: int, id: StringName, level: int, pos: Vector3) -> void:
 		return
 	owned.erase(id)
 	GunShop.loadouts[peer_id] = owned
-	PickupManager.instance.spawn_weapon(id, level, pos)
+	var heavy_load := HeavyAmmo.of(peer_id, id) if Gun.weapon(id) != null and Gun.weapon(id).crop_ammo else []
+	HeavyAmmo.forget(peer_id, id)
+	PickupManager.instance.spawn_weapon(id, level, pos, heavy_load) # (a universal heavy keeps its crop and shots)
 
 
 ## Called by the owning peer after the gun fired.
@@ -267,7 +270,11 @@ func fire(origin: Vector3, dir: Vector3) -> void:
 		seed_value |= 1 # aimed shots spread less (see Gun.shot_dirs)
 	var muzzle := gun.muzzle_global()
 	var def := gun.def
-	if def.special == &"smoke":
+	if def.crop_ammo and id == &"harvest_gatling":
+		dir = _gatling_wobble(dir, level)
+	if def.crop_ammo:
+		_heavy_predict(origin, dir, id, level, seed_value, muzzle)
+	elif def.special == &"smoke":
 		_smoke_fx(muzzle, dir)
 	elif ArmoryEffects.is_spray(def.special):
 		pass # the new sprays: the host's puff comes back to everyone (armory_fx)
@@ -319,6 +326,9 @@ func _request_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, se
 ## `remote_muzzle` set: a client's shot, drawn the same way from their body.
 func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, seed_value: int, muzzle: Variant = null, remote_muzzle: Variant = null) -> void:
 	var def := Gun.weapon(id)
+	if def.crop_ammo:
+		_server_heavy(origin, dir, def, level, seed_value, muzzle, remote_muzzle) # universal crop-loaded heavies
+		return
 	if def.special == &"smoke":
 		_server_smoke(origin, dir.normalized(), level)
 		_fire_fx.rpc(origin, dir, id, seed_value, level)
@@ -486,6 +496,9 @@ func _show_remote_shot(origin: Vector3, dir: Vector3, id: StringName, seed_value
 	var def := Gun.weapon(id)
 	Gun.play_shot_sound(def, player.global_position + Vector3.UP * 1.4, -4.0, seed_value >> 1)
 	var muzzle := _remote_muzzle()
+	if def.crop_ammo:
+		player.flash_body()
+		return # universal heavies: heavy_fx and heavy_trace draw them
 	if def.special == &"smoke":
 		_smoke_fx(muzzle + dir.normalized() * 0.4, dir)
 		return
@@ -621,3 +634,167 @@ class Rock extends MeshInstance3D:
 		var ab := b - a
 		var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
 		return (a + ab * t).distance_to(p)
+
+
+# ------------------------------------------------------------------ universal crop-loaded heavies (HeavyRules)
+
+## Every peer: the crop glowing in each rider's heavy ring (id -> crop, &"" dark).
+var heavy_rings: Dictionary = {}
+var _ring_shown := ""
+
+
+## Owner: a sack of `crop` into heavy `id` (the host checks and takes it).
+func request_heavy_load(id: StringName, crop: StringName) -> void:
+	if multiplayer.is_server():
+		_host_heavy_load(multiplayer.get_unique_id(), id, crop)
+	else:
+		_request_heavy_load.rpc_id(1, id, crop)
+
+
+@rpc("any_peer", "reliable")
+func _request_heavy_load(id: StringName, crop: StringName) -> void:
+	if multiplayer.is_server() and multiplayer.get_remote_sender_id() == player.get_multiplayer_authority():
+		_host_heavy_load(multiplayer.get_remote_sender_id(), id, crop)
+
+
+## Host: one sack from the cliff's shared ammo stores fills the gun; whatever
+## was in it is thrown out.
+func _host_heavy_load(peer_id: int, id: StringName, crop: StringName) -> void:
+	var w := Gun.weapon(id)
+	if w == null or not w.crop_ammo or not CropEffects.is_crop(crop):
+		return
+	var owned: Dictionary = GunShop.loadouts.get(peer_id, {})
+	if not owned.has(id):
+		return
+	var item := CropEffects.sack_of(crop)
+	var crop_name := CropEffects.short_name(crop)
+	if item == &"" or not Economy.spend(Economy.payer_cliff(peer_id, player.cliff_id), {item: 1}):
+		Economy.notify(peer_id, "No %s sacks left. Harvest some %s." % [crop_name.to_lower(), crop_name.to_lower()])
+		return
+	var before := HeavyAmmo.of(peer_id, id)
+	var shots := w.mag_size + WeaponMods.add(id, int(owned[id]), "mag")
+	var res := HeavyRules.load_result(before[0], int(before[1]), crop, shots)
+	HeavyAmmo.put(peer_id, id, crop, shots)
+	var note := "A sack of %s in the %s: %d shots, %s." % [crop_name.to_lower(), w.display_name, shots, CropEffects.effect_name(crop)]
+	if int(res["lost"]) > 0 and bool(res["swap"]):
+		note += " (%d %s shots thrown out.)" % [int(res["lost"]), CropEffects.short_name(before[0]).to_lower()]
+	Economy.notify(peer_id, note)
+	if peer_id == multiplayer.get_unique_id() and player.is_multiplayer_authority():
+		player.gun.heavy_confirmed(id, crop, shots)
+	else:
+		_heavy_loaded.rpc_id(peer_id, id, crop, shots)
+	heavy_ring.rpc(id, crop)
+	var old_i := float(HeavyRules.CROPS.find(before[0]) + 1) if bool(res["swap"]) and int(before[1]) > 0 else 0.0
+	heavy_fx.rpc(&"load", player.global_position, Vector3.ZERO, HeavyRules.pack(crop, 0), old_i, Vector3.ZERO)
+
+
+@rpc("any_peer", "reliable")
+func _heavy_loaded(id: StringName, crop: StringName, shots: int) -> void:
+	if multiplayer.get_remote_sender_id() == 1:
+		player.gun.heavy_confirmed(id, crop, shots)
+
+
+## Host: tell the owner what's in a heavy (picked up as it was dropped, a saved run).
+func send_heavy_set(id: StringName, crop: StringName, shots: int) -> void:
+	HeavyAmmo.put(player.get_multiplayer_authority(), id, crop, shots)
+	if player.is_multiplayer_authority():
+		player.gun.heavy_set(id, crop, shots)
+	else:
+		_heavy_set.rpc_id(player.get_multiplayer_authority(), id, crop, shots)
+	heavy_ring.rpc(id, crop if shots > 0 else &"")
+
+
+@rpc("any_peer", "reliable")
+func _heavy_set(id: StringName, crop: StringName, shots: int) -> void:
+	if multiplayer.get_remote_sender_id() == 1:
+		player.gun.heavy_set(id, crop, shots)
+
+
+## Host -> everyone: the crop now glowing in this rider's heavy (&"" = empty).
+@rpc("any_peer", "call_local", "reliable")
+func heavy_ring(id: StringName, crop: StringName) -> void:
+	if multiplayer.get_remote_sender_id() != 1 and not multiplayer.is_server():
+		return
+	heavy_rings[id] = crop
+
+
+## Every peer: a universal heavy's visual (HeavyFx.play).
+@rpc("any_peer", "call_local", "reliable")
+func heavy_fx(kind: StringName, a: Vector3, b: Vector3, x: float, y: float, n: Vector3) -> void:
+	if multiplayer.get_remote_sender_id() != 1 and not multiplayer.is_server():
+		return
+	HeavyFx.play(kind, a, b, x, y, n)
+
+
+## Every peer but the shooter (who drew its own): a hitscan heavy's tracers.
+@rpc("any_peer", "call_remote", "unreliable")
+func heavy_trace(id: StringName, start: Vector3, ends: PackedVector3Array, x: float) -> void:
+	if multiplayer.get_remote_sender_id() != 1 or player.is_multiplayer_authority():
+		return
+	var arr: Array = []
+	for e in ends:
+		arr.append(e)
+	HeavyFx.traces(id, _remote_muzzle(), arr, HeavyRules.unpack_crop(x))
+
+
+## Owner: the gatling's spread widens with its heat (on top of Gun.shot_dirs' own).
+func _gatling_wobble(dir: Vector3, code: int) -> Vector3:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	return HeavyRules.wobble(dir, HeavyRules.gatling_extra(player.gun.heat, code), rng)
+
+
+## Owner (a client): draw a hitscan heavy's shot at once, from the same rays the
+## host will cast (the host draws its own as it casts them).
+func _heavy_predict(origin: Vector3, dir: Vector3, id: StringName, code: int, seed_value: int, muzzle: Vector3) -> void:
+	if multiplayer.is_server():
+		return
+	var def := Gun.weapon(id)
+	if not (def.special in [&"uh_cannon", &"uh_gatling", &"uh_shot"]):
+		return # (lobs, spikes, bolts, bolas, sprays: the host's heavy_fx draws them)
+	var gun := player.gun
+	var ends: Array = []
+	for d in Gun.shot_dirs(id, dir, seed_value, code):
+		var hit := gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, code))
+		var dmg := Gun.damage_at(id, code, origin.distance_to(hit["position"])) if not hit.is_empty() else Gun.damage_for(id, code)
+		gun.show_impact(hit, d, true, dmg)
+		ends.append(hit["position"] if not hit.is_empty() else origin + d * Gun.range_for(id, code))
+	HeavyFx.traces(id, muzzle, ends, gun.heavy_crop_of(id))
+
+
+## Host: a confirmed shot from a universal heavy: one round off the host's count
+## (an empty gun fires nothing), then the shot itself (HeavyFx.host).
+func _server_heavy(origin: Vector3, dir: Vector3, def: WeaponDef, code: int, seed_value: int, muzzle: Variant, remote_muzzle: Variant) -> void:
+	var peer := player.get_multiplayer_authority()
+	var shot := HeavyAmmo.take_shot(peer, def.id)
+	var crop: StringName = shot["crop"]
+	if crop == &"":
+		return
+	if bool(shot["ran_out"]):
+		heavy_ring.rpc(def.id, &"")
+	var h := HeavyFx.host(self)
+	if h != null:
+		h.call("fire", self, def, origin, dir.normalized(), code, seed_value, crop, muzzle, remote_muzzle)
+	Expedition.make_noise(origin, ExpeditionRules.gun_noise(def.special, def.kickback, def.pellets))
+	_fire_fx.rpc(origin, dir, def.id, seed_value, code)
+
+
+## Every peer: a rider's heavy in the hand shows its crop on its ring (third person).
+func _heavy_ring_tick() -> void:
+	var id := sync_weapon
+	var w := Gun.weapon(id) if id != &"" else null
+	if w == null or not w.crop_ammo or player.rig == null:
+		_ring_shown = ""
+		return
+	var crop: StringName = heavy_rings.get(id, &"")
+	if player.is_multiplayer_authority() and not player.bot:
+		crop = player.gun.heavy_crop_of(id) if player.gun.ammo > 0 or player.gun.def == null or player.gun.def.id != id else &""
+	var key := "%s:%s" % [id, crop]
+	if key == _ring_shown:
+		return
+	var model := player.rig.find_child(String(id), true, false)
+	if model == null:
+		return
+	_ring_shown = key
+	UniHeavies.tint(model, crop)
+	UniHeavies.show_trim(model, 0) # (others don't know its upgrade: plain)

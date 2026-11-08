@@ -113,6 +113,7 @@ func capture() -> Dictionary:
 	# Perks: each human's locked loadout and Barn Raising, and the guns they own.
 	var perks := {}
 	var guns := {}
+	var heavy := {}
 	var whips := {}
 	var dynamite := {}
 	for cid in WorldLayout.cliff_count():
@@ -122,12 +123,14 @@ func capture() -> Dictionary:
 		perks[cid] = Perks.run_state_of(peer)
 		if GunShop.loadouts.has(peer):
 			guns[cid] = GunShop.loadouts[peer]
+			heavy[cid] = HeavyAmmo.save_of(peer) # universal heavies keep their sacks
 		if GunShop.whips.has(peer):
 			whips[cid] = int(GunShop.whips[peer])
 		if int(GunShop.dynamite.get(peer, 0)) != 0:
 			dynamite[cid] = int(GunShop.dynamite[peer])
 	data["perks"] = perks
 	data["guns"] = guns
+	data["heavy_loads"] = heavy
 	data["whips"] = whips # the bullwhip's level and mods
 	data["dynamite"] = dynamite # the Powder Satchel and its mods
 	data["brands"] = Brand.save_state() # Brand: each cliff's brand
@@ -207,9 +210,16 @@ func resume(data: Dictionary) -> bool:
 		var refund := 0
 		for w: StringName in fit[1]:
 			refund += Gun.weapon(w).price_chitin
+		for w: Variant in (guns[cid] as Dictionary):
+			refund += int(HeavyRules.ARCHIVED_PRICES.get(StringName(str(w)), 0)) # an archived old heavy, paid back
 		if refund > 0:
 			Economy.earn(cid, {&"chitin": refund})
 			Economy.notify(peer, "One gun to a slot now: %s paid back for the extras." % UiStyle.cost(refund, "chitin"))
+		# Universal heavies: what was in them (after the grant, so the gun is there to fill).
+		var loads: Dictionary = (data.get("heavy_loads", {}) as Dictionary).get(cid, {})
+		for hid: StringName in loads:
+			if pl != null and GunShop.loadouts[peer].has(hid):
+				pl.net.send_heavy_set(hid, StringName(loads[hid][0]), int(loads[hid][1]))
 	# (saves from before v0.1.62 have neither: everyone starts with a plain whip)
 	var shop := get_tree().get_first_node_in_group("gun_shops") as GunShop
 	var whips: Dictionary = data.get("whips", {})

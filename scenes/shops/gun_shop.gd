@@ -117,6 +117,7 @@ func setup(cid: int) -> void:
 
 static func reset_loadouts() -> void:
 	loadouts.clear()
+	HeavyAmmo.reset() # universal heavies' loads
 	whips.clear()
 	dynamite.clear()
 
@@ -367,9 +368,12 @@ func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
 		if holder != &"":
 			var back := int(Gun.weapon(holder).price_chitin * TRADE_IN)
 			owned.erase(holder)
+			HeavyAmmo.forget(peer_id, holder) # (a traded-in heavy's sack goes with it)
 			if back > 0:
 				Economy.earn(payer, {&"chitin": back})
 			Economy.notify(peer_id, "Traded in your %s for %s." % [Gun.weapon(holder).display_name, UiStyle.cost(back, "chitin")])
+	if kind == "buy":
+		HeavyAmmo.forget(peer_id, id) # a new universal heavy comes empty
 	owned[id] = level
 	var player := _player_of(peer_id)
 	if player != null:

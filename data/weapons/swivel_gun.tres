@@ -5,9 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"swivel_gun"
-slot = 2
-crop = &"barrel_cactus"
-shots_per_harvest = 2
+slot = 0
 display_name = "Swivel Gun"
 description = "A ship's rail cannon with a stock bolted on. Forty pellets of canister shot across a wide cone, a kick that shoves you back, and the longest reload in the canyon."
 damage = 25.0

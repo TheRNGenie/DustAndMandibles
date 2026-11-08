@@ -19,11 +19,12 @@ func _ready() -> void:
 
 
 ## Host only.
-func spawn_weapon(id: StringName, level: int, pos: Vector3) -> void:
+## `heavy_load`: a universal heavy's [crop, shots] (HeavyAmmo), kept as dropped.
+func spawn_weapon(id: StringName, level: int, pos: Vector3, heavy_load: Array = []) -> void:
 	if not multiplayer.is_server():
 		return
 	_next_id += 1
-	_spawner.spawn({"id": _next_id, "weapon": id, "level": level, "pos": pos})
+	_spawner.spawn({"id": _next_id, "weapon": id, "level": level, "pos": pos, "load": heavy_load})
 
 
 ## Host only: one crop, medicine or bucket of water on the ground.
@@ -42,6 +43,7 @@ func _spawn_pickup(data: Variant) -> Node:
 		p.setup_item(StringName(d["item"]), d["pos"])
 	else:
 		p.setup(StringName(d["weapon"]), int(d["level"]), d["pos"])
+		p.set_heavy_load(d.get("load", []))
 	return p
 
 
@@ -71,4 +73,6 @@ func try_pick_up(peer_id: int, pickup: WeaponPickup) -> void:
 	for n: Node in get_tree().get_nodes_in_group("players"):
 		if n.get_multiplayer_authority() == peer_id:
 			(n as Player).net.grant_weapon(pickup.weapon_id, pickup.level)
+			if pickup.heavy_load.size() >= 2 and int(pickup.heavy_load[1]) > 0: # a universal heavy, as it was dropped
+				(n as Player).net.send_heavy_set(pickup.weapon_id, StringName(pickup.heavy_load[0]), int(pickup.heavy_load[1]))
 	pickup.queue_free()

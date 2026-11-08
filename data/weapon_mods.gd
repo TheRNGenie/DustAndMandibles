@@ -207,45 +207,10 @@ const MODS: Dictionary = {
 		{"name": "Hotter phosphor", "desc": "+40% burn damage.", "cost": 20, "fx": {"damage": 1.4}},
 	],
 	# ---------------------------------------------------------------- Weapon Slots: heavies
-	&"mortar_tube": [
-		{"name": "Packed chili", "desc": "+25% blast damage.", "cost": 30, "fx": {"damage": 1.25}},
-		{"name": "Wide burst", "desc": "The blast reaches 30% further.", "cost": 30, "fx": {"radius": 1.3}},
-		{"name": "Quick drop", "desc": "Reloads 30% faster.", "cost": 25, "fx": {"reload": 0.7}},
-	],
-	&"fire_lance": [
-		{"name": "Strong bellows", "desc": "The flame reaches 30% further.", "cost": 30, "fx": {"radius": 1.3}},
-		{"name": "Pitch-soaked wick", "desc": "The burn lasts half again as long.", "cost": 25, "fx": {"effect": 1.5}},
-		{"name": "Hot spirit", "desc": "+25% damage.", "cost": 30, "fx": {"damage": 1.25}},
-	],
-	&"organ_gun": [
-		{"name": "Choked barrels", "desc": "A 30% tighter volley.", "cost": 30, "fx": {"spread": 0.7}},
-		{"name": "Heavy balls", "desc": "+20% damage a barrel.", "cost": 30, "fx": {"damage": 1.2}},
-		{"name": "Quick crank", "desc": "Reloads 30% faster.", "cost": 30, "fx": {"reload": 0.7}},
-	],
-	&"harpoon_ballista": [
-		{"name": "Barbed head", "desc": "Pins half again as long.", "cost": 25, "fx": {"effect": 1.5}},
-		{"name": "Steel limbs", "desc": "+20% damage.", "cost": 35, "fx": {"damage": 1.2}},
-		{"name": "Geared windlass", "desc": "Draws 30% faster.", "cost": 30, "fx": {"reload": 0.7}},
-	],
-	&"acid_drencher": [
-		{"name": "Strong acid", "desc": "Armour stays off half again as long.", "cost": 30, "fx": {"effect": 1.5}},
-		{"name": "Long wand", "desc": "Sprays 30% further.", "cost": 25, "fx": {"radius": 1.3}},
-		{"name": "Concentrate", "desc": "+25% damage.", "cost": 30, "fx": {"damage": 1.25}},
-	],
 	&"swivel_gun": [
 		{"name": "Grapeshot", "desc": "Ten more pellets in the charge.", "cost": 30, "fx": {"pellets": 10}},
 		{"name": "Choke", "desc": "A 30% tighter cone that carries further.", "cost": 25, "fx": {"spread": 0.7, "range": 1.3}},
 		{"name": "Powder horn", "desc": "Reloads 30% faster.", "cost": 30, "fx": {"reload": 0.7}},
-	],
-	&"congreve_rocket": [
-		{"name": "Bigger warhead", "desc": "+25% blast damage.", "cost": 30, "fx": {"damage": 1.25}},
-		{"name": "Wide burst", "desc": "The blast reaches 30% further.", "cost": 30, "fx": {"radius": 1.3}},
-		{"name": "Long stick", "desc": "Flies half again as far.", "cost": 25, "fx": {"range": 1.5}},
-	],
-	&"bear_trap_launcher": [
-		{"name": "Strong springs", "desc": "Holds half again as long.", "cost": 25, "fx": {"effect": 1.5}},
-		{"name": "Sharp teeth", "desc": "+25% damage.", "cost": 30, "fx": {"damage": 1.25}},
-		{"name": "Spare jaws", "desc": "Two more traps set at once.", "cost": 25, "fx": {"traps": 2}},
 	],
 }
 
@@ -281,7 +246,7 @@ static func count(code: int) -> int:
 
 
 static func list(id: StringName) -> Array:
-	return MODS.get(id, [])
+	return MODS.get(id, HeavyRules.MODS.get(id, [])) # (the universal heavies keep theirs in HeavyRules)
 
 
 ## Combined multiplier (or bonus) of every mod fitted, for one fx key.
