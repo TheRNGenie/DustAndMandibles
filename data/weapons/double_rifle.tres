@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"double_rifle"
+slot = 0
+display_name = "Double Rifle"
+description = "A side-by-side express rifle built for things that charge. Two massive barrels, one after the other, both through any shell. Then three long seconds breaking it open."
+damage = 85.0
+mag_size = 2
+fire_interval = 0.25
+reload_time = 3.0
+pellets = 1
+range = 200.0
+pierce_armor = true
+price_chitin = 45
+upgrade_costs = PackedInt32Array(15, 35)
+shake = 0.7
+sound = &"buffalo"
+recoil_deg = 6.0
+recoil_yaw_deg = 1.2
+recoil_recover = 0.45
+role = "Burst sniper"
+sound_pitch = 1.12

@@ -155,6 +155,7 @@ func _build() -> void:
 	_clear.pressed.connect(func() -> void: Perks.clear_loadout())
 	footer.add_child(_clear)
 	var done := MenuScreen.wood_button("Done")
+	done.theme_type_variation = "PrimaryButton"
 	done.pressed.connect(close)
 	footer.add_child(done)
 
@@ -309,7 +310,9 @@ func _tree_header(tree: StringName) -> Control:
 	var tree_title := UiStyle.title(str(PerkTable.TREE_NAMES[tree]), 21, true) # Theme
 	tree_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	text.add_child(tree_title)
-	text.add_child(MenuScreen._outlined(str(PerkTable.TREE_BLURBS[tree]), 12, PARCHMENT))
+	var blurb := UiStyle.strap_text(str(PerkTable.TREE_BLURBS[tree]), 13)
+	blurb.theme_type_variation = "SoftInkLabel"
+	text.add_child(blurb)
 	var owned := 0
 	var taken := 0
 	var all := PerkTable.in_tree(tree)
@@ -338,12 +341,15 @@ func _perk_card(p: Dictionary) -> Control:
 	h.add_theme_constant_override("separation", 10)
 	card.add_child(h)
 	# Emblem.
-	var icon_box := PanelContainer.new()
-	var isb := MenuScreen._icon_style()
-	if taken:
-		isb.modulate_color = Color(1.2, 1.12, 0.9) # Theme: a warmer emblem when it's in the loadout
-	icon_box.add_theme_stylebox_override("panel", isb)
-	icon_box.custom_minimum_size = Vector2(56, 56)
+	var icon_box := UiStyle.panel("IconPanel")
+	if taken: # Theme: the well rimmed in the set's metal when it's in the loadout
+		var isb := UiStyle.box_for(UiStyle.current, "icon")
+		isb.rim = UiStyle.kc("accent_hi")
+		isb.rim_width = 1.5
+		isb.glow = Color(UiStyle.kc("accent"), 0.25)
+		isb.glow_size = 4.0
+		icon_box.add_theme_stylebox_override("panel", isb)
+	icon_box.custom_minimum_size = Vector2(60, 60)
 	icon_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(icon_box)
 	var g := PerkGlyph.new(str(p["glyph"]), GOLD if taken else (PARCHMENT if r > 0 else PARCHMENT.darkened(0.45)))
@@ -359,7 +365,8 @@ func _perk_card(p: Dictionary) -> Control:
 	var name_row := HBoxContainer.new()
 	name_row.add_theme_constant_override("separation", 8)
 	text.add_child(name_row)
-	var name_l := MenuScreen.ink_label(UiStyle.tc(str(p["name"])), 18, INK if r > 0 else UiStyle.c("ink_soft"))
+	var name_l := MenuScreen.ink_label(UiStyle.tc(str(p["name"])), 18, UiStyle.c("ink") if r > 0 else UiStyle.c("ink_soft"))
+	name_l.add_theme_font_override("font", UiStyle.font("bold"))
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	name_row.add_child(name_l)
 	var pips := RankPips.new()
@@ -368,7 +375,7 @@ func _perk_card(p: Dictionary) -> Control:
 	pips.custom_minimum_size = Vector2(16 * top, 16)
 	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	name_row.add_child(pips)
-	var desc := MenuScreen.ink_label(PerkTable.describe(id, r), 14, INK)
+	var desc := MenuScreen.ink_label(PerkTable.describe(id, r), 14, UiStyle.c("ink_soft"))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.custom_minimum_size.x = 150
@@ -384,18 +391,18 @@ func _perk_card(p: Dictionary) -> Control:
 		status = "Fully Ranked"
 		kind = "good"
 	if status != "":
-		text.add_child(UiStyle.status(status, kind, 12))
+		text.add_child(UiStyle.status(status, kind, 13))
 	# Price and buttons.
 	var right := VBoxContainer.new()
 	right.alignment = BoxContainer.ALIGNMENT_CENTER
 	right.add_theme_constant_override("separation", 4)
-	right.custom_minimum_size.x = 112
+	right.custom_minimum_size.x = 124
 	h.add_child(right)
 	var cost := prof.next_cost(id)
 	if cost >= 0:
 		var afford := prof.brands >= cost
 		var buy := MenuScreen.wood_button("%s  %d" % ["Unlock" if r == 0 else "Rank Up", cost], true)
-		buy.custom_minimum_size = Vector2(112, 30)
+		buy.custom_minimum_size = Vector2(124, 32)
 		buy.disabled = not afford
 		buy.tooltip_text = "%d Notches" % cost + ("" if afford else " (you have %d)" % prof.brands)
 		buy.pressed.connect(func() -> void:
@@ -405,7 +412,7 @@ func _perk_card(p: Dictionary) -> Control:
 	if r > 0:
 		var why := prof.add_block(id)
 		var t := MenuScreen.tab_button("In Loadout" if taken else "Add", taken)
-		t.custom_minimum_size = Vector2(112, 30)
+		t.custom_minimum_size = Vector2(124, 32)
 		t.disabled = (why != "" and not taken) or not Perks.loadout_editable()
 		t.tooltip_text = why if why != "" else ("Leave it at home" if taken else "Take it into the next run")
 		t.pressed.connect(func() -> void: Perks.toggle(id))
@@ -424,9 +431,7 @@ func _build_wardrobe(keep: Dictionary) -> void:
 	intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	list.add_child(intro)
 	for slot: String in PerkTable.COSMETICS:
-		var title := MenuScreen.ink_label(UiStyle.tc(str(DummyLook.SLOTS[slot][0])), 18)
-		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		list.add_child(title)
+		list.add_child(UiStyle.section(str(DummyLook.SLOTS[slot][0])))
 		var flow := HFlowContainer.new()
 		flow.add_theme_constant_override("h_separation", 8)
 		flow.add_theme_constant_override("v_separation", 8)
@@ -450,12 +455,13 @@ func _look_card(slot: String, option: String, label: String, price: int) -> Cont
 	text.alignment = BoxContainer.ALIGNMENT_CENTER
 	h.add_child(text)
 	var n := MenuScreen.ink_label(UiStyle.tc(label), 16)
+	n.add_theme_font_override("font", UiStyle.font("bold"))
 	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	text.add_child(n)
 	if owned:
-		text.add_child(UiStyle.status("Wearing It" if worn else "Owned", "good", 12))
+		text.add_child(UiStyle.status("Wearing It" if worn else "Owned", "good", 13))
 	else:
-		var s := MenuScreen.ink_label(UiStyle.cost(price, "Notches"), 12, UiStyle.c("ink_soft"))
+		var s := MenuScreen.ink_label(UiStyle.cost(price, "Notches"), 14, UiStyle.c("accent_hi"))
 		s.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		text.add_child(s)
 	if owned:
@@ -490,9 +496,9 @@ class RankPips extends Control:
 			var r := 5.5
 			var pts := PackedVector2Array([c + Vector2(0, -r), c + Vector2(r, 0), c + Vector2(0, r), c + Vector2(-r, 0)])
 			if i < rank:
-				draw_colored_polygon(pts, MenuScreen.GOLD.darkened(0.15))
+				draw_colored_polygon(pts, UiStyle.c("accent_hi"))
 			pts.append(pts[0])
-			draw_polyline(pts, MenuScreen.INK, 1.5)
+			draw_polyline(pts, Color(UiStyle.c("accent"), 0.9), 1.5)
 
 
 ## Twelve slots in the header: how full the loadout is.
@@ -504,5 +510,5 @@ class LoadoutPips extends Control:
 		var w := size.x / n
 		for i in n:
 			var r := Rect2(Vector2(i * w + 1.5, 0), Vector2(w - 3.0, size.y))
-			draw_rect(r, MenuScreen.GOLD if i < filled else Palette.WOOD.darkened(0.3))
-			draw_rect(r, Palette.OUTLINE, false, 1.5)
+			draw_rect(r, UiStyle.c("accent_hi") if i < filled else UiStyle.c("well"))
+			draw_rect(r, Color(UiStyle.c("accent"), 0.55), false, 1.0)

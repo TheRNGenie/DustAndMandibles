@@ -53,6 +53,7 @@ func menu_items(tab: int) -> Array:
 				var stats := w.stat_line() # the same numbers as on the gunsmith's shelf
 				if w.role != "":
 					stats = UiStyle.tc(w.role) + "  ·  " + stats
+				stats = Gun.SLOT_NAMES[int(w.slot)] + "  ·  " + stats # Weapon Slots
 				if w.suppress_slow < 1.0:
 					stats += "  ·  Slows Bugs"
 				var price := "Starter" if w.price_chitin == 0 else UiStyle.cost(w.price_chitin, "chitin")

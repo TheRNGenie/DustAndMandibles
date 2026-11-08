@@ -5,6 +5,9 @@
 [resource]
 script = ExtResource("1_def")
 id = &"elephant_gun"
+shots_per_harvest = 8
+crop = &"cotton"
+slot = 2
 display_name = "Elephant Gun"
 description = "A double-barrelled big-game rifle with a magnifying glass lashed on for a scope. Hits like a runaway train and goes straight through armour, then takes an age to reload."
 damage = 220.0
@@ -15,7 +18,7 @@ pellets = 1
 spread_deg = 0.0
 range = 400.0
 pierce_armor = true
-price_chitin = 120
+price_chitin = 150
 upgrade_costs = PackedInt32Array(30, 60)
 shake = 0.9
 sound = &"buffalo"

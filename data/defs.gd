@@ -148,6 +148,36 @@ const WEAPONS: Dictionary = {
 	&"flare_gun": preload("res://data/weapons/flare_gun.tres"),
 	&"punt_gun": preload("res://data/weapons/punt_gun.tres"),
 	&"telescope_rifle": preload("res://data/weapons/telescope_rifle.tres"),
+	# Weapon Slots Redesign (Nov 2026): models built in code (gen/armory_*.gd),
+	# specials in ArmoryEffects. Primaries:
+	&"volcanic_repeater": preload("res://data/weapons/volcanic_repeater.tres"),
+	&"mares_leg": preload("res://data/weapons/mares_leg.tres"),
+	&"double_rifle": preload("res://data/weapons/double_rifle.tres"),
+	&"trench_broom": preload("res://data/weapons/trench_broom.tres"),
+	&"ricochet_rifle": preload("res://data/weapons/ricochet_rifle.tres"),
+	&"howdah_pistol": preload("res://data/weapons/howdah_pistol.tres"),
+	&"sharps_carbine": preload("res://data/weapons/sharps_carbine.tres"),
+	&"trapdoor_springfield": preload("res://data/weapons/trapdoor_springfield.tres"),
+	# Secondaries:
+	&"screamer_pistol": preload("res://data/weapons/screamer_pistol.tres"),
+	&"tar_sprayer": preload("res://data/weapons/tar_sprayer.tres"),
+	&"flashbang_pistol": preload("res://data/weapons/flashbang_pistol.tres"),
+	&"pepper_bomb_pistol": preload("res://data/weapons/pepper_bomb_pistol.tres"),
+	&"concussion_pistol": preload("res://data/weapons/concussion_pistol.tres"),
+	&"chain_binder": preload("res://data/weapons/chain_binder.tres"),
+	&"rust_duster": preload("res://data/weapons/rust_duster.tres"),
+	&"glow_worm_launcher": preload("res://data/weapons/glow_worm_launcher.tres"),
+	&"caltrops_launcher": preload("res://data/weapons/caltrops_launcher.tres"),
+	&"phosphor_grenade": preload("res://data/weapons/phosphor_grenade.tres"),
+	# Heavies (fed with crops):
+	&"mortar_tube": preload("res://data/weapons/mortar_tube.tres"),
+	&"fire_lance": preload("res://data/weapons/fire_lance.tres"),
+	&"organ_gun": preload("res://data/weapons/organ_gun.tres"),
+	&"harpoon_ballista": preload("res://data/weapons/harpoon_ballista.tres"),
+	&"acid_drencher": preload("res://data/weapons/acid_drencher.tres"),
+	&"swivel_gun": preload("res://data/weapons/swivel_gun.tres"),
+	&"congreve_rocket": preload("res://data/weapons/congreve_rocket.tres"),
+	&"bear_trap_launcher": preload("res://data/weapons/bear_trap_launcher.tres"),
 }
 
 ## Retired for now (Logan, 2026-11-08): still registered so the code and saves
@@ -194,6 +224,46 @@ const BUILD_CATEGORIES: Array[Dictionary] = [
 	# Crafted: filled at runtime with the crafted turret items your cliff holds (BuildMode.category_items).
 	{"name": "Crafted", "items": []},
 ]
+
+## The build menu's tabs (Logan, Nov 2026): the categories above, except that the
+## Crop-Fed turrets sit in the Cliff Turrets tab with the self-powered ones; the
+## menu's Standard / Crop-Fed selector sorts the two kinds in every tab. (The
+## categories themselves stay as they are: the CPU builds from "Cliff Turrets".)
+const MENU_MERGE: Dictionary = {"Crop-Fed": "Cliff Turrets"}
+static var _tabs: Array[Dictionary] = []
+
+
+static func build_tabs() -> Array[Dictionary]:
+	if _tabs.is_empty():
+		for cat: Dictionary in BUILD_CATEGORIES:
+			if MENU_MERGE.has(cat["name"]):
+				continue
+			var items: Array = (cat["items"] as Array).duplicate()
+			for from: String in MENU_MERGE:
+				if MENU_MERGE[from] == cat["name"]:
+					items.append_array(category_items(from))
+			_tabs.append({"name": cat["name"], "items": items})
+	return _tabs
+
+
+## The build menu's kinds: 0 all, 1 standard (always fires: every turret that
+## needs no crop load, and everything that isn't a turret), 2 crop-fed.
+const KIND_ALL := 0
+const KIND_STANDARD := 1
+const KIND_CROP_FED := 2
+const KIND_NAMES: Array[String] = ["All", "Standard", "Crop-Fed"]
+
+
+static func is_crop_fed(id: StringName) -> bool:
+	return is_turret(id) and turret(id).crop_type != &""
+
+
+static func of_kind(id: StringName, kind: int) -> bool:
+	match kind:
+		KIND_STANDARD: return not is_crop_fed(id)
+		KIND_CROP_FED: return is_crop_fed(id)
+	return true
+
 
 ## Tiers: the tech tier of a build item (0 Early, 1 Mid, 2 Late; anything that
 ## isn't a turret, and crafted turrets, count as Early).

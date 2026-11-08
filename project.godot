@@ -54,6 +54,18 @@ bug_glide_now={
 "type": "float",
 "value": 0.0
 }
+weather_wet={
+"type": "float",
+"value": 0.0
+}
+weather_snow={
+"type": "float",
+"value": 0.0
+}
+weather_dust={
+"type": "float",
+"value": 0.0
+}
 
 [rendering]
 

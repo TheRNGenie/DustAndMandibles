@@ -20,9 +20,9 @@ func ui_rules() -> String:
 	return "Get closer to 21 than the dealer without going over. Dealer stands on 17. Blackjack pays 3:2, a win pays 1:1. Double on your first two cards; split a pair once."
 
 
-func _decorate(st: SurfaceTool) -> void:
-	for i in 5:
-		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(-0.6 + i * 0.3, 1.0, 0.3)), 0.07, 0.07, 0.03, 10, [Color("#C9302C"), Palette.BONE, Color("#2E6FA8")][i % 3])
+## The half-moon table with its printed arcs and betting circles (gen/casino_table_art.gd).
+func _art_kind() -> String:
+	return "blackjack"
 
 
 func make_board() -> CasinoBoard:

@@ -7,31 +7,16 @@ extends StaticBody3D
 
 signal menu_changed
 
+const ART := preload("res://gen/airship_props_art.gd")
+
 
 func _ready() -> void:
 	collision_layer = WorldLayout.LAYER_STRUCTURE
 	collision_mask = 0
-	var st := MeshKit.begin()
-	# Counter, back wall, roof and the brass bars of the cage window.
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.55, -0.45)), Vector3(2.4, 1.1, 0.5), Palette.WOOD_DARK)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 1.13, -0.5)), Vector3(2.5, 0.07, 0.62), Palette.WOOD)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 1.4, 0.75)), Vector3(2.5, 2.8, 0.12), Palette.WOOD_DARK)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 2.85, 0.1)), Vector3(2.7, 0.12, 1.5), Palette.WOOD)
-	for sx: float in [-1.2, 1.2]:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(sx, 1.4, 0.1)), Vector3(0.12, 2.8, 1.4), Palette.WOOD)
-	for i in 9:
-		var x := lerpf(-1.05, 1.05, i / 8.0)
-		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(x, 1.16, -0.62)), 0.02, 0.02, 1.6, 6, Color("#C9A24A"))
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 2.75, -0.62)), Vector3(2.3, 0.08, 0.06), Color("#C9A24A"))
-	# Stacks of chips on the counter, one stack per colour.
-	for i in ChipRules.DENOMS.size():
-		var v: int = ChipRules.DENOMS[i]
-		var h := 0.04 + 0.02 * (ChipRules.DENOMS.size() - i)
-		MeshKit.add_cylinder(st, Transform3D(Basis(), Vector3(-0.55 + i * 0.36, 1.165 + h * 0.5, -0.5)), 0.07, 0.07, h, 12, CasinoBoard.chip_color(v))
-	var mi := MeshInstance3D.new()
-	mi.mesh = MeshKit.finish(st)
-	mi.material_override = Materials.toon(0.02)
-	add_child(mi)
+	# A bank teller's cage in mahogany and brass (gen/airship_props_art.gd):
+	# marble counter, brass grille with an arched window, chip racks, a safe,
+	# a cash register, a banker's lamp and a velvet rope for the queue.
+	ART.cashier_booth(self)
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(2.7, 2.9, 1.6)
@@ -44,7 +29,7 @@ func _ready() -> void:
 	add_child(keeper)
 	keeper.setup({"hat": "bowler", "facial": "none", "hair": "long", "hair_color": "ginger", "outfit": "vest",
 		"neck": "bolo", "extra": "none", "paint": "white"}, Color("#7A2E3A"))
-	for line: Array in [["PEARL'S CHIPS", 0.0032, 3.12, Color("#E9C46A")], ["cashier", 0.0019, 2.93, Palette.BONE]]:
+	for line: Array in [["PEARL'S CHIPS", 0.0032, 3.02, Color("#E9C46A")]]: # (no tagline under it: Logan)
 		var sign := Label3D.new()
 		sign.text = str(line[0])
 		sign.font_size = 72
@@ -52,7 +37,7 @@ func _ready() -> void:
 		sign.outline_size = 14
 		sign.modulate = line[3]
 		sign.outline_modulate = Palette.OUTLINE
-		sign.position = Vector3(0, float(line[2]), -0.66)
+		sign.position = Vector3(0, float(line[2]), -0.86) # (on the pediment board)
 		sign.rotation.y = PI
 		sign.double_sided = false
 		add_child(sign)

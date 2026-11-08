@@ -4,6 +4,7 @@ shader_type spatial;
 render_mode cull_back;
 
 #include "res://shaders/toon_light.gdshaderinc"
+#include "res://shaders/weather_surface.gdshaderinc"
 
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform vec4 albedo : source_color = vec4(1.0);
@@ -30,6 +31,7 @@ void fragment() {
 	}
 	float grey = dot(c, vec3(0.299, 0.587, 0.114));
 	c = clamp(mix(vec3(grey), c, saturation), 0.0, 1.0);
+	c = weather_tint(c, (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	ALBEDO = c;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;

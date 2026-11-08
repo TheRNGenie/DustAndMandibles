@@ -57,7 +57,8 @@ func update(delta: float) -> void:
 	_step_round_statue(delta)
 	if d.behavior == BugDef.Behavior.SPITTER and bug.climb_y >= spit_height() and _clung < CLING_TIME:
 		_clung += delta
-		_spit(delta)
+		if not bug.status.is_stunned(): # (a Flashbang's daze stops the spitting)
+			_spit(delta)
 		return
 	var speed := d.climb_speed * bug.speed()
 	if d.behavior == BugDef.Behavior.LEAPER:

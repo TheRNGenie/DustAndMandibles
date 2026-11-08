@@ -78,6 +78,8 @@ uniform vec4 ink : source_color = vec4(0.169, 0.106, 0.090, 1.0); // Palette.OUT
 uniform vec4 hive_spots[24];
 uniform int hive_count = 0;
 
+#include "res://shaders/weather_surface.gdshaderinc"
+
 varying vec3 world_pos;
 varying vec3 world_normal;
 
@@ -420,7 +422,7 @@ void fragment() {
 		NORMAL = normalize((VIEW_MATRIX * vec4(bent, 0.0)).xyz) * (FRONT_FACING ? 1.0 : -1.0);
 	}
 	EMISSION = glow;
-	ALBEDO = col;
+	ALBEDO = weather_tint(col, wn);
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }

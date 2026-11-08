@@ -439,8 +439,8 @@ func _unhandled_input(event: InputEvent) -> void:
 # ------------------------------------------------------------------ environment
 
 ## Depth fog for the player's view distance (GraphicsQuality.VIEW_FAR): full at
-## 92% of the far plane, with a curve that keeps ~27% at 100 m like the old
-## exponential fog (density 0.0032).
+## 92% of the far plane, about a seventh at 100 m, so the far lands (2 km on High)
+## step back into the haze layer by layer instead of vanishing at 500 m.
 static func apply_horizon_fog(env: Environment) -> void:
 	var far := GraphicsQuality.VIEW_FAR[GraphicsQuality.level(Settings.view_distance)]
 	var end := far * 0.92
@@ -448,17 +448,16 @@ static func apply_horizon_fog(env: Environment) -> void:
 	env.fog_density = 1.0
 	env.fog_depth_begin = 0.0
 	env.fog_depth_end = end
-	env.fog_depth_curve = log(0.27) / log(100.0 / end)
+	env.fog_depth_curve = log(0.14) / log(100.0 / end)
 	env.set_meta(&"base_curve", env.fog_depth_curve) # DayCycle bends it for weather
 
 
 func _build_environment() -> void:
 	var sky_mat := ShaderMaterial.new()
 	sky_mat.shader = SKY_SHADER
-	sky_mat.set_shader_parameter("cloud_noise", Materials.noise_texture(42, 0.012, 512))
-	if ResourceLoader.exists("res://assets/sky/clouds.png"):
+	sky_mat.set_shader_parameter("sky_noise", DayCycle.SKY_NOISE)
+	if ResourceLoader.exists("res://assets/sky/stars.png"):
 		sky_mat.set_shader_parameter("use_art", true)
-		sky_mat.set_shader_parameter("art_clouds", load("res://assets/sky/clouds.png"))
 		sky_mat.set_shader_parameter("art_stars", load("res://assets/sky/stars.png"))
 		sky_mat.set_shader_parameter("art_mesas", load("res://assets/sky/mesas.png"))
 	var sky := Sky.new()

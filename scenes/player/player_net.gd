@@ -164,6 +164,50 @@ func _apply_grant(id: StringName, level: int) -> void:
 		Economy.notice.emit("%s fitted with: %s." % [gun_name, WeaponMods.names(id, level & ~before)])
 
 
+## Owner: a heavy is out of loaded rounds: ask the host to load a harvest of
+## its crop from your stores into its reserve.
+func request_crop_load(id: StringName) -> void:
+	if multiplayer.is_server():
+		_host_crop_load(multiplayer.get_unique_id(), id)
+	else:
+		_request_crop_load.rpc_id(1, id)
+
+
+@rpc("any_peer", "reliable")
+func _request_crop_load(id: StringName) -> void:
+	if multiplayer.is_server() and multiplayer.get_remote_sender_id() == player.get_multiplayer_authority():
+		_host_crop_load(multiplayer.get_remote_sender_id(), id)
+
+
+## Host: takes one harvest of the heavy's crop and tells the owner it's loaded.
+func _host_crop_load(peer_id: int, id: StringName) -> void:
+	var w := Gun.weapon(id)
+	if w == null or w.crop == &"":
+		return
+	var owned: Dictionary = GunShop.loadouts.get(peer_id, {})
+	if not owned.has(id):
+		return
+	# One crop load from the root cellar (what a harvest stocks, and what the
+	# crop-fed turrets eat too) fills the reserve.
+	var crop := Defs.crop(w.crop)
+	var crop_name: String = crop.display_name if crop != null else String(w.crop).capitalize()
+	var item: StringName = crop.load_item if crop != null and crop.load_item != &"" else w.crop
+	if not Economy.spend(Economy.payer_cliff(peer_id, player.cliff_id), {item: 1}):
+		Economy.notify(peer_id, "The %s runs on %s loads. Harvest some to load it." % [w.display_name, crop_name])
+		return
+	Economy.notify(peer_id, "A load of %s into the %s: %d rounds." % [crop_name, w.display_name, w.shots_per_harvest])
+	if peer_id == multiplayer.get_unique_id():
+		player.gun.crop_loaded(id)
+	else:
+		_crop_loaded.rpc_id(peer_id, id)
+
+
+@rpc("any_peer", "reliable")
+func _crop_loaded(id: StringName) -> void:
+	if multiplayer.get_remote_sender_id() == 1:
+		player.gun.crop_loaded(id)
+
+
 ## Owner: drop a weapon at your feet (anyone can pick it up again).
 func drop_weapon(id: StringName) -> void:
 	var level := player.gun.code_of(id)
@@ -225,6 +269,8 @@ func fire(origin: Vector3, dir: Vector3) -> void:
 	var def := gun.def
 	if def.special == &"smoke":
 		_smoke_fx(muzzle, dir)
+	elif ArmoryEffects.is_spray(def.special):
+		pass # the new sprays: the host's puff comes back to everyone (armory_fx)
 	elif multiplayer.is_server():
 		pass # the host's own shot: _server_fire casts each pellet once and draws it too
 	else:
@@ -232,9 +278,10 @@ func fire(origin: Vector3, dir: Vector3) -> void:
 			var hit := gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, level))
 			var dmg := Gun.damage_at(id, level, origin.distance_to(hit["position"])) if not hit.is_empty() else Gun.damage_for(id, level)
 			dmg *= _crit(def, hit)
-			gun.show_impact(hit, d, true, dmg) # client-side prediction
+			gun.show_impact(hit, d, not ArmoryEffects.skips_direct(def.special), dmg) # client-side prediction
 			var end: Vector3 = hit["position"] if not hit.is_empty() else origin + d * Gun.range_for(id, level)
-			gun.draw_tracer(id, muzzle, end)
+			if not ArmoryEffects.skips_direct(def.special): # (shells, rockets, grubs: their own visuals)
+				gun.draw_tracer(id, muzzle, end)
 			if def.special == &"harpoon":
 				_harpoon_self(hit)
 	if multiplayer.is_server():
@@ -256,7 +303,7 @@ func _request_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, se
 	var code := int(owned.get(id, 0))
 	if GameState.has_flag("--netlog"):
 		print("[host] %s shot from peer %d: host code %d (sender said %d), %.1f damage a pellet" % [String(id), multiplayer.get_remote_sender_id(), code, level, Gun.damage_for(id, code)])
-	if Gun.weapon(id).special == &"smoke":
+	if Gun.weapon(id).special == &"smoke" or ArmoryEffects.is_spray(Gun.weapon(id).special):
 		_show_remote_shot(origin, dir, id, seed_value, code)
 		_server_fire(origin, dir, id, code, seed_value)
 		return
@@ -276,15 +323,25 @@ func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, see
 		_server_smoke(origin, dir.normalized(), level)
 		_fire_fx.rpc(origin, dir, id, seed_value, level)
 		return
+	if ArmoryEffects.is_spray(def.special):
+		# The new sprays (tar, rust, fire, acid): one puff of the cone.
+		ArmoryEffects.spray(self, def, origin, dir.normalized(), level)
+		_fire_fx.rpc(origin, dir, id, seed_value, level)
+		return
+	var armory := ArmoryEffects.handles(def.special)
+	var direct := not ArmoryEffects.skips_direct(def.special)
+	var first: Array = [] # the first ray's [dir, hit] (where an impact special lands)
 	var salted: Array[Bug] = []
 	for d in Gun.shot_dirs(id, dir.normalized(), seed_value, level):
 		var hit := player.gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, level))
+		if armory and first.is_empty():
+			first = [d, hit]
 		if muzzle is Vector3:
 			_draw_own_pellet(id, level, def, origin, d, hit, muzzle)
-		elif remote_muzzle is Vector3: # a client's shot, as the host sees it
+		elif remote_muzzle is Vector3 and direct: # a client's shot, as the host sees it
 			player.gun.show_impact(hit, d)
 			player.gun.draw_tracer(id, remote_muzzle, hit["position"] if not hit.is_empty() else origin + d * Gun.range_for(id, level))
-		if hit.is_empty():
+		if hit.is_empty() or not direct:
 			if def.special == &"flare":
 				# Into the open sky: it hangs there and sinks, lighting what's below.
 				_flare_at.rpc(origin + d * minf(Gun.range_for(id, level), 60.0), true)
@@ -303,6 +360,13 @@ func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, see
 				bug.status.slow(def.suppress_slow, def.suppress_time)
 	for b in salted:
 		GunRules.salt_hit(b) # once per shot, however many grains hit
+	if armory and not first.is_empty():
+		# The new weapons' specials: what lands where the first ray stopped.
+		var fd: Vector3 = first[0]
+		var fh: Dictionary = first[1]
+		var reach := Gun.range_for(id, level)
+		ArmoryEffects.impact(self, def, origin, fd, fh["position"] if not fh.is_empty() else origin + fd * reach,
+				fh["normal"] if not fh.is_empty() else Vector3.ZERO, fh, level)
 	# Canyon Expeditions: gunshots carry (sleeping floor bugs hear them; the whip is quiet).
 	Expedition.make_noise(origin, ExpeditionRules.gun_noise(def.special, def.kickback, Gun.shot_dirs(id, dir.normalized(), seed_value, level).size()))
 	_fire_fx.rpc(origin, dir, id, seed_value, level)
@@ -313,9 +377,10 @@ func _draw_own_pellet(id: StringName, level: int, def: WeaponDef, origin: Vector
 	var gun := player.gun
 	var dmg := Gun.damage_at(id, level, origin.distance_to(hit["position"])) if not hit.is_empty() else Gun.damage_for(id, level)
 	dmg *= _crit(def, hit)
-	gun.show_impact(hit, d, true, dmg)
+	gun.show_impact(hit, d, not ArmoryEffects.skips_direct(def.special), dmg)
 	var end: Vector3 = hit["position"] if not hit.is_empty() else origin + d * Gun.range_for(id, level)
-	gun.draw_tracer(id, muzzle, end)
+	if not ArmoryEffects.skips_direct(def.special): # (shells, rockets, grubs: their own visuals)
+		gun.draw_tracer(id, muzzle, end)
 	if def.special == &"harpoon":
 		_harpoon_self(hit)
 
@@ -390,6 +455,15 @@ func _smoke_fx(muzzle: Vector3, dir: Vector3) -> void:
 		vfx.bee_smoke(muzzle, dir)
 
 
+## Every peer: a visual of the new weapons' specials (ArmoryEffects.play_fx):
+## the host sends it with `kind` and its points and number.
+@rpc("any_peer", "call_local", "reliable")
+func armory_fx(kind: StringName, a: Vector3, b: Vector3, x: float) -> void:
+	if multiplayer.get_remote_sender_id() != 1 and multiplayer.get_remote_sender_id() != 0:
+		return # only the host sends these
+	ArmoryEffects.play_fx(kind, a, b, x)
+
+
 ## Every peer: a flare burning at `pos` (`sky`: it hangs in the air and sinks).
 @rpc("any_peer", "call_local", "reliable")
 func _flare_at(pos: Vector3, sky: bool) -> void:
@@ -415,7 +489,11 @@ func _show_remote_shot(origin: Vector3, dir: Vector3, id: StringName, seed_value
 	if def.special == &"smoke":
 		_smoke_fx(muzzle + dir.normalized() * 0.4, dir)
 		return
+	if ArmoryEffects.is_spray(def.special):
+		return # the host's armory_fx draws the puff
 	for d in Gun.shot_dirs(id, dir.normalized(), seed_value, code):
+		if ArmoryEffects.skips_direct(def.special):
+			break # (shells, rockets, grubs: the host's armory_fx draws them)
 		var hit := player.gun.raycast(origin, d, [player.get_rid()], Gun.range_for(id, code))
 		player.gun.show_impact(hit, d)
 		var end: Vector3 = hit["position"] if not hit.is_empty() else origin + d * Gun.range_for(id, code)

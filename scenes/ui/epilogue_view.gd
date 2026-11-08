@@ -128,13 +128,12 @@ func _show(i: int) -> void:
 ## One card: court paper, a red seal line, the man's name typed big, his end typed out.
 func _decree(title: String, body: String, i: int) -> Control:
 	var paper := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = PAPER
-	sb.border_color = FADED
-	sb.set_border_width_all(2)
-	sb.set_content_margin_all(34)
-	sb.shadow_color = Color(0, 0, 0, 0.5)
-	sb.shadow_size = 14
+	# The kit's document paper, with a court form's inset border.
+	var sb := UiStyle.box_for(&"base", "doc")
+	sb.rule = Color(FADED, 0.5)
+	sb.rule_inset = 9.0
+	sb.rule_width = 1.2
+	sb.set_content_margin_all(38)
 	paper.add_theme_stylebox_override("panel", sb)
 	paper.custom_minimum_size = Vector2(720, 0)
 	paper.rotation_degrees = -0.8 + float(i % 2) * 1.4
@@ -156,8 +155,16 @@ func _decree(title: String, body: String, i: int) -> Control:
 	_body.visible_characters = 0
 	col.add_child(_body)
 	col.add_child(_rule(1))
-	var foot := _ink("Click or E to go on", 13, FADED, null)
-	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# Keycaps, like every other screen's footer, in the document's ink.
+	var foot := HBoxContainer.new()
+	foot.alignment = BoxContainer.ALIGNMENT_END
+	foot.add_theme_constant_override("separation", 6)
+	foot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for k: String in ["LMB", KeyHints.key_for("interact")]:
+		var cap := KeyHints.chip(k)
+		cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		foot.add_child(cap)
+	foot.add_child(_ink("Go On", 13, FADED, UiStyle.font("label")))
 	col.add_child(foot)
 	return paper
 
@@ -173,10 +180,14 @@ func _last_word() -> Control:
 	var ring := StoryPortrait.framed(self, who, 150.0)
 	ring.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	col.add_child(ring)
-	var name_l := _ink(StoryChapter.speaker_name(who), 18, Color("#C9A04A"), null)
+	var name_l := UiStyle.eyebrow(StoryChapter.speaker_name(who), 18, UiStyle.c("title"))
+	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(name_l)
 	_full = "\"%s\"" % line
-	_body = _ink(_full, 34, Color("#F2E3C2"), UiStyle.display_font())
+	_body = _ink(_full, 34, UiStyle.c("ink"), UiStyle.display_font())
+	# A deliberate centre-screen line over the dark scrim: outlined like a title.
+	_body.add_theme_color_override("font_outline_color", UiStyle.c("outline"))
+	_body.add_theme_constant_override("outline_size", 6)
 	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_body.custom_minimum_size = Vector2(900, 0)
 	_body.visible_characters = 0
@@ -192,7 +203,7 @@ func _ink(text: String, size: int, color: Color, font: Font) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", UiStyle.ts(size))
 	l.add_theme_color_override("font_color", color)
 	if font != null:
 		l.add_theme_font_override("font", font)

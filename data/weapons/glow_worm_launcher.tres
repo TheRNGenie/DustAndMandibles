@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"glow_worm_launcher"
+slot = 1
+display_name = "Glow-Worm Launcher"
+description = "Fires a sticky glowing grub that pulses for five seconds and pulls every bug within 15 metres toward it. Bait a swarm into a turret's lane, even on your partner's cliff."
+damage = 0.0
+mag_size = 2
+fire_interval = 0.8
+reload_time = 3.0
+pellets = 1
+range = 80.0
+price_chitin = 35
+upgrade_costs = PackedInt32Array(10, 25)
+shake = 0.15
+sound = &"harpoon"
+recoil_deg = 1.5
+role = "Aggro pull (no damage)"
+special = &"lure"
+sound_pitch = 1.5

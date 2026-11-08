@@ -57,7 +57,7 @@ func _ready() -> void:
 	_sub = Subtitle.new()
 	add_child(_sub)
 	_card = PanelContainer.new()
-	_card.add_theme_stylebox_override("panel", KeyHints.card_style())
+	_card.add_theme_stylebox_override("panel", _plate())
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# (Right and bottom first: an anchor can't pass its opposite one.)
 	_card.set_anchor_and_offset(SIDE_RIGHT, 1.0, -24.0)
@@ -92,10 +92,20 @@ func _ready() -> void:
 func _restyle() -> void:
 	if _card == null:
 		return
-	_card.add_theme_stylebox_override("panel", KeyHints.card_style())
+	_card.add_theme_stylebox_override("panel", _plate())
 	_chip.add_theme_stylebox_override("panel", UiStyle.chip_flat())
 	if _card.visible:
 		_rebuild()
+
+
+## The card's plate: the kit's HUD plate (grained, the set's corners and rule).
+static func _plate() -> StyleBox:
+	var sb := UiStyle.hud_box()
+	sb.content_margin_left = 16
+	sb.content_margin_right = 16
+	sb.content_margin_top = 12
+	sb.content_margin_bottom = 12
+	return sb
 
 
 func _input(event: InputEvent) -> void:
@@ -257,20 +267,23 @@ func _rebuild() -> void:
 	_col.add_child(head)
 	var who := str(_def.get("voice", TutorialPlan.VOICE))
 	var on_air := "  ·  %s" % StoryChapter.speaker_short(who) if who != "" else ""
-	var tag := KeyHints.text("Tutorial  ·  Step %d of %d%s" % [_step + 1, _total, on_air], 12, UiStyle.c("gold"))
+	var tag := UiStyle.eyebrow("Tutorial  ·  Step %d of %d%s" % [_step + 1, _total, on_air], 13)
 	tag.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tag.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tag.custom_minimum_size.x = 1
 	head.add_child(tag)
+	# The progress pips on their own line under the eyebrow (twenty of them).
 	_pips = HBoxContainer.new()
-	_pips.add_theme_constant_override("separation", 4)
+	_pips.add_theme_constant_override("separation", 3)
 	_pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	head.add_child(_pips)
+	_col.add_child(_pips)
 	_refresh_pips(not _done.is_empty() and not _done.has(false))
 	var title_row := HBoxContainer.new()
 	title_row.add_theme_constant_override("separation", 8)
 	title_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_col.add_child(title_row)
-	var title := KeyHints.text(str(_def.get("title", "")), 18, UiStyle.c("hud"))
+	var title := KeyHints.text(UiStyle.tc(str(_def.get("title", ""))), 20, UiStyle.c("hud"))
+	title.add_theme_font_override("font", UiStyle.font("bold"))
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.custom_minimum_size.x = 1
@@ -529,7 +542,7 @@ func show_finish() -> void:
 	row.add_theme_constant_override("separation", UiStyle.GAP_ROW)
 	col.add_child(row)
 	var menu_btn := UiStyle.button("Back to Menu")
-	var keep_btn := UiStyle.button("Keep Playing")
+	var keep_btn := UiStyle.primary_button("Keep Playing")
 	for b: Button in [menu_btn, keep_btn]:
 		b.custom_minimum_size.y = 46
 		b.focus_mode = Control.FOCUS_ALL # arrows and a controller's d-pad move between them

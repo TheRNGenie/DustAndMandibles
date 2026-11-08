@@ -50,19 +50,20 @@ func setup(cid: int) -> void:
 	for side: float in [-1.0, 1.0]:
 		MeshKit.add_box(st, Transform3D(Basis(), Vector3(side * SIZE * 0.5, 0.12, 0)), Vector3(0.08, 0.24, SIZE), Palette.WOOD)
 		MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.12, side * SIZE * 0.5)), Vector3(SIZE, 0.24, 0.08), Palette.WOOD)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(SIZE * 0.5 + 0.1, 0.45, SIZE * 0.5 - 0.2)), Vector3(0.06, 0.7, 0.06), Palette.WOOD)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.45, -SIZE * 0.5 - 0.06)), Vector3(0.07, 0.75, 0.07), Palette.WOOD) # the sign post, mid canyon side
 	soil.mesh = MeshKit.finish(st)
 	soil.material_override = Materials.toon(0.02)
 	add_child(soil)
-	# Little sign showing what's planted (its colour changes with the crop).
+	# Little sign showing what's planted (its colour changes with the crop), on its
+	# post in the middle of the canyon side, facing the canyon (local -Z).
 	_sign = MeshInstance3D.new()
 	var board := BoxMesh.new()
-	board.size = Vector3(0.05, 0.25, 0.4)
+	board.size = Vector3(0.5, 0.36, 0.05)
 	_sign.mesh = board
 	_sign_mat = StandardMaterial3D.new()
 	_sign_mat.albedo_color = Palette.BONE
 	_sign.material_override = _sign_mat
-	_sign.position = Vector3(SIZE * 0.5 + 0.1, 0.8, SIZE * 0.5 - 0.2)
+	_sign.position = Vector3(0, 0.88, -SIZE * 0.5 - 0.1)
 	add_child(_sign)
 	_plant_mi = MeshInstance3D.new()
 	_plant_mi.material_override = Materials.toon(0.015)
@@ -71,9 +72,9 @@ func setup(cid: int) -> void:
 	# The empty seed packet on a stake marks what's planted (garden-marker style).
 	_packet_mi = MeshInstance3D.new()
 	_packet_mi.material_override = Materials.toon(0.006)
-	_packet_mi.position = Vector3(SIZE * 0.5 - 0.15, 0.62, -SIZE * 0.5 + 0.15)
-	_packet_mi.scale = Vector3.ONE * 2.2
-	_packet_mi.rotation.y = PI
+	# The empty seed packet pinned to the sign's face.
+	_packet_mi.position = Vector3(0, 0.88 - 0.14, -SIZE * 0.5 - 0.135)
+	_packet_mi.scale = Vector3.ONE * 2.0
 	add_child(_packet_mi)
 	_fruit_mi = MeshInstance3D.new()
 	_fruit_mi.material_override = Materials.toon(0.015)

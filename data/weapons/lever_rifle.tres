@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"lever_rifle"
+slot = 0
 display_name = "Lever-Action Rifle"
 description = "Eight hard-hitting shots that punch through armour. Slower."
 damage = 60.0

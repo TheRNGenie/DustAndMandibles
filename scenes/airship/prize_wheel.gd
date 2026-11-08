@@ -12,7 +12,10 @@ const COST_SCRAP := 25
 const WEDGES: Array[Array] = CasinoRules.WHEEL_WEDGES
 const SPIN_TIME := 6.0
 
+const ART := preload("res://gen/airship_props_art.gd")
+
 var _wheel: Node3D
+var _flap: MeshInstance3D
 var _from := 0.0
 var _to := 0.0
 var _t := SPIN_TIME
@@ -23,40 +26,23 @@ var rest_to := 0.0
 
 func _ready() -> void:
 	super._ready()
-	var st := MeshKit.begin()
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.15, 0)), Vector3(1.4, 0.3, 0.8), Palette.WOOD_DARK)
-	for sx: float in [-0.5, 0.5]:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(sx, 1.0, 0.1)), Vector3(0.1, 1.8, 0.1), Palette.WOOD)
-	MeshKit.add_box(st, Transform3D(Basis(Vector3.BACK, PI * 0.25), Vector3(0, 2.62, -0.12)), Vector3(0.18, 0.18, 0.05), Palette.GLOW_YELLOW, 0.0, null, 0.6)
-	var mi := MeshInstance3D.new()
-	mi.mesh = MeshKit.finish(st)
-	mi.material_override = Materials.toon(0.015)
-	add_child(mi)
+	# A carnival wheel (gen/airship_props_art.gd): a red marquee board ringed with
+	# bulbs on a turned column, printed wedges with brass spokes and pegs, and a
+	# leather flapper at the top that the pegs kick aside as it turns.
+	var hub := Vector3(0, 1.75, -0.05)
+	ART.wheel_stand(self, hub)
 	_wheel = Node3D.new()
-	_wheel.position = Vector3(0, 1.75, -0.05)
+	_wheel.position = hub
 	add_child(_wheel)
-	var wst := MeshKit.begin()
-	var n := WEDGES.size()
-	var colors: Array[Color] = [Color("#C9302C"), Palette.BONE, Color("#2E6FA8"), Palette.GLOW_YELLOW.darkened(0.2)]
-	for i in n:
-		var a0 := TAU * float(i) / n
-		var a1 := TAU * float(i + 1) / n
-		var c := Palette.OUTLINE if String(WEDGES[i][0]) == "BUST" else colors[i % colors.size()]
-		var p1 := Vector3(sin(a0), cos(a0), 0) * 0.8
-		var p2 := Vector3(sin(a1), cos(a1), 0) * 0.8
-		var nrm := Vector3(0, 0, -1)
-		MeshKit.tri(wst, Vector3.ZERO, p2, p1, nrm, nrm, nrm, MeshKit.vcol(c), nrm)
-		MeshKit.tri(wst, Vector3.ZERO, p1, p2, -nrm, -nrm, -nrm, MeshKit.vcol(c), -nrm)
-	MeshKit.add_cylinder(wst, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0, -0.03)), 0.12, 0.12, 0.08, 10, Palette.METAL)
-	var wmi := MeshInstance3D.new()
-	wmi.mesh = MeshKit.finish(wst)
-	wmi.material_override = Materials.toon(0.01)
-	_wheel.add_child(wmi)
+	ART.wheel_face(_wheel, WEDGES)
+	_flap = ART.flapper()
+	_flap.position = hub + Vector3(0, 0.9, -0.1)
+	add_child(_flap)
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(1.6, 2.6, 0.5)
+	shape.size = Vector3(2.1, 2.9, 0.9)
 	col.shape = shape
-	col.position.y = 1.3
+	col.position = Vector3(0, 1.45, 0.05)
 	add_child(col)
 
 
@@ -66,6 +52,9 @@ func _process(delta: float) -> void:
 	_t += delta
 	var k := 1.0 - pow(1.0 - clampf(_t / SPIN_TIME, 0.0, 1.0), 2.0)
 	_wheel.rotation.z = lerpf(_from, _to, k)
+	# The flapper flicks aside as each peg passes under it, and drops back.
+	var f := fposmod(_wheel.rotation.z / (TAU / WEDGES.size()), 1.0)
+	_flap.rotation.z = -0.55 * (1.0 - smoothstep(0.0, 0.35, f)) * signf(_to - _from)
 	if _t >= SPIN_TIME:
 		view["spinning"] = false
 		Audio.play_at(&"coin", global_position + Vector3.UP * 1.5, -2.0)

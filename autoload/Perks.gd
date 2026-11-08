@@ -619,6 +619,10 @@ func _start_of_run() -> void:
 		if lo.has(&"starting_iron"):
 			var owned: Dictionary = GunShop.loadouts.get(peer, {&"revolver": 0})
 			if not owned.has(&"lever_rifle"):
+				# Weapon Slots: it takes the primary slot (in place of the revolver).
+				var holder := Gun.slot_holder(owned, &"lever_rifle")
+				if holder != &"":
+					owned.erase(holder)
 				owned[&"lever_rifle"] = 0
 				GunShop.loadouts[peer] = owned
 				var pl := _player_of(peer)

@@ -233,6 +233,26 @@ const LOAD_POINT: Dictionary = {&"revolver": Vector3(0.022, 0.03, 0.03), &"lever
 	&"derringer_pair": Vector3(0.0, 0.015, -0.02), &"pepperbox": Vector3(0.0, 0.021, 0.012), &"harpoon_pistol": Vector3(0.0, 0.026, -0.25),
 	&"flare_gun": Vector3(0.0, 0.026, -0.02), &"salt_shotgun": Vector3(0.0, -0.02, -0.03), &"punt_gun": Vector3(0.0, 0.03, -0.09),
 	&"bee_smoker": Vector3(0.0, 0.14, -0.09), &"telescope_rifle": Vector3(0.016, 0.03, 0.0)}
+## The support hand's rest spot for any gun (the Weapon Slots guns keep theirs in ArmoryGuns).
+static func left_fist(id: StringName) -> Vector3:
+	if ArmoryGuns.has(id):
+		var h := ArmoryGuns.hands(id)
+		return h[2] if h.size() >= 3 else Vector3(-0.022, -0.075, 0.07)
+	return LEFT_FIST.get(id, Vector3(-0.022, -0.075, 0.07))
+
+
+## Where a round goes in, for any gun.
+static func load_point(id: StringName) -> Vector3:
+	if ArmoryGuns.has(id):
+		return ArmoryGuns.load_point(id)
+	return LOAD_POINT.get(id, Vector3(0.0, 0.02, -0.03))
+
+
+## Held with the support hand on the gun?
+static func two_handed(id: StringName) -> bool:
+	return ArmoryGuns.two_handed(id) if ArmoryGuns.has(id) else TWO_HANDED.has(id)
+
+
 ## Crank Gatling: barrel spin axis origin and the crank's pivot (gun space).
 const GATLING_AXIS := Vector3(0, 0.0, -0.05)
 const GATLING_CRANK := Vector3(0.06, 0.0, 0.04)
@@ -496,6 +516,14 @@ static func arm_right(id: StringName, look: Dictionary = {}) -> ArrayMesh:
 	look = DummyLook.clean(look)
 	var paint := DummyLook.paint(look)
 	var st := MeshKit.begin()
+	if ArmoryGuns.has(id) and ArmoryGuns.hands(id).size() >= 2:
+		# The Weapon Slots guns: the fist where ArmoryGuns says, the forearm back and down.
+		var h := ArmoryGuns.hands(id)
+		var g: Vector3 = h[0]
+		var long_gun := ArmoryGuns.two_handed(id)
+		arm(st, g, h[1], Vector3(1, 0.2, 0.1) if long_gun else Vector3(1, 0.1, 0.25),
+				g + (Vector3(0.116, -0.3, 0.4) if long_gun else Vector3(0.1, -0.31, 0.42)), look, true)
+		return MeshKit.finish(st)
 	match id:
 		&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun", &"dino_rifle", &"salt_shotgun", &"punt_gun", &"telescope_rifle":
 			var g: Vector3 = RIGHT_GRIP[id][0]
@@ -513,8 +541,17 @@ static func arm_right(id: StringName, look: Dictionary = {}) -> ArrayMesh:
 static func arm_left(id: StringName, look: Dictionary = {}, local: bool = false) -> ArrayMesh:
 	look = DummyLook.clean(look)
 	var paint := DummyLook.paint(look)
-	var o: Vector3 = Vector3.ZERO if not local else -(LEFT_FIST[id] as Vector3)
+	var o: Vector3 = Vector3.ZERO if not local else -left_fist(id)
 	var st := MeshKit.begin()
+	if ArmoryGuns.has(id):
+		var lf := left_fist(id)
+		if ArmoryGuns.two_handed(id):
+			# Cupping the forend (or the forward grip) from below.
+			arm(st, o + lf, Vector3(0, 0, -1), Vector3(-0.7, -1, 0), o + lf + Vector3(-0.196, -0.284, 0.28), look)
+		else:
+			# Cupping the pistol hand.
+			arm(st, o + lf, Vector3(0, 0.6, -0.8), Vector3(-1, -0.3, 0.2), o + lf + Vector3(-0.2, -0.34, 0.36), look)
+		return MeshKit.finish(st)
 	match id:
 		&"lever_rifle", &"coach_shotgun", &"blunderbuss", &"elephant_gun", &"dino_rifle":
 			# Cupping the forend from below.

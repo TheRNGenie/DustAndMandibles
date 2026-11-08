@@ -212,6 +212,8 @@ func _ready() -> void:
 		_cellar_shot(GameState.flag_value("--cellarshot"))
 	elif GameState.has_flag("--sackicons"):
 		_sack_icons()
+	elif GameState.flag_value("--fieldshot") != "":
+		_field_shot(GameState.flag_value("--fieldshot"))
 	elif GameState.flag_value("--cropshot") != "":
 		_crop_shot(GameState.flag_value("--cropshot"))
 	elif GameState.has_flag("--ammotest"):
@@ -3258,4 +3260,44 @@ func _cellar_shot(path: String) -> void:
 	print("[cellarshot] player at %s, cellar floor %.1f" % [str(me.global_position.snapped(Vector3.ONE * 0.1)), cellar.to_global(RootCellar.ROOM).y])
 	get_viewport().get_texture().get_image().save_png(path)
 	print("[cellarshot] saved %s" % path)
+	get_tree().quit()
+
+
+## --fieldshot=<png>: the starter field (a row of farm plots in front of the junk
+## heap), planted with a few crops, from the canyon side.
+func _field_shot(path: String) -> void:
+	for i in 60:
+		await get_tree().process_frame
+	await get_tree().create_timer(4.0).timeout
+	var me := world.call("local_player") as Player
+	var cid := me.cliff_id if me != null else WorldLayout.WEST
+	var plots: Array[CropPlot] = []
+	for n: Node in get_tree().get_nodes_in_group("crops"):
+		if (n as CropPlot).cliff_id == cid:
+			plots.append(n as CropPlot)
+	var crops: Array[StringName] = [&"corn", &"firecracker_chili", &"cotton", &"herbs"]
+	for i in plots.size():
+		plots[i].crop_def = Defs.crop(crops[i % crops.size()])
+		plots[i].growth.plant(plots[i].crop_def)
+		plots[i].growth.water()
+		plots[i].growth.tick(plots[i].crop_def.grow_time * (2.0 if i % 2 == 0 else 0.5), 0.0, 0.0)
+		plots[i].call("_broadcast")
+	var cliffs := world.get("cliffs") as CliffBuilder
+	var mid := Vector3.ZERO
+	for p in plots:
+		mid += p.global_position
+	mid /= maxf(plots.size(), 1)
+	var cam := Camera3D.new()
+	world.add_child(cam)
+	var toward_canyon := -WorldLayout.inward(cid)
+	cam.global_position = mid + toward_canyon * 10.0 + Vector3.UP * 4.5 - WorldLayout.inward(cid).cross(Vector3.UP) * 0.0
+	cam.look_at(mid + Vector3.UP * 0.5 - toward_canyon * 3.0)
+	if GameState.has_flag("--fieldfront"): # from the canyon side, looking back at the signs and the junk heap
+		cam.global_position = mid - toward_canyon * -7.0 + Vector3.UP * 3.0
+		cam.look_at(mid - toward_canyon * 4.0 + Vector3.UP * 0.8)
+	cam.fov = 60.0
+	cam.current = true
+	await get_tree().create_timer(2.5).timeout
+	get_viewport().get_texture().get_image().save_png(path)
+	print("[fieldshot] %d plots on cliff %d, saved %s" % [plots.size(), cid, path])
 	get_tree().quit()

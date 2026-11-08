@@ -95,7 +95,7 @@ func _process(delta: float) -> void:
 func _build_environment() -> void:
 	var sky_mat := ShaderMaterial.new()
 	sky_mat.shader = SKY_SHADER
-	sky_mat.set_shader_parameter("cloud_noise", Materials.noise_texture(42, 0.012, 512))
+	sky_mat.set_shader_parameter("sky_noise", DayCycle.SKY_NOISE)
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 	var env := Environment.new()

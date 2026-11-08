@@ -19,6 +19,9 @@ var menu_open := false
 ## Open category in the menu (-1 = category list).
 var category := 1
 var selected := 0
+## The menu's kind selector (Defs.KIND_ALL / KIND_STANDARD / KIND_CROP_FED),
+## applied in every tab; kept while the run lasts.
+var kind := 0
 ## A crafted turret picked from the Crafted tab (not in Defs.BUILD_ORDER, so no index).
 var _picked := &""
 var _ghost: MeshInstance3D
@@ -132,11 +135,22 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func category_items(c: int) -> Array:
-	if c < 0:
+	return category_items_of(c, kind)
+
+
+## A tab's items for one kind (Defs.KIND_*), Early to Late.
+func category_items_of(c: int, of_kind: int) -> Array:
+	var tabs := Defs.build_tabs()
+	if c < 0 or c >= tabs.size():
 		return []
-	if Defs.BUILD_CATEGORIES[c]["name"] == "Crafted":
-		return crafted_held()
-	return Defs.by_tier(Defs.BUILD_CATEGORIES[c]["items"]) # Tiers: Early, Mid, Late
+	var items: Array = crafted_held() if tabs[c]["name"] == "Crafted" else Defs.by_tier(tabs[c]["items"]) # Tiers: Early, Mid, Late
+	return items.filter(func(id: StringName) -> bool: return Defs.of_kind(id, of_kind))
+
+
+## The menu's Standard / Crop-Fed selector.
+func set_kind(k: int) -> void:
+	kind = clampi(k, 0, Defs.KIND_NAMES.size() - 1)
+	changed.emit()
 
 
 ## Tiers: can this item be built yet (Mid / Late turrets unlock at later waves)?
@@ -187,16 +201,18 @@ func choose(id: StringName) -> void:
 	if not unlocked(id): # Tiers: a locked tile does nothing but say why
 		Economy.notice.emit("%s: %s." % [Defs.name_of(id), Defs.lock_reason(id, GameState.tier_wave())])
 		return
-	for c in Defs.BUILD_CATEGORIES.size():
-		if category_items(c).has(id):
+	for c in Defs.build_tabs().size():
+		if category_items_of(c, Defs.KIND_ALL).has(id):
 			category = c
+			if not Defs.of_kind(id, kind):
+				kind = Defs.KIND_ALL # (picked from outside the filter: show it)
 	_select_id(id)
 	close_menu()
 
 
 func _number_key(i: int) -> void:
 	if menu_open and category < 0:
-		if i < Defs.BUILD_CATEGORIES.size():
+		if i < Defs.build_tabs().size():
 			show_category(i)
 		return
 	var items := category_items(category)

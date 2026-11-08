@@ -7,8 +7,10 @@ extends RefCounted
 ## basins and varnished mesa tops in the ground's vertex colours (the badlands
 ## shader paints them). Mesas, buttes, hoodoos, arches and balanced rocks grow
 ## from the same field, scrub and boulders gather by the washes and under the
-## mesa faces, a ring of banded peaks closes the rim and far silhouettes stand
-## on the horizon. Visual only: no collision, no shadows.
+## mesa faces. Past them the far lands take over (FarLands: dune seas, salt
+## pans, the escarpment that closes the horizon) and the colossal bug skeletons
+## and derelicts stand out there (ColossusBuilder). Visual only: no collision,
+## no shadows.
 
 const SHADER: Shader = preload("res://shaders/badlands_ground.gdshader")
 const SILHOUETTE: Shader = preload("res://shaders/horizon_silhouette.gdshader")
@@ -19,14 +21,16 @@ const BASE := WorldLayout.CLIFF_HEIGHT + 40.0
 ## metres out from the plateau's back edge. The near ring round the play area
 ## and the corridor (4 m), the mid ring (14 m), the far ring (60 m); a skirt
 ## hangs from every piece's edge so the joins never open a crack.
+## (Mid and far rings are finer than they were: the dunes and the escarpment
+## need the rows to keep their crests and ledges at 2 km.)
 const PIECES := [
 	[0.0, 300.0, -400.0, 400.0, 4.0, 2.0],
-	[300.0, 800.0, -400.0, 400.0, 14.0, 6.0],
-	[0.0, 800.0, -1000.0, -400.0, 14.0, 6.0],
-	[0.0, 800.0, 400.0, 1000.0, 14.0, 6.0],
-	[800.0, REACH, -1000.0, 1000.0, 60.0, 20.0],
-	[0.0, REACH, -REACH, -1000.0, 60.0, 20.0],
-	[0.0, REACH, 1000.0, REACH, 60.0, 20.0],
+	[300.0, 800.0, -400.0, 400.0, 10.0, 6.0],
+	[0.0, 800.0, -1000.0, -400.0, 10.0, 6.0],
+	[0.0, 800.0, 400.0, 1000.0, 10.0, 6.0],
+	[800.0, REACH, -1000.0, 1000.0, 26.0, 20.0],
+	[0.0, REACH, -REACH, -1000.0, 26.0, 20.0],
+	[0.0, REACH, 1000.0, REACH, 26.0, 20.0],
 ]
 const TERRACE := 7.0
 ## Coarse grid the formations are picked from (metres), inside and outside MID_R.
@@ -41,6 +45,10 @@ var _erosion := FastNoiseLite.new()
 var _ridge := FastNoiseLite.new()
 var _detail := FastNoiseLite.new()
 var _rng := RandomNumberGenerator.new()
+## The dunes, salt pans and escarpment past the badlands.
+var far: FarLands
+## The sand at the last sample() (the ground's vertex alpha is 1 - sand).
+var _last_sand := 0.0
 
 
 func _init(cliffs: CliffBuilder) -> void:
@@ -58,6 +66,10 @@ func _init(cliffs: CliffBuilder) -> void:
 	_detail.seed = 2214
 	_detail.frequency = 0.02
 	_detail.fractal_octaves = 3
+	# The far lands start a little past the canyon's own country.
+	far = FarLands.new(7171, Vector2.ZERO, func(x: float, z: float) -> float:
+		var q := Vector2(maxf(absf(x) - 170.0, 0.0), maxf(absf(z) - 420.0, 0.0))
+		return q.length() if q.length() > 0.0 else -minf(170.0 - absf(x), 420.0 - absf(z)))
 
 
 ## Ground material (masks on) or the formations' rock (vertex colour tints).
@@ -93,8 +105,17 @@ func sample(x: float, z: float) -> Vector4:
 	var terr := (floorf(t) + smoothstep(0.55, 1.0, t - floorf(t))) * TERRACE
 	h = lerpf(h, terr, 0.55 + 0.35 * mesa)
 	h += _detail.get_noise_2d(x, z) * (2.2 + 1.5 * hog)
-	return Vector4(BASE + h, smoothstep(0.45, 0.85, wash) * (1.0 - mesa * 0.8),
-			smoothstep(0.7, 1.0, mesa), basin * (1.0 - wash))
+	# Out past the badlands, the dunes and pans lie over them, then the escarpment.
+	var f := far.field(x, z)
+	_last_sand = f.y
+	var keep := 1.0 - f.w
+	return Vector4(BASE + h * keep + f.x, smoothstep(0.45, 0.85, wash) * (1.0 - mesa * 0.8) * keep,
+			smoothstep(0.7, 1.0, mesa) * keep, maxf(basin * (1.0 - wash) * keep, f.z))
+
+
+## The far lands' paint at (x, z): sand (0-1).
+func sand(x: float, z: float) -> float:
+	return far.field(x, z).y
 
 
 func height(x: float, z: float) -> float:
@@ -114,10 +135,19 @@ func clear_of_canyon(x: float, z: float, margin: float = 0.0) -> bool:
 # ---------------------------------------------------------------- build
 
 func build(parent: Node3D) -> void:
+	for step in build_steps(parent):
+		step.call()
+
+
+## The build in pieces (each side's ground, then the landforms and landmarks),
+## so a caller building one piece a frame (the title film) never stalls long.
+func build_steps(parent: Node3D) -> Array[Callable]:
 	var ground := material(true)
+	return [_ground.bind(parent, 0, ground), _ground.bind(parent, 1, ground), _landforms.bind(parent)]
+
+
+func _landforms(parent: Node3D) -> void:
 	var rock := material(false)
-	for cid in 2:
-		_ground(parent, cid, ground)
 	var spots := _scan()
 	var st := MeshKit.begin()
 	var scatter := MeshKit.begin()
@@ -128,14 +158,16 @@ func build(parent: Node3D) -> void:
 	_arches(arches, spots["edges"])
 	_balanced(st, scatter, spots["edges"])
 	_scatter(st, scatter, spots["slopes"], spots["washes"])
-	_peaks(st)
+	# (The old ring of cone peaks at the rim is gone: FarLands' escarpment closes
+	# the horizon now.)
 	_add(parent, "BadlandsRock", MeshKit.finish(st), rock)
 	# Matte (no highlight blob): the scrub and the balanced rocks' boulders.
 	var matte := Materials.toon(0.0).duplicate() as ShaderMaterial
 	matte.set_shader_parameter("spec_strength", 0.0)
 	_add(parent, "BadlandsScatter", MeshKit.finish(scatter), matte)
 	_add(parent, "BadlandsArches", MeshKit.finish(arches), Materials.strata(Palette.SAND))
-	horizon_silhouettes(parent)
+	# The landmarks out on the far lands: colossal bug skeletons and derelicts.
+	ColossusBuilder.new(far, height).build(parent)
 
 
 func _add(parent: Node3D, node_name: String, mesh: ArrayMesh, mat: Material) -> MeshInstance3D:
@@ -192,7 +224,7 @@ func _ground(parent: Node3D, cid: int, mat: Material) -> void:
 					t = maxf(smoothstep(0.0, 300.0, absf(z) - CliffBuilder.FAR_Z), smoothstep(160.0, 300.0, d))
 					y = lerpf(float(end_ref[1 if z > 0.0 else 0]), f.x, t)
 				row.append(Vector3(x, y, z))
-				colors.append(Color(f.y * t, f.z * t, f.w * t, 1.0))
+				colors.append(Color(f.y * t, f.z * t, f.w * t, 1.0 - _last_sand * t))
 			grid.append(row)
 		var mi := MeshInstance3D.new()
 		mi.name = "Badlands%d_%d" % [cid, k]
@@ -267,6 +299,9 @@ func _scan() -> Dictionary:
 					continue
 				var p := _plateau.get_noise_2d(x, z)
 				var f := sample(x, z)
+				# Nothing stands out of the dunes or the salt pans.
+				if far.field(x, z).w > 0.3:
+					continue
 				var gx := height(x + 4.0, z) - height(x - 4.0, z)
 				var gz := height(x, z + 4.0) - height(x, z - 4.0)
 				var grad := Vector2(gx, gz) / 8.0

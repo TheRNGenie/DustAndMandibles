@@ -64,13 +64,14 @@ static func sling_damage(count: int) -> float:
 	return lerpf(SLING_MIN, SLING_MAX, clampf(float(count) / CAP, 0.0, 1.0))
 
 
-## Brand-themed colour per rank (1 C .. 5 S+), from the movement plan.
+## Brand-themed colour per rank (1 C .. 5 S+), from the movement plan, tuned to
+## each UI set's palette (2026-11 kit) and kept light enough to read over the sky.
 const RAMPS: Dictionary = {
-	&"sheaf": ["#C9A86A", "#E2B84A", "#E8901A", "#E86A1A", "#B4552E"],
-	&"irons": ["#9AA0A6", "#5E6A72", "#C9A24A", "#F07A2A", "#FFF4E0"],
-	&"snake": ["#2E7D4F", "#E2B84A", "#B3261E", "#9B4DFF", "#FFD54A"],
-	&"mandibles": ["#2E8C7E", "#9BE564", "#E8A13A", "#C8302C", "#F2C230"],
-	&"none": ["#3E8E8A", "#9BD13A", "#E8A13A", "#C8302C", "#F2C230"],
+	&"sheaf": ["#D9C48A", "#F3D27A", "#E8901A", "#E86A1A", "#FF5A2E"],
+	&"irons": ["#AEB7C1", "#8FC1E0", "#E8BE68", "#F07A2A", "#FFF4E0"],
+	&"snake": ["#5FBF84", "#F2D07A", "#E0443A", "#B07CFF", "#FFD54A"],
+	&"mandibles": ["#5FC2B2", "#B9F06E", "#E09A38", "#E0503A", "#FFE27A"],
+	&"none": ["#C8B293", "#F2C46A", "#E8862E", "#D8402E", "#FFE9A8"],
 }
 
 

@@ -1,66 +1,102 @@
 class_name HudHotbar
 extends Control
-## Bottom-centre hotbar: nine wooden slots for keys 1-9, each showing a drawn
-## icon of what's in it (empty slots stay blank).
+## Bottom-centre hotbar: ten slots for keys 1-0 (1-3 guns, 4-6 harvest,
+## 7 medicine, 8 bucket, 9 Zippo, 0 grapple), each showing a picture of what's
+## in it. The picked slot wears the set's metal and stands a little taller;
+## empty slots stay quiet. A keycap sits in each corner, counts on a pill.
 
-const SLOT_SIZE := Vector2(90, 80) # sized against the status and ammo panels
+const SLOT_SIZE := Vector2(80, 72) # sized against the status and ammo panels
+## How far the picked slot stands up out of the row.
+const LIFT := 8.0
 
 var hotbar: Hotbar
 var _panels: Array[PanelContainer] = []
 var _icons: Array[ItemIcon] = []
 var _counts: Array[Label] = []
+var _pills: Array[PanelContainer] = []
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# A brand swap re-tints the rarity slots (their boxes are private copies). A
+	# method, not a lambda: it lets go by itself when the HUD is freed.
+	UiStyle.notifier.changed.connect(_on_set_changed)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.anchor_left = 0.5
 	row.anchor_right = 0.5
 	row.anchor_top = 1.0
 	row.anchor_bottom = 1.0
-	var width := SLOT_SIZE.x * Hotbar.SLOTS + 6 * (Hotbar.SLOTS - 1) + 18
+	var width := SLOT_SIZE.x * Hotbar.SLOTS + 6 * (Hotbar.SLOTS - 1) + 3 * 12
 	row.offset_left = -width * 0.5
 	row.offset_right = width * 0.5
-	row.offset_top = -SLOT_SIZE.y - 14
-	row.offset_bottom = -14
+	row.offset_top = -SLOT_SIZE.y - LIFT - 18
+	row.offset_bottom = -18
 	add_child(row)
 	for i in Hotbar.SLOTS:
 		if i == 3 or i == 6 or i == 8:
+			# A wider gap between the groups: guns | harvest | medicine, bucket | Zippo, grapple.
 			var gap := Control.new()
 			gap.custom_minimum_size = Vector2(6, 0)
+			gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			row.add_child(gap)
 		var p := PanelContainer.new()
 		p.custom_minimum_size = SLOT_SIZE
+		p.size_flags_vertical = Control.SIZE_SHRINK_END
+		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		p.add_theme_stylebox_override("panel", KeyHints.kit_box("slot_empty"))
 		row.add_child(p)
 		var stack := Control.new()
-		stack.custom_minimum_size = SLOT_SIZE - Vector2(8, 8)
 		stack.clip_contents = true # long guns fill the slot's width without spilling
+		stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		p.add_child(stack)
 		var icon := ItemIcon.new()
 		icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		icon.offset_top = 6
+		icon.offset_bottom = -2
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		icon.host = self
 		stack.add_child(icon)
-		var key := UiStyle.label(str((i + 1) % 10), 14, UiStyle.c("title")) # the 10th slot is key 0
-		key.autowrap_mode = TextServer.AUTOWRAP_OFF
-		key.position = Vector2(2, -2)
+		# The slot's key: a small keycap in the top-left corner (the 10th slot is key 0).
+		var key := PanelContainer.new()
+		key.add_theme_stylebox_override("panel", KeyHints.kit_box("key_small"))
+		key.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		key.position = Vector2(1, 1)
+		var kl := KeyHints.number(str((i + 1) % 10), 12)
+		kl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		kl.custom_minimum_size.x = 9
+		key.add_child(kl)
 		stack.add_child(key)
-		var count := UiStyle.label("", 16, UiStyle.c("hud"))
-		count.autowrap_mode = TextServer.AUTOWRAP_OFF
-		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		count.anchor_left = 1.0
-		count.anchor_right = 1.0
-		count.anchor_top = 1.0
-		count.anchor_bottom = 1.0
-		count.offset_left = -50
-		count.offset_top = -22
-		count.add_theme_color_override("font_outline_color", Palette.OUTLINE)
-		count.add_theme_constant_override("outline_size", 4)
-		stack.add_child(count)
+		# The count (x6, +2*): a small pill in the bottom-right corner.
+		var pill := PanelContainer.new()
+		pill.add_theme_stylebox_override("panel", KeyHints.kit_box("pill"))
+		pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pill.anchor_left = 1.0
+		pill.anchor_right = 1.0
+		pill.anchor_top = 1.0
+		pill.anchor_bottom = 1.0
+		pill.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		pill.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		pill.offset_right = -1
+		pill.offset_bottom = -1
+		pill.offset_left = -1
+		pill.offset_top = -1
+		pill.visible = false
+		stack.add_child(pill)
+		var count := KeyHints.number("", 14)
+		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		pill.add_child(count)
 		_panels.append(p)
 		_icons.append(icon)
 		_counts.append(count)
+		_pills.append(pill)
+
+
+func _on_set_changed() -> void:
+	for i in _shown.size():
+		_shown[i] = null
 
 
 func bind(h: Hotbar) -> void:
@@ -69,8 +105,9 @@ func bind(h: Hotbar) -> void:
 	refresh()
 
 
-## What each slot last showed ([id, count, selected, theme]): refresh() only
-## touches the slots that changed (it runs on every ledger change).
+## What each slot last showed ([id, count, selected]): refresh() only touches
+## the slots that changed (it runs on every ledger change). The slot looks are
+## shared kit boxes that follow the UI set by themselves.
 var _shown: Array = []
 
 
@@ -80,28 +117,36 @@ func refresh() -> void:
 	_shown.resize(Hotbar.SLOTS)
 	for i in Hotbar.SLOTS:
 		var info := hotbar.slot_info(i)
-		var state := [info["id"], info["count"], bool(info["selected"]), UiStyle.current]
+		var state := [info["id"], info["count"], bool(info["selected"]), int(info.get("rarity", 0))]
 		if _shown[i] == state:
 			continue
 		var was: Array = _shown[i] if _shown[i] is Array else []
 		_shown[i] = state
 		_counts[i].text = str(info["count"])
+		_pills[i].visible = str(info["count"]) != ""
 		if was.is_empty() or was[0] != info["id"]:
 			_icons[i].item = info["id"]
 			_icons[i].queue_redraw()
 			# Icons render a frame later: redraw once they're ready.
 			get_tree().create_timer(0.2).timeout.connect(_icons[i].queue_redraw)
-		if not was.is_empty() and was[2] == state[2] and was[3] == state[3] and (was[0] == &"") == (info["id"] == &""):
+		if not was.is_empty() and was[2] == state[2] and was.size() > 3 and was[3] == state[3] and (was[0] == &"") == (info["id"] == &""):
 			continue
-		var sb := UiStyle.wood_sign()
-		sb.set_content_margin_all(4)
-		if bool(info["selected"]): # Theme: the set's trim lights the picked slot
-			sb.border_color = UiStyle.c("gold")
-			sb.set_border_width_all(3)
-			sb.bg_color = sb.bg_color.lightened(0.18)
-		elif info["id"] == &"":
-			sb.bg_color.a *= 0.6
-		_panels[i].add_theme_stylebox_override("panel", sb)
+		var picked := bool(info["selected"])
+		var kind := "slot_selected" if picked else ("slot_empty" if info["id"] == &"" else "slot")
+		var box := KeyHints.kit_box(kind)
+		# Gun rarity (Uncommon and up): the slot's rim and rule take its colour.
+		var rar := MenuScreen.rarity_color(int(state[3])) if info["id"] != &"" else Color(0, 0, 0, 0)
+		if rar.a > 0.0:
+			var tinted := box.duplicate() as KitBox
+			tinted.rim = rar if picked else Color(rar, 0.85)
+			tinted.rim_width = 2.0
+			tinted.rule = Color(rar, 0.45)
+			_panels[i].add_theme_stylebox_override("panel", tinted)
+		else:
+			_panels[i].add_theme_stylebox_override("panel", box)
+		# The picked slot stands up out of the row; empty ones fade back.
+		_panels[i].custom_minimum_size = SLOT_SIZE + (Vector2(0, LIFT) if picked else Vector2.ZERO)
+		_panels[i].get_child(0).get_child(1).modulate = Color(1, 1, 1, 1.0 if info["id"] != &"" or picked else 0.55)
 
 
 ## Simple drawn icons for hotbar items (no image files).

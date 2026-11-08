@@ -821,6 +821,8 @@ func receive_hit(damage: float, _point: Vector3, dir: Vector3, pierce: bool, mul
 			unlatch_kill(source, source_cliff)
 		return
 	var dmg := damage * multiplier
+	if status.is_stripped():
+		pierce = true # Rust Duster / Acid Drencher: the armour's eaten away
 	# Kill-method variants take more or less from bullets, fire or explosives.
 	if not def.damage_taken.is_empty():
 		dmg *= def.damage_mult(KillMethod.of(source))

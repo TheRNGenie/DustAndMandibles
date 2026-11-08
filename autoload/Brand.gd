@@ -38,6 +38,10 @@ func _ready() -> void:
 	var flag := GameState.flag_value("--brand")
 	if flag != "":
 		choose(BrandTable.valid(flag))
+	if GameState.flag_value("--uigallery") != "": # every screen photographed in turn (scenes/debug/ui_gallery.gd)
+		var gallery := (load("res://scenes/debug/ui_gallery.gd") as GDScript).new() as Node
+		gallery.name = "UiGallery"
+		add_child(gallery)
 	if GameState.flag_value("--themeview") != "" or GameState.flag_value("--brandview") != "":
 		var view := (load("res://scenes/debug/theme_views.gd") as GDScript).new() as Node
 		view.name = "ThemeViews"

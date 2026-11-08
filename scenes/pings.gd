@@ -151,32 +151,30 @@ func _draw_marker(cam: Camera3D, p: Dictionary) -> void:
 	# Who pinged and how far away.
 	var dist := int(cam.global_position.distance_to(pos))
 	var tag := "%s  %dm" % [str(k["label"]), dist]
-	var w := font.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
-	draw_string_outline(font, s + Vector2(-w * 0.5, r + 18), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(Palette.OUTLINE, a))
-	draw_string(font, s + Vector2(-w * 0.5, r + 18), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(Palette.BONE, a))
+	# On a small pill plate (the HUD kit's), the kit's bold face.
+	var tf := UiStyle.font("bold")
+	var fs := UiStyle.ts(13)
+	var w := tf.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var pill := Rect2(s + Vector2(-w * 0.5 - 8.0, r + 5.0), Vector2(w + 16.0, fs + 6.0))
+	if a >= 0.99:
+		draw_style_box(KeyHints.kit_box("pill"), pill)
+	else:
+		draw_rect(pill, Color(UiStyle.kc("deep", UiStyle.current, 1), 0.9 * a))
+	draw_string(tf, Vector2(pill.position.x + 8.0, pill.position.y + fs * 0.95), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(UiStyle.kc("text"), a))
 
 
 func _draw_wheel() -> void:
 	var c := get_viewport_rect().get_center()
-	draw_circle(c, WHEEL_R + 10.0, Color(Palette.WOOD_DARK, 0.7))
-	draw_arc(c, WHEEL_R + 10.0, 0, TAU, 64, Palette.OUTLINE, 3.0)
-	var font := get_theme_default_font()
+	KeyHints.draw_wheel_disc(self, c, WHEEL_R, _aim)
+	var font := UiStyle.font("number")
 	for i in 4:
 		var ang := -PI * 0.5 + float(i) * PI * 0.5
 		var dir := Vector2(cos(ang), sin(ang))
 		var k: Dictionary = KINDS[i + 1]
 		var on := i == _choice
 		var at := c + dir * WHEEL_R * 0.72
-		draw_circle(at, 30.0 if on else 24.0, Color(k["color"], 1.0 if on else 0.55))
-		draw_arc(at, 30.0 if on else 24.0, 0, TAU, 32, Palette.OUTLINE, 2.0)
-		draw_string(font, at + Vector2(-5, 7), str(k["glyph"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Palette.OUTLINE)
-		var label: String = k["label"]
-		var w := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
-		# Labels sit outside the ring: above/below for top/bottom, beside for left/right.
-		var lp := at + Vector2(-w * 0.5, -40) if i == 0 else (at + Vector2(-w * 0.5, 52) if i == 2 else
-				(at + Vector2(42, 5) if i == 1 else at + Vector2(-42 - w, 5)))
-		draw_string_outline(font, lp, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, 4, Palette.OUTLINE)
-		draw_string(font, lp, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Palette.GLOW_YELLOW if on else Palette.BONE)
-	# Where the mouse is pointing.
-	draw_line(c, c + _aim.limit_length(WHEEL_R * 0.5), Palette.BONE, 3.0)
-	draw_circle(c, 5.0, Palette.BONE)
+		KeyHints.draw_wheel_slot(self, at, on, k["color"])
+		var gw := font.get_string_size(str(k["glyph"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+		draw_string(font, at + Vector2(-gw * 0.5, 8), str(k["glyph"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Palette.OUTLINE)
+		# Labels sit outside the ring on small plates: above/below, or beside.
+		KeyHints.draw_wheel_label(self, at, i, UiStyle.tc(str(k["label"])), on)

@@ -434,3 +434,8 @@ class ShellBoard extends CasinoBoard:
 			return false
 		game.ui_act(&"pick", i, 0)
 		return true
+
+
+## The rounded table with the three cup rings printed on it (gen/casino_table_art.gd).
+func _art_kind() -> String:
+	return "shell"

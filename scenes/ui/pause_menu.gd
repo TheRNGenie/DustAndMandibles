@@ -107,16 +107,17 @@ func _build() -> void:
 	# Theme: the set's frame, a header strap with the title, then the paper card.
 	var frame := PanelContainer.new()
 	frame.theme_type_variation = "FramePanel"
-	frame.custom_minimum_size = Vector2(900, 620)
+	frame.custom_minimum_size = Vector2(1040, 660)
 	center.add_child(frame)
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 0)
 	frame.add_child(outer)
-	var head := UiStyle.strap("Settings" if in_main_menu else "Paused", "", 30)
+	var head := UiStyle.strap("Settings" if in_main_menu else "Paused",
+		"Controls, picture and sound." if in_main_menu else "Settings, the Field Guide and your wardrobe.", 34)
 	outer.add_child(head)
 	var header := UiStyle.strap_row(head)
-	var resume := UiStyle.button("Back" if in_main_menu else "Resume")
-	resume.custom_minimum_size.x = 150
+	var resume := UiStyle.primary_button("Done" if in_main_menu else "Resume")
+	resume.custom_minimum_size.x = 160
 	resume.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	resume.pressed.connect(close)
 	header.add_child(resume)
@@ -130,7 +131,7 @@ func _build() -> void:
 
 	_tabs = TabContainer.new()
 	_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_tabs.add_theme_font_size_override("font_size", 16)
+	_tabs.add_theme_font_size_override("font_size", UiStyle.ts(18))
 	col.add_child(_tabs)
 	_add_tab("Controls", ControlsTab.new())
 	_add_tab("Graphics", GraphicsTab.new())
@@ -164,15 +165,15 @@ func _build() -> void:
 			close()
 			FieldGuide.open())
 		footer.add_child(guide)
-		var to_menu := UiStyle.button("Main Menu")
+		var to_menu := UiStyle.ghost_button("Main Menu")
 		to_menu.tooltip_text = "Leave this run and go back to the title screen."
 		to_menu.pressed.connect(_leave_to_menu)
 		footer.add_child(to_menu)
-		var quit := UiStyle.button("Quit Game")
+		var quit := UiStyle.ghost_button("Quit Game")
 		quit.pressed.connect(func() -> void: get_tree().quit())
 		footer.add_child(quit)
 	for b: Node in col.find_children("*", "Button", true, false):
-		(b as Button).add_theme_font_size_override("font_size", 16)
+		(b as Button).add_theme_font_size_override("font_size", UiStyle.ts(16))
 		(b as Button).focus_mode = Control.FOCUS_ALL # keyboard focus shows the set's ring
 
 

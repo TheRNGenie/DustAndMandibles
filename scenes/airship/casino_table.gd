@@ -4,6 +4,7 @@ extends CasinoGame
 ## last result. Subclasses add the game (blackjack, baccarat, roulette).
 
 const BETS: Array = [10, 20, 50, 100]
+const TABLE_ART := preload("res://gen/casino_table_art.gd")
 
 var _label: Label3D
 ## Every peer: when each card on the felt is (or was) dealt, in local seconds,
@@ -17,34 +18,30 @@ const DEAL_GAP := 0.42
 
 func _ready() -> void:
 	super._ready()
+	# The table itself (gen/casino_table_art.gd): shaped printed felt, padded
+	# leather rail, brass and mahogany, pedestals, the dealer's kit and the sign.
+	var size := TABLE_ART.build(self, _art_kind(), ui_title())
 	var st := MeshKit.begin()
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.45, 0)), Vector3(1.6, 0.9, 0.9), Palette.WOOD_DARK)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.93, 0)), Vector3(1.9, 0.08, 1.15), Palette.WOOD)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.975, 0)), Vector3(1.7, 0.02, 0.95), Color("#2E6B3A"))
-	# Painted name board standing at the back edge of the table.
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 1.22, 0.52)), Vector3(1.3, 0.42, 0.05), Palette.WOOD_DARK)
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 1.22, 0.495)), Vector3(1.2, 0.34, 0.02), Palette.BONE)
 	_decorate(st)
-	var mi := MeshInstance3D.new()
-	mi.mesh = MeshKit.finish(st)
-	mi.material_override = Materials.toon(0.015)
-	add_child(mi)
+	var deco := MeshInstance3D.new()
+	deco.mesh = MeshKit.finish(st)
+	deco.material_override = Materials.toon(0.015)
+	add_child(deco)
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(1.9, 1.0, 1.15)
+	shape.size = Vector3(size.x + 0.28, 1.0, size.y + 0.28)
 	col.shape = shape
 	col.position.y = 0.5
 	add_child(col)
+	# (The sign's lettering is part of the art; the result label stays as before for subclasses that read it.)
 	_label = Label3D.new()
-	_label.font_size = 56
-	_label.outline_size = 0
-	_label.modulate = Color("#3A2416")
-	_label.pixel_size = 0.0035
-	_label.position = Vector3(0, 1.22, 0.48)
-	_label.rotation.y = PI
-	_label.double_sided = false
-	_label.text = ui_title().to_upper()
+	_label.visible = false
 	add_child(_label)
+
+
+## Which table the art builds (see gen/casino_table_art.gd KINDS).
+func _art_kind() -> String:
+	return "shell"
 
 
 func _decorate(_st: SurfaceTool) -> void:

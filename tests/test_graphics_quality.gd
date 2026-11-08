@@ -34,7 +34,8 @@ func test_high_keeps_the_original_numbers() -> void:
 	var h := GraphicsQuality.HIGH
 	assert_eq(GraphicsQuality.SHADOW_ATLAS[h], 4096)
 	assert_almost(GraphicsQuality.SHADOW_DISTANCE[h], 160.0)
-	assert_almost(GraphicsQuality.VIEW_FAR[h], 600.0)
+	# (The view reaches the far lands' horizon now: 2 km, Logan's call.)
+	assert_almost(GraphicsQuality.VIEW_FAR[h], 2000.0)
 	assert_eq(GraphicsQuality.BUG_FULL_DETAIL[h], 40)
 	assert_almost(GraphicsQuality.BUG_TURN_BUDGET_US[h], 5000.0)
 	assert_almost(GraphicsQuality.PARTICLE_RATIO[h], 1.0)

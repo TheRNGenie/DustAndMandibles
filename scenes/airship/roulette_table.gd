@@ -52,8 +52,17 @@ func _ready() -> void:
 	_wheel = MeshInstance3D.new()
 	_wheel.mesh = MeshKit.finish(st)
 	_wheel.material_override = Materials.toon(0.01)
-	_wheel.position = Vector3(-0.45, 1.02, 0)
+	_wheel.position = Vector3(-0.78, 1.02, 0) # (in its ring on the printed felt, clear of the grid)
 	add_child(_wheel)
+	# The wheel's bowl: a turned mahogany rim round it, and a brass turret on top.
+	var bowl := MeshKit.begin()
+	MeshKit.lathe(bowl, Transform3D(Basis(), Vector3(-0.78, 0.975, 0)), [Vector2(0.43, 0.0), Vector2(0.44, 0.03), Vector2(0.43, 0.075),
+			Vector2(0.405, 0.085), Vector2(0.39, 0.06)], 40, Color("#5B2C1A"))
+	MeshKit.add_rim(bowl, Transform3D(Basis(), Vector3(-0.78, 1.06, 0)), 0.44, 0.415, 0.012, 40, Color("#C9A048"))
+	var bowl_mi := MeshInstance3D.new()
+	bowl_mi.mesh = MeshKit.finish(bowl)
+	bowl_mi.material_override = Materials.toon(0.012)
+	add_child(bowl_mi)
 
 
 func _process(delta: float) -> void:
@@ -506,3 +515,8 @@ class RouletteBoard extends CasinoBoard:
 			return false
 		table.lay(spot, right)
 		return true
+
+
+## The long table with the number grid printed on it (gen/casino_table_art.gd).
+func _art_kind() -> String:
+	return "roulette"

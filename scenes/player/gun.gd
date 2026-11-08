@@ -19,7 +19,11 @@ signal flourished(kind: StringName)
 const WEAPONS: Dictionary = Defs.WEAPONS
 ## (The Dino Rifle is retired for now, Defs.RETIRED: out of the list until it comes back.)
 const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun",
-	&"derringer_pair", &"pepperbox", &"salt_shotgun", &"harpoon_pistol", &"bee_smoker", &"flare_gun", &"punt_gun", &"telescope_rifle"]
+	&"derringer_pair", &"pepperbox", &"salt_shotgun", &"harpoon_pistol", &"bee_smoker", &"flare_gun", &"punt_gun", &"telescope_rifle",
+	# Weapon Slots Redesign: primaries, secondaries, heavies (ArmoryGuns models).
+	&"volcanic_repeater", &"mares_leg", &"double_rifle", &"trench_broom", &"ricochet_rifle", &"howdah_pistol", &"sharps_carbine", &"trapdoor_springfield",
+	&"screamer_pistol", &"tar_sprayer", &"flashbang_pistol", &"pepper_bomb_pistol", &"concussion_pistol", &"chain_binder", &"rust_duster", &"glow_worm_launcher", &"caltrops_launcher", &"phosphor_grenade",
+	&"mortar_tube", &"fire_lance", &"organ_gun", &"harpoon_ballista", &"acid_drencher", &"swivel_gun", &"congreve_rocket", &"bear_trap_launcher"]
 ## Frontier guns that load every round in one go (a reload is one step).
 const LOAD_ALL: Array[StringName] = [&"crank_gatling", &"pepperbox", &"derringer_pair"]
 ## Where some guns sit lower or closer than the standard rest spot (the smoker's
@@ -34,9 +38,13 @@ var vfx: VfxPool
 var def: WeaponDef
 ## id -> upgrade level (0-2) for every weapon you own.
 var owned: Dictionary = {&"revolver": 0}
-## The three weapon hotbar slots, filled in the order you get weapons ("" = empty).
+## The three weapon hotbar slots (Weapon Slots): 1 primary, 2 secondary,
+## 3 heavy ("" = empty). Each holds one gun of its kind (WeaponDef.slot).
 var slots: Array[StringName] = [&"revolver", &"", &""]
 const MAX_WEAPONS := 3
+const SLOT_NAMES: Array[String] = ["Primary", "Secondary", "Heavy"]
+## Heavies: rounds loaded from crop harvests waiting to go into the magazine (id -> rounds).
+var reserve: Dictionary = {}
 ## Right-click aim: where the gun sits, and how far the view zooms in.
 const AIM_POS: Dictionary = {&"revolver": Vector3(0.0, -0.075, -0.5), &"lever_rifle": Vector3(0.0, -0.056, -0.44),
 	&"coach_shotgun": Vector3(0.0, -0.058, -0.4), &"blunderbuss": Vector3(0.0, -0.05, -0.4), &"crank_gatling": Vector3(0.06, -0.12, -0.45),
@@ -194,6 +202,61 @@ static func weapon(id: StringName) -> WeaponDef:
 	return WEAPONS.get(id) as WeaponDef
 
 
+## Weapon Slots: the slot (0 primary, 1 secondary, 2 heavy) a gun lives in.
+static func slot_of(id: StringName) -> int:
+	var w := weapon(id)
+	return int(w.slot) if w != null else 0
+
+
+## Weapon Slots: the gun in `owned` (id -> code) already holding `id`'s slot
+## (&"" when the slot is free or holds `id` itself).
+static func slot_holder(owned: Dictionary, id: StringName) -> StringName:
+	var s := slot_of(id)
+	for w: StringName in owned:
+		if w != id and slot_of(w) == s:
+			return w
+	return &""
+
+
+## Weapon Slots: why `id` can't be taken into `owned` without dropping a gun
+## first ("" = it can: its slot is free).
+static func slot_refusal(owned: Dictionary, id: StringName) -> String:
+	var holder := slot_holder(owned, id)
+	if holder == &"":
+		return ""
+	return "Your %s slot holds the %s. Drop it first (Q)." % [SLOT_NAMES[slot_of(id)].to_lower(), weapon(holder).display_name]
+
+
+## Weapon Slots: an old save's guns (any three in any slots) fitted to the typed
+## slots: the dearest gun of each kind stays. Returns [kept, extras] (id -> code).
+static func fit_slots(owned: Dictionary) -> Array:
+	var kept: Dictionary = {}
+	var extras: Dictionary = {}
+	var ids: Array = owned.keys()
+	ids.sort_custom(func(a: StringName, b: StringName) -> bool:
+		var wa := weapon(a)
+		var wb := weapon(b)
+		return (wa.price_chitin if wa != null else 0) > (wb.price_chitin if wb != null else 0))
+	for id: StringName in ids:
+		if weapon(id) == null:
+			continue
+		if slot_holder(kept, id) == &"":
+			kept[id] = owned[id]
+		else:
+			extras[id] = owned[id]
+	return [kept, extras]
+
+
+## Fills itself back up while you're not using it (the Bee Smoker, the Tar Sprayer).
+static func self_filling(d: WeaponDef) -> bool:
+	return d != null and (d.special == &"smoke" or d.special == &"tar")
+
+
+## The older gun `id` handles like in your hands (ArmoryGuns.acts_like).
+static func acts(id: StringName) -> StringName:
+	return ArmoryGuns.acts_like(id)
+
+
 func _ready() -> void:
 	if GameState.flag_value("--twirlat") != "":
 		_twirl_freeze = GameState.flag_value("--twirlat").to_float()
@@ -297,10 +360,10 @@ func equip(id: StringName) -> void:
 	var muzzle_z := (-0.22 if ViewModel.has_parts_revolver() else -0.28) if id == &"revolver" else -0.62
 	if id == &"revolver" and _models.has(id):
 		(_models[id] as ViewModel).rv_set_rounds(ammo)
-	_flash.position = FrontierGuns.MUZZLE.get(id, Vector3(0, 0.02, muzzle_z))
+	_flash.position = ArmoryGuns.muzzle(id) if ArmoryGuns.has(id) else FrontierGuns.MUZZLE.get(id, Vector3(0, 0.02, muzzle_z))
 	_flash_light.position = _flash.position + Vector3(0, 0, -0.05)
 	_hand_next = 0
-	if id == &"bee_smoker" and _holstered_at.has(id):
+	if self_filling(def) and _holstered_at.has(id):
 		# The burlap kept smouldering in the holster.
 		var away := (Time.get_ticks_msec() - int(_holstered_at[id])) / 1000.0
 		ammo = int(GunRules.refill(float(ammo), away, maxf(away - GunRules.FUEL_DELAY, 0.0), level_of(id), float(mag_size())))
@@ -315,6 +378,7 @@ func remove_weapon(id: StringName) -> void:
 	if i >= 0:
 		slots[i] = &""
 	_ammo_by_weapon.erase(id)
+	reserve.erase(id)
 	if def != null and def.id == id:
 		def = null
 		for w in slots:
@@ -358,12 +422,39 @@ func item_node() -> Node3D:
 
 ## Owner: the host confirmed a purchase or upgrade.
 func grant(id: StringName, level: int) -> void:
+	# Weapon Slots: it goes in its own slot, replacing whatever was there.
+	var s := slot_of(id)
+	var prev: StringName = slots[s]
+	if prev != &"" and prev != id:
+		owned.erase(prev)
+		_ammo_by_weapon.erase(prev)
+		reserve.erase(prev)
+		if def != null and def.id == prev:
+			def = null
+	var fresh := not owned.has(id)
 	owned[id] = level
-	if not slots.has(id):
-		var free := slots.find(&"")
-		if free >= 0:
-			slots[free] = id
+	slots[s] = id
+	if fresh and weapon(id).crop != &"":
+		# A new heavy comes with one harvest's worth: a full magazine and the rest in reserve.
+		reserve[id] = maxi(weapon(id).shots_per_harvest - weapon(id).mag_size, 0)
 	loadout_changed.emit()
+
+
+## Owner: the host loaded a harvest into a heavy's crop reserve.
+func crop_loaded(id: StringName) -> void:
+	var w := weapon(id)
+	if w == null or not owns(id):
+		return
+	reserve[id] = int(reserve.get(id, 0)) + w.shots_per_harvest
+	loadout_changed.emit()
+	if def != null and def.id == id and ammo < mag_size():
+		reload()
+
+
+## Heavies: rounds waiting in the crop reserve (-1: not a crop-fed gun).
+func reserve_of(id: StringName) -> int:
+	var w := weapon(id)
+	return int(reserve.get(id, 0)) if w != null and w.crop != &"" else -1
 
 
 ## Damage per pellet for a weapon with its level and mods (same formula on every peer).
@@ -432,7 +523,7 @@ func _process(delta: float) -> void:
 		_cycle = minf(_cycle + delta / maxf(fire_interval() * 0.8, 0.1), 1.0)
 	_drum_angle = move_toward(_drum_angle, _drum_target, delta * 9.0)
 	var vm := _models.get(def.id) as ViewModel if def != null else null
-	if def != null and def.special == &"smoke" and holding == &"":
+	if self_filling(def) and holding == &"":
 		_refill_fuel(delta)
 	if vm != null:
 		vm.frontier_tick(delta)
@@ -459,8 +550,8 @@ func _process(delta: float) -> void:
 		(_models[def.id] as ViewModel).set_glass(DinoGlass.of(code_of(def.id))) # this gun's glass fit
 	if def != null and _models.has(def.id):
 		(_models[def.id] as ViewModel).set_finish(AmberRules.is_lucky(code_of(def.id))) # Hive amber: Lucky's finish
-	var rest: Vector3 = REST_POS + (REST_OFF.get(def.id, Vector3.ZERO) if def != null else Vector3.ZERO)
-	var aim_pos: Vector3 = AIM_POS.get(def.id, rest) if def != null else rest
+	var rest: Vector3 = REST_POS + (REST_OFF.get(def.id, ArmoryGuns.rest_offset(def.id)) if def != null else Vector3.ZERO)
+	var aim_pos: Vector3 = AIM_POS.get(def.id, ArmoryGuns.aim_pos(def.id) if ArmoryGuns.has(def.id) else rest) if def != null else rest
 	_feel_step(delta)
 	var off := _feel_offset()
 	var held := holding != &"" and holding != &"none"
@@ -547,7 +638,9 @@ func _feel_offset() -> Array:
 ## Times for this gun: tipping in, each round, closing up (faster with upgrades).
 func _times() -> Vector3:
 	var k := GunRarity.reload_mult(level_of(def.id)) * Perks.local_less(&"quick_hands") * Brand.reload_mult() # Perk: Quick Hands; Brand: Crossed Irons
-	match def.id:
+	if ArmoryGuns.has(def.id) and (self_filling(def) or ArmoryEffects.is_spray(def.special)):
+		return Vector3(0.3, reload_time() * 0.6, 0.3) * k # a spray's canister: off, on, done
+	match acts(def.id):
 		&"lever_rifle":
 			return Vector3(0.3, reload_time() * 0.2, 0.35) * k
 		&"coach_shotgun":
@@ -594,8 +687,12 @@ func _advance_reload(delta: float) -> void:
 			_begin(Reload.LOAD, times.y * (SPEED_LOAD_ROUNDS if _speedloads() else 1.0))
 		Reload.LOAD:
 			# The gatling swaps a whole drum at once.
-			var all := LOAD_ALL.has(def.id) or _speedloads()
-			ammo = mag_size() if all else mini(ammo + 1, mag_size())
+			var all := LOAD_ALL.has(acts(def.id)) or _speedloads() or ArmoryEffects.is_spray(def.special)
+			var want := mag_size() - ammo if all else mini(1, mag_size() - ammo)
+			if def.crop != &"":
+				want = mini(want, int(reserve.get(def.id, 0))) # heavies load from their crop reserve
+				reserve[def.id] = int(reserve.get(def.id, 0)) - want
+			ammo += want
 			var rvm := _models.get(def.id) as ViewModel
 			if rvm != null and def.id == &"revolver":
 				if all:
@@ -607,7 +704,7 @@ func _advance_reload(delta: float) -> void:
 			_foley("load", -8.0)
 			if def.id == &"revolver" and not all and not ViewModel.has_parts_revolver():
 				_drum_target += TAU / 6.0 # (the parts revolver's cylinder is swung out: nothing turns)
-			if ammo < mag_size():
+			if ammo < mag_size() and (def.crop == &"" or int(reserve.get(def.id, 0)) > 0):
 				_begin(Reload.LOAD, times.y)
 			else:
 				_begin(Reload.CLOSE, times.z)
@@ -618,7 +715,7 @@ func _advance_reload(delta: float) -> void:
 				_start_twirl(TWIRL_RELOAD)
 			if def.id == &"coach_shotgun":
 				_kick = 0.4 # snapped shut
-			elif def.id == &"lever_rifle":
+			elif acts(def.id) == &"lever_rifle":
 				_cycle = 0.0 # work the lever to chamber a round
 			_foley("close", -5.0)
 
@@ -656,7 +753,7 @@ func trigger(camera: Camera3D) -> bool:
 	if def.automatic and spin < 1.0:
 		return false # still winding the crank up
 	if ammo <= 0:
-		if def.special != &"smoke": # the smoker just waits for its fuel
+		if not self_filling(def): # the smoker (and the tar can) just waits for its fuel
 			reload()
 		return false
 	ammo -= 1
@@ -667,7 +764,7 @@ func trigger(camera: Camera3D) -> bool:
 		_drum_target += TAU / 6.0
 		if def.id == &"revolver" and _models.has(def.id):
 			(_models[def.id] as ViewModel).rv_fired()
-	elif def.id == &"lever_rifle" or def.id == &"salt_shotgun" or def.id == &"telescope_rifle":
+	elif [&"lever_rifle", &"salt_shotgun", &"telescope_rifle"].has(acts(def.id)) or (ArmoryGuns.has(def.id) and ArmoryEffects.is_spray(def.special) and ArmoryGuns.parts(def.id).has("pump")):
 		_cycle = 0.0 # work the lever / pump / bolt
 	var vm := _models.get(def.id) as ViewModel
 	if def.id == &"derringer_pair":
@@ -676,9 +773,9 @@ func trigger(camera: Camera3D) -> bool:
 		var off: Vector3 = vm.left.position - (WeaponBuilder.RIGHT_HAND[def.id][0] as Vector3) if _hand_next == 1 else Vector3.ZERO
 		_flash.position = (FrontierGuns.MUZZLE[def.id] as Vector3) + off
 		_hand_next = 1 - _hand_next
-	elif def.id == &"harpoon_pistol":
+	elif def.id == &"harpoon_pistol" or def.id == &"chain_binder":
 		vm.spin_reel(60.0)
-	if def.special == &"smoke":
+	if def.special == &"smoke" or ArmoryEffects.is_spray(def.special):
 		_fuel_idle = 0.0
 		_kick = 0.0
 	else:
@@ -753,7 +850,13 @@ func zoom_factor() -> float:
 
 
 func reload() -> void:
-	if holding != &"" or def == null or _stage != Reload.NONE or ammo == mag_size() or def.special == &"smoke":
+	if holding != &"" or def == null or _stage != Reload.NONE or ammo == mag_size() or self_filling(def):
+		return
+	if def.crop != &"" and int(reserve.get(def.id, 0)) <= 0:
+		# Heavies: out of loaded rounds: a harvest from your stores goes in (the host checks).
+		var p := get_parent().get_parent().get_parent() as Player
+		if p != null and p.is_multiplayer_authority():
+			p.net.request_crop_load(def.id)
 		return
 	var times := _times()
 	_loaded_this_reload = 0
@@ -761,7 +864,9 @@ func reload() -> void:
 	_begin(Reload.OPEN, CATCH_TIME if _catching else times.x)
 	if _catching:
 		_foley("open", -4.0)
-	var rounds := mag_size() if def.id == &"coach_shotgun" else (1 if LOAD_ALL.has(def.id) or _speedloads() else mag_size() - ammo)
+	var rounds := mag_size() if def.id == &"coach_shotgun" else (1 if LOAD_ALL.has(acts(def.id)) or _speedloads() else mag_size() - ammo)
+	if def.crop != &"":
+		rounds = mini(rounds, int(reserve.get(def.id, 0)))
 	reload_started.emit(times.x + times.y * (SPEED_LOAD_ROUNDS if _speedloads() else float(rounds)) + times.z)
 	if def.id == &"revolver":
 		flourished.emit(&"reload_revolver")
@@ -800,7 +905,7 @@ func is_twirling() -> bool:
 
 ## This gun's reload sound for a step ("open", "load", "close"), or the generic click.
 func _foley(step: String, volume_db: float) -> void:
-	var id := StringName("%s_%s" % [FrontierGuns.FOLEY.get(def.id, def.id), step]) if def != null else &"reload"
+	var id := StringName("%s_%s" % [FrontierGuns.FOLEY.get(acts(def.id), acts(def.id)), step]) if def != null else &"reload"
 	Audio.play_at(id if Audio.has_sound(id) else &"reload", global_position, volume_db)
 
 

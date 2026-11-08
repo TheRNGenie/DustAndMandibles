@@ -38,9 +38,11 @@ const SALVAGE := Vector2(25.0, 11.0)
 const ROPE_ANCHOR_Z := -19.0
 ## The campfire in front of the house, beside the path to the bridge (3 x 3 cells kept clear).
 const CAMPFIRE := Vector2(14.0, -9.0)
-## Starter farm field: 3 x 4 farm plots (2 x 2 cells each) beside the house.
+## Starter farm field (Logan, Nov 2026): one row of 3 farm plots (2 x 2 cells
+## each) running along the canyon right in front of the junk heap, clear of the
+## path round the house. Players can build more anywhere in the yard.
 const FIELD_COLS := [14, 16, 18]
-const FIELD_ROWS := [8, 6, 4, 2]
+const FIELD_ROWS := [8]
 
 const TACTICAL: Array[StringName] = [&"barbed_wire", &"bear_trap", &"dynamite_crate", &"palisade", &"lantern_post"]
 

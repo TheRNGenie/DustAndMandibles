@@ -44,6 +44,9 @@ var _run_pick: OptionButton ## Endless lobby: a new run, or the saved one
 
 
 const MENU_MUSIC_DB := -8.0 # (as loud as the build theme)
+## Width of the menu rail down the left (before UiStyle.fit's scale).
+const RAIL_W := 540.0
+var _foot: Label
 
 
 func _ready() -> void:
@@ -154,46 +157,59 @@ func _build_ui() -> void:
 		add_child(key_art)
 	else:
 		add_child(UiStyle.backdrop())
-	var column := PanelContainer.new()
-	column.theme_type_variation = "FramePanel"
-	column.anchor_left = 0.0
-	column.anchor_right = 0.31
-	column.anchor_top = 0.0
+	# The menu rail (2026-11 kit): a dark grained band down the left that fades
+	# into the film, the masthead on top, the pages under it, the build at the foot.
+	var rail := Rail.new()
+	rail.anchor_bottom = 1.0
+	rail.offset_right = RAIL_W + 300.0
+	rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(rail)
+	var column := MarginContainer.new()
 	column.anchor_bottom = 1.0
-	column.offset_left = 18
-	column.offset_top = 18
-	column.offset_bottom = -18
-	column.custom_minimum_size.x = 470
+	column.offset_left = 0
+	column.offset_right = RAIL_W
+	column.add_theme_constant_override("margin_left", 52)
+	column.add_theme_constant_override("margin_right", 40)
+	column.add_theme_constant_override("margin_top", 46)
+	column.add_theme_constant_override("margin_bottom", 30)
 	add_child(column)
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 0)
 	column.add_child(outer)
-	var head := PanelContainer.new()
-	head.theme_type_variation = "HeaderPanel"
-	outer.add_child(head)
-	var hcol := VBoxContainer.new()
-	hcol.add_theme_constant_override("separation", 0)
-	head.add_child(hcol)
-	var wanted := UiStyle.title("Wanted: Help", 18, true)
-	wanted.add_theme_color_override("font_color", UiStyle.c("hud"))
-	hcol.add_child(wanted)
-	hcol.add_child(UiStyle.title("Dust & Mandibles", 46, true))
-	var card := PanelContainer.new()
-	card.theme_type_variation = "PaperPanel"
-	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	outer.add_child(card)
-	var page := VBoxContainer.new()
-	page.add_theme_constant_override("separation", 12)
-	card.add_child(page)
+	# Masthead: a stamped "Wanted: Help" tag, the title in the set's display face, the motto.
+	var stamp := UiStyle.panel("ChipPanel")
+	stamp.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	var wanted := UiStyle.eyebrow("Wanted: Help", 14, UiStyle.c("accent_hi"))
+	stamp.add_child(wanted)
+	outer.add_child(stamp)
+	var gap0 := Control.new()
+	gap0.custom_minimum_size.y = 8
+	outer.add_child(gap0)
+	var logo := UiStyle.title("Dust & Mandibles", 54, true)
+	logo.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	logo.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	logo.add_theme_constant_override("outline_size", 10)
+	logo.add_theme_constant_override("line_spacing", -8)
+	outer.add_child(logo)
 	var tag := _label("Defend the Homestead", 18, Color(0, 0, 0, 0))
 	tag.theme_type_variation = "SoftInkLabel"
-	page.add_child(tag)
-	page.add_child(UiStyle.divider(360))
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	outer.add_child(tag)
+	var rule := UiStyle.divider(RAIL_W - 92)
+	rule.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	outer.add_child(rule)
+	var gap1 := Control.new()
+	gap1.custom_minimum_size.y = 14
+	outer.add_child(gap1)
+	var page := VBoxContainer.new()
+	page.add_theme_constant_override("separation", 12)
+	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer.add_child(page)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 12)
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	# The column scrolls only if a short screen can't fit the lobby.
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	# The column scrolls only if a short screen cannot fit the lobby.
 	var page_scroll := ScrollContainer.new()
 	page_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	page_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -201,12 +217,14 @@ func _build_ui() -> void:
 	page.add_child(page_scroll)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page_scroll.add_child(col)
+	# The build, small at the foot of the rail.
+	_foot = UiStyle.label("Build %s" % NetworkManager.game_version(), 12, UiStyle.c("faint"))
+	_foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 	_name_edit = _line_edit("Your name", "Rancher")
 	var name_row := HBoxContainer.new() # a caption, so the field never floats unlabelled
 	name_row.add_theme_constant_override("separation", 10)
-	var name_cap := _label("Rider Name", 16, Color(0, 0, 0, 0))
-	name_cap.theme_type_variation = "SoftInkLabel"
+	var name_cap := UiStyle.eyebrow("Rider Name", 14)
 	name_cap.autowrap_mode = TextServer.AUTOWRAP_OFF
 	name_cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	name_row.add_child(name_cap)
@@ -318,7 +336,8 @@ func _build_ui() -> void:
 	_wave_row.tooltip_text = "Skip ahead: start a new run at this wave with a quarter more chitin and scrap than a team would have earned by then."
 	_lobby_box.add_child(_wave_row)
 	_solo_btn = _button("Start Alone (Testing)")
-	_solo_btn.custom_minimum_size.y = 46
+	_solo_btn.theme_type_variation = "PrimaryButton"
+	_solo_btn.custom_minimum_size.y = 50
 	_solo_btn.pressed.connect(func() -> void: NetworkManager.start_game())
 	_lobby_box.add_child(_solo_btn)
 	# The lobby's lesser buttons share a row, a size down from the title screen's.
@@ -327,6 +346,7 @@ func _build_ui() -> void:
 	_lobby_box.add_child(lobby_row)
 	var ledger_btn := _ledger_button() # Perk
 	var leave_btn := _button("Leave")
+	leave_btn.theme_type_variation = "GhostButton"
 	leave_btn.pressed.connect(func() -> void:
 		RunSave.pending = {}
 		Story.chapter_id = ""
@@ -340,7 +360,9 @@ func _build_ui() -> void:
 
 	_status = _label("", 15, Color(0, 0, 0, 0))
 	_status.theme_type_variation = "SoftInkLabel"
+	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	page.add_child(_status)
+	page.add_child(_foot)
 
 	LoadTimes.mark("menu column")
 	_settings = PauseMenu.new()
@@ -434,6 +456,7 @@ func _build_home() -> void:
 	var saved := RunSave.read()
 	if not saved.is_empty():
 		var cont := _button("Continue Run (Wave %d)" % int(saved["wave"]))
+		cont.theme_type_variation = "PrimaryButton"
 		cont.tooltip_text = "Pick up your saved Endless run where you left it."
 		cont.pressed.connect(func() -> void:
 			_mode = &"endless"
@@ -442,6 +465,8 @@ func _build_home() -> void:
 			_on_continue())
 		home.add_child(cont)
 	var story_btn := _button("Story")
+	if saved.is_empty():
+		story_btn.theme_type_variation = "PrimaryButton"
 	story_btn.tooltip_text = "Chapters of the Dry Gulch story, solo or with friends."
 	story_btn.pressed.connect(_open_mode.bind(&"story"))
 	home.add_child(story_btn)
@@ -460,7 +485,8 @@ func _build_home() -> void:
 	secrets_btn.pressed.connect(func() -> void: _secrets.open())
 	home.add_child(secrets_btn)
 	var quit_btn := _button("Quit")
-	quit_btn.custom_minimum_size.y = 40
+	quit_btn.theme_type_variation = "GhostButton"
+	quit_btn.custom_minimum_size.y = 38
 	quit_btn.add_theme_font_size_override("font_size", UiStyle.ts(17))
 	quit_btn.pressed.connect(func() -> void: get_tree().quit())
 	home.add_child(quit_btn)
@@ -470,6 +496,7 @@ func _build_home() -> void:
 func _build_mode_page() -> void:
 	var page := _new_page(&"mode")
 	_mode_title = UiStyle.title("", 30)
+	_mode_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	page.add_child(_mode_title)
 	_mode_note = _label("", 15, Color(0, 0, 0, 0))
 	_mode_note.theme_type_variation = "SoftInkLabel"
@@ -477,6 +504,7 @@ func _build_mode_page() -> void:
 	_mode_note.custom_minimum_size.x = 1
 	page.add_child(_mode_note)
 	var solo_btn := _button("Solo")
+	solo_btn.theme_type_variation = "PrimaryButton"
 	solo_btn.tooltip_text = "Just you (Endless can add CPU partners)."
 	solo_btn.pressed.connect(_on_solo)
 	page.add_child(solo_btn)
@@ -526,7 +554,8 @@ func _build_coop_page() -> void:
 
 func _back_button(to: StringName) -> Button:
 	var b := _button("Back")
-	b.custom_minimum_size.y = 40
+	b.theme_type_variation = "GhostButton"
+	b.custom_minimum_size.y = 38
 	b.add_theme_font_size_override("font_size", UiStyle.ts(17))
 	b.pressed.connect(func() -> void:
 		_status.text = ""
@@ -885,3 +914,37 @@ func _button(text: String) -> Button:
 	b.custom_minimum_size.y = 50
 	b.add_theme_font_size_override("font_size", UiStyle.ts(22))
 	return b
+
+
+## The title screen's rail: the set's deep plate down the left edge, grained,
+## easing into the canyon film past its edge, with a fine metal rule where the
+## solid part ends.
+class Rail extends Control:
+	func _ready() -> void:
+		texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+		UiStyle.notifier.changed.connect(queue_redraw)
+
+	func _exit_tree() -> void:
+		if UiStyle.notifier.changed.is_connected(queue_redraw):
+			UiStyle.notifier.changed.disconnect(queue_redraw)
+
+	func _draw() -> void:
+		var solid := RAIL_W
+		var h := size.y
+		var top := Color(UiStyle.kc("deep", UiStyle.current, 0), 0.93)
+		var bot := Color(UiStyle.kc("deep", UiStyle.current, 1), 0.96)
+		var band := PackedVector2Array([Vector2.ZERO, Vector2(solid, 0), Vector2(solid, h), Vector2(0, h)])
+		draw_polygon(band, PackedColorArray([top, Color(top, 0.88), Color(bot, 0.9), bot]))
+		var g := UiStyle._grain(str(UiStyle.kit()["grain"]))
+		if g != null:
+			var gs := g.get_size()
+			draw_polygon(band, PackedColorArray([Color(0, 0, 0, float(UiStyle.kit()["grain_a"]))]),
+				PackedVector2Array([Vector2.ZERO, Vector2(solid, 0) / gs, Vector2(solid, h) / gs, Vector2(0, h) / gs]), g)
+		if size.x > solid + 1.0:
+			draw_polygon(PackedVector2Array([Vector2(solid, 0), Vector2(size.x, 0), Vector2(size.x, h), Vector2(solid, h)]),
+				PackedColorArray([Color(top, 0.88), Color(top, 0.0), Color(bot, 0.0), Color(bot, 0.9)]))
+		var acc := UiStyle.c("accent")
+		draw_polyline_colors(PackedVector2Array([Vector2(solid, 0), Vector2(solid, h * 0.5), Vector2(solid, h)]),
+			PackedColorArray([Color(acc, 0.0), Color(acc, 0.6), Color(acc, 0.0)]), 1.5, true)
+		draw_polyline_colors(PackedVector2Array([Vector2(solid + 5, h * 0.2), Vector2(solid + 5, h * 0.5), Vector2(solid + 5, h * 0.8)]),
+			PackedColorArray([Color(acc, 0.0), Color(acc, 0.28), Color(acc, 0.0)]), 1.0, true)

@@ -13,16 +13,9 @@ var _stories: GridContainer
 
 
 func _ready() -> void:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = PAPER
-	sb.border_color = INK.lightened(0.3)
-	sb.set_border_width_all(2)
-	sb.set_content_margin_all(16)
-	sb.shadow_color = Color(0, 0, 0, 0.35)
-	sb.shadow_size = 6
-	var aged := UiStyle.aged_paper(PAPER, sb.border_color, 2, 16.0)
-	add_theme_stylebox_override("panel", aged if aged is StyleBoxTexture else sb)
-	custom_minimum_size = Vector2(620, 0)
+	# A real paper document: the kit's cream DocPanel (fibres, a burnt edge, a shadow).
+	theme_type_variation = "DocPanel"
+	custom_minimum_size = Vector2(660, 0)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 6)
@@ -31,6 +24,7 @@ func _ready() -> void:
 	mast.add_theme_color_override("font_color", INK)
 	col.add_child(mast)
 	_dateline = UiStyle.label("", 13, FADED)
+	_dateline.add_theme_font_override("font", UiStyle.font("label"))
 	col.add_child(_rule(3))
 	col.add_child(_dateline)
 	col.add_child(_rule(1))
@@ -108,13 +102,13 @@ func show_chapter(ch: StoryChapter, won: bool, reason: String, result: Dictionar
 
 func _story(head: String, body: String) -> void:
 	var box := VBoxContainer.new()
-	box.custom_minimum_size = Vector2(280, 0)
+	box.custom_minimum_size = Vector2(290, 0)
 	box.add_theme_constant_override("separation", 2)
-	var h := UiStyle.title(head, 17)
+	var h := UiStyle.title(head, 18)
 	h.add_theme_color_override("font_color", INK)
 	h.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	box.add_child(h)
-	var b := UiStyle.label(body, 14, FADED)
+	var b := UiStyle.label(body, 15, FADED)
 	b.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	box.add_child(b)
 	_stories.add_child(box)

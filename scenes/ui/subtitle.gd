@@ -7,7 +7,7 @@ extends PanelContainer
 ## since the words are the only way it's heard.
 
 ## Widest the band gets, and how far its bottom sits above the screen's (clear of the hotbar).
-const WIDTH := 980.0
+const WIDTH := 900.0 # clear of the status block bottom-left
 const BOTTOM := 150.0
 
 var _name: Label
@@ -17,27 +17,18 @@ var _fade: Tween
 
 
 func _init() -> void:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.08, 0.05, 0.03, 0.62)
-	sb.set_corner_radius_all(10)
-	sb.content_margin_left = 22
-	sb.content_margin_right = 22
-	sb.content_margin_top = 8
-	sb.content_margin_bottom = 10
-	add_theme_stylebox_override("panel", sb)
+	# A soft band in the set's deep colour (the HUD kit's "band": no rim, no rule).
+	add_theme_stylebox_override("panel", KeyHints.kit_box("band"))
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 2)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(col)
-	_name = UiStyle.label("", 18, UiStyle.c("title"))
-	_name.add_theme_font_override("font", UiStyle.display_font())
-	_name.add_theme_color_override("font_outline_color", Palette.OUTLINE)
-	_name.add_theme_constant_override("outline_size", 4)
+	_name = KeyHints.eyebrow("", 15)
 	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_name.autowrap_mode = TextServer.AUTOWRAP_OFF
 	col.add_child(_name)
-	_text = UiStyle.label("", 24, Color("#F6E7C8"))
+	_text = UiStyle.label("", 24)
+	_text.add_theme_font_override("font", UiStyle.font("bold"))
 	_text.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.02))
 	_text.add_theme_constant_override("outline_size", 6)
 	_text.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
@@ -55,7 +46,7 @@ func show_line(who: String, line: String, voiced: bool) -> void:
 	_name.visible = _name.text != ""
 	_text.text = line
 	var w := minf(WIDTH, get_viewport_rect().size.x - 80.0)
-	var one_line := _text.get_theme_font("font").get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 12.0
+	var one_line := _text.get_theme_font("font").get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, UiStyle.ts(24)).x + 12.0
 	_text.custom_minimum_size = Vector2(clampf(one_line, 280.0, w - 44.0), 0)
 	_kill_fade()
 	visible = _wanted()

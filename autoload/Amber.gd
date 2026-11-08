@@ -25,10 +25,16 @@ var unlocked: Array[StringName] = []
 ## Host: favours waiting for the next dawn: [{"favour", "cliff", "peer"}].
 var pending: Array[Dictionary] = []
 var _was_wave := false
+## This run: has the team found hive amber yet (a pile went up since the world
+## loaded)? Lucky leaves the deck rail for his booth then, and his trade opens
+## if it wasn't already (Logan). Every peer works it out from the ledger.
+var found := false
+var _amber_seen: Dictionary = {} # cliff id -> its amber when last looked
 
 
 func _ready() -> void:
 	GameState.phase_changed.connect(_on_phase)
+	Economy.resources_changed.connect(_on_resources)
 
 
 ## Every peer, when a world loads: back to this rider's own blueprints; clients
@@ -37,6 +43,12 @@ func world_ready() -> void:
 	pending.clear()
 	_was_wave = false
 	unlocked.clear()
+	# Amber found: only what turns up from here on counts (the ledger may still
+	# hold the last run's until the new run resets it).
+	found = false
+	_amber_seen.clear()
+	for cid in Economy.ledger.cliff_ids():
+		_amber_seen[cid] = Economy.amount(cid, AmberRules.ITEM)
 	for id: StringName in _own_blueprints():
 		_add(id)
 	if not multiplayer.is_server():
@@ -136,6 +148,17 @@ func _save_blueprint(id: String) -> void:
 
 # ------------------------------------------------------------------ granting amber
 
+## Every peer: a pile of amber went up, so the team has found some (Lucky to
+## his booth). Latched for the run.
+func _on_resources(_cliff: int) -> void:
+	for cid in Economy.ledger.cliff_ids():
+		var a := int(Economy.amount(cid, AmberRules.ITEM))
+		if a > int(_amber_seen.get(cid, 0)) and not found:
+			found = true
+			changed.emit()
+		_amber_seen[cid] = a
+
+
 ## Host: `units` of amber into `peer_id`'s own pile (your cliff's, solo: the
 ## cliff you play). `why` says where it came from: "+N hive amber (why)."
 func grant(peer_id: int, units: int, why: String = "") -> void:
@@ -204,7 +227,7 @@ func craft_block(id: StringName) -> String:
 # ------------------------------------------------------------------ Lucky Moreau
 
 func lucky_open() -> bool:
-	if GameState.unlock_all:
+	if GameState.unlock_all or found: # found: Lucky's in his booth, trading (Logan)
 		return true
 	if GameState.has_flag("--lucky") and GameState.debug_enabled():
 		return true
@@ -255,8 +278,8 @@ func sale_block(peer_id: int, item: Dictionary) -> String:
 			var owned: Dictionary = GunShop.loadouts.get(peer_id, {&"revolver": 0})
 			if owned.has(gid) and AmberRules.is_lucky(int(owned[gid])):
 				return "You already carry Lucky's %s." % AmberRules.FINISHES[gid]["name"]
-			if not owned.has(gid) and owned.size() >= Gun.MAX_WEAPONS:
-				return "Your three weapon slots are full. Drop one first (Q)."
+			if not owned.has(gid) and Gun.slot_refusal(owned, gid) != "":
+				return Gun.slot_refusal(owned, gid) # Weapon Slots: one gun of each kind
 		"blueprint":
 			if is_unlocked(StringName(item["turret"])):
 				return "The team already has that blueprint."

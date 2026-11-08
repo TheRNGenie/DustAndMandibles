@@ -50,7 +50,7 @@ func update(delta: float) -> void:
 		var step := to.normalized() * bug.def.walk_speed * bug.speed() * delta
 		bug.ground_pos += step
 		bug.ground_pos.y = Bug.cliffs.ground_height_at(bug.cliff_id, bug.ground_pos)
-	elif bug.state == Bug.State.BREACHING:
+	elif bug.state == Bug.State.BREACHING and not bug.status.is_stunned(): # (a Flashbang's daze stops the chewing)
 		_attack(delta)
 
 

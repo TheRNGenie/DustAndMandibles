@@ -12,6 +12,11 @@ extends Node3D
 ##   shotgun:   barrels drop open, the empties fly, two shells go in, snap shut.
 
 var id: StringName
+## The gun this one handles like (ArmoryGuns.acts_like: the Weapon Slots guns
+## borrow an older gun's posture and reload rhythm); `id` itself otherwise.
+var act: StringName
+## Trapdoor Springfield: the breechblock, hinged at its front, lifts to load.
+var trapdoor: Node3D
 ## The revolver's cylinder, or the pepperbox's barrel cluster (turns about Z).
 var drum: Node3D
 var lever: Node3D
@@ -47,16 +52,19 @@ var _hand_kick := Vector2.ZERO
 
 func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) -> void:
 	id = weapon_id
+	act = ArmoryGuns.acts_like(id)
 	_mat = mat
 	_team = team
 	var body := _mi(self, null)
 	if FrontierGuns.has(id):
 		_build_frontier(body)
+	elif ArmoryGuns.has(id):
+		_build_armory(body)
 	else:
 		_build_classic(body)
 	_right_mi = _mi(self, null)
 	left = Node3D.new()
-	left.position = WeaponBuilder.LEFT_FIST[id]
+	left.position = WeaponBuilder.left_fist(id)
 	add_child(left)
 	_left_mi = _mi(left, null)
 	var held_round: Mesh = WeaponBuilder.cartridge()
@@ -72,7 +80,7 @@ func build(weapon_id: StringName, team: Color, look: Dictionary, mat: Material) 
 		&"flare_gun", &"salt_shotgun", &"punt_gun", &"harpoon_pistol", &"telescope_rifle", &"pepperbox":
 			held_round = FrontierGuns.held_round(id)
 	_round = _mi(left, held_round)
-	if FrontierGuns.has(id) or _rv:
+	if FrontierGuns.has(id) or ArmoryGuns.has(id) or _rv:
 		_round.material_override = null
 	_round.position = Vector3(0.012, 0.02, -0.02)
 	_round.visible = false
@@ -128,6 +136,47 @@ func _build_frontier(body: MeshInstance3D) -> void:
 	if bellows != null:
 		bellows.rotation.x = FrontierGuns.BELLOWS_OPEN
 		pleats.rotation.x = FrontierGuns.BELLOWS_OPEN * 0.6
+
+
+## A Weapon Slots gun (gen/armory_*.gd): its body (own materials) and each
+## moving part on its pivot, hooked up to the posing the older guns use: break
+## barrels, a lever, a bolt, a pump, bellows, a spool, and the loaded round
+## (shell, rocket, bolt, trap, anchor) that shows only while loaded.
+func _build_armory(body: MeshInstance3D) -> void:
+	body.mesh = ArmoryGuns.parts(id)["body"]
+	body.material_override = null
+	for part: String in ArmoryGuns.parts(id):
+		if part == "body":
+			continue
+		var n := ArmoryGuns.part_node(id, part)
+		add_child(n)
+		if ArmoryGuns.LOADED_PARTS.has(part) or (part == "bolt" and act != &"telescope_rifle"):
+			dart = n # the round in the gun (the ballista's bolt too)
+			continue
+		match part:
+			"barrels":
+				barrels = n
+			"lever":
+				lever = n
+			"bolt":
+				bolt = n
+			"pump":
+				pump = n
+			"drum":
+				reel = n # the Chain Binder's drum pays out like the harpoon's spool
+			"bellows":
+				bellows = n
+			"pleats":
+				pleats = n
+			"trapdoor":
+				trapdoor = n
+	if bellows != null and pleats == null:
+		pleats = Node3D.new() # (the lance's bellows have no separate leather)
+		add_child(pleats)
+
+
+func _pivot(part: String) -> Vector3:
+	return ArmoryGuns.pivot(id, part) if ArmoryGuns.has(id) else FrontierGuns.pivot(id, part)
 
 
 func _build_classic(body: MeshInstance3D) -> void:
@@ -276,7 +325,7 @@ func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: f
 		catch_t: float = -1.0) -> void:
 	var e := _ease(open)
 	_posture = e
-	match id:
+	match act:
 		&"revolver":
 			transform = Transform3D(Basis.from_euler(Vector3(0.35 * e, 0.3 * e, 0.95 * e)), Vector3(-0.07, 0.06, 0.04) * e)
 		&"lever_rifle":
@@ -312,19 +361,22 @@ func pose(open: float, load_t: float, loading: bool, cycle: float, drum_angle: f
 		lever.rotation.x = 0.95 * sin(clampf(cycle, 0.0, 1.0) * PI)
 	if barrels != null:
 		barrels.rotation.x = (0.9 if id == &"derringer_pair" else -0.75) * e
+	if trapdoor != null:
+		# Swings up on its front hinge to load, and after each shot.
+		trapdoor.rotation.x = -1.2 * maxf(e, sin(clampf(cycle, 0.0, 1.0) * PI))
 	if left_barrels != null:
 		left_barrels.rotation.x = 0.9 * e
 	if bolt != null:
 		_pose_bolt(cycle, e)
 	if pump != null:
 		# Racked back and forward after each shot.
-		pump.position = FrontierGuns.pivot(id, "pump") + Vector3(0, 0, 0.075 * sin(clampf(cycle, 0.0, 1.0) * PI))
+		pump.position = _pivot("pump") + Vector3(0, 0, 0.075 * sin(clampf(cycle, 0.0, 1.0) * PI))
 	if id == &"derringer_pair":
 		_pose_derringers(e, load_t, loading)
 		return
 	# Support hand: off to the cartridge pouch during the posture, then fetch,
 	# thumb the round home, and back for the next one.
-	var rest: Vector3 = WeaponBuilder.LEFT_FIST[id]
+	var rest: Vector3 = WeaponBuilder.left_fist(id)
 	# The cartridge pouch: low on the left, just out of view.
 	var pouch := Vector3(-0.16, -0.3, 0.1)
 	var gate := _load_point(round_index)
@@ -372,14 +424,14 @@ func _pose_bolt(cycle: float, open: float) -> void:
 	lift = maxf(lift, open)
 	back = maxf(back, open * 0.8)
 	bolt.rotation.z = 1.25 * lift
-	bolt.position = FrontierGuns.pivot(id, "bolt") + Vector3(0, 0, 0.07 * back)
+	bolt.position = _pivot("bolt") + Vector3(0, 0, 0.07 * back)
 
 
 ## Derringers: each hand kicks on its own shot; on a reload both pistols tip up,
 ## barrels open, and a flick of the wrists seats the new rounds.
 func _pose_derringers(e: float, load_t: float, loading: bool) -> void:
 	_round.visible = false
-	var rest: Vector3 = WeaponBuilder.LEFT_FIST[id]
+	var rest: Vector3 = WeaponBuilder.left_fist(id)
 	var seat := sin(clampf(load_t, 0.0, 1.0) * PI) * 0.12 if loading else 0.0
 	left.position = rest + Vector3(0.05, 0.05, 0.02) * e + Vector3(0, 0, 0.03 * _hand_kick.y)
 	# (The left pistol hangs off this node, so cancel the right hand's kick on it.)
@@ -459,9 +511,14 @@ func turn_crank(amount: float, delta: float) -> void:
 		if amount > 0.01:
 			_puff_phase += delta * 11.0
 		var squeeze := (0.5 + 0.5 * sin(_puff_phase)) * amount
-		bellows.rotation.x = FrontierGuns.BELLOWS_OPEN * (1.0 - 0.85 * squeeze)
-		pleats.rotation.x = bellows.rotation.x * 0.6
-		var rest: Vector3 = WeaponBuilder.LEFT_FIST[id]
+		if ArmoryGuns.has(id):
+			# Built open: a squeeze closes the board down toward the body.
+			bellows.rotation.x = 0.23 * squeeze
+			pleats.rotation.x = bellows.rotation.x * 0.5
+		else:
+			bellows.rotation.x = FrontierGuns.BELLOWS_OPEN * (1.0 - 0.85 * squeeze)
+			pleats.rotation.x = bellows.rotation.x * 0.6
+		var rest: Vector3 = WeaponBuilder.left_fist(id)
 		left.position = rest + Vector3(0, 0, 0) # the can hand stays put
 		_right_mi.position = Vector3(0, 0, -0.03 * squeeze)
 		return
@@ -473,7 +530,7 @@ func turn_crank(amount: float, delta: float) -> void:
 	# The left hand stays on the crank handle and goes round with it (unless it's
 	# off fetching a new drum).
 	if left != null and _posture < 0.02:
-		var rest: Vector3 = WeaponBuilder.LEFT_FIST[id]
+		var rest: Vector3 = WeaponBuilder.left_fist(id)
 		left.position = crank.position + crank.basis * (rest - crank.position)
 
 
@@ -488,14 +545,14 @@ func _load_point(round_index: int) -> Vector3:
 		if speedload:
 			return (get_parent() as Node3D).global_transform.affine_inverse() * drum.to_global(Vector3(0, 0, 0.065))
 		return _rv_chamber_mouth()[0]
-	return transform * (WeaponBuilder.LOAD_POINT[id] as Vector3)
+	return transform * WeaponBuilder.load_point(id)
 
 
 ## Direction the round is pushed (parent space).
 func _push_dir() -> Vector3:
 	if _rv and drum != null:
 		return _rv_chamber_mouth()[1]
-	match id:
+	match act:
 		&"lever_rifle":
 			return transform.basis * Vector3(-0.5, 0.1, -1.0).normalized()
 		&"blunderbuss", &"crank_gatling", &"bee_smoker":

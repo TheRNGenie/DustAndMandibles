@@ -196,11 +196,20 @@ func resume(data: Dictionary) -> bool:
 		var peer := Perks.peer_for_cliff(cid)
 		if peer <= 0:
 			continue
-		GunShop.loadouts[peer] = (guns[cid] as Dictionary).duplicate()
+		# Weapon Slots: a save from before the typed slots may hold two guns of a
+		# kind: the dearest stays, the rest are paid back in full.
+		var fit := Gun.fit_slots(guns[cid] as Dictionary)
+		GunShop.loadouts[peer] = (fit[0] as Dictionary).duplicate()
 		var pl := _player_on(peer)
-		for w: StringName in guns[cid]:
+		for w: StringName in fit[0]:
 			if pl != null and Gun.weapon(w) != null:
-				pl.net.grant_weapon(w, int(guns[cid][w]))
+				pl.net.grant_weapon(w, int(fit[0][w]))
+		var refund := 0
+		for w: StringName in fit[1]:
+			refund += Gun.weapon(w).price_chitin
+		if refund > 0:
+			Economy.earn(cid, {&"chitin": refund})
+			Economy.notify(peer, "One gun to a slot now: %s paid back for the extras." % UiStyle.cost(refund, "chitin"))
 	# (saves from before v0.1.62 have neither: everyone starts with a plain whip)
 	var shop := get_tree().get_first_node_in_group("gun_shops") as GunShop
 	var whips: Dictionary = data.get("whips", {})

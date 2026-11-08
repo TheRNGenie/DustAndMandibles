@@ -22,6 +22,10 @@ static func seed_cost(seed_res: StringName) -> int:
 
 static var selected := 0
 
+const ART := preload("res://gen/airship_props_art.gd")
+## The stand's awning stripes (sage, with cream).
+const AWNING := Color("#4E7A4A")
+
 var cliff_id: int = 0
 var market := MarketPrices.new()
 ## Fractional earnings owed to each cliff, per currency (paid out in whole units).
@@ -34,10 +38,9 @@ var _sync_t := 0.0
 func setup(cid: int) -> void:
 	cliff_id = cid
 	collision_layer = WorldLayout.LAYER_STRUCTURE
-	var mi := MeshInstance3D.new()
-	mi.mesh = ShopBuilder.vendor_cart()
-	mi.material_override = Materials.toon(0.025)
-	add_child(mi)
+	# A farmer's market stand (gen/airship_props_art.gd): a striped awning, chili
+	# ristras, tilted crates of produce, seed sacks and a chalkboard.
+	ART.produce_stall(self, AWNING)
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(2.8, 1.6, 1.8)
@@ -50,7 +53,7 @@ func setup(cid: int) -> void:
 	board.position = Vector3(-3.0, 0, -0.3)
 	add_child(board)
 	var keeper := Shopkeeper.new()
-	keeper.position = Vector3(1.85, 0, -0.7)
+	keeper.position = Vector3(0.2, 0.1, 0.5) # behind the crates
 	add_child(keeper)
 	keeper.setup({"hat": "sombrero", "facial": "horseshoe", "hair": "long", "hair_color": "black", "outfit": "poncho",
 		"neck": "bandana", "extra": "spurs", "paint": "orange"}, Color("#3E6A5A"))
@@ -58,7 +61,7 @@ func setup(cid: int) -> void:
 	var rack := MeshInstance3D.new()
 	rack.mesh = CropBuilder.packet_rack()
 	rack.material_override = Materials.toon(0.006)
-	rack.position = Vector3(0.75, 1.62, -0.55)
+	rack.position = Vector3(1.0, 1.15, -0.05) # on the back tier
 	rack.rotation.y = PI
 	rack.scale = Vector3.ONE * 1.8
 	add_child(rack)
@@ -161,9 +164,12 @@ func menu_items(tab: int) -> Array:
 			var cost := seed_cost(s)
 			var crop_id: StringName = info[1]
 			var icon: Variant = IconStudio.seed_packet(MenuScreen.instance, crop_id) if MenuScreen.instance != null else null
+			# Buy 1-10 at a time with a slider (Logan): the row shows the price each,
+			# the slider, the total and one Buy button.
 			out.append({"id": s, "name": str(info[0]), "icon": icon, "desc": "Plant on a farm plot. You have %d." % Economy.amount(cid, s),
-					"price": UiStyle.cost(cost, "scrap"), "price_ok": Economy.amount(cid, &"scrap") >= cost,
-					"buttons": [[&"buy1", "Buy 1"], [&"buy5", "Buy 5"]]})
+					"price": UiStyle.cost(cost, "scrap") + " Each", "price_ok": Economy.amount(cid, &"scrap") >= cost,
+					"quantity": {"min": 1, "max": 10, "action": "buyn", "verb": "Buy", "unit_cost": cost, "resource": "scrap",
+						"have": Economy.amount(cid, &"scrap")}})
 	return out
 
 
@@ -174,6 +180,9 @@ func menu_press(id: Variant, action: StringName) -> void:
 			count = maxi(Economy.amount(_local_cliff(), StringName(str(id))), 1)
 		&"buy5":
 			count = 5
+		_:
+			if str(action).begins_with("buyn:"): # the seed slider: "buyn:<1-10>"
+				count = clampi(int(str(action).get_slice(":", 1)), 1, 10)
 	if multiplayer.is_server():
 		_trade(multiplayer.get_unique_id(), StringName(str(id)), count)
 	else:

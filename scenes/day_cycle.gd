@@ -30,6 +30,7 @@ var clock := START_HOUR
 var _target := START_HOUR
 var _rate := 0.0
 var _storm := 0.0
+var _snap_weather := false
 var _snow := 0.0
 ## Weather colour cast (alpha = strength) and fog thickness, eased.
 var _tint := Color(1, 1, 1, 0)
@@ -60,6 +61,34 @@ const KEYS: Array = [
 ]
 const STAGES: Array = [[5.0, "DEAD OF NIGHT"], [7.0, "DAYBREAK"], [11.0, "MORNING"], [13.0, "HIGH NOON"],
 	[17.0, "AFTERNOON"], [19.0, "SUNDOWN"], [23.0, "NIGHTFALL"], [24.0, "MIDNIGHT"]]
+
+## The sky's cloud noise (made by tools/sky/make_sky_noise.py).
+const SKY_NOISE: Texture2D = preload("res://assets/sky/sky_noise.png")
+## The sky's cloud mix (Logan: "a much more detailed and varied skybox"). Each
+## wave the run's seed picks one of these styles, a touch jittered, and the
+## weather then pushes it about (see _sky_targets):
+## [cumulus cover, cirrus, mackerel sky, horizon banks, cloud size].
+const SKY_STYLES: Array = [
+	[0.30, 0.30, 0.0, 0.45, 1.0], # fair weather
+	[0.50, 0.12, 0.0, 0.60, 1.15], # big puffy cumulus
+	[0.20, 0.15, 0.85, 0.35, 0.95], # a mackerel sky
+	[0.12, 1.0, 0.0, 0.30, 1.0], # mares' tails
+	[0.06, 0.30, 0.0, 0.90, 1.0], # a big clear sky with towers on the horizon
+	[0.62, 0.0, 0.35, 0.50, 0.9], # broken cloud
+]
+const SKY_STYLE_NAMES: Array[String] = ["fair", "puffy", "mackerel", "mares_tails", "big_sky", "broken"]
+## The moon's phase night by night (0.5 = full), starting from the run's seed.
+const MOON_PHASES: Array[float] = [0.5, 0.62, 0.38, 0.72, 0.28, 0.84, 0.56, 0.18]
+## How fast the clouds drift (noise units a second at wind strength 1).
+const CLOUD_DRIFT := 0.0025
+## Seconds a full change of the cloud mix takes (a new wave, new weather).
+const SKY_EASE_SECONDS := 10.0
+## Force a style from SKY_STYLES (-1 = the wave's own; the UI gallery sets it).
+var sky_style := -1
+## The cloud mix as it stands (eased toward _sky_targets), and how far the wind
+## has carried the clouds.
+var _sky_mix: Dictionary = {}
+var _drift := Vector2.ZERO
 
 ## Free CC0 western tracks (audio/CREDITS.txt): a calm guitar piece between waves.
 const BUILD_MUSIC := &"build_theme"
@@ -126,18 +155,26 @@ func _on_phase(p: GameState.Phase) -> void:
 			Audio.play_music(&"victory_theme" if GameState.won else &"", 2.0, BUILD_MUSIC_DB)
 
 
-func _process(delta: float) -> void:
+func _process(frame_delta: float) -> void:
 	if clock < _target:
-		clock = minf(clock + _rate * delta, _target)
+		clock = minf(clock + _rate * frame_delta, _target)
+	# (snap_sky: the weather's light, haze and tint jump straight to their targets.)
+	var delta := 1000.0 if _snap_weather else frame_delta
+	_snap_weather = false
 	var want_storm: float = [0.0, 0.25, 0.6, 0.95, 0.7, 0.85, 0.0, 0.5, 0.0][clampi(GameState.weather, 0, 8)]
 	_tint = _tint.lerp(_weather_tint(GameState.weather), clampf(delta / 4.0, 0.0, 1.0))
-	var fog_mult: float = [1.0, 1.0, 1.0, 1.0, 1.0, 9.0, 1.4, 11.0, 1.6][clampi(GameState.weather, 0, 8)]
+	# Rain and storms grey the distance; a dust storm's murk surges with the gusts.
+	var fog_mult: float = [1.0, 1.0, 1.8, 2.6, 2.2, 6.0, 1.4, 11.0, 1.6][clampi(GameState.weather, 0, 8)]
+	if GameState.weather == Weather.Kind.DUST_STORM and WeatherFx.instance != null:
+		fog_mult *= 0.7 + 0.6 * WeatherFx.instance.gust
 	_fog_mult = lerpf(_fog_mult, fog_mult, clampf(delta / 4.0, 0.0, 1.0))
-	_storm = move_toward(_storm, want_storm, delta / 5.0)
-	var snow := 1.0 if GameState.weather == Weather.Kind.SNOW else 0.0
+	# (A dust storm is murk, not storm cloud: it only half greys the light.)
 	if GameState.weather == Weather.Kind.DUST_STORM:
 		want_storm = 0.4
+	_storm = move_toward(_storm, want_storm, delta / 5.0)
+	var snow := 1.0 if GameState.weather == Weather.Kind.SNOW else 0.0
 	_snow = move_toward(_snow, snow, delta / 5.0)
+	_ease_sky(frame_delta)
 	if env != null:
 		if _base_fog < 0.0:
 			_base_fog = env.fog_density
@@ -172,10 +209,10 @@ func _apply_now() -> void:
 	if _storm > 0.0:
 		var grey := Color("#C9C3BA").lerp(Color("#E8EEF4"), _snow)
 		sun_color = sun_color.lerp(grey, _storm * 0.7)
-		energy = lerpf(energy, energy * 0.45, _storm)
-		top = top.lerp(Color("#5F6C7A").lerp(Color("#B8C4D0"), _snow), _storm * 0.85)
-		horizon = horizon.lerp(Color("#A9A29A").lerp(Color("#E4E8EC"), _snow), _storm * 0.85)
-		ambient = ambient.lerp(Color("#8A90A8").lerp(Color("#C8D0E0"), _snow), _storm * 0.6)
+		energy = lerpf(energy, energy * 0.3, _storm)
+		top = top.lerp(Color("#4C5866").lerp(Color("#B8C4D0"), _snow), _storm * 0.9)
+		horizon = horizon.lerp(Color("#8E8E8C").lerp(Color("#E4E8EC"), _snow), _storm * 0.85)
+		ambient = ambient.lerp(Color("#727A92").lerp(Color("#C8D0E0"), _snow), _storm * 0.7)
 	if _tint.a > 0.01:
 		var tc := Color(_tint.r, _tint.g, _tint.b)
 		top = top.lerp(tc, _tint.a)
@@ -200,6 +237,8 @@ func _apply_now() -> void:
 		sun.rotation_degrees = Vector3(-maxf(moon_el, 12.0), lerpf(-100.0, 100.0, night_t), 0.0)
 	sun.light_color = sun_color
 	sun.light_energy = energy
+	# Under storm cloud the shadows go soft and faint.
+	sun.shadow_opacity = lerpf(1.0, 0.3, clampf(_storm * 1.1, 0.0, 1.0))
 	# Grade: at golden hour the fill light leans to a dusty neutral (the red wash
 	# flattened the painted rock, wood and chitin), and nights get a touch more
 	# moonlit fill so the textures still read.
@@ -222,6 +261,8 @@ func _apply_now() -> void:
 	_sky_set("golden", g)
 	_sky_set("glow_color", Color("#FF7A3A") if h > 12.0 else Color("#FF9A7A"))
 	_sky_set("overcast", clampf(_storm * 1.2, 0.0, 1.0))
+	_sky_set("flash", flash)
+	_send_sky_mix()
 	_glow_at_night(n)
 
 
@@ -236,6 +277,104 @@ func _sky_set(param: StringName, value: Variant) -> void:
 		return
 	_sky_sent[param] = value
 	sky.set_shader_parameter(param, value)
+
+
+## The run's seed (the wave planner's), so each run gets its own skies.
+func _run_seed() -> int:
+	var planner: Variant = WaveDirector.get("_planner")
+	return int(planner.get("_seed")) if planner != null else 0
+
+
+## The cloud mix this wave and weather call for: the wave's style from the run's
+## seed (the first build phase is always fair weather), then the weather on top.
+func _sky_targets() -> Dictionary:
+	var seed_v := _run_seed()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([seed_v, GameState.wave, "sky"])
+	var roll := rng.randi_range(0, SKY_STYLES.size() - 1)
+	var pick := sky_style if sky_style >= 0 else (roll if GameState.wave > 0 else 0)
+	var st: Array = SKY_STYLES[clampi(pick, 0, SKY_STYLES.size() - 1)]
+	var ang := rng.randf() * TAU
+	var m := {"cover": float(st[0]) * rng.randf_range(0.85, 1.15), "cirrus": float(st[1]), "alto": float(st[2]),
+		"bank": float(st[3]), "scale": float(st[4]) * rng.randf_range(0.9, 1.1),
+		"wind": Vector2(cos(ang), sin(ang)) * rng.randf_range(0.7, 1.3),
+		"storm": 0.0, "dust": 0.0, "heat": 0.0, "haze": 0.0, "blood": 0.0}
+	var seed_rng := RandomNumberGenerator.new()
+	seed_rng.seed = hash([seed_v, "sky seed"])
+	m["seed"] = Vector2(seed_rng.randf(), seed_rng.randf()) * 8.0
+	var along := Vector2(WeatherFx.wind_sign(), 0.0) # gusts blow along the canyon
+	match GameState.weather:
+		Weather.Kind.WINDY:
+			m["wind"] = along * 3.0
+			m["cirrus"] = maxf(float(m["cirrus"]), 0.8)
+			m["cover"] = float(m["cover"]) * 0.8
+		Weather.Kind.LIGHT_RAIN:
+			m.merge({"cover": 0.84, "cirrus": 0.0, "alto": 0.0, "bank": 0.6, "storm": 0.45}, true)
+		Weather.Kind.THUNDERSTORM:
+			m.merge({"cover": 0.95, "cirrus": 0.0, "alto": 0.0, "bank": 1.0, "storm": 1.0}, true)
+			m["wind"] = (m["wind"] as Vector2) * 2.0
+		Weather.Kind.SNOW:
+			m.merge({"cover": 0.9, "cirrus": 0.0, "alto": 0.3, "bank": 0.5}, true)
+		Weather.Kind.DUST_STORM:
+			m.merge({"dust": 1.0, "cover": 0.25, "cirrus": 0.0, "alto": 0.0, "wind": along * 2.5}, true)
+		Weather.Kind.HEAT_WAVE:
+			m.merge({"heat": 1.0, "cover": 0.04, "cirrus": 0.15, "alto": 0.0, "bank": 0.15}, true)
+		Weather.Kind.FOG:
+			m.merge({"haze": 1.0, "cover": 0.5}, true)
+		Weather.Kind.BLOOD_MOON:
+			m["blood"] = 1.0
+			m["cover"] = minf(float(m["cover"]), 0.3)
+	return m
+
+
+## Eases the cloud mix toward this wave's and weather's, and lets the wind
+## carry the clouds along.
+func _ease_sky(delta: float) -> void:
+	var want := _sky_targets()
+	if _sky_mix.is_empty():
+		_sky_mix = want
+	var k := delta / SKY_EASE_SECONDS
+	for key: String in want:
+		var w: Variant = want[key]
+		if key == "seed":
+			_sky_mix[key] = w
+		elif w is Vector2:
+			_sky_mix[key] = (_sky_mix[key] as Vector2).move_toward(w, k * 3.0)
+		else:
+			_sky_mix[key] = move_toward(float(_sky_mix[key]), float(w), k)
+	_drift += (_sky_mix["wind"] as Vector2) * CLOUD_DRIFT * delta
+
+
+## Jumps the cloud mix straight to this wave's and weather's (the UI gallery).
+func snap_sky() -> void:
+	_sky_mix = _sky_targets()
+	_snap_weather = true
+	_apply_now()
+
+
+## The moon's phase tonight (a blood moon is always full).
+func moon_phase() -> float:
+	if GameState.weather == Weather.Kind.BLOOD_MOON:
+		return 0.5
+	var night_i := int(floor((clock + 6.0) / 24.0))
+	return MOON_PHASES[posmod(night_i + _run_seed(), MOON_PHASES.size())]
+
+
+func _send_sky_mix() -> void:
+	if _sky_mix.is_empty():
+		_sky_mix = _sky_targets()
+	_sky_set("cloud_amount", float(_sky_mix["cover"]))
+	_sky_set("cirrus", float(_sky_mix["cirrus"]))
+	_sky_set("alto", float(_sky_mix["alto"]))
+	_sky_set("bank", float(_sky_mix["bank"]))
+	_sky_set("cloud_scale", float(_sky_mix["scale"]))
+	_sky_set("wind", _sky_mix["wind"])
+	_sky_set("cloud_seed", _sky_mix["seed"])
+	_sky_set("cloud_drift", _drift)
+	for key: String in ["storm", "dust", "heat", "haze", "blood"]:
+		_sky_set(key, float(_sky_mix[key]))
+	_sky_set("moon_phase", moon_phase())
+	_sky_set("detail", 1.0 if GraphicsQuality.level(Settings.effects) >= GraphicsQuality.MEDIUM else 0.0)
 
 
 ## 0 by day, 1 in full night (stars out, lamps glowing).

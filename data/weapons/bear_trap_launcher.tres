@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"bear_trap_launcher"
+slot = 2
+crop = &"corn"
+shots_per_harvest = 4
+display_name = "Bear Trap Launcher"
+description = "Spring-loaded iron jaws that stick to any surface. A bug that steps in one takes 180 and is held three seconds. Set them on the climbing routes before the wave."
+damage = 180.0
+mag_size = 1
+fire_interval = 0.6
+reload_time = 2.0
+pellets = 1
+range = 50.0
+price_chitin = 85
+upgrade_costs = PackedInt32Array(15, 35)
+shake = 0.5
+sound = &"harpoon"
+recoil_deg = 3.0
+role = "Lane control"
+special = &"beartrap"
+sound_pitch = 0.9
+sound_layer = &"hook_bite"
+sound_layer_pitch = 0.6
+draw_speed = 0.67

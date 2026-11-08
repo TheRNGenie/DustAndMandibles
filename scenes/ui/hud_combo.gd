@@ -30,11 +30,21 @@ func _ready() -> void:
 	_letter.add_theme_font_override("font", UiStyle.display_font())
 	_letter.add_theme_font_size_override("font_size", UiStyle.ts(68))
 	_letter.add_theme_color_override("font_outline_color", Palette.OUTLINE)
-	_letter.add_theme_constant_override("outline_size", 10)
+	_letter.add_theme_constant_override("outline_size", 12)
+	_letter.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.45))
+	_letter.add_theme_constant_override("shadow_offset_y", 4)
 	_letter.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_letter.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_letter)
 	_letter.visible = false
+
+
+## The bottom edge of the grade letter while it shows (the kill feed starts
+## under it), else -1.
+func bottom() -> float:
+	if not _letter.visible or not visible:
+		return -1.0
+	return _letter.position.y + _letter.size.y
 
 
 func bind(p: Player) -> void:
@@ -93,8 +103,10 @@ func _process(delta: float) -> void:
 	var shake := Vector2(sin(_t * 90.0), cos(_t * 77.0)) * 8.0 * _crack
 	_letter.size = ls
 	_letter.pivot_offset = ls * 0.5
-	var top := under.get_global_rect().end.y + 4.0 if under != null else 70.0
-	var cx := under.get_global_rect().get_center().x if under != null else c.x
+	# (the wave card hides during a wave: then the letter hangs under the Homestead plates)
+	var top := under.get_global_rect().end.y + 4.0 if under != null and under.visible else HudStatus.right_stack_bottom() + 6.0
+	var right_mid := get_viewport_rect().size.x - 24.0 - HudWavePreview.WIDTH * 0.5
+	var cx := under.get_global_rect().get_center().x if under != null and under.visible else right_mid
 	_letter.position = Vector2(cx - ls.x * 0.5, top) + shake
 	match _brand():
 		&"snake":

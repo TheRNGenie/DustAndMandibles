@@ -488,6 +488,8 @@ func _physics_process(delta: float) -> void:
 		target_speed *= Expedition.local_speed_mult() # Canyon Expeditions: a heavy backpack slows you
 		if gun.aiming:
 			target_speed *= 0.6
+		if gun.def != null and gun.holding == &"" and gun.def.slot == WeaponDef.Slot.HEAVY:
+			target_speed *= 0.8 # Weapon Slots: heavies are bulky
 		var accel := ACCEL_GROUND if on_floor else ACCEL_AIR
 		if _stagger > 0.0:
 			accel *= 0.12

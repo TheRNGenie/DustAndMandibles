@@ -26,25 +26,28 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card = PanelContainer.new()
-	# A compact card: tight margins, small text.
-	var sb := KeyHints.card_style()
-	sb.content_margin_left = 10
-	sb.content_margin_right = 10
-	sb.content_margin_top = 4
-	sb.content_margin_bottom = 5
-	sb.set_border_width_all(2)
-	_card.add_theme_stylebox_override("panel", sb)
+	# A compact plate (the HUD kit's), an eyebrow over one line per cliff.
+	_card.add_theme_stylebox_override("panel", KeyHints.kit_box("plate_tight"))
 	# Top-left corner, under your homestead bar, out of the middle of the view.
 	_card.anchor_left = 0.0
 	_card.anchor_right = 0.0
-	_card.offset_left = 20
-	_card.offset_top = 64
+	_card.offset_left = 24
+	_card.offset_top = HudStatus.HOME_TOP + HudStatus.HOME_STEP + 4.0
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.visible = false
 	add_child(_card)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card.add_child(col)
+	var head := KeyHints.eyebrow("Climbers at the Top", 12)
+	head.theme_type_variation = "BadLabel"
+	head.add_theme_font_override("font", UiStyle.font("label"))
+	col.add_child(head)
 	_label_box = VBoxContainer.new()
+	_label_box.add_theme_constant_override("separation", 2)
 	_label_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_card.add_child(_label_box)
+	col.add_child(_label_box)
 
 
 func _process(delta: float) -> void:
@@ -126,7 +129,9 @@ func color_for(cid: int) -> Color:
 
 
 func _line(s: String, color: Color, mine: bool, covered: bool) -> Control:
-	var l := KeyHints.text(s, 14, color)
+	var l := KeyHints.ink(s, 15)
+	l.add_theme_font_override("font", UiStyle.font("bold"))
+	l.add_theme_color_override("font_color", color)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_BEGIN
@@ -184,8 +189,15 @@ static func _shape_points(p: Vector2, r: float, square: bool) -> PackedVector2Ar
 
 func _center() -> void:
 	var s := _card.get_combined_minimum_size()
-	_card.offset_left = 20
-	_card.offset_right = 20 + s.x
+	# Under your Homestead plate, or under the story goal card when there is one.
+	var top := HudStatus.HOME_TOP + HudStatus.HOME_STEP + 4.0
+	for n: Node in get_tree().get_nodes_in_group("story_tracker"):
+		var t := n as Control
+		if t != null and t.is_visible_in_tree():
+			top = maxf(top, t.get_global_rect().end.y + 8.0)
+	_card.offset_top = top
+	_card.offset_left = 24
+	_card.offset_right = 24 + s.x
 
 
 ## Markers: a diamond over the highest bug of each threatened cliff, pinned to

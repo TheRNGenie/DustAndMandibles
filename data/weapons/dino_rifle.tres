@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"dino_rifle"
+slot = 0
 display_name = "Dino Rifle"
 description = "Four barrels and a magnifying glass tied on with twine. Built for things bigger than beetles. Every glass is tied on a little differently."
 damage = 150.0

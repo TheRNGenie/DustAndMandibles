@@ -25,7 +25,7 @@ var _blocked_menu := false
 func _ready() -> void:
 	layer = 20
 	_card = PanelContainer.new()
-	_card.add_theme_stylebox_override("panel", KeyHints.card_style())
+	_card.add_theme_stylebox_override("panel", KeyHints.kit_box("plate"))
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.anchor_left = 0.5
 	_card.anchor_right = 0.5
@@ -138,7 +138,8 @@ func _show_card(title: String, keys: Array) -> void:
 	col.add_theme_constant_override("separation", 4)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.add_child(col)
-	var t := KeyHints.text(title, 16, Palette.BONE)
+	var t := KeyHints.ink(title, 16)
+	t.add_theme_font_override("font", UiStyle.font("bold"))
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(t)
 	col.add_child(KeyHints.row(keys))

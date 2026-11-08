@@ -29,7 +29,14 @@ static func vendor_cart() -> ArrayMesh:
 	return MeshKit.finish(st)
 
 
+## The gunsmith's shop is the detailed timber booth now (gen/airship_props_art.gd;
+## the airship adds its paint and wares with gunsmith_dress). The old stall
+## follows as old_gun_stall().
 static func gun_stall() -> ArrayMesh:
+	return (load("res://gen/airship_props_art.gd") as GDScript).call("gunsmith_wood")
+
+
+static func old_gun_stall() -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 91
 	var st := MeshKit.begin()

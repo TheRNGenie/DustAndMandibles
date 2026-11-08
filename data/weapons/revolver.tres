@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"revolver"
+slot = 0
 display_name = "Revolver"
 description = "Six shots, accurate. Every rancher starts with one."
 damage = 25.0

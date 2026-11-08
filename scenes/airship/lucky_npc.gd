@@ -9,11 +9,17 @@ extends StaticBody3D
 ## 4, or wave 8 in a normal run) he opens his shop, the same menu as his stall;
 ## before that he tells you to come back later. Local and cosmetic apart from
 ## the menu (sales go through LuckyStall like before).
+## Once the team has found hive amber (Amber.found) he leaves the rail for his
+## booth: the same lean and cigarette, forearms on his counter, facing the
+## customers (Logan).
 
 const LOOK := {"hat": "cattleman", "facial": "none", "hair": "long", "hair_color": "black", "outfit": "duster",
 	"neck": "bandana", "extra": "spurs", "paint": "amber"}
 const COAT := Color("#2A2226")
 const NOT_YET := "Nothing on the table yet, friend. Come back when the hive's coughing up amber."
+## His place in the booth, in the stall's own space: behind the counter, as far
+## back from it as he stands from the rail, facing the customers (-Z).
+const BOOTH_SPOT := Vector3(0.35, 0.0, 0.15)
 
 var stall: LuckyStall
 var rig: DummyRig
@@ -28,6 +34,8 @@ var _glance := 0.0
 var _glance_t := 5.0
 var _smoke: CPUParticles3D
 var _ember: OmniLight3D
+var _rail: Transform3D # where the airship put him (on the deck rail)
+var _in_booth := false
 
 
 func _ready() -> void:
@@ -60,6 +68,7 @@ func _ready() -> void:
 	_bubble.position = Vector3(0, 2.25, 0)
 	_bubble.visible = false
 	add_child(_bubble)
+	_rail = transform
 
 
 ## The hawk feather on his hat, the gold hoop, the amber pendant and his cigarette.
@@ -134,6 +143,11 @@ func _dress() -> void:
 func _process(delta: float) -> void:
 	if rig == null:
 		return
+	# Hive amber found: into his booth (and back to the rail on a new run).
+	var booth := Amber.found and stall != null
+	if booth != _in_booth:
+		_in_booth = booth
+		transform = stall.transform * Transform3D(Basis(), BOOTH_SPOT) if booth else _rail
 	_t += delta
 	rig.animate(delta, 0.0, false, 0.0)
 	# Now and then: a drag, a flick of the ash, a glance along the deck.

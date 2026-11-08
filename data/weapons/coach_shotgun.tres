@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"coach_shotgun"
+slot = 0
 display_name = "Coach Shotgun"
 description = "Two barrels of buckshot. Devastating up close, useless far away."
 damage = 14.0

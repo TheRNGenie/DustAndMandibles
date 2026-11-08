@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"mortar_tube"
+slot = 2
+crop = &"firecracker_chili"
+shots_per_harvest = 6
+display_name = "Mortar Tube"
+description = "A brass pipe, a bubble level and a prayer. Lobs chili-packed shells in a high arc: 90 damage to everything within 6 metres where it lands. Six shells to a chili harvest."
+damage = 90.0
+mag_size = 1
+fire_interval = 1.2
+reload_time = 2.8
+pellets = 1
+range = 200.0
+price_chitin = 80
+upgrade_costs = PackedInt32Array(15, 35)
+shake = 0.9
+sound = &"mortar"
+recoil_deg = 5.0
+recoil_yaw_deg = 1.0
+recoil_recover = 0.5
+role = "Arcing splash"
+special = &"mortar"
+sound_pitch = 0.85
+draw_speed = 0.67

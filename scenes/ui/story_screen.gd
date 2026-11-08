@@ -101,12 +101,12 @@ func _build() -> void:
 	var hints := UiStyle.paper_hints([["Esc", "Close"]])
 	hints.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(hints)
-	_journal_btn = MenuScreen.wood_button("Doc Whitlow's Journal")
+	_journal_btn = UiStyle.button("Doc Whitlow's Journal")
 	_journal_btn.pressed.connect(func() -> void:
 		_journal = not _journal
 		_fill())
 	row.add_child(_journal_btn)
-	var close_b := MenuScreen.wood_button("Close")
+	var close_b := UiStyle.ghost_button("Close")
 	close_b.pressed.connect(close)
 	row.add_child(close_b)
 
@@ -229,7 +229,7 @@ func _fill_page(ch: StoryChapter) -> void:
 		var why := UiStyle.status("Win Chapter %d first." % (need.number if need != null else ch.number - 1), "lock", 15)
 		why.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		go_row.add_child(why)
-	var go := MenuScreen.wood_button("Ride Out" if state != "done" else "Ride It Again")
+	var go := UiStyle.primary_button("Ride Out" if state != "done" else "Ride It Again")
 	go.custom_minimum_size = Vector2(220, 52)
 	go.disabled = state == "locked"
 	go.pressed.connect(func() -> void:

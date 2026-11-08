@@ -744,7 +744,8 @@ func land(x: float, z: float, r: float) -> float:
 	if r <= 200.0:
 		return terr
 	var roll := top + 38.0 + _roll.get_noise_2d(x * 0.008, z * 0.008) * 12.0 + _roll.get_noise_2d(x * 0.025 + 50.0, z * 0.025) * 3.0
-	return lerpf(terr, roll, smoothstep(200.0, 300.0, r))
+	# Past the rolling desert, the far lands (dunes, salt pans, the escarpment).
+	return lerpf(terr, roll, smoothstep(200.0, 300.0, r)) + (t.far.field(x, z).x if r > t.own_r else 0.0)
 
 
 ## Each arroyo's bearing at radius r (wandering a few degrees every 20 m or so).
@@ -786,9 +787,11 @@ func _hinterland(parent: Node3D, props: SurfaceTool) -> void:
 		rs.append(r1)
 		t._add_visual(parent, "Terrace%d" % tier, t.ring_rows(rs, 360, h), Materials.strata(tints[tier]), false)
 	# Rolling desert, cooler and bluer with distance so it recedes.
-	t._add_visual(parent, "RollingDesert", t.ring_rows(_radii(200.0, 400.0, 5.0), 240, h), Materials.strata(Color("#CFA062")), false)
-	t._add_visual(parent, "FarDesert", t.ring_rows(_radii(400.0, 600.0, 12.0), 120, h), Materials.strata(Color("#C4A27A")), false)
-	t._add_visual(parent, "Horizon", t.ring_rows(_radii(600.0, CliffBuilder.HINTER, 30.0), 120, h), Materials.strata(Color("#B9A48A")), false)
+	t._add_visual(parent, "RollingDesert", t.ring_rows(_radii(200.0, t.own_r, 5.0), 240, h), Materials.strata(Color("#CFA062")), false)
+	# The far lands, painted like the canyon's badlands (dunes, salt, rock in the steeps).
+	var far_mat := FarLands.material(WorldLayout.CLIFF_HEIGHT + 38.0)
+	t._add_visual(parent, "FarLandsNear", t.far.ring(t.cb, FarLands.radii(t.own_r, 900.0, 6.0, 14.0), 360, h), far_mat, false)
+	t._add_visual(parent, "FarLandsFar", t.far.ring(t.cb, FarLands.radii(900.0, FarLands.REACH, 14.0, 30.0), 300, h), far_mat, false)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 9191
 	_rim_dressing(parent, props, rng)

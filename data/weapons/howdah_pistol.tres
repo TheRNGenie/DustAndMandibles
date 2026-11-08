@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"howdah_pistol"
+slot = 0
+display_name = "Howdah Pistol"
+description = "An elephant gun scaled down to a handgun, for shooting dangerous game off the back of something. Two quick shots that go through any shell, then a break-open reload."
+damage = 55.0
+mag_size = 2
+fire_interval = 0.15
+reload_time = 2.2
+pellets = 1
+range = 80.0
+pierce_armor = true
+price_chitin = 50
+upgrade_costs = PackedInt32Array(15, 30)
+shake = 0.6
+sound = &"buffalo"
+recoil_deg = 7.0
+recoil_yaw_deg = 1.6
+recoil_recover = 0.4
+role = "Hand cannon"
+sound_pitch = 1.4

@@ -436,3 +436,8 @@ class RaceBoard extends CasinoBoard:
 		sfx(&"dice", -8.0, 1.8)
 		game.ui_changed.emit()
 		return true
+
+
+## The long table under the track (gen/casino_table_art.gd).
+func _art_kind() -> String:
+	return "race"

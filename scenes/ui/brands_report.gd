@@ -23,7 +23,7 @@ func _show(report: Dictionary) -> void:
 		c.queue_free()
 	var ink := UiStyle.c("ink")
 	var soft := UiStyle.c("ink_soft")
-	var gold := UiStyle.c("warn") # the set's dark amber reads on paper
+	var gold := UiStyle.c("accent_hi") # the set's metal on the dark surface
 	var rule := UiStyle.divider(420)
 	rule.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	add_child(rule)
@@ -38,27 +38,36 @@ func _show(report: Dictionary) -> void:
 	var title := UiStyle.title("Notches Earned", 22)
 	title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(title)
-	head.add_child(_label("+%d" % int(report.get("earned", 0)), 30, gold))
+	var total := UiStyle.number("+%d" % int(report.get("earned", 0)), 30, gold)
+	total.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(total)
 	var grid := GridContainer.new()
 	grid.columns = 3
 	grid.add_theme_constant_override("h_separation", 18)
 	grid.add_theme_constant_override("v_separation", 2)
+	var tally := UiStyle.panel("CardPanel") # the tally sits on a card, not loose on the page
+	tally.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	tally.custom_minimum_size.x = 420
+	add_child(tally)
 	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	add_child(grid)
+	tally.add_child(grid)
 	for line: Array in report.get("lines", []):
 		var a := _label(UiStyle.tc(str(line[0])), 16, ink)
 		a.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		a.custom_minimum_size.x = 170
 		grid.add_child(a)
-		var b := _label(str(line[1]), 14, soft)
+		var b := _label(str(line[1]), 15, soft)
 		b.custom_minimum_size.x = 110
 		grid.add_child(b)
-		var c := _label("+%d" % int(line[2]), 16, gold)
+		var c := UiStyle.number("+%d" % int(line[2]), 18, gold)
 		c.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		c.custom_minimum_size.x = 50
 		grid.add_child(c)
 	if int(report.get("earned", 0)) != int(report.get("total_run", 0)):
-		add_child(UiStyle.status("Already banked %d of this at the win." % (int(report["total_run"]) - int(report["earned"])), "good", 14))
+		var banked := UiStyle.status("Already banked %d of this at the win." % (int(report["total_run"]) - int(report["earned"])), "good", 14)
+		banked.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		(banked.get_node("Text") as Label).autowrap_mode = TextServer.AUTOWRAP_OFF # (centred and shrunk: wrapping would stack it a letter a line)
+		add_child(banked)
 	var foot := "You have %d Notches. Spend them in the Rancher's Ledger on the main menu." % int(report.get("brands", 0)) \
 		if bool(report.get("banked", true)) else "Test run (--debug): these Notches are not banked."
 	var f := _label(foot, 14, soft)

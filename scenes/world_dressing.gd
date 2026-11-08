@@ -206,8 +206,7 @@ func _build_homestead_area(cid: int) -> void:
 	if ExpeditionApi.floor_open():
 		_build_rope_anchor(cid) # no winch where there is no floor to go down to
 
-	# Starter farm field beside the house: 3 x 4 plots on the grid (2 x 2 cells each),
-	# the 3-plot side along the house front, rows running toward the canyon.
+	# Starter farm field: a row of 3 plots (2 x 2 cells each) in front of the junk heap.
 	for r in Buildable.FIELD_ROWS.size():
 		for c in Buildable.FIELD_COLS.size():
 			var anchor := Vector2i(Buildable.FIELD_ROWS[r], Buildable.FIELD_COLS[c])

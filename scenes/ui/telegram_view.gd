@@ -55,10 +55,17 @@ func open() -> void:
 	goal.theme_type_variation = "HudPanel"
 	goal.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	foot.add_child(goal)
-	var gl := UiStyle.label("Chapter %d Goal:  %s" % [ch.number, ch.objective_text()], 18)
-	gl.theme_type_variation = "HudLabel"
-	goal.add_child(gl)
+	var gcol := VBoxContainer.new()
+	gcol.add_theme_constant_override("separation", 0)
+	goal.add_child(gcol)
+	var ge := UiStyle.eyebrow("Chapter %d Goal" % ch.number, 14)
+	gcol.add_child(ge)
+	var gl := UiStyle.label(ch.objective_text(), 18)
+	gl.add_theme_font_override("font", UiStyle.font("bold"))
+	gl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	gcol.add_child(gl)
 	var close := MenuScreen.wood_button("Close")
+	close.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	close.pressed.connect(close_view)
 	foot.add_child(close)
 	_was_captured = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
@@ -88,15 +95,15 @@ func _input(event: InputEvent) -> void:
 ## The telegram form for chapter `ch`, `k` times its natural size (560 px wide).
 static func make_paper(ch: StoryChapter, k: float) -> PanelContainer:
 	var paper := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = PAPER
-	sb.border_color = FADED
-	sb.set_border_width_all(maxi(int(2 * k), 1))
-	sb.set_content_margin_all(18 * k)
-	sb.shadow_color = Color(0, 0, 0, 0.35)
-	sb.shadow_size = int(8 * k)
-	var aged := UiStyle.aged_paper(PAPER, sb.border_color, 2, sb.content_margin_left)
-	paper.add_theme_stylebox_override("panel", aged if aged is StyleBoxTexture else sb)
+	# The kit's document paper (cream, fibres, a burnt edge), with a thin form border.
+	var sb := UiStyle.box_for(&"base", "doc")
+	sb.rule = Color(FADED, 0.55)
+	sb.rule_inset = 7.0 * k
+	sb.rule_width = maxf(1.0, 1.2 * k)
+	sb.set_content_margin_all(22 * k)
+	sb.shadow_size = 16.0 * k
+	sb.burn_size = 14.0 * k
+	paper.add_theme_stylebox_override("panel", sb)
 	paper.custom_minimum_size = Vector2(560 * k, 0)
 	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var col := VBoxContainer.new()
@@ -172,7 +179,7 @@ static func _ink(text: String, size: int, color: Color, font: Font) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", size) # (scaled with the form: the noticeboard texture is a fixed 560 x 430)
 	l.add_theme_color_override("font_color", color)
 	if font != null:
 		l.add_theme_font_override("font", font)

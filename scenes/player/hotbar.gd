@@ -1,7 +1,7 @@
 class_name Hotbar
 extends Node
 ## The local player's hotbar, keys 1-8:
-##   1-3  weapon slots: any weapons you carry, in the order you got them
+##   1-3  weapon slots (Weapon Slots): 1 primary, 2 secondary, 3 heavy
 ##   4-6  pickup slots: whatever harvest you're carrying (sarsaparilla first, then
 ##        corn, prickly pear, chili); left click with sarsaparilla out sends your
 ##        partner a tonic (PartnerTonic)
@@ -138,7 +138,14 @@ func _cliff() -> int:
 ## Hotbar labels where the gun's first word won't do.
 const SHORT_NAMES: Dictionary = {&"coach_shotgun": "Shotgun", &"salt_shotgun": "Salt Gun", &"bee_smoker": "Smoker",
 	&"flare_gun": "Flare Gun", &"punt_gun": "Punt Gun", &"derringer_pair": "Derringers", &"harpoon_pistol": "Harpoon",
-	&"telescope_rifle": "Telescope"}
+	&"telescope_rifle": "Telescope",
+	&"volcanic_repeater": "Repeater", &"mares_leg": "Mare's Leg", &"double_rifle": "Double", &"trench_broom": "Broom",
+	&"ricochet_rifle": "Ricochet", &"howdah_pistol": "Howdah", &"sharps_carbine": "Sharps", &"trapdoor_springfield": "Trapdoor",
+	&"screamer_pistol": "Screamer", &"tar_sprayer": "Tar", &"flashbang_pistol": "Flashbang", &"pepper_bomb_pistol": "Pepper",
+	&"concussion_pistol": "Concussion", &"chain_binder": "Chain", &"rust_duster": "Duster", &"glow_worm_launcher": "Glow-Worm",
+	&"caltrops_launcher": "Caltrops", &"phosphor_grenade": "Phosphor", &"mortar_tube": "Mortar", &"fire_lance": "Lance",
+	&"organ_gun": "Organ Gun", &"harpoon_ballista": "Ballista", &"acid_drencher": "Acid", &"swivel_gun": "Swivel",
+	&"congreve_rocket": "Rocket", &"bear_trap_launcher": "Traps"}
 
 
 ## For the HUD: item id, label, count text, selected?
@@ -153,6 +160,9 @@ func slot_info(i: int) -> Dictionary:
 		var lvl := player.gun.level_of(id)
 		var mods := WeaponMods.count(player.gun.code_of(id))
 		info["count"] = (GunRarity.name_of(lvl)[0] if lvl > 0 else "") + "*".repeat(mods) # Rarity: U, R, E, L
+		var spare := player.gun.reserve_of(id)
+		if spare >= 0:
+			info["count"] += " +%d" % spare # Weapon Slots: heavies' crop-loaded rounds in reserve
 		info["rarity"] = lvl
 		if AmberRules.is_lucky(player.gun.code_of(id)): # Hive amber: Lucky Moreau's finish
 			info["label"] = AmberRules.finish_name(id, player.gun.code_of(id)).split(" ")[0]

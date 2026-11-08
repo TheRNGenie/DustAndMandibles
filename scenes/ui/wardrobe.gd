@@ -39,13 +39,7 @@ func menu_build_body(body: Control, _screen: MenuScreen) -> void:
 	row.add_theme_constant_override("separation", 16)
 	body.add_child(row)
 	# Turning preview.
-	var frame := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = UiStyle.c("bg").lightened(0.06) # Theme: the set's backdrop colour behind the dummy
-	sb.border_color = UiStyle.c("hud_rim")
-	sb.set_border_width_all(3)
-	sb.set_corner_radius_all(int(UiStyle.SETS.get(UiStyle.current, UiStyle.SETS[&"base"])["radius"]))
-	frame.add_theme_stylebox_override("panel", sb)
+	var frame := UiStyle.panel("WellPanel") # Theme: a recessed well behind the dummy
 	frame.custom_minimum_size = Vector2(260, 400)
 	row.add_child(frame)
 	var tex := TextureRect.new()
@@ -56,13 +50,11 @@ func menu_build_body(body: Control, _screen: MenuScreen) -> void:
 	# Choices.
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_theme_constant_override("separation", 4)
+	col.add_theme_constant_override("separation", 6)
 	row.add_child(col)
 	for slot: String in DummyLook.SLOTS:
 		var info: Array = DummyLook.SLOTS[slot]
-		var title := MenuScreen.ink_label(UiStyle.tc(str(info[0])), 16)
-		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		col.add_child(title)
+		col.add_child(UiStyle.section(str(info[0])))
 		var labels: Array = []
 		var selected := 0
 		for i in (info[1] as Array).size():

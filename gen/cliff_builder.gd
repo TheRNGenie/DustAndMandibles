@@ -307,19 +307,37 @@ func plateau_height(cliff_id: int, d: float, z: float) -> float:
 	return WorldLayout.CLIFF_HEIGHT + flat + hills
 
 
-## The walls that hem the play area in: a sheer, jagged cliff rising behind
-## each homestead, and rock walls closing off both ends of each plateau, all
-## topped with broken teeth. Starts outside the fences, so nothing playable moves.
+## The walls that hem the play area in: a sheer cliff rising behind each
+## homestead and rock walls closing off both ends of each plateau, crowned with
+## stepped, flat-topped battlements (harder layers left standing: they read as
+## badlands, not the old saw-teeth). Past the play area's ends the wall breaks
+## up into terraced badland mounds with washes between. Starts outside the
+## fences, so nothing playable moves.
 func _enclosure(cliff_id: int, d: float, z: float) -> float:
 	var n := _noise[_ni[cliff_id]]
 	var back_rise := smoothstep(44.0, 54.0, d)
 	var back_h := 34.0 + 16.0 * (n.get_noise_2d(z * 0.04, 300.0) * 0.5 + 0.5)
-	var back_teeth := maxf(n.get_noise_2d(z * 0.18, d * 0.18 + 90.0), 0.0) * 18.0 * smoothstep(50.0, 58.0, d)
+	var back_teeth := _steps(maxf(n.get_noise_2d(z * 0.045, d * 0.045 + 90.0), 0.0) * 1.6, 4.0) * 16.0 * smoothstep(50.0, 58.0, d)
 	var back := back_rise * back_h + back_teeth
 	var side_rise := smoothstep(32.0, 44.0, absf(z)) * smoothstep(4.0, 14.0, d)
 	var side_h := 28.0 + 14.0 * (n.get_noise_2d(d * 0.05, z * 0.05 + 400.0) * 0.5 + 0.5)
-	var side_teeth := maxf(n.get_noise_2d(d * 0.2 + 70.0, z * 0.2), 0.0) * 12.0 * side_rise
-	return maxf(back, side_rise * side_h + side_teeth)
+	var side_teeth := _steps(maxf(n.get_noise_2d(d * 0.05 + 70.0, z * 0.05), 0.0) * 1.6, 3.0) * 10.0 * side_rise
+	var wall := side_rise * side_h + side_teeth
+	# Out along the corridor: terraced mounds and benches, cut by washes.
+	var corr := smoothstep(52.0, 96.0, absf(z))
+	if corr > 0.0:
+		var mound := n.get_noise_2d(d * 0.03 + 30.0, z * 0.03)
+		var wash := 1.0 - absf(n.get_noise_2d(d * 0.012 + 600.0, z * 0.02))
+		var m := _steps(smoothstep(-0.3, 0.45, mound), 4.0) * (1.0 - pow(wash, 6.0) * 0.7)
+		var badland := side_rise * (8.0 + 34.0 * m)
+		wall = lerpf(wall, badland, corr)
+	return maxf(back, wall)
+
+
+## v (0..1-ish) in `n` flat steps with short, steep risers between (terraces).
+static func _steps(v: float, n: float) -> float:
+	var t := v * n
+	return (floorf(t) + smoothstep(0.7, 1.0, t - floorf(t))) / n
 
 
 func plateau_point(cliff_id: int, d: float, z: float) -> Vector3:
@@ -529,11 +547,14 @@ func build_steps(parent: Node3D) -> Array[Callable]:
 		steps.append(func() -> void:
 			_add_visual(parent, "HostileRidges", _hostile_ridges(), rock)
 			_add_visual(parent, "Bones", _carcasses(), Materials.toon(0.03))
+			_add_visual(parent, "RidgeBones", _ridge_bones(), Materials.toon(0.03))
 			_add_visual(parent, "BugTunnels", _bug_tunnels(), Materials.toon(0.03))
 			LoadTimes.mark("  cliff: ridges/bones/tunnels"))
-		steps.append(func() -> void:
-			_add_hinterland(parent)
-			LoadTimes.mark("  cliff: hinterland"))
+		var badlands := BadlandsTerrain.new(self)
+		for k in 3: # (each side's ground, then the landforms and landmarks: one a frame on the title film)
+			steps.append(func() -> void:
+				badlands.build_steps(parent)[k].call()
+				LoadTimes.mark("  cliff: hinterland %d" % k))
 	steps.append(func() -> void:
 		_infest_tunnels()
 		_store(parent, from, key))
@@ -637,8 +658,9 @@ func _add_hinterland(parent: Node3D) -> void:
 	BadlandsTerrain.new(self).build(parent)
 
 
-## Hostile dressing on the walls around the play area: leaning rock spikes
-## along the ridges, and huge curved rock claws that hook out over the plateaus.
+## Hostile dressing on the walls around the play area: hoodoos (dark necks
+## under pale cap stones, the badlands' own shapes) along the ridges, where the
+## old rock spikes stood. The bones are _ridge_bones().
 func _hostile_ridges() -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 6161
@@ -646,31 +668,77 @@ func _hostile_ridges() -> ArrayMesh:
 	var dark := [Color("#6E3A2C"), Color("#5A3028"), Color("#7E4434"), Palette.ROCK_C.darkened(0.3)]
 	for cid in 2:
 		var s := WorldLayout.side_sign(cid)
-		# Spikes on the back wall and the side walls.
 		for i in 46:
 			var d := rng.randf_range(50.0, 60.0)
 			var z := rng.randf_range(-80.0, 80.0)
 			if i % 3 == 0:
 				d = rng.randf_range(12.0, 56.0)
 				z = (1.0 if rng.randf() < 0.5 else -1.0) * rng.randf_range(42.0, 80.0)
+			if i % 4 == 1:
+				continue # (that spot holds a bone now: _ridge_bones)
 			var base := plateau_point(cid, d, z) - Vector3(0, 1.0, 0)
-			var h := rng.randf_range(7.0, 20.0)
-			var r := rng.randf_range(1.0, 2.6)
-			var lean := Vector3(-s * rng.randf_range(0.0, 0.35), 1.0, rng.randf_range(-0.25, 0.25)).normalized()
+			var h := rng.randf_range(6.0, 16.0)
+			var r := rng.randf_range(1.0, 2.2)
 			var c: Color = dark[rng.randi() % dark.size()]
-			MeshKit.add_cylinder(st, Transform3D(MeshKit.basis_from_y(lean), base + lean * h * 0.5), r, 0.0, h, 7, c)
-			MeshKit.add_ellipsoid(st, Transform3D(Basis(), base), Vector3(r * 1.6, r * 0.8, r * 1.6), 4, 8, c.darkened(0.15), 0.25, rng)
-		# Rock claws: thick curved talons arching out from the back wall toward the house.
+			var yaw := Basis(Vector3.UP, rng.randf() * TAU)
+			var tilt := Vector3(-s * rng.randf_range(0.0, 0.12), 1.0, rng.randf_range(-0.08, 0.08)).normalized()
+			var b := MeshKit.basis_from_y(tilt) * yaw
+			# A flared foot, two necked drums, and a pale cap stone wider than the neck.
+			MeshKit.add_cylinder(st, Transform3D(b, base + tilt * h * 0.15), r * 1.7, r * 1.15, h * 0.3, 8, c.darkened(0.1))
+			MeshKit.add_cylinder(st, Transform3D(b, base + tilt * h * 0.45), r * 1.15, r * 0.95, h * 0.3, 8, c)
+			MeshKit.add_cylinder(st, Transform3D(b, base + tilt * h * 0.72), r * 0.95, r * 0.6, h * 0.24, 8, c.darkened(0.15))
+			MeshKit.add_ellipsoid(st, Transform3D(b, base + tilt * h * 0.9), Vector3(r * 1.5, r * 0.6, r * 1.3), 4, 9, Color("#C9A27A"), 0.2, rng)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), base), Vector3(r * 1.9, r * 0.8, r * 1.9), 4, 8, c.darkened(0.2), 0.25, rng)
+	return MeshKit.finish(st)
+
+
+## Bleached bug bones on the walls round the play area (where the rock spikes
+## and claws were): leg bones and spines jutting from the ridges, and on the
+## back walls great curved mandibles, toothed, hooking out over the plateaus.
+func _ridge_bones() -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 6162
+	var st := MeshKit.begin()
+	var bone := Color("#E6DAC0")
+	var joint := Color("#BCA886")
+	for cid in 2:
+		var s := WorldLayout.side_sign(cid)
+		for i in 14:
+			var d := rng.randf_range(50.0, 60.0)
+			var z := rng.randf_range(-80.0, 80.0)
+			if i % 3 == 0:
+				d = rng.randf_range(16.0, 54.0)
+				z = (1.0 if rng.randf() < 0.5 else -1.0) * rng.randf_range(44.0, 80.0)
+			var base := plateau_point(cid, d, z) - Vector3(0, 1.5, 0)
+			var h := rng.randf_range(9.0, 20.0)
+			var r := rng.randf_range(0.7, 1.3)
+			var lean := Vector3(-s * rng.randf_range(0.1, 0.45), 1.0, rng.randf_range(-0.3, 0.3)).normalized()
+			var bend := Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)).normalized() * h * 0.12
+			var pts: Array = []
+			var radii: Array = []
+			for k in 8:
+				var t := k / 7.0
+				pts.append(base + lean * h * t + bend * sin(t * PI))
+				radii.append(r * lerpf(1.0, 0.25, t) * (1.0 + 0.15 * sin(t * PI * 3.0)))
+			MeshKit.tube(st, pts, radii, 8, bone.darkened(rng.randf() * 0.08))
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), base + lean * h * 0.45 + bend), Vector3.ONE * r * 1.25, 4, 8, joint)
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), base), Vector3(r * 2.0, r, r * 2.0), 4, 8, joint.darkened(0.15))
+		# Mandibles off the back wall: thick curved blades with teeth on the inside.
 		for k in 4:
 			var z := rng.randf_range(-40.0, 40.0)
 			var root := plateau_point(cid, 56.0, z)
-			var prev := root
-			var r := 3.2
-			for j in 9:
-				var t := float(j + 1) / 9.0
-				var p := root + Vector3(-s * t * 16.0, sin(t * PI * 0.8) * 16.0 + t * 2.0, rng.randf_range(-0.5, 0.5))
-				MeshKit.add_limb(st, prev, p, r * (1.0 - t * 0.85), (dark[k % dark.size()] as Color).lerp(Color("#8A4A32"), t * 0.4), 7)
-				prev = p
+			var pts: Array = []
+			var radii: Array = []
+			for j in 11:
+				var t := j / 10.0
+				pts.append(root + Vector3(-s * t * 17.0, sin(t * PI * 0.8) * 15.0 + t * 2.0, sin(t * PI) * 3.0 * (1.0 if k % 2 == 0 else -1.0)))
+				radii.append(3.0 * (1.0 - t * 0.88))
+			MeshKit.tube(st, pts, radii, 9, bone.darkened(0.04 * k))
+			MeshKit.add_ellipsoid(st, Transform3D(Basis(), root), Vector3.ONE * 3.6, 5, 10, joint)
+			for j in range(2, 9, 2):
+				var p: Vector3 = pts[j]
+				var down := Vector3(-s * 0.2, -1.0, 0.0).normalized()
+				MeshKit.add_cylinder(st, Transform3D(MeshKit.basis_from_y(down), p + down * radii[j] * 1.3), radii[j] * 0.45, 0.05, radii[j] * 1.8, 6, joint)
 	return MeshKit.finish(st)
 
 

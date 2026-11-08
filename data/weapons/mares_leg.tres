@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"mares_leg"
+slot = 0
+display_name = "Mare's Leg"
+description = "A lever rifle somebody sawed down to a pistol grip and a short barrel. Handles faster than the full rifle, reaches a little less far, and won't punch through a shell."
+damage = 38.0
+mag_size = 6
+fire_interval = 0.5
+reload_time = 1.8
+pellets = 1
+range = 180.0
+price_chitin = 20
+upgrade_costs = PackedInt32Array(10, 25)
+shake = 0.25
+sound = &"lever_rifle"
+recoil_deg = 2.4
+recoil_yaw_deg = 0.5
+recoil_recover = 0.25
+role = "Versatile"
+sound_pitch = 1.05

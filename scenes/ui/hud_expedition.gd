@@ -23,30 +23,32 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card = PanelContainer.new()
-	_card.theme_type_variation = "HudPanel"
+	_card.add_theme_stylebox_override("panel", KeyHints.kit_box("plate"))
 	_card.anchor_left = 1.0
 	_card.anchor_right = 1.0
 	_card.anchor_top = 1.0
 	_card.anchor_bottom = 1.0
 	_card.offset_left = -300
 	_card.offset_right = -24
-	_card.offset_bottom = -98
+	_card.offset_bottom = -166 # over the ammo sign
 	_card.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.visible = false
 	add_child(_card)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.add_child(box)
-	_title = UiStyle.label("", 18, UiStyle.c("hud"))
+	_title = UiStyle.label("", 18)
+	_title.add_theme_font_override("font", UiStyle.font("bold"))
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	box.add_child(_title)
-	_bar = UiStyle.bar(Color("#C9A66B"), Vector2(240, 14), float(Backpack.CAPACITY))
+	_bar = UiStyle.bar(UiStyle.c("accent"), Vector2(240, 14), float(Backpack.CAPACITY))
 	box.add_child(_bar)
-	_items = UiStyle.label("", 15, UiStyle.c("hud"))
+	_items = UiStyle.label("", 15)
 	_items.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	box.add_child(_items)
-	_foot = UiStyle.label("", 14, UiStyle.c("hud").darkened(0.15))
+	_foot = UiStyle.note("", 14)
 	_foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	box.add_child(_foot)
 
@@ -114,10 +116,14 @@ func _refresh_partners() -> void:
 	for c: Node in _partners.get_children():
 		c.queue_free()
 	for n: String in names:
-		var l := UiStyle.label("%s %s" % [n, UiStyle.tc("is in the canyon")], 18, Color("#FFD27A"))
-		l.add_theme_color_override("font_outline_color", Palette.OUTLINE)
-		l.add_theme_constant_override("outline_size", 6)
-		_partners.add_child(l)
+		# Each on a small plate, centred under the plaque (no loose text over the view).
+		var plate := KeyHints.plate("plate_tight")
+		plate.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		var l := KeyHints.ink("%s %s" % [n, UiStyle.tc("is in the canyon")], 17)
+		l.theme_type_variation = "GoldLabel"
+		l.add_theme_font_override("font", UiStyle.font("bold"))
+		plate.add_child(l)
+		_partners.add_child(plate)
 	_markers.queue_redraw()
 
 

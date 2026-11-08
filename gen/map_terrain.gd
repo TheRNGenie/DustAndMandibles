@@ -13,6 +13,10 @@ extends RefCounted
 
 var cb: CliffBuilder
 var map: MapDef
+## The far lands past this map's own desert (dune seas, salt pans, the
+## escarpment on the horizon; FarLands), and how far out its own desert runs.
+var far: FarLands
+var own_r := 320.0
 
 ## Buttes: how far back from the lip the butte top runs, and how far either side.
 const BUTTE_BACK := 46.0
@@ -34,6 +38,10 @@ const LAKE_R := 118.0
 func _init(builder: CliffBuilder) -> void:
 	cb = builder
 	map = builder.map
+	own_r = 330.0 if map.id == MapDef.MESA else 300.0
+	var c := Vector2(map.center.x, map.center.z)
+	far = FarLands.new(7171 + int(map.id == MapDef.BUTTES) * 37, c, func(x: float, z: float) -> float:
+		return Vector2(x, z).distance_to(c) - own_r)
 
 
 # ------------------------------------------------------------------ height queries
@@ -237,7 +245,9 @@ func ring_rows(rs: Array[float], cols: int, h: Callable) -> ArrayMesh:
 	return cb._grid_mesh(grid, Vector3.UP)
 
 
-## Distant mesas, buttes and a ring of mountains at the horizon (visual only).
+## Distant mesas and buttes out on the far lands (not in the dunes or the salt),
+## and the landmarks: colossal bug skeletons and derelicts (ColossusBuilder).
+## (The old ring of mountains at the horizon is FarLands' escarpment now.)
 func _far_scenery(parent: Node3D, ground: Callable, keep_clear: float, rock: Material) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 31337
@@ -248,7 +258,7 @@ func _far_scenery(parent: Node3D, ground: Callable, keep_clear: float, rock: Mat
 	while placed < 60:
 		var x := rng.randf_range(-hinter * 0.85, hinter * 0.85)
 		var z := rng.randf_range(-hinter * 0.85, hinter * 0.85)
-		if Vector2(x, z).length() < keep_clear:
+		if Vector2(x, z).length() < keep_clear or far.field(x, z).w > 0.3:
 			continue
 		placed += 1
 		var base := Vector3(x, float(ground.call(x, z, Vector2(x, z).length())) - 3.0, z)
@@ -256,10 +266,8 @@ func _far_scenery(parent: Node3D, ground: Callable, keep_clear: float, rock: Mat
 		var r := rng.randf_range(10.0, 22.0) if butte else rng.randf_range(30.0, 90.0)
 		var h := rng.randf_range(35.0, 90.0) if butte else rng.randf_range(20.0, 55.0)
 		var col: Color = cols[rng.randi() % cols.size()]
-		var segs := rng.randi_range(7, 11)
-		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), base + Vector3(0, h * 0.12, 0)), r * 1.45, r * 1.05, h * 0.25, segs, col.darkened(0.1))
-		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), base + Vector3(0, h * 0.6, 0)), r * 1.05, r * 0.92, h * 0.8, segs, col)
-	for i in 34:
+		FarLands.formation(st, rng, base, r, h, col, butte)
+	for i in 0: # (the old mountain ring: FarLands.escarpment closes the horizon now)
 		var a := TAU * float(i) / 34.0 + rng.randf_range(-0.05, 0.05)
 		var dist := rng.randf_range(hinter * 0.88, hinter * 0.98)
 		var x := cos(a) * dist
@@ -275,12 +283,16 @@ func _far_scenery(parent: Node3D, ground: Callable, keep_clear: float, rock: Mat
 			top = r * rng.randf_range(0.45, 0.7)
 			segs += 4
 		MeshKit.add_cylinder(st, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), base + Vector3(0, h * 0.5, 0)), r, top, h, segs, Color("#C98A5E").darkened(rng.randf_range(0.0, 0.25)))
-	var far := MeshInstance3D.new()
-	far.name = "Mesas"
-	far.mesh = MeshKit.finish(st)
-	far.material_override = rock
-	far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(far)
+	var mesas := MeshInstance3D.new()
+	mesas.name = "Mesas"
+	mesas.mesh = MeshKit.finish(st)
+	mesas.material_override = rock
+	mesas.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mesas)
+	var ground2 := func(x: float, z: float) -> float: return float(ground.call(x, z, Vector2(x - map.center.x, z - map.center.z).length()))
+	var spots: Array = [["ribs", 30.0, 720.0], ["arch", 150.0, 760.0], ["skull", 255.0, 600.0], ["legs", 330.0, 640.0],
+		["trestle", 205.0, 920.0], ["telegraph", 95.0, 560.0], ["wreck", 300.0, 980.0]]
+	ColossusBuilder.new(far, ground2).build(parent, spots)
 
 
 func _add_visual(parent: Node3D, node_name: String, mesh: ArrayMesh, mat: Material, shadows: bool = true) -> void:
@@ -441,7 +453,7 @@ func _build_buttes(parent: Node3D) -> void:
 	_add_visual(parent, "LakeCracks", _cracks(dress.on_trail), Materials.toon(0.0), false)
 	_add_visual(parent, "BugFissures", _fissures(), Materials.toon(0.02))
 	dress.build(parent)
-	var desert := func(x: float, z: float, _r: float) -> float: return floor_at(cb, x, z) - 0.05
+	var desert := func(x: float, z: float, _r: float) -> float: return floor_at(cb, x, z) - 0.05 + far.field(x, z).x
 	_far_scenery(parent, desert, 260.0, Materials.strata(Palette.SAND))
 
 

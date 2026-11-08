@@ -4,8 +4,11 @@
 // sand with scrubby patches and pebble flecks, pale sand in the washes, caliche
 // hardpan with cracks in the basins and a darker varnished tint on mesa tops,
 // and sand drifts onto low ledges. Bands too thin to draw fade to their average.
-// `masks` on: vertex colour = (wash, mesa top, caliche) for the ground. Off: it
-// tints the rock (formations), and 1 - alpha bleaches it (pale cap stones).
+// `masks` on: vertex colour = (wash, mesa top, caliche) for the ground, and
+// alpha = 1 - sand: the far lands' dunes (FarLands), golden sand all over, steep
+// slip faces too, with wind ripples close by; strong caliche reads as a white
+// salt pan. Off: it tints the rock (formations), and 1 - alpha bleaches it
+// (pale cap stones).
 shader_type spatial;
 render_mode cull_disabled;
 
@@ -24,11 +27,17 @@ uniform vec4 wash_color : source_color = vec4(0.87, 0.74, 0.54, 1.0);
 uniform vec4 caliche_color : source_color = vec4(0.84, 0.76, 0.62, 1.0);
 uniform vec4 top_varnish : source_color = vec4(0.62, 0.36, 0.25, 1.0);
 uniform vec4 scrub_color : source_color = vec4(0.55, 0.52, 0.30, 1.0);
+uniform vec4 dune_color : source_color = vec4(0.91, 0.64, 0.36, 1.0);
+uniform vec4 dune_crest : source_color = vec4(0.97, 0.78, 0.50, 1.0);
+uniform vec4 salt_color : source_color = vec4(0.91, 0.85, 0.75, 1.0);
+uniform vec2 wind = vec2(0.88, 0.47);
 uniform float band_height = 2.6;
 uniform float base_y = 100.0;
 uniform float tint_gain = 1.27;
 uniform bool masks = true;
 uniform sampler2D noise_tex : filter_linear_mipmap, repeat_enable;
+
+#include "res://shaders/weather_surface.gdshaderinc"
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -105,7 +114,7 @@ void fragment() {
 	vec3 flat_c = sand_color.rgb * mix(0.9, 1.06, mid);
 	float scrub = smoothstep(0.6, 0.7, texture(noise_tex, world_pos.xz * 0.021).r);
 	flat_c = mix(flat_c, scrub_color.rgb, scrub * 0.3 * (1.0 - m.r));
-	flat_c = mix(flat_c, caliche_color.rgb, m.b);
+	flat_c = mix(flat_c, mix(caliche_color.rgb, salt_color.rgb, smoothstep(0.55, 0.95, m.b)), m.b);
 	if (near > 0.0 && m.b > 0.05) {
 		float c = cracks(world_pos.xz * 0.45);
 		flat_c = mix(flat_c, flat_c * 0.66, (1.0 - smoothstep(0.02, 0.07, c)) * m.b * near);
@@ -120,6 +129,16 @@ void fragment() {
 	peb *= near * (1.0 - m.r) * (1.0 - m.b);
 	flat_c = mix(flat_c, varnish.rgb * 1.3, peb * 0.5);
 
+	// Salt pans: a white crust over everything else, cracked into plates close by.
+	float salt = smoothstep(0.55, 0.95, m.b);
+	if (salt > 0.0) {
+		vec3 crust = salt_color.rgb * mix(0.93, 1.03, mid);
+		if (near > 0.0) {
+			float c = cracks(world_pos.xz * 0.18);
+			crust = mix(crust, crust * 0.8, (1.0 - smoothstep(0.02, 0.06, c)) * near);
+		}
+		flat_c = mix(flat_c, crust, salt);
+	}
 	float up = smoothstep(0.62, 0.8, wn.y);
 	// Sand drifted onto the low ledges.
 	float drift = smoothstep(0.35, 0.6, wn.y) * (1.0 - smoothstep(base_y - 18.0, base_y + 4.0, world_pos.y));
@@ -128,8 +147,18 @@ void fragment() {
 	if (!masks) {
 		col *= vmask.rgb * tint_gain;
 		col = mix(col, caliche_color.rgb * mix(0.9, 1.0, mid), 1.0 - vmask.a);
+	} else if (vmask.a < 0.999) {
+		// Dunes: sand over everything, paler toward the crests, wind ripples close by.
+		float sand = 1.0 - vmask.a;
+		vec2 wn2 = normalize(wind);
+		float along = dot(world_pos.xz, wn2);
+		float ripple = sin(along * 2.1 + (mid - 0.5) * 9.0 + sin(dot(world_pos.xz, vec2(-wn2.y, wn2.x)) * 0.35) * 1.5);
+		float rip_fade = 1.0 - smoothstep(25.0, 90.0, dist);
+		vec3 dune = mix(dune_color.rgb, dune_crest.rgb, smoothstep(base_y + 5.0, base_y + 45.0, world_pos.y) * 0.7);
+		dune *= mix(0.95, 1.04, big) * (1.0 + ripple * 0.035 * rip_fade);
+		col = mix(col, dune, smoothstep(0.0, 0.35, sand));
 	}
-	ALBEDO = col;
+	ALBEDO = weather_tint(col, wn);
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }

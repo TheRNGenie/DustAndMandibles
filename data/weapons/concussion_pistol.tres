@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"concussion_pistol"
+slot = 1
+display_name = "Concussion Pistol"
+description = "A sawn brass barrel loaded with nothing but powder. All push, no punch: the blast knocks climbers off the wall and tumbles ground bugs back."
+damage = 8.0
+mag_size = 2
+fire_interval = 0.5
+reload_time = 1.4
+pellets = 1
+range = 20.0
+price_chitin = 25
+upgrade_costs = PackedInt32Array(10, 25)
+shake = 0.8
+sound = &"cannon"
+recoil_deg = 6.0
+recoil_yaw_deg = 1.0
+recoil_recover = 0.4
+role = "Knockback"
+special = &"concuss"
+sound_pitch = 1.5
+kickback = 3.0

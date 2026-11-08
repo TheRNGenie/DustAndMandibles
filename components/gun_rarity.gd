@@ -1,6 +1,6 @@
 class_name GunRarity
 extends RefCounted
-## Gun rarity, the gunsmith's Rarity tab. Every gun starts Common (white) and is
+## Gun rarity, the gunsmith's Upgrades tab. Every gun starts Common (white) and is
 ## upgraded through Uncommon (green), Rare (blue) and Epic (purple). Legendary
 ## (gold) also takes a piece of Meteor Iron, the rare drop from bosses. A gun's
 ## rarity is its WeaponMods.level (0-4), so a dropped or stored gun keeps it.

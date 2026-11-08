@@ -9,6 +9,8 @@ extends Node3D
 ## needs no network sync (the games talk to the host).
 
 const NAME := "The Lucky Mandible"
+## The booths' detailed models (the gunsmith's paint and wares are added here).
+const GUNSMITH_ART := preload("res://gen/airship_props_art.gd")
 ## Where it hangs: its boarding ring 45 m straight above the crown of the
 ## northern great arch (crown at about (6.7, 96.7, 21.5)), the ship stretching
 ## away north so there's a clear line to the ring from both arches.
@@ -239,12 +241,6 @@ func _ready() -> void:
 		# bow and the market (the way you walk in from the boarding ring).
 		table.rotation.y = PI
 		add_child(table)
-	# Pearl's cashier cage against the port rail, by the card tables: chips for the games.
-	var cage := ChipCage.new()
-	cage.name = "ChipCage"
-	cage.position = Vector3(-AirshipBuilder.DECK_W * 0.5 + 0.9, 0, -6.2)
-	cage.rotation.y = -PI * 0.5 # (customers on its -Z side, so that faces the deck)
-	add_child(cage)
 	var bar := MeshInstance3D.new()
 	bar.mesh = _bar_mesh()
 	bar.material_override = Materials.toon(0.02)
@@ -268,8 +264,8 @@ func _ready() -> void:
 ## ladder. Visual only: no collision, no layout change.
 const DECK_PROPS := [
 	["crates", Vector3(-7.1, 0, -15.6), 0.3], ["barrel", Vector3(7.2, 0, -15.8), 0.0],
-	["barrel", Vector3(6.3, 0, -16.1), 1.2], ["rope_coil", Vector3(-7.0, 0, 15.6), 0.0],
-	["crates", Vector3(7.1, 0, 15.5), -0.4], ["barrel", Vector3(-7.3, 0, 6.2), 0.5],
+	["barrel", Vector3(6.3, 0, -16.1), 1.2], ["rope_coil", Vector3(-4.6, 0, 16.2), 0.0],
+	["crates", Vector3(7.0, 0, 16.3), -0.4], ["barrel", Vector3(-7.3, 0, 4.9), 0.5],
 ]
 
 
@@ -303,40 +299,56 @@ func _richer_deck() -> void:
 			add_child(lamp)
 
 
-## The market at the stern: the produce vendor and the gunsmith either side of
-## the walk in from the boarding ring, facing each other across the deck.
+## The traders, all at the front of the ship by the boarding ring (Logan's
+## layout), two down each rail with the walk in from the ladder clear between
+## them. Walking in from the ladder (toward -Z), port (-X) is on your left:
+## Lucky Moreau's black market close on the left, Lucky himself leaning on the
+## rail beside it looking out; Pearl's cashier cage behind it; the produce stand
+## close on the right and the gunsmith behind it. Each booth's back is to its
+## rail, its counter facing across the deck (customers on a booth's -Z side).
+const BOOTH_X := AirshipBuilder.DECK_W * 0.5 - 1.05
+## The two rows, between the canopy posts (z = 5.6, 11.2, 16.8).
+const ROW_CLOSE := 13.9
+const ROW_BACK := 8.4
+
+
 func _add_market() -> void:
 	var vendor := VendorCart.new()
 	vendor.name = "Vendor"
 	vendor.setup(WorldLayout.WEST)
-	vendor.position = Vector3(-4.2, 0, 9.5)
-	vendor.rotation.y = -PI * 0.5
+	vendor.position = Vector3(BOOTH_X, 0, ROW_CLOSE)
+	vendor.rotation.y = PI * 0.5
 	add_child(vendor)
 	var shop := GunShop.new()
 	shop.name = "GunShop"
 	shop.setup(WorldLayout.WEST)
-	shop.position = Vector3(4.2, 0, 9.5)
+	shop.position = Vector3(BOOTH_X, 0, ROW_BACK)
 	shop.rotation.y = PI * 0.5
 	add_child(shop)
-	# Hive amber: Lucky Moreau's booth by the starboard rail, between the casino and
-	# the market (it shows itself once he's aboard: Amber.lucky_open).
+	GUNSMITH_ART.gunsmith_dress(shop)
+	# Pearl's cashier cage: chips for the games.
+	var cage := ChipCage.new()
+	cage.name = "ChipCage"
+	cage.position = Vector3(-BOOTH_X, 0, ROW_BACK)
+	cage.rotation.y = -PI * 0.5
+	add_child(cage)
+	# Hive amber: Lucky Moreau's booth (it shows itself once he's aboard:
+	# Amber.lucky_open).
 	var lucky := LuckyStall.new()
 	lucky.name = "Lucky"
-	lucky.position = Vector3(6.55, 0, 4.4)
-	lucky.rotation.y = PI * 0.5
+	lucky.position = Vector3(-AirshipBuilder.DECK_W * 0.5 + 1.0, 0, ROW_CLOSE - 0.6)
+	lucky.rotation.y = -PI * 0.5
 	add_child(lucky)
-	# Lucky himself, always aboard: leaning on the starboard rail just forward of
-	# his booth, smoking, looking out over the canyon (his shop opens from him).
+	# Lucky himself, always aboard: leaning on the port rail just forward of his
+	# booth, smoking, looking out over the canyon (his shop opens from him).
 	var lucky_npc := LuckyNpc.new()
 	lucky_npc.name = "LuckyMoreau"
 	lucky_npc.stall = lucky
-	lucky_npc.position = Vector3(AirshipBuilder.DECK_W * 0.5 - 0.62, 0, 2.0)
-	lucky_npc.rotation.y = -PI * 0.5
+	lucky_npc.position = Vector3(-AirshipBuilder.DECK_W * 0.5 + 0.62, 0, ROW_CLOSE + 1.95)
+	lucky_npc.rotation.y = PI * 0.5
 	add_child(lucky_npc)
-	# Painted wooden signboards hung from the canopy on ropes, facing the boarding ring.
-	for sx: float in [-1.0, 1.0]:
-		_signboard(Vector3(sx * 4.2, AirshipBuilder.ROOF_Y - 0.95, 9.5),
-				"res://assets/airship/market.png" if sx < 0 else "res://assets/airship/gunsmith.png", 2.6 if sx < 0 else 3.0)
+	# (The painted MARKET and GUNSMITH boards that hung from the canopy are off:
+	# each booth carries its own sign now. _signboard() is kept for later.)
 
 
 const RING_Y := 0.9
@@ -413,19 +425,25 @@ func _add_boarding_ring() -> void:
 
 
 ## A plank signboard with painted lettering, hanging on two ropes. Faces +Z.
-func _signboard(at: Vector3, texture_path: String, width: float) -> void:
+## A painted signboard hung from the canopy on two ropes, its face turned by
+## `yaw` (0 faces +Z, the boarding ring).
+func _signboard(at: Vector3, texture_path: String, width: float, yaw: float = 0.0) -> void:
 	var tex: Texture2D = load(texture_path)
 	var h := width * float(tex.get_height()) / float(tex.get_width()) + 0.2
+	var pivot := Node3D.new()
+	pivot.position = at
+	pivot.rotation.y = yaw
+	add_child(pivot)
 	var st := MeshKit.begin()
-	MeshKit.add_box(st, Transform3D(Basis(), at), Vector3(width + 0.3, h, 0.08), Palette.WOOD_DARK)
-	MeshKit.add_box(st, Transform3D(Basis(), at + Vector3(0, 0, 0.045)), Vector3(width + 0.1, h - 0.1, 0.02), Palette.WOOD)
+	MeshKit.add_box(st, Transform3D(), Vector3(width + 0.3, h, 0.08), Palette.WOOD_DARK)
+	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0, 0.045)), Vector3(width + 0.1, h - 0.1, 0.02), Palette.WOOD)
 	for s: float in [-1.0, 1.0]:
-		var top := Vector3(at.x + s * width * 0.4, AirshipBuilder.ROOF_Y, at.z)
-		MeshKit.add_limb(st, top, at + Vector3(s * width * 0.4, h * 0.5, 0), 0.025, Color("#B8955A"), 5)
+		var top := Vector3(s * width * 0.4, AirshipBuilder.ROOF_Y - at.y, 0)
+		MeshKit.add_limb(st, top, Vector3(s * width * 0.4, h * 0.5, 0), 0.025, Color("#B8955A"), 5)
 	var board := MeshInstance3D.new()
 	board.mesh = MeshKit.finish(st)
 	board.material_override = Materials.toon(0.01)
-	add_child(board)
+	pivot.add_child(board)
 	var lettering := MeshInstance3D.new()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(width, width * float(tex.get_height()) / float(tex.get_width()))
@@ -436,8 +454,8 @@ func _signboard(at: Vector3, texture_path: String, width: float) -> void:
 	m.alpha_scissor_threshold = 0.4
 	m.roughness = 1.0
 	lettering.material_override = m
-	lettering.position = at + Vector3(0, 0, 0.058)
-	add_child(lettering)
+	lettering.position = Vector3(0, 0, 0.058)
+	pivot.add_child(lettering)
 
 
 func _bar_mesh() -> ArrayMesh:

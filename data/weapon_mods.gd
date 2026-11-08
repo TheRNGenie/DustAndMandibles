@@ -114,6 +114,139 @@ const MODS: Dictionary = {
 		{"name": "Big drum", "desc": "Forty more rounds per drum.", "cost": 25, "fx": {"mag": 40}},
 		{"name": "Water jacket", "desc": "Cooler barrels: fires 25% faster and tighter.", "cost": 30, "fx": {"fire_interval": 0.8, "spread": 0.7}},
 	],
+	# ---------------------------------------------------------------- Weapon Slots: primaries
+	&"volcanic_repeater": [
+		{"name": "Long tube", "desc": "Five more rounds in the magazine.", "cost": 20, "fx": {"mag": 5}},
+		{"name": "Rocket balls", "desc": "Hotter loads: +20% damage.", "cost": 25, "fx": {"damage": 1.2}},
+		{"name": "Loading gate", "desc": "A side gate: reloads 35% faster.", "cost": 25, "fx": {"reload": 0.65}},
+	],
+	&"mares_leg": [
+		{"name": "Big loop", "desc": "A loop you can spin: cycles 25% faster.", "cost": 20, "fx": {"fire_interval": 0.75}},
+		{"name": "Heavy lead", "desc": "+20% damage.", "cost": 25, "fx": {"damage": 1.2}},
+		{"name": "Saddle scabbard", "desc": "Rides close to hand: reloads 25% faster.", "cost": 20, "fx": {"reload": 0.75}},
+	],
+	&"double_rifle": [
+		{"name": "Express loads", "desc": "+20% damage.", "cost": 30, "fx": {"damage": 1.2}},
+		{"name": "Auto ejectors", "desc": "The empties kick themselves out: reloads 30% faster.", "cost": 30, "fx": {"reload": 0.7}},
+		{"name": "Regulated barrels", "desc": "Both barrels shoot to the same point: reaches a third further.", "cost": 25, "fx": {"range": 1.35}},
+	],
+	&"trench_broom": [
+		{"name": "Buckshot", "desc": "Two more pellets in every shell.", "cost": 20, "fx": {"pellets": 2}},
+		{"name": "Extended tube", "desc": "Two more shells in the tube.", "cost": 25, "fx": {"mag": 2}},
+		{"name": "Slam fire", "desc": "Racks 25% faster.", "cost": 25, "fx": {"fire_interval": 0.75}},
+	],
+	&"ricochet_rifle": [
+		{"name": "Hardened tips", "desc": "+20% damage, bounce or not.", "cost": 25, "fx": {"damage": 1.2}},
+		{"name": "Billiard sights", "desc": "Reaches a third further.", "cost": 20, "fx": {"range": 1.35}},
+		{"name": "Showman's lever", "desc": "Cycles 25% faster.", "cost": 25, "fx": {"fire_interval": 0.75}},
+	],
+	&"howdah_pistol": [
+		{"name": "Tiger's bite", "desc": "+20% damage.", "cost": 25, "fx": {"damage": 1.2}},
+		{"name": "Quick break", "desc": "Reloads 30% faster.", "cost": 25, "fx": {"reload": 0.7}},
+		{"name": "Long barrels", "desc": "Reaches half again as far.", "cost": 20, "fx": {"range": 1.5}},
+	],
+	&"sharps_carbine": [
+		{"name": "Paper cartridges", "desc": "Reloads 30% faster.", "cost": 20, "fx": {"reload": 0.7}},
+		{"name": "Big Fifty loads", "desc": "+25% damage.", "cost": 25, "fx": {"damage": 1.25}},
+		{"name": "Vernier sight", "desc": "Reaches a third further.", "cost": 20, "fx": {"range": 1.35}},
+	],
+	&"trapdoor_springfield": [
+		{"name": "Heavy bullet", "desc": "+20% damage to every bug in the line.", "cost": 25, "fx": {"damage": 1.2}},
+		{"name": "Quick latch", "desc": "Reloads 30% faster.", "cost": 25, "fx": {"reload": 0.7}},
+		{"name": "Buckhorn sight", "desc": "Reaches a third further.", "cost": 20, "fx": {"range": 1.35}},
+	],
+	# ---------------------------------------------------------------- Weapon Slots: secondaries
+	&"screamer_pistol": [
+		{"name": "Bigger bell", "desc": "The shriek carries 40% further.", "cost": 20, "fx": {"radius": 1.4}},
+		{"name": "Banshee round", "desc": "They panic half again as long.", "cost": 25, "fx": {"effect": 1.5}},
+		{"name": "Spare round", "desc": "One more round in the gun.", "cost": 20, "fx": {"mag": 1}},
+	],
+	&"tar_sprayer": [
+		{"name": "Hot pitch", "desc": "Tar stays on 50% longer.", "cost": 20, "fx": {"effect": 1.5}},
+		{"name": "Wide nozzle", "desc": "Sprays 30% further.", "cost": 20, "fx": {"radius": 1.3}},
+		{"name": "Big can", "desc": "Forty more puffs before it runs dry.", "cost": 20, "fx": {"mag": 40}},
+	],
+	&"flashbang_pistol": [
+		{"name": "Pure magnesium", "desc": "Stuns half again as long.", "cost": 25, "fx": {"effect": 1.5}},
+		{"name": "Polished dish", "desc": "The flash reaches 40% further.", "cost": 25, "fx": {"radius": 1.4}},
+		{"name": "Third chamber", "desc": "One more shell in the gun.", "cost": 25, "fx": {"mag": 1}},
+	],
+	&"pepper_bomb_pistol": [
+		{"name": "Ghost peppers", "desc": "They rage half again as long.", "cost": 25, "fx": {"effect": 1.5}},
+		{"name": "Wide cloud", "desc": "The cloud spreads 40% further.", "cost": 25, "fx": {"radius": 1.4}},
+		{"name": "Quick break", "desc": "Reloads 30% faster.", "cost": 20, "fx": {"reload": 0.7}},
+	],
+	&"concussion_pistol": [
+		{"name": "Double charge", "desc": "Knocks bugs half again as far.", "cost": 25, "fx": {"effect": 1.5}},
+		{"name": "Wide brake", "desc": "The blast reaches 40% further.", "cost": 20, "fx": {"radius": 1.4}},
+		{"name": "Third chamber", "desc": "One more charge in the gun.", "cost": 20, "fx": {"mag": 1}},
+	],
+	&"chain_binder": [
+		{"name": "Longer chain", "desc": "Reaches half again as far.", "cost": 20, "fx": {"range": 1.5}},
+		{"name": "Barbed links", "desc": "Binds 50% longer.", "cost": 25, "fx": {"effect": 1.5}},
+		{"name": "Ratchet drum", "desc": "Rewinds 30% faster.", "cost": 25, "fx": {"reload": 0.7}},
+	],
+	&"rust_duster": [
+		{"name": "Battery acid", "desc": "Armour stays off 50% longer.", "cost": 25, "fx": {"effect": 1.5}},
+		{"name": "Long nozzle", "desc": "Sprays 30% further.", "cost": 20, "fx": {"radius": 1.3}},
+		{"name": "Bigger reservoir", "desc": "Twenty more puffs per fill.", "cost": 20, "fx": {"mag": 20}},
+	],
+	&"glow_worm_launcher": [
+		{"name": "Fat grubs", "desc": "Glow half again as long.", "cost": 20, "fx": {"effect": 1.5}},
+		{"name": "Bright strain", "desc": "Pulls bugs from 40% further.", "cost": 25, "fx": {"radius": 1.4}},
+		{"name": "Second jar", "desc": "One more grub in the tube.", "cost": 20, "fx": {"mag": 1}},
+	],
+	&"caltrops_launcher": [
+		{"name": "Rusty points", "desc": "Patches last half again as long and slow harder.", "cost": 25, "fx": {"effect": 1.5}},
+		{"name": "Wide canister", "desc": "Scatters 30% wider.", "cost": 20, "fx": {"radius": 1.3}},
+		{"name": "Third bag", "desc": "One more patch on the ground at once.", "cost": 25, "fx": {"patches": 1}},
+	],
+	&"phosphor_grenade": [
+		{"name": "Long burn", "desc": "Burns half again as long.", "cost": 25, "fx": {"effect": 1.5}},
+		{"name": "Big can", "desc": "The fire spreads 30% wider.", "cost": 25, "fx": {"radius": 1.3}},
+		{"name": "Hotter phosphor", "desc": "+40% burn damage.", "cost": 20, "fx": {"damage": 1.4}},
+	],
+	# ---------------------------------------------------------------- Weapon Slots: heavies
+	&"mortar_tube": [
+		{"name": "Packed chili", "desc": "+25% blast damage.", "cost": 30, "fx": {"damage": 1.25}},
+		{"name": "Wide burst", "desc": "The blast reaches 30% further.", "cost": 30, "fx": {"radius": 1.3}},
+		{"name": "Quick drop", "desc": "Reloads 30% faster.", "cost": 25, "fx": {"reload": 0.7}},
+	],
+	&"fire_lance": [
+		{"name": "Strong bellows", "desc": "The flame reaches 30% further.", "cost": 30, "fx": {"radius": 1.3}},
+		{"name": "Pitch-soaked wick", "desc": "The burn lasts half again as long.", "cost": 25, "fx": {"effect": 1.5}},
+		{"name": "Hot spirit", "desc": "+25% damage.", "cost": 30, "fx": {"damage": 1.25}},
+	],
+	&"organ_gun": [
+		{"name": "Choked barrels", "desc": "A 30% tighter volley.", "cost": 30, "fx": {"spread": 0.7}},
+		{"name": "Heavy balls", "desc": "+20% damage a barrel.", "cost": 30, "fx": {"damage": 1.2}},
+		{"name": "Quick crank", "desc": "Reloads 30% faster.", "cost": 30, "fx": {"reload": 0.7}},
+	],
+	&"harpoon_ballista": [
+		{"name": "Barbed head", "desc": "Pins half again as long.", "cost": 25, "fx": {"effect": 1.5}},
+		{"name": "Steel limbs", "desc": "+20% damage.", "cost": 35, "fx": {"damage": 1.2}},
+		{"name": "Geared windlass", "desc": "Draws 30% faster.", "cost": 30, "fx": {"reload": 0.7}},
+	],
+	&"acid_drencher": [
+		{"name": "Strong acid", "desc": "Armour stays off half again as long.", "cost": 30, "fx": {"effect": 1.5}},
+		{"name": "Long wand", "desc": "Sprays 30% further.", "cost": 25, "fx": {"radius": 1.3}},
+		{"name": "Concentrate", "desc": "+25% damage.", "cost": 30, "fx": {"damage": 1.25}},
+	],
+	&"swivel_gun": [
+		{"name": "Grapeshot", "desc": "Ten more pellets in the charge.", "cost": 30, "fx": {"pellets": 10}},
+		{"name": "Choke", "desc": "A 30% tighter cone that carries further.", "cost": 25, "fx": {"spread": 0.7, "range": 1.3}},
+		{"name": "Powder horn", "desc": "Reloads 30% faster.", "cost": 30, "fx": {"reload": 0.7}},
+	],
+	&"congreve_rocket": [
+		{"name": "Bigger warhead", "desc": "+25% blast damage.", "cost": 30, "fx": {"damage": 1.25}},
+		{"name": "Wide burst", "desc": "The blast reaches 30% further.", "cost": 30, "fx": {"radius": 1.3}},
+		{"name": "Long stick", "desc": "Flies half again as far.", "cost": 25, "fx": {"range": 1.5}},
+	],
+	&"bear_trap_launcher": [
+		{"name": "Strong springs", "desc": "Holds half again as long.", "cost": 25, "fx": {"effect": 1.5}},
+		{"name": "Sharp teeth", "desc": "+25% damage.", "cost": 30, "fx": {"damage": 1.25}},
+		{"name": "Spare jaws", "desc": "Two more traps set at once.", "cost": 25, "fx": {"traps": 2}},
+	],
 }
 
 

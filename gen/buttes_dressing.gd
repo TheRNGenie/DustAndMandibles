@@ -737,13 +737,17 @@ func _desert(parent: Node3D, decals: SurfaceTool, props: SurfaceTool) -> void:
 	var lake_r := MapTerrain.LAKE_R
 	# Wind-scoured pavement round the buttes, open desert, then ground fading into the haze.
 	t._add_visual(parent, "DesertApron", t.ring_rows(_radii(lake_r, 200.0, 4.0), 192, h), Materials.strata(Color("#C8A060")), false)
-	t._add_visual(parent, "Desert", t.ring_rows(_radii(200.0, 1200.0, 8.0), 192, h), Materials.strata(Color("#D9A35E")), false)
-	t._add_visual(parent, "DesertHaze", t.ring_rows(_radii(1200.0, CliffBuilder.HINTER, 40.0), 96, h), Materials.strata(Color("#DCC4A0")), false)
+	t._add_visual(parent, "Desert", t.ring_rows(_radii(200.0, t.own_r, 8.0), 192, h), Materials.strata(Color("#D9A35E")), false)
+	# The far lands past the desert (dunes, salt pans, the escarpment on the horizon).
+	var hf := func(x: float, z: float, r: float) -> float: return MapTerrain.floor_at(cb, x, z) - 0.05 + t.far.field(x, z).x
+	var far_mat := FarLands.material(8.0)
+	t._add_visual(parent, "FarLandsNear", t.far.ring(t.cb, FarLands.radii(t.own_r, 900.0, 6.0, 14.0), 360, hf), far_mat, false)
+	t._add_visual(parent, "FarLandsFar", t.far.ring(t.cb, FarLands.radii(900.0, FarLands.REACH, 14.0, 30.0), 300, hf), far_mat, false)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 9090
 	_apron(parent, decals, props, rng)
 	_rock_garden(props, decals, rng)
-	_dune_sea(parent, props, decals, rng)
+	# (The old low dune bands are under FarLands' big dunes now: _dune_sea is kept, not built.)
 
 
 func _radii(r0: float, r1: float, first: float) -> Array[float]:

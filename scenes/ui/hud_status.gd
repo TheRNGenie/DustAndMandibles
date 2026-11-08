@@ -3,8 +3,19 @@ extends Control
 ## Bottom-left: your health and your two currencies as big counters: the
 ## team's shared pot ("Team Chitin", internal &"scrap") and your own stock
 ## ("Your Scrap", internal &"chitin"); names from ResNames.
-## Vegetables and water live on the hotbar. Top corners: both
-## Homesteads' health, labelled "Yours" (left) and "Theirs" (right) for each player.
+## Vegetables and water live on the hotbar. Top corners: every Homestead's
+## health on a small name plate: yours top-left, the others stacked top-right.
+## Each plate shows its Homestead as a little cabin and a picket fence (one
+## picket per tenth of its health) rather than a bar (HomesteadGauge).
+
+## The Homestead name plates: where the first sits and how far apart they stack
+## (the wave card, kill feed and threat card sit under them).
+const HOME_TOP := 16.0
+const HOME_STEP := 60.0
+const HOME_W := 300.0
+const HomesteadGauge := preload("res://scenes/ui/homestead_gauge.gd")
+## The status block's width (the needs icons sit just right of it).
+const BLOCK_W := 300.0
 
 var cliff_id: int = 0
 var _hp_bar: ProgressBar
@@ -21,46 +32,79 @@ var _chip_row: HBoxContainer
 var _chips: Dictionary = {}
 ## Solo on the canyon: the other cliff's chitin, on a small labelled line.
 var _chitin_other: Label
-var _homes: Array[ProgressBar] = []
+## Per plate: the picket fence and the cabin, and which cliff they're showing.
+var _fences: Array = []
+var _cabins: Array = []
+var _shown: Array[int] = []
 var _captions: Array[Label] = []
+var _owners: Array[Label] = []
+var _pcts: Array[Label] = []
 var _downed: Label
 ## Hunger / thirst icons beside the health panel, only shown when running low.
 var _food_icon: NeedIcon
 var _water_icon: NeedIcon
 
 
+## The bottom edge of the Homestead plates stacked top-right (the wave card,
+## kill feed and partner alerts start under it).
+static func right_stack_bottom() -> float:
+	return HOME_TOP + HOME_STEP * maxf(WorldLayout.cliff_count() - 1, 1) - 6.0
+
+
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UiStyle.wood_sign())
+	var panel := KeyHints.plate("plate_tight")
 	panel.anchor_top = 1.0
 	panel.anchor_bottom = 1.0
 	panel.offset_left = 24
-	panel.offset_top = -132
-	panel.offset_right = 300
-	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN # a second stockpile line grows it upward
+	panel.offset_right = 24 + BLOCK_W
+	panel.offset_top = -24
 	panel.offset_bottom = -24
+	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN # extra lines grow it upward
 	add_child(panel)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 6)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(col)
-	# "Health  85 / 100" over the bar, like the Homestead captions.
+	# HEALTH  ............  85 / 100, then the bar.
+	var hp_block := VBoxContainer.new()
+	hp_block.add_theme_constant_override("separation", 3)
+	hp_block.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(hp_block)
 	var hp_row := HBoxContainer.new()
-	col.add_child(hp_row)
-	var hp_caption := _hud_text("Health", 14)
+	hp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_block.add_child(hp_row)
+	var hp_caption := KeyHints.eyebrow("Health", 14)
 	hp_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hp_caption.size_flags_vertical = Control.SIZE_SHRINK_END
 	hp_row.add_child(hp_caption)
-	_hp_text = _hud_text("100 / 100", 14)
+	# Thirst and hunger: small plates beside the caption, only while running low.
+	_water_icon = NeedIcon.new()
+	_water_icon.kind = &"water"
+	hp_row.add_child(_water_icon)
+	_food_icon = NeedIcon.new()
+	_food_icon.kind = &"food"
+	hp_row.add_child(_food_icon)
+	var gap := Control.new()
+	gap.custom_minimum_size.x = 6
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_row.add_child(gap)
+	_hp_text = KeyHints.number("100 / 100", 18)
 	_hp_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hp_row.add_child(_hp_text)
-	_hp_bar = _bar(Palette.TEAM_WEST, 100.0)
-	col.add_child(_hp_bar)
+	_hp_bar = UiStyle.bar(Palette.TEAM_WEST, Vector2(BLOCK_W - 28.0, 16), 100.0)
+	hp_block.add_child(_hp_bar)
+	# The two pots side by side: eyebrow over a painted icon and a big number.
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 18)
+	row.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(row)
 	_scrap = _counter(row, ResNames.TEAM_ID, "Team " + ResNames.team_cap())
 	_scrap.tooltip_text = "%s is shared: everyone builds from this pot, and every bug killed pays its shell into it." % ResNames.team_cap()
+	var split := VSeparator.new()
+	split.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(split)
 	_chitin = _counter(row, ResNames.PERSONAL_ID, "Your " + ResNames.personal_cap())
 	_chitin.tooltip_text = "%s is yours alone: guns, gun mods and turret upgrades. Salvage the junk heap by your house each build phase; chilies sell for it too." % ResNames.personal_cap()
 	_chitin_other = _chitin.get_meta(&"other") as Label
@@ -78,63 +122,68 @@ func _ready() -> void:
 	# Hive amber (personal, like chitin): its own row under the others, only
 	# shown once you've got some.
 	_amber_row = HBoxContainer.new()
-	_amber_row.add_theme_constant_override("separation", 18)
+	_amber_row.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
 	_amber_row.visible = false
 	col.add_child(_amber_row)
 	_amber = _counter(_amber_row, AmberRules.ITEM, "Your Hive Amber")
 	_amber.tooltip_text = "Hive amber: found only on the canyon floor. Lucky Moreau on the airship takes it; the amber turrets are made of it."
-	_smoke = UiStyle.label("", 13, UiStyle.c("hud"))
-	_smoke.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_smoke.add_theme_color_override("font_outline_color", Palette.OUTLINE)
-	_smoke.add_theme_constant_override("outline_size", 4)
+	_smoke = KeyHints.ink("", 13, true)
+	_smoke.visible = false
 	col.add_child(_smoke)
-	_tonic = UiStyle.label("", 13, UiStyle.hud_c("good"))
-	_tonic.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_tonic.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_tonic.add_theme_color_override("font_outline_color", Palette.OUTLINE)
-	_tonic.add_theme_constant_override("outline_size", 4)
+	_tonic = KeyHints.ink("", 13)
+	_tonic.theme_type_variation = "GoodLabel"
 	_tonic.visible = false
 	col.add_child(_tonic)
 
-	var needs := VBoxContainer.new()
-	needs.anchor_top = 1.0
-	needs.anchor_bottom = 1.0
-	needs.offset_left = 306
-	needs.offset_top = -132
-	needs.offset_right = 346
-	needs.add_theme_constant_override("separation", 6)
-	needs.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(needs)
-	_water_icon = NeedIcon.new()
-	_water_icon.kind = &"water"
-	needs.add_child(_water_icon)
-	_food_icon = NeedIcon.new()
-	_food_icon.kind = &"food"
-	needs.add_child(_food_icon)
-
-	# Maps: one bar per cliff. Yours top-left; the others stacked top-right.
+	# Maps: one name plate per cliff. Yours top-left; the others stacked top-right.
 	for i in WorldLayout.cliff_count():
+		var plate := KeyHints.plate("plate_tight")
+		plate.anchor_left = 0.0 if i == 0 else 1.0
+		plate.anchor_right = plate.anchor_left
+		plate.offset_left = 24.0 if i == 0 else -24.0 - HOME_W
+		plate.offset_right = plate.offset_left + HOME_W
+		plate.offset_top = HOME_TOP + (0 if i == 0 else (i - 1) * HOME_STEP)
+		add_child(plate)
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 8)
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		plate.add_child(line)
+		var cabin: Control = HomesteadGauge.Cabin.new()
+		line.add_child(cabin)
 		var box := VBoxContainer.new()
-		box.anchor_left = 0.0 if i == 0 else 1.0
-		box.anchor_right = box.anchor_left
-		box.offset_left = 24.0 if i == 0 else -284.0
-		box.offset_right = box.offset_left + 260.0
-		box.offset_top = 16 + (0 if i == 0 else (i - 1) * 50)
-		add_child(box)
-		var caption := UiStyle.label("", 16, UiStyle.c("hud"))
-		caption.add_theme_color_override("font_outline_color", Palette.OUTLINE)
-		caption.add_theme_constant_override("outline_size", 6)
-		box.add_child(caption)
-		var bar := _bar(Palette.team_color(i), Defs.WAVE_CONFIG.homestead_hp)
-		box.add_child(bar)
-		_homes.append(bar)
+		box.add_theme_constant_override("separation", 1)
+		box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.add_child(box)
+		var head := HBoxContainer.new()
+		head.add_theme_constant_override("separation", 6)
+		head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(head)
+		var caption := KeyHints.ink("", 15)
+		caption.add_theme_font_override("font", UiStyle.font("bold"))
+		head.add_child(caption)
+		var owner := KeyHints.ink("", 14, true)
+		owner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		owner.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		head.add_child(owner)
+		var pct := KeyHints.number("", 15)
+		pct.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		head.add_child(pct)
+		var fence: Control = HomesteadGauge.Fence.new()
+		box.add_child(fence)
+		_fences.append(fence)
+		_cabins.append(cabin)
+		_shown.append(-1)
 		_captions.append(caption)
+		_owners.append(owner)
+		_pcts.append(pct)
 
 	_downed = UiStyle.label("", 34, UiStyle.hud_c("bad"))
 	_downed.set_anchors_preset(Control.PRESET_CENTER)
 	_downed.offset_left = -400
 	_downed.offset_right = 400
 	_downed.offset_top = -120
+	_downed.add_theme_font_override("font", UiStyle.font("number"))
 	_downed.add_theme_color_override("font_outline_color", Palette.OUTLINE)
 	_downed.add_theme_constant_override("outline_size", 10)
 	add_child(_downed)
@@ -142,8 +191,14 @@ func _ready() -> void:
 	Economy.resources_changed.connect(func(_c: int) -> void: _refresh_resources())
 	Economy.stolen_from.connect(_on_stolen)
 	GameState.homestead_changed.connect(func(_c: int, _hp: float, _mx: float) -> void: _refresh_homes())
+	UiStyle.notifier.changed.connect(_on_theme)
 	_refresh_homes()
 	_refresh_resources()
+
+
+func _on_theme() -> void:
+	_downed.add_theme_color_override("font_color", UiStyle.hud_c("bad"))
+	_refresh_homes()
 
 
 func _process(_delta: float) -> void:
@@ -171,7 +226,8 @@ func bind_player(player: Player) -> void:
 		_hp_text.text = "%d / %d" % [ceili(maxf(hp, 0.0)), roundi(mx)])
 	if player.cigarette != null:
 		player.cigarette.changed.connect(func(left: float) -> void:
-			_smoke.text = ("Smoking  ·  %s  ·  Faster, Sharper Eyes" % UiStyle.clock(left)) if left > 0.0 else "")
+			_smoke.text = ("Smoking  ·  %s  ·  Faster, Sharper Eyes" % UiStyle.clock(left)) if left > 0.0 else ""
+			_smoke.visible = left > 0.0)
 	player.vitals.needs_changed.connect(func(f: float, w: float) -> void:
 		_food_icon.set_level(f)
 		_water_icon.set_level(w))
@@ -181,24 +237,14 @@ func bind_player(player: Player) -> void:
 	_refresh_resources()
 
 
-## A small left-aligned HUD caption in the set's light ink, outlined.
-func _hud_text(text: String, size: int) -> Label:
-	var l := UiStyle.label(text, size, UiStyle.c("hud"))
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	l.autowrap_mode = TextServer.AUTOWRAP_OFF
-	l.add_theme_color_override("font_outline_color", Palette.OUTLINE)
-	l.add_theme_constant_override("outline_size", 4)
-	return l
-
-
-## Top-left bar = your Homestead, the others top-right (labelled by cliff,
+## Top-left plate = your Homestead, the others top-right (labelled by cliff,
 ## with whoever holds it).
 func _refresh_homes() -> void:
 	var order: Array[int] = [cliff_id]
 	for cid in WorldLayout.cliff_count():
 		if cid != cliff_id:
 			order.append(cid)
-	for i in mini(order.size(), _homes.size()):
+	for i in mini(order.size(), _fences.size()):
 		var cid := order[i]
 		if cid >= GameState.homestead_hp.size():
 			continue
@@ -206,14 +252,22 @@ func _refresh_homes() -> void:
 		var who := Hud.owner_name(cid).replace(" (CPU)", ", CPU")
 		if who == "you" or who == "empty":
 			who = "yours" if i == 0 else who
-		_captions[i].text = "%s (%s)" % [WorldLayout.map().name_of(cid), who]
-		_homes[i].max_value = maxf(GameState.homestead_max[cid], 1.0)
-		_homes[i].value = GameState.homestead_hp[cid]
-		# (a new bar style only when the cliff in that slot or the UI theme changes)
-		var look := "%d|%s" % [cid, UiStyle.current]
-		if _homes[i].get_meta("look", "") != look:
-			_homes[i].set_meta("look", look)
-			_homes[i].add_theme_stylebox_override("fill", _fill(Palette.team_color(cid)))
+		_captions[i].text = WorldLayout.map().name_of(cid)
+		_owners[i].text = "(%s)" % who
+		var r := clampf(GameState.homestead_hp[cid] / maxf(GameState.homestead_max[cid], 1.0), 0.0, 1.0)
+		_pcts[i].text = "%d%%" % ceili(100.0 * r)
+		_pcts[i].add_theme_color_override("font_color", UiStyle.hud_c("bad") if r <= 0.25 else UiStyle.c("ink"))
+		# A hit topples pickets and jolts the cabin; a new cliff in the slot just shows.
+		var same := _shown[i] == cid
+		_shown[i] = cid
+		var fence: HomesteadGauge.Fence = _fences[i]
+		var cabin: HomesteadGauge.Cabin = _cabins[i]
+		fence.color = Palette.team_color(cid)
+		cabin.color = Palette.team_color(cid)
+		fence.set_ratio(r, same)
+		cabin.set_ratio(r, same)
+		fence.queue_redraw()
+		cabin.queue_redraw()
 
 
 func _refresh_resources() -> void:
@@ -268,40 +322,34 @@ func _on_stolen(cid: int, amounts: Dictionary) -> void:
 		flash.tween_property(counter, "modulate", Color.WHITE, 0.8)
 
 
-## A currency swatch, a small caption and a big number (plus a hidden small line
-## for the other cliff's pile, kept on the number's "other" meta).
+## A counter: an eyebrow caption over a painted currency icon and a big number
+## (plus a hidden small line for the other cliff's pile, kept on the number's
+## "other" meta).
 func _counter(parent: HBoxContainer, resource: StringName, caption: String) -> Label:
-	var box := HBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	parent.add_child(box)
-	var chip := UiStyle.resource_chip(resource, 18)
-	chip.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	var chip_box := MarginContainer.new()
-	chip_box.add_theme_constant_override("margin_top", 18)
-	chip_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	chip_box.add_child(chip)
-	box.add_child(chip_box)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", -4)
-	box.add_child(v)
-	var cap := UiStyle.label(caption, 12, Color(UiStyle.c("hud"), 0.75))
-	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	cap.autowrap_mode = TextServer.AUTOWRAP_OFF
-	v.add_child(cap)
-	var num := UiStyle.label("0", 24, UiStyle.c("hud"))
-	num.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	num.autowrap_mode = TextServer.AUTOWRAP_OFF
-	v.add_child(num)
-	var other := UiStyle.label("", 12, Color(UiStyle.c("hud"), 0.75))
-	other.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	other.autowrap_mode = TextServer.AUTOWRAP_OFF
+	v.add_theme_constant_override("separation", 0)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(v)
+	v.add_child(KeyHints.eyebrow(caption, 13))
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 6)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(line)
+	var chip := UiStyle.resource_chip(resource, 20)
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(chip)
+	var num := KeyHints.number("0", 30)
+	num.mouse_filter = Control.MOUSE_FILTER_PASS # (its tooltip)
+	line.add_child(num)
+	var other := KeyHints.ink("", 13, true)
 	other.visible = false
 	v.add_child(other)
 	num.set_meta(&"other", other)
 	return num
 
 
-static func _fill(color: Color) -> StyleBoxFlat:
+static func _fill(color: Color) -> StyleBox:
 	return UiStyle.bar_fill(color) # one bar style everywhere (UiStyle.bar)
 
 
@@ -309,7 +357,7 @@ func _bar(color: Color, max_value: float) -> ProgressBar:
 	return UiStyle.bar(color, Vector2(240, 18), max_value)
 
 
-## A small rounded card with a water drop or a corn cob, shown only when that need
+## A small HUD plate with a water drop or a corn cob, shown only when that need
 ## runs low; it fades as the need empties and its edge pulses red when nearly out.
 class NeedIcon extends Control:
 	var kind := &"water"
@@ -317,7 +365,8 @@ class NeedIcon extends Control:
 	var _t := 0.0
 
 	func _init() -> void:
-		custom_minimum_size = Vector2(36, 36)
+		custom_minimum_size = Vector2(24, 24)
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		visible = false
 
@@ -334,14 +383,12 @@ class NeedIcon extends Control:
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
 		var pulse := 0.5 + 0.5 * sin(_t * 7.0) if level < 0.12 else 0.0
-		var bg := StyleBoxFlat.new()
-		bg.bg_color = Color(Palette.WOOD_DARK, 0.9)
-		bg.border_color = Palette.OUTLINE.lerp(Palette.TEAM_WEST, pulse)
-		bg.set_border_width_all(2)
-		bg.set_corner_radius_all(6)
-		draw_style_box(bg, r)
+		draw_style_box(KeyHints.kit_box("plate_tight"), r)
+		if pulse > 0.0:
+			draw_rect(r.grow(-1.5), Color(UiStyle.hud_c("bad"), pulse * 0.9), false, 2.0)
 		var col := Color("#5FB8E8") if kind == &"water" else Color("#E8C04A")
 		var c := size * 0.5
+		draw_set_transform(c * (1.0 - size.x / 36.0), 0.0, Vector2.ONE * size.x / 36.0)
 		var pts := PackedVector2Array()
 		if kind == &"water":
 			# A drop: a point on top, round at the bottom.
@@ -362,3 +409,4 @@ class NeedIcon extends Control:
 			for k in 3:
 				var x := c.x - 3.0 + 3.0 * float(k)
 				draw_line(Vector2(x, c.y - 9.0), Vector2(x, c.y + 9.0), Color(Palette.OUTLINE, 0.5), 1.0)
+		draw_set_transform_matrix(Transform2D.IDENTITY)

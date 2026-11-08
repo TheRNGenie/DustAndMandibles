@@ -184,13 +184,13 @@ func _render(def: BugDef) -> SubViewport:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 2)
 	paper.add_child(col)
-	col.add_child(_ink("WANTED", 46, MenuScreen.INK))
+	col.add_child(_ink("WANTED", 46, MenuScreen.CARD_INK))
 	# Bosses carry their crime; everyone else is just wanted.
-	col.add_child(_ink(def.wanted_for if def.wanted_for != "" else "DEAD  OR  DEAD", 14 if def.wanted_for.length() < 26 else 12, MenuScreen.INK.lightened(0.15)))
+	col.add_child(_ink(def.wanted_for if def.wanted_for != "" else "DEAD  OR  DEAD", 14 if def.wanted_for.length() < 26 else 12, MenuScreen.CARD_INK.lightened(0.15)))
 	var frame := PanelContainer.new()
 	var fsb := StyleBoxFlat.new()
 	fsb.bg_color = Color("#D9C08A")
-	fsb.border_color = MenuScreen.INK
+	fsb.border_color = MenuScreen.CARD_INK
 	fsb.set_border_width_all(2)
 	frame.add_theme_stylebox_override("panel", fsb)
 	frame.custom_minimum_size = Vector2(0, 150)
@@ -200,7 +200,7 @@ func _render(def: BugDef) -> SubViewport:
 	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	frame.add_child(pic)
-	var name_l := _ink(def.display_name.to_upper(), 19, MenuScreen.INK)
+	var name_l := _ink(def.display_name.to_upper(), 19, MenuScreen.CARD_INK)
 	name_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(name_l)
 	col.add_child(_ink("REWARD  %d  %s" % [bounty_of(def), ResNames.team().to_upper()], 20, Color("#7A1E14")))

@@ -34,6 +34,10 @@ static func classify(source: String) -> StringName:
 		return TRAP
 	if low.ends_with("dynamite crate") or low.ends_with("'s dynamite"): # (a player's grapple dynamite too)
 		return BLAST
+	if low.ends_with("'s blast"): # Weapon Slots: the Mortar Tube's and Congreve Rocket's blasts
+		return BLAST
+	if low.ends_with("'s fire lance") or low.ends_with("'s phosphor grenade"): # Weapon Slots: fire weapons
+		return FIRE
 	if low.ends_with("'s coal oil"): # the dynamite's Coal Oil mod: survivors burn
 		return FIRE
 	if source.ends_with(SpecialShotRules.FIRE_SHELL): # Twin Mortar's fire shell

@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_def")
 id = &"pepperbox"
+slot = 0
 display_name = "Pepperbox Revolver"
 description = "Six barrels bored into one spinning block. Pull, pull, pull: a wild spray of lead that's murder at arm's length and a prayer past it. Reloads all six at once."
 damage = 18.0

@@ -162,8 +162,8 @@ func menu_build_body(body: Control, _screen: MenuScreen) -> void:
 	else:
 		var felt := PanelContainer.new()
 		# Theme: the table is always baize with a gold rail (the Snake Eyes felt, whatever the set).
-		var sb := StyleBoxTexture.new()
-		UiStyle._fill_box(sb, "icon", &"snake")
+		var sb := UiStyle.box_for(&"snake", "paper")
+		sb.rule = Color(UiStyle.kc("accent", &"snake"), 0.55)
 		sb.set_content_margin_all(16)
 		felt.add_theme_stylebox_override("panel", sb)
 		felt.custom_minimum_size.y = 210
@@ -181,9 +181,12 @@ func menu_build_body(body: Control, _screen: MenuScreen) -> void:
 			ui_choice = i
 			ui_changed.emit()))
 		body.add_child(pick)
+	# The rail under the table: stake chips, the dealer's call, the buttons.
+	var rail := UiStyle.panel("CardPanel")
+	body.add_child(rail)
 	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 14)
-	body.add_child(bar)
+	bar.add_theme_constant_override("separation", 18)
+	rail.add_child(bar)
 	var bets := ui_bets()
 	if not bets.is_empty():
 		var col := VBoxContainer.new()
@@ -205,7 +208,8 @@ func menu_build_body(body: Control, _screen: MenuScreen) -> void:
 		bar.add_child(col)
 	# The dealer's call (the result once the animation has played out).
 	var busy := ui_busy() or (board == null and bool(view.get("spinning", false)))
-	var result := MenuScreen.ink_label(busy_text() if busy else result_text(), 19, MenuScreen.INK)
+	var result := MenuScreen.ink_label(busy_text() if busy else result_text(), 20, UiStyle.c("ink"))
+	result.add_theme_font_override("font", UiStyle.font("bold"))
 	result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	result.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	result.custom_minimum_size.x = 200
@@ -214,15 +218,21 @@ func menu_build_body(body: Control, _screen: MenuScreen) -> void:
 	var actions := HBoxContainer.new()
 	actions.alignment = BoxContainer.ALIGNMENT_END
 	actions.add_theme_constant_override("separation", 10)
-	actions.size_flags_vertical = Control.SIZE_SHRINK_END
+	actions.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.add_child(actions)
 	if Brand.local_banned(): # Brand: a caught cheat sits out
 		var barred := MenuScreen.ink_label("The pit boss has barred you from the tables until wave %d." % Brand.ban_wave(multiplayer.get_unique_id()), 17, UiStyle.c("bad"))
 		body.add_child(barred)
 		return
+	var first := true
 	for a: Array in ui_actions():
 		var btn := MenuScreen.wood_button(str(a[1]))
-		btn.custom_minimum_size.x = 130
+		btn.custom_minimum_size = Vector2(140, 46)
+		btn.add_theme_font_size_override("font_size", UiStyle.ts(18))
+		# Deal, Spin, Pull: the screen's one call to action (never Clear Bets).
+		if first and not str(a[1]).to_lower().begins_with("clear"):
+			btn.theme_type_variation = "PrimaryButton"
+			first = false
 		btn.disabled = ui_busy()
 		var id: StringName = a[0]
 		btn.pressed.connect(func() -> void: ui_press(id))
@@ -236,7 +246,7 @@ func ui_press(id: StringName) -> void:
 
 
 static func _caption(t: String) -> Label:
-	var l := MenuScreen.ink_label(t, 14, UiStyle.c("ink_soft"))
+	var l := UiStyle.eyebrow(t, 14)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	return l
 
@@ -307,7 +317,7 @@ func _draw_view(table: VBoxContainer) -> void:
 				rs.set_corner_radius_all(8)
 				reel.add_theme_stylebox_override("panel", rs)
 				reel.custom_minimum_size = Vector2(150, 110)
-				var l := MenuScreen.ink_label(str(sym), 24, Color("#B3261E") if str(sym) == "STAR" else MenuScreen.INK)
+				var l := MenuScreen.ink_label(str(sym), 24, Color("#B3261E") if str(sym) == "STAR" else MenuScreen.CARD_INK)
 				l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 				reel.add_child(l)
 				line.add_child(reel)

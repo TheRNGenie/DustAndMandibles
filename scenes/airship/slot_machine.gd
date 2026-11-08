@@ -21,8 +21,14 @@ const STOPS: Array[float] = [1.0, 1.45, 1.9]
 const TEASE := 0.8
 const COUNT_TIME := 1.3
 
+const ART := preload("res://gen/airship_props_art.gd")
+## Each cabinet's lacquer and the name on its crest (by node name, Slots0, Slots1...).
+const CABINETS: Array = [[Color("#7A1E1A"), "GOLD RUSH"], [Color("#1E4A3A"), "BUG BANDIT"], [Color("#2A3A6A"), "LUCKY STRIKE"]]
+
 var _arm: MeshInstance3D
 var _arm_t := 9.0
+## The cabinet's three real reels (they spin to the rolled stops).
+var _reels: Array[Node3D] = []
 ## Where each reel rests (strip index at the payline) and this spin's travel.
 var stops: Array[int] = [3, 8, 14]
 var spin_from: Array[float] = [3.0, 8.0, 14.0]
@@ -31,26 +37,16 @@ var spin_dist: Array[float] = [0.0, 0.0, 0.0]
 
 func _ready() -> void:
 	super._ready()
-	var st := MeshKit.begin()
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.75, 0)), Vector3(0.9, 1.5, 0.7), Color("#7A2E22"))
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 1.6, 0)), Vector3(0.95, 0.25, 0.75), Palette.GLOW_YELLOW.darkened(0.3))
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 1.05, -0.36)), Vector3(0.7, 0.35, 0.03), Palette.BONE)
-	for k in 3:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(-0.22 + k * 0.22, 1.05, -0.38)), Vector3(0.16, 0.26, 0.02), [Color("#B3261E"), Palette.CACTUS, Palette.GLOW_YELLOW][k])
-	MeshKit.add_box(st, Transform3D(Basis(), Vector3(0, 0.5, -0.36)), Vector3(0.5, 0.12, 0.05), Palette.METAL)
-	for k in 5:
-		MeshKit.add_ellipsoid(st, Transform3D(Basis(), Vector3(-0.36 + k * 0.18, 1.78, -0.3)), Vector3.ONE * 0.05, 3, 6, Palette.GLOW_YELLOW, 0.0, null, 0.9)
-	var mi := MeshInstance3D.new()
-	mi.mesh = MeshKit.finish(st)
-	mi.material_override = Materials.toon(0.015)
-	add_child(mi)
-	var arm_st := MeshKit.begin()
-	MeshKit.add_cylinder(arm_st, Transform3D(Basis(), Vector3(0, 0.3, 0)), 0.03, 0.03, 0.6, 6, Palette.METAL)
-	MeshKit.add_ellipsoid(arm_st, Transform3D(Basis(), Vector3(0, 0.62, 0)), Vector3.ONE * 0.08, 4, 8, Color("#C9302C"))
+	# A Gold Rush cabinet (gen/airship_props_art.gd): lacquer and brass, a
+	# paytable, a coin tray, a crest of bulbs, and three real reels behind the
+	# window that spin to the rolled stops for everyone watching.
+	var look: Array = CABINETS[clampi(str(name).right(1).to_int(), 0, CABINETS.size() - 1)]
+	_reels = ART.slot_cabinet(self, look[0], look[1])
+	_set_reels(9.0)
 	_arm = MeshInstance3D.new()
-	_arm.mesh = MeshKit.finish(arm_st)
-	_arm.material_override = Materials.toon(0.01)
-	_arm.position = Vector3(0.5, 1.0, 0)
+	_arm.mesh = ART.slot_arm()
+	_arm.material_override = Materials.toon_unique(0.01)
+	_arm.position = Vector3(-0.47, 1.12, 0)
 	add_child(_arm)
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
@@ -60,10 +56,20 @@ func _ready() -> void:
 	add_child(col)
 
 
-## The in-world arm: yanked down fast, then springs back up with a wobble.
+## The in-world arm: yanked down fast, then springs back up with a wobble; the
+## reels spin while it's playing out.
 func _process(delta: float) -> void:
+	var was := _arm_t
 	_arm_t += delta
 	_arm.rotation.x = -lever_pull(_arm_t) * 1.5
+	if was < last_stop() + 0.7:
+		_set_reels(_arm_t)
+
+
+## Turns the cabinet's reels to where they are `t` seconds into the spin.
+func _set_reels(t: float) -> void:
+	for i in _reels.size():
+		_reels[i].rotation.x = -reel_pos(i, t) * TAU / float(STRIPS[i].size())
 
 
 ## How far the lever is down (0..1) `t` seconds after a pull.

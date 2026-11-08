@@ -68,13 +68,14 @@ func _build() -> void:
 	col.add_theme_constant_override("separation", 12)
 	card.add_child(col)
 	_dial = Dial.new()
-	_dial.custom_minimum_size = Vector2(0, 170)
+	_dial.custom_minimum_size = Vector2(0, 200)
 	col.add_child(_dial)
 	_code = LineEdit.new()
 	_code.placeholder_text = "Code"
 	_code.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_code.custom_minimum_size.y = 44
-	_code.add_theme_font_size_override("font_size", 22)
+	_code.add_theme_font_size_override("font_size", UiStyle.ts(26))
+	_code.add_theme_font_override("font", UiStyle.font("number"))
 	_code.max_length = 32
 	_code.text_changed.connect(func(_t: String) -> void: _dial.turn(randf_range(-0.6, 0.6)))
 	_code.text_submitted.connect(func(_t: String) -> void: _try())
@@ -98,10 +99,10 @@ func _build() -> void:
 	var hints := UiStyle.paper_hints([["Enter", "Try"], ["Esc", "Close"]])
 	hints.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(hints)
-	var try_b := MenuScreen.wood_button("Try the Lock")
+	var try_b := UiStyle.primary_button("Try the Lock")
 	try_b.pressed.connect(_try)
 	row.add_child(try_b)
-	var close_b := MenuScreen.wood_button("Close")
+	var close_b := UiStyle.ghost_button("Close")
 	close_b.pressed.connect(close)
 	row.add_child(close_b)
 
@@ -169,32 +170,44 @@ class Dial extends Control:
 		create_tween().tween_property(self, "_open", 1.0, 0.6).set_delay(0.5)
 
 	func _process(delta: float) -> void:
+		if not is_visible_in_tree() or (absf(_angle - _target) < 0.0005 and _open <= 0.0):
+			return # (nothing turning: no redraw)
 		_angle = lerpf(_angle, _target, minf(delta * 8.0, 1.0))
 		queue_redraw()
 
 	func _draw() -> void:
 		var c := size * 0.5
 		var r := minf(size.y * 0.42, 80.0)
-		var ink := UiStyle.c("ink")
-		var trim := UiStyle.c("gold")
-		# Door plate and hinge bolts.
-		draw_rect(Rect2(c - Vector2(r * 1.7, r * 1.15), Vector2(r * 3.4, r * 2.3)), Color(ink, 0.12), true)
-		draw_rect(Rect2(c - Vector2(r * 1.7, r * 1.15), Vector2(r * 3.4, r * 2.3)), Color(ink, 0.7), false, 3.0)
+		var dark := UiStyle.c("rim")
+		var trim := UiStyle.c("accent")
+		var hi := UiStyle.c("accent_hi")
+		# The safe door: a recessed steel plate in the kit's shape, hinge bolts on the left.
+		var door := Rect2(c - Vector2(r * 1.75, r * 1.2), Vector2(r * 3.5, r * 2.4))
+		UiStyle.box_for(UiStyle.current, "well").draw(get_canvas_item(), door)
 		for y: float in [-0.8, 0.8]:
-			draw_circle(c + Vector2(-r * 1.5, r * y), 5.0, trim.darkened(0.2))
-		# The dial: ring, ticks and the pointer notch.
-		draw_circle(c, r, Color(ink, 0.85))
-		draw_circle(c, r * 0.86, trim.darkened(0.15))
-		draw_arc(c, r * 0.86, 0.0, TAU, 48, Color(ink, 0.6), 2.0, true)
+			draw_circle(c + Vector2(-r * 1.52, r * y), 6.0, dark, true, -1.0, true)
+			draw_circle(c + Vector2(-r * 1.52, r * y), 4.5, trim.darkened(0.15), true, -1.0, true)
+			draw_circle(c + Vector2(-r * 1.52 - 1.5, r * y - 1.5), 1.5, Color(1, 1, 1, 0.5), true, -1.0, true)
+		# The dial: a dark bezel, a brass face lit from the top left, ticks and numbers' marks.
+		draw_circle(c + Vector2(0, 4), r * 1.02, Color(0, 0, 0, 0.45), true, -1.0, true)
+		draw_circle(c, r, dark, true, -1.0, true)
+		draw_circle(c, r * 0.9, trim.darkened(0.25), true, -1.0, true)
+		draw_circle(c + Vector2(-r * 0.06, -r * 0.08), r * 0.8, trim, true, -1.0, true)
+		draw_arc(c, r * 0.9, 0.0, TAU, 64, Color(hi, 0.7), 1.5, true)
 		for i in 40:
 			var a := _angle + i * TAU / 40.0
 			var long := i % 5 == 0
-			draw_line(c + Vector2.from_angle(a) * r * (0.62 if long else 0.7), c + Vector2.from_angle(a) * r * 0.82, ink, 2.0 if long else 1.0, true)
-		draw_circle(c, r * 0.32, trim.darkened(0.35))
-		draw_circle(c, r * 0.18, trim.lightened(0.2))
-		draw_colored_polygon(PackedVector2Array([c + Vector2(-7, -r - 10), c + Vector2(7, -r - 10), c + Vector2(0, -r + 2)]), UiStyle.c("bad"))
+			draw_line(c + Vector2.from_angle(a) * r * (0.6 if long else 0.7), c + Vector2.from_angle(a) * r * 0.84, Color(dark, 0.9), 2.4 if long else 1.2, true)
+		draw_circle(c, r * 0.34, dark, true, -1.0, true)
+		draw_circle(c, r * 0.28, trim.darkened(0.3), true, -1.0, true)
+		draw_circle(c + Vector2(-r * 0.05, -r * 0.05), r * 0.16, hi, true, -1.0, true)
+		# The pointer notch over the dial.
+		draw_colored_polygon(PackedVector2Array([c + Vector2(-8, -r - 12), c + Vector2(8, -r - 12), c + Vector2(0, -r + 3)]), hi)
+		draw_polyline(PackedVector2Array([c + Vector2(-8, -r - 12), c + Vector2(8, -r - 12), c + Vector2(0, -r + 3), c + Vector2(-8, -r - 12)]), dark, 1.5, true)
 		# The handle swings when it opens.
-		var h := c + Vector2(r * 1.35, 0)
-		var hand := Vector2.from_angle(lerpf(-PI * 0.5, 0.0, _open)) * r * 0.55
-		draw_line(h, h + hand, ink, 7.0, true)
-		draw_circle(h, 8.0, trim)
+		var h := c + Vector2(r * 1.38, 0)
+		var hand := Vector2.from_angle(lerpf(-PI * 0.5, 0.0, _open)) * r * 0.58
+		draw_line(h, h + hand, dark, 9.0, true)
+		draw_line(h, h + hand, trim.lightened(0.1), 5.0, true)
+		draw_circle(h, 9.0, dark, true, -1.0, true)
+		draw_circle(h, 6.5, trim, true, -1.0, true)

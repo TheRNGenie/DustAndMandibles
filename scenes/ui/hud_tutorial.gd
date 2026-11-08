@@ -25,7 +25,7 @@ var _forced := false
 
 
 func _ready() -> void:
-	add_theme_stylebox_override("panel", KeyHints.card_style())
+	add_theme_stylebox_override("panel", KeyHints.kit_box("plate"))
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	anchor_top = 0.3
 	anchor_bottom = 0.3
@@ -91,18 +91,20 @@ func _rebuild(step: int) -> void:
 		c.queue_free()
 	var s: Dictionary = STEPS[step]
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 4)
+	col.add_theme_constant_override("separation", 6)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(col)
 	var head := HBoxContainer.new()
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(head)
-	var tag := KeyHints.text("FIRST DAY", 12, Palette.GLOW_YELLOW)
+	var tag := KeyHints.eyebrow("First Day", 13)
 	tag.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(tag)
 	head.add_child(_pips(step))
-	col.add_child(KeyHints.text(str(s["title"]), 18, Palette.BONE))
-	var body := KeyHints.text(str(s["body"]), 14, Palette.BONE.darkened(0.25))
+	var title := KeyHints.ink(str(s["title"]), 18)
+	title.add_theme_font_override("font", UiStyle.font("bold"))
+	col.add_child(title)
+	var body := KeyHints.ink(str(s["body"]), 15, true)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.custom_minimum_size.x = 300
 	col.add_child(body)
@@ -142,8 +144,8 @@ class Pip extends Control:
 		var c := size * 0.5
 		draw_circle(c, 5.0, Palette.OUTLINE)
 		if state == 2:
-			draw_circle(c, 3.5, Palette.GLOW_YELLOW)
+			draw_circle(c, 3.5, UiStyle.c("accent_hi"))
 		elif state == 1:
-			draw_circle(c, 3.5, Palette.BONE)
+			draw_circle(c, 3.5, UiStyle.c("ink"))
 		else:
-			draw_circle(c, 3.5, Palette.WOOD)
+			draw_circle(c, 3.5, UiStyle.c("faint"))

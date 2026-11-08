@@ -18,6 +18,14 @@ var _mark_t := 0.0
 var _drowsy_t := 0.0
 ## Queen's Bell (hive amber): turned on its neighbours instead of climbing.
 var _frenzy_t := 0.0
+## Rust Duster / Acid Drencher: armour eaten away (every hit pierces).
+var _strip_t := 0.0
+## Tar Sprayer: coated in pitch (slowed, and fire burns it twice as hard).
+var _tar_t := 0.0
+## Flashbang: dazzled: rooted, and it doesn't bite or spit either.
+var _stun_t := 0.0
+## Tar doubles burn damage.
+const TAR_BURN_MULT := 2.0
 
 
 func _init(b: Object) -> void:
@@ -35,6 +43,8 @@ func root(seconds: float) -> void:
 
 func burn(dps: float, seconds: float, source: String, source_cliff: int) -> void:
 	dps *= bug.def.damage_mult(&"fire") # kill-method variants (Sootback / Ironback / Stoneshell)
+	if is_tarred():
+		dps *= TAR_BURN_MULT # Tar Sprayer: pitch burns hot
 	_burn_dps = maxf(_burn_dps, dps)
 	_burn_t = maxf(_burn_t, seconds)
 	_burn_source = source
@@ -69,6 +79,35 @@ func is_frenzied() -> bool:
 	return _frenzy_t > 0.0
 
 
+## Rust Duster / Acid Drencher: its armour is gone for `seconds` (every hit pierces).
+func strip(seconds: float) -> void:
+	_strip_t = maxf(_strip_t, seconds)
+
+
+func is_stripped() -> bool:
+	return _strip_t > 0.0
+
+
+## Tar Sprayer: slowed to `factor` and tarred (burns double) for `seconds`.
+func tar(factor: float, seconds: float) -> void:
+	slow(factor, seconds)
+	_tar_t = maxf(_tar_t, seconds)
+
+
+func is_tarred() -> bool:
+	return _tar_t > 0.0
+
+
+## Flashbang: frozen in place and not attacking for `seconds`.
+func stun(seconds: float) -> void:
+	root(seconds)
+	_stun_t = maxf(_stun_t, seconds)
+
+
+func is_stunned() -> bool:
+	return _stun_t > 0.0
+
+
 ## Hive amber: sealed in an Amber Kiln statue (no burning through the resin).
 func _encased() -> bool:
 	var e: Variant = (bug as Object).get("entombed") if bug is Object else null
@@ -91,6 +130,9 @@ func tick(delta: float) -> void:
 	_mark_t = maxf(_mark_t - delta, 0.0)
 	_drowsy_t = maxf(_drowsy_t - delta, 0.0)
 	_frenzy_t = maxf(_frenzy_t - delta, 0.0)
+	_strip_t = maxf(_strip_t - delta, 0.0)
+	_tar_t = maxf(_tar_t - delta, 0.0)
+	_stun_t = maxf(_stun_t - delta, 0.0)
 	if _burn_t > 0.0 and not _encased():
 		_burn_t -= delta
 		bug.health.take_damage(_burn_dps * delta, _burn_source, _burn_cliff)

@@ -15,6 +15,21 @@ var _scope: ScopeOverlay
 var _phase_label: Label
 var _phase_icon: PhaseIcon
 var _hint_label: Label
+## The plaque's figures: the wave number, and one live figure with its caption.
+var _wave_box: VBoxContainer
+var _wave_num: Label
+var _stat_box: VBoxContainer
+var _stat_cap: Label
+var _stat_val: Label
+var _sep_a: VSeparator
+var _sep_b: VSeparator
+## The ammo sign: the gun's name, the mag size beside the count, the cartridges.
+var _ammo_name: Label
+var _ammo_max: Label
+var _pips: AmmoPips
+## The ammo sign's own copy of the HUD plate (tighter margins), refilled on a set swap.
+var _ammo_plate: KitBox
+const AMMO_BIG := 48
 ## "[G] not yet" under the plaque while the ready countdown runs.
 var status: HudStatus
 var feed: HudFeed
@@ -93,22 +108,53 @@ func _ready() -> void:
 	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_crosshair)
 
-	var ammo_sign := PanelContainer.new()
-	ammo_sign.theme_type_variation = "HudPanel" # Theme
+	# The ammo sign, bottom-right: the gun's name, a big count over the mag
+	# size, and a row of cartridges that empties as you shoot.
+	var ammo_sign := KeyHints.plate()
 	ammo_sign.anchor_left = 1.0
 	ammo_sign.anchor_right = 1.0
 	ammo_sign.anchor_top = 1.0
 	ammo_sign.anchor_bottom = 1.0
-	ammo_sign.offset_left = -190
-	ammo_sign.offset_top = -86
+	ammo_sign.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	ammo_sign.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	ammo_sign.offset_left = -24
 	ammo_sign.offset_right = -24
+	ammo_sign.offset_top = -24
 	ammo_sign.offset_bottom = -24
+	ammo_sign.custom_minimum_size = Vector2(0, 0) # (Logan: narrow, no empty space: it hugs what it shows)
+	var tight := (KeyHints.kit_box("plate").duplicate() as KitBox)
+	tight.content_margin_left = 12
+	tight.content_margin_right = 12
+	tight.content_margin_top = 7
+	tight.content_margin_bottom = 8
+	ammo_sign.add_theme_stylebox_override("panel", tight)
+	_ammo_plate = tight
 	add_child(ammo_sign)
-	_ammo_label = Label.new()
-	_ammo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_ammo_label.add_theme_font_size_override("font_size", 30)
-	_ammo_label.theme_type_variation = "HudLabel" # Theme
-	ammo_sign.add_child(_ammo_label)
+	var ammo_col := VBoxContainer.new()
+	ammo_col.add_theme_constant_override("separation", 0)
+	ammo_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ammo_sign.add_child(ammo_col)
+	_ammo_name = KeyHints.eyebrow("", 13)
+	_ammo_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_ammo_name.autowrap_mode = TextServer.AUTOWRAP_OFF # (the card widens a little for a long name rather than cutting it)
+	_ammo_name.custom_minimum_size.x = 0
+	ammo_col.add_child(_ammo_name)
+	var ammo_row := HBoxContainer.new()
+	ammo_row.alignment = BoxContainer.ALIGNMENT_END
+	ammo_row.add_theme_constant_override("separation", 6)
+	ammo_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ammo_col.add_child(ammo_row)
+	_ammo_label = KeyHints.number("", AMMO_BIG)
+	_ammo_label.add_theme_constant_override("line_spacing", -6)
+	ammo_row.add_child(_ammo_label)
+	_ammo_max = KeyHints.number("", 22)
+	_ammo_max.theme_type_variation = "SoftInkLabel"
+	_ammo_max.add_theme_font_override("font", UiStyle.font("number"))
+	_ammo_max.size_flags_vertical = Control.SIZE_SHRINK_END
+	ammo_row.add_child(_ammo_max)
+	_pips = AmmoPips.new()
+	ammo_col.add_child(_pips)
+
 
 	_blackout = ColorRect.new()
 	_blackout.color = Color.BLACK
@@ -130,37 +176,53 @@ func _ready() -> void:
 	_center_label.add_theme_constant_override("outline_size", 8)
 	add_child(_center_label)
 
-	var banner := PanelContainer.new()
-	banner.theme_type_variation = "HudPanel" # Theme
+	# The phase plaque: a ticket pinned top-centre. The phase's shape, the wave
+	# number, the time of day (and weather, heat) and one live figure (bugs
+	# left, levers thrown, the ride-in clock), then one short line on what to do.
+	var banner := KeyHints.plate("ticket")
 	banner.anchor_left = 0.5
 	banner.anchor_right = 0.5
-	banner.offset_left = -230
-	banner.offset_right = 230
+	banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	banner.offset_left = 0
+	banner.offset_right = 0
 	banner.offset_top = 14
 	add_child(banner)
-	# The phase plaque: wave and time of day, and one short line on what to do.
 	var plaque := VBoxContainer.new()
 	plaque.add_theme_constant_override("separation", 0)
+	plaque.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	banner.add_child(plaque)
 	# The phase reads by shape as well as words: a sun for daybreak, a warning
 	# triangle when dust is on the horizon, a bug while a wave is on.
 	var phase_row := HBoxContainer.new()
 	phase_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	phase_row.add_theme_constant_override("separation", 8)
+	phase_row.add_theme_constant_override("separation", 14)
+	phase_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plaque.add_child(phase_row)
 	_phase_icon = PhaseIcon.new()
 	phase_row.add_child(_phase_icon)
+	_wave_box = _figure(phase_row, "Wave")
+	_wave_num = _wave_box.get_child(1) as Label
+	_sep_a = VSeparator.new()
+	phase_row.add_child(_sep_a)
 	_phase_label = Label.new()
 	_phase_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_phase_label.add_theme_font_size_override("font_size", 22)
-	_phase_label.theme_type_variation = "HudLabel" # Theme
+	_phase_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_phase_label.size_flags_vertical = Control.SIZE_FILL
+	_phase_label.theme_type_variation = "HeaderTitle"
+	_phase_label.add_theme_font_size_override("font_size", UiStyle.ts(22))
+	_phase_label.add_theme_constant_override("outline_size", 4)
+	_phase_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	phase_row.add_child(_phase_label)
+	_sep_b = VSeparator.new()
+	phase_row.add_child(_sep_b)
+	_stat_box = _figure(phase_row, "Bugs Left")
+	_stat_cap = _stat_box.get_child(0) as Label
+	_stat_val = _stat_box.get_child(1) as Label
 	_plaque_font()
 	UiStyle.notifier.changed.connect(_plaque_font)
-	_hint_label = Label.new()
+	_hint_label = KeyHints.ink("", 14, true)
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint_label.add_theme_font_size_override("font_size", 14)
-	_hint_label.add_theme_color_override("font_color", UiStyle.c("hud").darkened(0.2))
+	_hint_label.visible = false
 	plaque.add_child(_hint_label)
 	GameState.ready_countdown_changed.connect(func(_s: float) -> void: _update_hint())
 	GameState.levers_changed.connect(_update_hint) # Waterworks
@@ -192,7 +254,7 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 	_dyn_player = player
 	player.gun.hit_confirmed.connect(func(weak: bool) -> void: (_crosshair as Crosshair).flash(weak))
 	(_crosshair as Crosshair).grapple = player.grapple
-	player.gun.reload_started.connect(func(_d: float) -> void: _ammo_label.text = "Reloading")
+	player.gun.reload_started.connect(func(_d: float) -> void: _ammo_show("Reloading", "", 0, -1))
 	_speed_lines.player = player
 	player.combo.bind_bugs(bugs)
 	combo.bind(player)
@@ -215,6 +277,7 @@ var _dyn_player: Player
 var _dyn_hint: Control
 var _dyn_hint_text := ""
 var _dyn_sign := false
+var _dyn_count := -1
 
 
 func _update_dynamite_hud() -> void:
@@ -222,13 +285,14 @@ func _update_dynamite_hud() -> void:
 	var dyn := p.dynamite if p != null and is_instance_valid(p) else null
 	var on := dyn != null and dyn.owns_r()
 	if on:
-		_ammo_label.text = "Dynamite %d / %d" % [dyn.bundles, DynamiteRules.MAX_BUNDLES]
-		if not _dyn_sign:
-			_ammo_label.add_theme_font_size_override("font_size", 21)
+		if not _dyn_sign or dyn.bundles != _dyn_count:
+			_dyn_count = dyn.bundles
+			_ammo_name.text = "Dynamite"
+			_ammo_show(str(dyn.bundles), "/ %d" % DynamiteRules.MAX_BUNDLES, dyn.bundles, DynamiteRules.MAX_BUNDLES)
 		_dyn_sign = true
 	elif _dyn_sign:
 		_dyn_sign = false
-		_ammo_label.add_theme_font_size_override("font_size", 30)
+		_dyn_count = -1
 		if p != null and is_instance_valid(p) and p.gun.def != null:
 			_on_ammo_changed(p.gun.ammo, p.gun.mag_size())
 	var text := dyn.hint() if on else ""
@@ -238,16 +302,17 @@ func _update_dynamite_hud() -> void:
 			_dyn_hint.queue_free()
 			_dyn_hint = null
 		if text != "":
-			_dyn_hint = KeyHints.row([[KeyHints.key_for("reload"), text]])
-			# Under the crosshair, clear of the backpack card on the canyon floor.
+			# Under the crosshair on a small plate, clear of the backpack card on the canyon floor.
+			_dyn_hint = KeyHints.plate("plate_tight")
+			_dyn_hint.add_child(KeyHints.row([[KeyHints.key_for("reload"), text]]))
 			_dyn_hint.anchor_left = 0.5
 			_dyn_hint.anchor_right = 0.5
 			_dyn_hint.anchor_top = 0.5
 			_dyn_hint.anchor_bottom = 0.5
-			_dyn_hint.offset_left = -160
-			_dyn_hint.offset_right = 160
+			_dyn_hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
+			_dyn_hint.offset_left = 0
+			_dyn_hint.offset_right = 0
 			_dyn_hint.offset_top = 46
-			_dyn_hint.offset_bottom = 72
 			add_child(_dyn_hint)
 
 
@@ -267,17 +332,43 @@ func _process(_delta: float) -> void:
 			get_tree().get_nodes_in_group("players").size()]
 
 
-## The plaque in the set's display face, unless that face is too ornate to read at a glance.
+## The plaque's time of day in the set's display face, unless that face is too
+## ornate to read at a glance (then the kit's bold UI face). The centre message
+## follows the set's title colour.
 func _plaque_font() -> void:
-	for l: Label in [_phase_label, _ammo_label]:
-		if l == null:
-			continue
-		if UiStyle.display_is_decorative():
-			l.remove_theme_font_override("font")
-		else:
-			l.add_theme_font_override("font", UiStyle.display_font())
+	if _ammo_plate != null: # the ammo sign's tighter plate follows the set too
+		var m := [_ammo_plate.content_margin_left, _ammo_plate.content_margin_top, _ammo_plate.content_margin_right, _ammo_plate.content_margin_bottom]
+		_ammo_plate.copy_from(KeyHints.kit_box("plate"))
+		_ammo_plate.content_margin_left = m[0]
+		_ammo_plate.content_margin_top = m[1]
+		_ammo_plate.content_margin_right = m[2]
+		_ammo_plate.content_margin_bottom = m[3]
+	if UiStyle.display_is_decorative():
+		_phase_label.add_theme_font_override("font", UiStyle.font("bold"))
+	else:
+		_phase_label.remove_theme_font_override("font")
+	if _center_label != null:
+		_center_label.add_theme_color_override("font_color", UiStyle.c("title"))
+		_center_label.add_theme_color_override("font_outline_color", UiStyle.c("outline"))
 
 
+## A caption over a figure ("WAVE" / "3"), for the plaque.
+func _figure(parent: Control, caption: String) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", -7)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(v)
+	var cap := KeyHints.eyebrow(caption, 12)
+	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(cap)
+	var num := KeyHints.number("", 30)
+	num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(num)
+	return v
+
+
+## Runs every frame, but only sets text (a Label ignores an unchanged string).
 func _update_phase_label() -> void:
 	var title: String = UiStyle.tc(str(PHASE_NAMES.get(GameState.phase, "")).to_lower())
 	if DayCycle.instance != null and (GameState.phase == GameState.Phase.BUILD or GameState.phase == GameState.Phase.WAVE):
@@ -285,23 +376,35 @@ func _update_phase_label() -> void:
 		if GameState.weather != Weather.Kind.CLEAR:
 			title += SEP + UiStyle.tc(str(Weather.NAMES[GameState.weather]).to_lower())
 		title += SEP + "%d°F" % int(round(GameState.temperature()))
-	if GameState.phase == GameState.Phase.LOBBY:
-		_phase_label.text = title
-	elif GameState.phase == GameState.Phase.WAVE:
+	_phase_label.text = title
+	var lobby := GameState.phase == GameState.Phase.LOBBY
+	_wave_box.visible = not lobby
+	_sep_a.visible = not lobby
+	_stat_box.visible = not lobby
+	_sep_b.visible = not lobby
+	if lobby:
+		return
+	_wave_num.text = str(GameState.wave)
+	if GameState.phase == GameState.Phase.WAVE:
 		var left := BugManager.instance.alive_count() if is_instance_valid(BugManager.instance) else get_tree().get_nodes_in_group("bugs").size()
-		_phase_label.text = "Wave %d%s%s%s%d Bug%s Left" % [GameState.wave, SEP, title, SEP, left, "" if left == 1 else "s"]
+		_stat_cap.text = "Bug Left" if left == 1 else "Bugs Left"
+		_stat_val.text = str(left)
 	elif GameState.phase == GameState.Phase.BUILD and GameState.ready_countdown >= 0.0:
-		_phase_label.text = "Wave %d%sRiding in %s" % [GameState.wave, SEP, UiStyle.clock(GameState.ready_countdown)]
+		_stat_cap.text = "Riding In"
+		_stat_val.text = UiStyle.clock(GameState.ready_countdown)
 	elif GameState.phase == GameState.Phase.BUILD and not GameState.has_flag("--fast"):
-		_phase_label.text = "Wave %d%s%s%sLevers %d / %d" % [GameState.wave, SEP, title, SEP, GameState.skip_votes, maxi(NetworkManager.players.size(), 1)]
+		_stat_cap.text = "Levers"
+		_stat_val.text = "%d / %d" % [GameState.skip_votes, maxi(NetworkManager.players.size(), 1)]
 	else:
-		_phase_label.text = "Wave %d%s%s%s%s" % [GameState.wave, SEP, title, SEP, UiStyle.clock(GameState.time_left)]
+		_stat_cap.text = "Time"
+		_stat_val.text = UiStyle.clock(GameState.time_left)
 
 
 func _flash_phase() -> void:
 	_update_hint()
 	_phase_icon.queue_redraw()
 	var tw := create_tween()
+	_phase_label.pivot_offset = _phase_label.size * 0.5
 	_phase_label.scale = Vector2(1.15, 1.15)
 	tw.tween_property(_phase_label, "scale", Vector2.ONE, 0.25)
 
@@ -324,10 +427,29 @@ func _update_hint() -> void:
 
 func _on_ammo_changed(current: int, max_ammo: int) -> void:
 	var g := _scope.gun if _scope != null else null
+	if g != null and is_instance_valid(g) and g.def != null:
+		_ammo_name.text = UiStyle.tc(g.def.display_name)
 	if g != null and is_instance_valid(g) and g.def != null and g.def.special == &"smoke":
-		_ammo_label.text = "%d%%" % roundi(100.0 * current / maxf(max_ammo, 1)) # Bee Smoker: its fuel, as a share
+		# Bee Smoker: its fuel, as a share (the cartridges become a gauge).
+		_ammo_show("%d%%" % roundi(100.0 * current / maxf(max_ammo, 1)), "Fuel", current, max_ammo, true)
 		return
-	_ammo_label.text = "%d / %d" % [current, max_ammo]
+	_ammo_show(str(current), "/ %d" % max_ammo, current, max_ammo)
+
+
+## Sets the ammo sign: the big figure, the small one beside it, the cartridges
+## (`max_ammo` < 0 leaves them empty: reloading). Changes only what changed.
+func _ammo_show(big: String, small: String, current: int, max_ammo: int, gauge: bool = false) -> void:
+	_ammo_label.text = big
+	var size := AMMO_BIG if big.length() <= 4 else 28
+	if _ammo_label.get_meta(&"fs", 0) != size:
+		_ammo_label.set_meta(&"fs", size)
+		_ammo_label.add_theme_font_size_override("font_size", UiStyle.ts(size))
+	_ammo_max.text = small
+	_ammo_max.visible = small != ""
+	if max_ammo < 0:
+		_pips.set_ammo(0, _pips.mag, _pips.gauge)
+	else:
+		_pips.set_ammo(current, max_ammo, gauge)
 
 
 func _show_message(text: String) -> void:
@@ -603,13 +725,79 @@ class ScopeOverlay extends Control:
 			draw_polyline(b, ink, 1.2, true)
 
 
+## The ammo sign's row of cartridges, right-aligned: a brass round for each one
+## in the mag, an empty case for each one fired. Big mags (and the Bee Smoker's
+## fuel) show as a segmented gauge instead. Redraws only when the count changes.
+class AmmoPips extends Control:
+	const MAX_ROUNDS := 16
+	const SEGMENTS := 20
+	var current := 0
+	var mag := 0
+	var gauge := false
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(60, 14)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _ready() -> void:
+		UiStyle.notifier.changed.connect(queue_redraw)
+
+	func set_ammo(cur: int, mx: int, as_gauge: bool = false) -> void:
+		if cur == current and mx == mag and as_gauge == gauge:
+			return
+		current = cur
+		mag = mx
+		gauge = as_gauge
+		# As wide as the rounds need (a gauge keeps a short fixed bar).
+		custom_minimum_size.x = 96.0 if (gauge or mag > MAX_ROUNDS) else clampf(mag * 10.0, 40.0, 160.0)
+		queue_redraw()
+
+	func _draw() -> void:
+		if mag <= 0:
+			return
+		var brass := UiStyle.kc("accent_hi")
+		var dim := Color(UiStyle.kc("faint"), 0.45)
+		var dark := Color(0, 0, 0, 0.55)
+		var h := size.y
+		if gauge or mag > MAX_ROUNDS:
+			# A segmented gauge, filled from the left.
+			var n := SEGMENTS
+			var gap := 2.0
+			var w := (size.x - gap * (n - 1)) / n
+			var lit := ceili(float(current) / mag * n - 0.001)
+			for i in n:
+				var r := Rect2(i * (w + gap), h * 0.3, w, h * 0.55)
+				draw_rect(r.grow(1.0), dark)
+				draw_rect(r, brass if i < lit else dim)
+			return
+		# One cartridge per round: a case with a lead tip, right-aligned.
+		var step := minf(10.0, size.x / mag)
+		var cw := minf(6.0, step - 1.5)
+		var x0 := size.x - step * mag + (step - cw) * 0.5
+		for i in mag:
+			var x := x0 + i * step
+			var full := i >= mag - current # spent rounds empty from the left
+			var body := Rect2(x, h * 0.36, cw, h * 0.64)
+			draw_rect(body.grow(1.0), dark)
+			if full:
+				draw_rect(body, brass)
+				draw_rect(Rect2(body.position, Vector2(cw * 0.35, body.size.y)), Color(1, 1, 1, 0.25))
+				var tip := PackedVector2Array([Vector2(x, h * 0.36), Vector2(x + cw * 0.5, 0.0), Vector2(x + cw, h * 0.36)])
+				draw_colored_polygon(tip, Color("#9A9AA0"))
+			else:
+				draw_rect(body, dim, false, 1.0)
+
+
 ## The plaque's phase shape: sun (building), warning triangle (a wave is
 ## coming), bug (wave on); nothing in the lobby or at the end.
 class PhaseIcon extends Control:
 	func _init() -> void:
-		custom_minimum_size = Vector2(22, 22)
+		custom_minimum_size = Vector2(28, 28)
 		size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _ready() -> void:
+		UiStyle.notifier.changed.connect(queue_redraw)
 
 	func _process(_d: float) -> void:
 		var on := GameState.phase in [GameState.Phase.BUILD, GameState.Phase.WARNING, GameState.Phase.WAVE]

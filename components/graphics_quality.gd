@@ -31,8 +31,9 @@ const SHADOW_SPLITS: Array[int] = [DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS,
 		DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS, DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS]
 const SHADOW_FILTER: Array[int] = [RenderingServer.SHADOW_QUALITY_HARD,
 		RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW, RenderingServer.SHADOW_QUALITY_SOFT_LOW]
-## Camera far plane (the wild canyon beyond the play area fades into fog first).
-const VIEW_FAR: Array[float] = [380.0, 480.0, 600.0]
+## Camera far plane (the far lands fade into the haze just before it): out to
+## the escarpment on the horizon, 2 km away, on High.
+const VIEW_FAR: Array[float] = [900.0, 1400.0, 2000.0]
 ## Viewport mesh LOD threshold (pixels of error allowed): higher drops detail sooner.
 const LOD_THRESHOLD: Array[float] = [4.0, 2.0, 1.0]
 ## Share of each particle burst actually emitted.

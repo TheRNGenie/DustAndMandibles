@@ -152,27 +152,16 @@ static func _fade(sb: StyleBoxFlat, a: float) -> void:
 
 func _draw_wheel() -> void:
 	var c := get_viewport_rect().get_center()
-	draw_circle(c, WHEEL_R + 10.0, Color(Palette.WOOD_DARK, 0.7))
-	draw_arc(c, WHEEL_R + 10.0, 0, TAU, 64, Palette.OUTLINE, 3.0)
-	var font := get_theme_default_font()
+	KeyHints.draw_wheel_disc(self, c, WHEEL_R, _aim)
 	for i in 4:
 		var ang := -PI * 0.5 + float(i) * PI * 0.5
 		var dir := Vector2(cos(ang), sin(ang))
 		var id: StringName = DummyActions.EMOTES[i]
 		var on := i == _choice
 		var at := c + dir * WHEEL_R * 0.72
-		var r := 30.0 if on else 24.0
-		draw_circle(at, r, Color(Palette.BONE, 1.0 if on else 0.6))
-		draw_arc(at, r, 0, TAU, 32, Palette.OUTLINE, 2.0)
+		var r := KeyHints.draw_wheel_slot(self, at, on, Palette.BONE)
 		_draw_icon(id, at, r * 0.55)
-		var label: String = DummyActions.EMOTE_NAMES[id]
-		var w := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
-		var lp := at + Vector2(-w * 0.5, -40) if i == 0 else (at + Vector2(-w * 0.5, 52) if i == 2 else
-				(at + Vector2(42, 5) if i == 1 else at + Vector2(-42 - w, 5)))
-		draw_string_outline(font, lp, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, 4, Palette.OUTLINE)
-		draw_string(font, lp, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Palette.GLOW_YELLOW if on else Palette.BONE)
-	draw_line(c, c + _aim.limit_length(WHEEL_R * 0.5), Palette.BONE, 3.0)
-	draw_circle(c, 5.0, Palette.BONE)
+		KeyHints.draw_wheel_label(self, at, i, UiStyle.tc(str(DummyActions.EMOTE_NAMES[id])), on)
 
 
 ## Little drawn icons: a hat, a waving hand's motion lines, an arrow, a "?".

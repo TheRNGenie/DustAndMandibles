@@ -96,6 +96,58 @@ const PART_OVERRIDES: Dictionary = {
 ## Parts that stretch rather than tile (small or smooth ones).
 const STRETCHED: Array[String] = ["slider", "slider_fill", "scroll", "scroll_grab", "scroll_grab_hl", "chip", "chip_bad"]
 
+## The kit (2026-11 redesign): the shapes and colours every surface is drawn from.
+## Dark-first: menus sit on deep, grained plates (leather, burlap, gunmetal, felt,
+## chitin) with the set's metal for rules and highlights; text is light. Paper is
+## kept for real documents (the Gazette, telegrams, letters). Per set:
+##   corner 0 cut ("ticket") / 1 round; cs / cs_btn corner sizes; grain tile and how
+##   strong it reads; stitch = the inset rule is a stitched line; studs = corner rivets;
+##   deep (windows), surface (content), raised (buttons, cards), well (fields, troughs);
+##   accent / accent_hi (rules, focus, fills); text / soft / faint; title; knob motif.
+const KIT: Dictionary = {
+	&"base": {
+		"corner": 0, "cs": 12.0, "cs_btn": 7.0, "grain": "leather", "grain_a": 0.26, "stitch": true, "studs": true,
+		"deep": ["#2A1C13", "#160E09"], "surface": ["#30221A", "#21170F"], "raised": ["#4A3424", "#36251A"], "well": "#120B07",
+		"rim": "#0A0604", "accent": "#D29E48", "accent_hi": "#F2C46A", "text": "#F4E8D0", "soft": "#C8B293", "faint": "#8C7862",
+		"title": "#F2C14E", "knob": "star", "backdrop": ["#2B1B12", "#0C0705"],
+	},
+	&"sheaf": {
+		"corner": 1, "cs": 14.0, "cs_btn": 9.0, "grain": "burlap", "grain_a": 0.2, "stitch": true, "studs": false,
+		"deep": ["#25301A", "#141B0D"], "surface": ["#2B3820", "#1C2513"], "raised": ["#3E4E2B", "#2C391E"], "well": "#0E1408",
+		"rim": "#080C04", "accent": "#D9B252", "accent_hi": "#F3D27A", "text": "#F4EED6", "soft": "#C9C3A0", "faint": "#8D8B6C",
+		"title": "#F1D27A", "knob": "seed", "backdrop": ["#28331B", "#0D1208"],
+	},
+	&"irons": {
+		"corner": 0, "cs": 9.0, "cs_btn": 5.0, "grain": "metal", "grain_a": 0.22, "stitch": false, "studs": true,
+		"deep": ["#222932", "#12161B"], "surface": ["#262E37", "#191E24"], "raised": ["#36404B", "#262D35"], "well": "#0A0D10",
+		"rim": "#05070A", "accent": "#C29038", "accent_hi": "#E8BE68", "text": "#E9EDF1", "soft": "#AEB7C1", "faint": "#76808A",
+		"title": "#E8C06A", "knob": "rivet", "backdrop": ["#232A33", "#0A0D10"],
+	},
+	&"snake": {
+		"corner": 1, "cs": 16.0, "cs_btn": 10.0, "grain": "felt", "grain_a": 0.24, "stitch": false, "studs": false,
+		"deep": ["#3A170E", "#1E0A05"], "surface": ["#17452C", "#0E2D1C"], "raised": ["#1F5536", "#153E27"], "well": "#08190F",
+		"rim": "#120503", "accent": "#D9B355", "accent_hi": "#F2D07A", "text": "#FFF6E8", "soft": "#D2C6AE", "faint": "#93887A",
+		"title": "#E9C46A", "knob": "chip", "backdrop": ["#17472D", "#06180E"],
+	},
+	&"mandibles": {
+		"corner": 0, "cs": 14.0, "cs_btn": 8.0, "grain": "chitin", "grain_a": 0.16, "stitch": false, "studs": true,
+		"deep": ["#12302B", "#081A17"], "surface": ["#163833", "#0E2522"], "raised": ["#1E4A43", "#143430"], "well": "#061311",
+		"rim": "#030A09", "accent": "#E09A38", "accent_hi": "#B9F06E", "text": "#E8F6EE", "soft": "#A6C6BC", "faint": "#6B8A82",
+		"title": "#B9F06E", "knob": "hex", "backdrop": ["#143631", "#040E0C"],
+	},
+}
+
+## The surfaces the kit draws (shared boxes, filled in place when the set swaps).
+const KIT_PARTS: Array[String] = ["frame", "paper", "poster", "header", "button", "button_hover", "button_pressed",
+	"button_disabled", "focus", "tab", "tab_hover", "tab_selected", "card", "card_hover", "icon", "field", "field_focus",
+	"slider", "slider_fill", "scroll", "scroll_grab", "scroll_grab_hl", "hud", "chip", "chip_bad", "popup", "popup_hover",
+	"primary", "primary_hover", "primary_pressed", "ghost", "ghost_hover", "doc", "well"]
+
+const FONT_BODY := "res://assets/fonts/BarlowSemiCondensed-Medium.ttf"
+const FONT_BOLD := "res://assets/fonts/BarlowSemiCondensed-SemiBold.ttf"
+const FONT_LABEL := "res://assets/fonts/BarlowCondensed-SemiBold.ttf"
+const FONT_NUMBER := "res://assets/fonts/BarlowCondensed-Bold.ttf"
+
 static var _boxes: Dictionary = {}
 static var _textures: Dictionary = {}
 static var _display: FontVariation
@@ -128,10 +180,22 @@ static func apply(set_id: StringName) -> void:
 	if set_id == current and _installed and not _boxes.is_empty():
 		return
 	current = set_id
-	for part: String in PARTS:
-		_fill_box(box(part), part, set_id)
+	_icons.clear()
+	# Refill the shared boxes quietly. The default theme holds them, so each
+	# box's own "changed" re-themed every control in the tree, a few times per
+	# box (it froze a running game for about 6 s, then crawled while the queued
+	# updates drained). The one theme notification below covers them all.
+	for part: String in KIT_PARTS:
+		var sb := box(part)
+		sb.set_block_signals(true)
+		_fill_box(sb, part, set_id)
+		sb.set_block_signals(false)
 	_fill_font(set_id)
-	_write_theme(ThemeDB.get_default_theme())
+	# Write the theme into a fresh one, then merge it in: merge_with sends a
+	# single change instead of one per item.
+	var fresh := Theme.new()
+	_write_theme(fresh)
+	ThemeDB.get_default_theme().merge_with(fresh)
 	_sync_static_colors()
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null and tree.root != null:
@@ -146,8 +210,7 @@ static func set_name(set_id: StringName = current) -> String:
 ## A colour of the current set: ink, ink_soft, title, outline, btn, tab, tab_sel,
 ## accent, gold, good, bad, dim, hud, bg.
 static func c(key: String) -> Color:
-	var s: Dictionary = SETS.get(current if current != &"" else &"base", SETS[&"base"])
-	return Color(str(s.get(key, "#FF00FF")))
+	return color_of(current if current != &"" else &"base", key)
 
 
 static func ink() -> Color:
@@ -156,9 +219,9 @@ static func ink() -> Color:
 
 ## The shared StyleBoxTexture for a part (frame, paper, poster, header, button,
 ## tab, card, icon, field, hud, chip...). Changes in place when the set swaps.
-static func box(part: String) -> StyleBoxTexture:
+static func box(part: String) -> KitBox:
 	if not _boxes.has(part):
-		_boxes[part] = StyleBoxTexture.new()
+		_boxes[part] = KitBox.new()
 		if _installed and current != &"":
 			_fill_box(_boxes[part], part, current)
 	return _boxes[part]
@@ -172,20 +235,8 @@ static func texture(set_id: StringName, part: String) -> Texture2D:
 	return _textures[key]
 
 
-static func _fill_box(sb: StyleBoxTexture, part: String, set_id: StringName) -> void:
-	var m: Array = (PART_OVERRIDES.get(set_id, {}) as Dictionary).get(part, PARTS.get(part, [8, 8, 4, 4]))
-	sb.texture = texture(set_id, part)
-	sb.texture_margin_left = m[0]
-	sb.texture_margin_right = m[0]
-	sb.texture_margin_top = m[1]
-	sb.texture_margin_bottom = m[1]
-	sb.content_margin_left = m[2]
-	sb.content_margin_right = m[2]
-	sb.content_margin_top = m[3]
-	sb.content_margin_bottom = m[3]
-	var mode := StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH if part in STRETCHED else StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
-	sb.axis_stretch_horizontal = mode
-	sb.axis_stretch_vertical = mode
+static func _fill_box(sb: KitBox, part: String, set_id: StringName) -> void:
+	sb.copy_from(KitBox.make(spec_for(set_id, part)))
 
 
 # ------------------------------------------------------------------ fonts
@@ -235,10 +286,259 @@ static func _fill_font(set_id: StringName) -> void:
 	f.variation_opentype = ot
 
 
+# ------------------------------------------------------------------ the kit
+
+static var _fonts: Dictionary = {}
+
+
+## The set's kit entry (shapes, surfaces and text colours).
+static func kit(set_id: StringName = current) -> Dictionary:
+	return KIT.get(set_id if set_id != &"" else &"base", KIT[&"base"])
+
+
+## A kit colour of a set ("accent", "text", "well"...); surfaces given as
+## [top, bottom] answer their `index` end.
+static func kc(key: String, set_id: StringName = current, index: int = 0) -> Color:
+	var v: Variant = kit(set_id).get(key, "#FF00FF")
+	if v is Array:
+		return Color(str((v as Array)[index]))
+	return Color(str(v))
+
+
+## Text colours on the kit's dark surfaces, by the old names (the screens ask for
+## "ink" on a panel: that's the light text now).
+static func _kit_color(key: String, set_id: StringName) -> Variant:
+	if set_id == &"":
+		set_id = &"base"
+	match key:
+		"ink", "btn": return kc("text", set_id)
+		"ink_soft", "tab": return kc("soft", set_id)
+		"tab_sel", "focus": return kc("accent_hi", set_id)
+		"btn_hover": return kc("text", set_id).lightened(0.4)
+		"btn_off": return kc("faint", set_id)
+		"btn_outline", "outline": return kc("rim", set_id)
+		"title": return kc("title", set_id)
+		"good": return Color(str(SETS[set_id]["good_hud"]))
+		"bad": return Color(str(SETS[set_id]["bad_hud"]))
+		"warn": return Color(str(SETS[set_id]["warn_hud"]))
+		"bg": return kc("deep", set_id, 1)
+		"hud_bg": return Color(kc("surface", set_id, 1), 0.86)
+		"hud_rim": return Color(kc("accent", set_id), 0.5)
+		"faint": return kc("faint", set_id)
+		"accent_hi": return kc("accent_hi", set_id)
+		"rim": return kc("rim", set_id)
+		"well": return kc("well", set_id)
+		"accent": return kc("accent", set_id)
+	return null
+
+
+## A colour of any set (brand previews show every set side by side).
+static func color_of(set_id: StringName, key: String) -> Color:
+	var k: Variant = _kit_color(key, set_id)
+	if k is Color:
+		return k
+	return Color(str((SETS.get(set_id, SETS[&"base"]) as Dictionary).get(key, "#FF00FF")))
+
+
+static func _grain(name: String) -> Texture2D:
+	var path := "res://assets/ui/kit/grain_%s.png" % name
+	if not _textures.has(path):
+		_textures[path] = load(path) if ResourceLoader.exists(path) else null
+	return _textures[path]
+
+
+## A new box of one kit part for any set (brand previews; screens that tint a copy).
+static func box_for(set_id: StringName, part: String) -> KitBox:
+	return KitBox.make(spec_for(set_id, part))
+
+
+## The settings of one kit part for a set.
+static func spec_for(set_id: StringName, part: String) -> Dictionary:
+	var k := kit(set_id)
+	var cut: int = KitBox.Corner.ROUND if int(k["corner"]) == 1 else KitBox.Corner.CUT
+	var cs: float = k["cs"]
+	var cb: float = k["cs_btn"]
+	var acc := kc("accent", set_id)
+	var hi := kc("accent_hi", set_id)
+	var rim := kc("rim", set_id)
+	var well := kc("well", set_id)
+	var grain := _grain(str(k["grain"]))
+	var ga: float = k["grain_a"]
+	var stitch := 4.0 if bool(k["stitch"]) else 0.0
+	var studs := acc.darkened(0.05) if bool(k["studs"]) else Color(0, 0, 0, 0)
+	var deep0 := kc("deep", set_id, 0)
+	var deep1 := kc("deep", set_id, 1)
+	var surf0 := kc("surface", set_id, 0)
+	var surf1 := kc("surface", set_id, 1)
+	var rai0 := kc("raised", set_id, 0)
+	var rai1 := kc("raised", set_id, 1)
+	var snake := set_id == &"snake"
+	match part:
+		"frame", "poster":
+			# The window around a menu (Snake Eyes: a mahogany rail round the felt).
+			return {"corner": cut, "corner_size": cs, "fill_top": deep0, "fill_bottom": deep1, "grain": _grain("wood") if snake else grain,
+				"grain_color": Color(0, 0, 0, 0.3 if snake else ga), "burn": Color(0, 0, 0, 0.55), "burn_size": 10.0,
+				"rim": rim, "rim_width": 2.0, "rule": Color(acc, 0.6), "rule_inset": 6.0, "rule_width": 1.3, "rule_dash": stitch,
+				"studs": studs, "stud_radius": 2.6, "shadow": Color(0, 0, 0, 0.55), "shadow_offset": Vector2(0, 10), "shadow_size": 22.0,
+				"lip": Color(1, 1, 1, 0.07), "margin": [24, 20] if part == "frame" else [30, 26]}
+		"paper":
+			return {"corner": cut, "corner_size": cs * 0.6, "fill_top": surf0, "fill_bottom": surf1, "grain": grain,
+				"grain_color": Color(0, 0, 0, ga * 0.75), "burn": Color(0, 0, 0, 0.4), "burn_size": 9.0,
+				"rim": Color(0, 0, 0, 0.6), "rim_width": 1.2, "rule": Color(acc, 0.16), "rule_inset": 3.0, "lip": Color(1, 1, 1, 0.05), "margin": [20, 16]}
+		"header":
+			return {"corner": cut, "corner_size": cs * 0.6, "corner_mask": 15, "fill_top": deep0.darkened(0.25), "fill_bottom": deep1.darkened(0.3),
+				"grain": grain, "grain_color": Color(0, 0, 0, ga), "rim": Color(0, 0, 0, 0.5), "rim_width": 1.0,
+				"bar_side": 2, "bar": acc, "bar_width": 2.0, "lip": Color(1, 1, 1, 0.06), "margin": [22, 10, 22, 13]}
+		"button", "button_hover", "button_pressed", "button_disabled":
+			var b := {"corner": cut, "corner_size": cb, "fill_top": rai0, "fill_bottom": rai1, "grain": grain, "grain_color": Color(0, 0, 0, ga * 0.8),
+				"rim": rim, "rim_width": 1.5, "rule": Color(acc, 0.3), "rule_inset": 3.0, "lip": Color(1, 1, 1, 0.11),
+				"shadow": Color(0, 0, 0, 0.4), "shadow_offset": Vector2(0, 2), "shadow_size": 3.0, "margin": [18, 7]}
+			if part == "button_hover":
+				b["fill_top"] = rai0.lightened(0.1)
+				b["fill_bottom"] = rai1.lightened(0.07)
+				b["rule"] = Color(hi, 0.9)
+				b["braces"] = hi
+				b["glow"] = Color(acc, 0.22)
+				b["glow_size"] = 6.0
+			elif part == "button_pressed":
+				b["fill_top"] = rai1.darkened(0.3)
+				b["fill_bottom"] = rai0.darkened(0.1)
+				b["rule"] = Color(hi, 0.7)
+				b["braces"] = hi
+				b["lip"] = Color(0, 0, 0, 0)
+				b["burn"] = Color(0, 0, 0, 0.5)
+				b["burn_size"] = 4.0
+				b["shadow"] = Color(0, 0, 0, 0)
+				b["margin"] = [18, 8, 18, 6]
+			elif part == "button_disabled":
+				b["fill_top"] = rai0.lerp(Color(0.25, 0.25, 0.25), 0.55).darkened(0.25)
+				b["fill_bottom"] = rai1.lerp(Color(0.2, 0.2, 0.2), 0.55).darkened(0.25)
+				b["rule"] = Color(acc, 0.08)
+				b["lip"] = Color(1, 1, 1, 0.04)
+				b["shadow"] = Color(0, 0, 0, 0.15)
+			return b
+		"primary", "primary_hover", "primary_pressed":
+			# The one call to action on a screen: the set's metal, dark text.
+			var p := {"corner": cut, "corner_size": cb, "fill_top": hi.lightened(0.05), "fill_bottom": acc.darkened(0.12),
+				"rim": rim, "rim_width": 1.5, "rule": Color(rim, 0.35), "rule_inset": 3.0, "lip": Color(1, 1, 1, 0.45),
+				"shadow": Color(0, 0, 0, 0.45), "shadow_offset": Vector2(0, 2), "shadow_size": 4.0, "margin": [20, 8]}
+			if part == "primary_hover":
+				p["fill_top"] = hi.lightened(0.22)
+				p["fill_bottom"] = acc.lightened(0.05)
+				p["braces"] = Color(rim, 0.85)
+				p["glow"] = Color(hi, 0.3)
+				p["glow_size"] = 8.0
+			elif part == "primary_pressed":
+				p["fill_top"] = acc.darkened(0.2)
+				p["fill_bottom"] = hi.darkened(0.05)
+				p["braces"] = Color(rim, 0.85)
+				p["lip"] = Color(0, 0, 0, 0)
+				p["shadow"] = Color(0, 0, 0, 0)
+				p["margin"] = [20, 9, 20, 7]
+			return p
+		"ghost", "ghost_hover":
+			# A quiet text button (Quit, Back links): no plate until hovered.
+			if part == "ghost_hover":
+				return {"corner": cut, "corner_size": cb, "fill_top": Color(acc, 0.1), "fill_bottom": Color(acc, 0.16),
+					"rim": Color(acc, 0.5), "rim_width": 1.0, "braces": hi, "margin": [14, 5]}
+			return {"corner": cut, "corner_size": cb, "draw_fill": false, "margin": [14, 5]}
+		"focus":
+			return {"corner": cut, "corner_size": cb, "draw_fill": false, "rim": Color(hi, 0.95), "rim_width": 1.6, "braces": hi, "expand": 2.0}
+		"tab":
+			return {"corner": KitBox.Corner.SQUARE, "draw_fill": false, "margin": [14, 7, 14, 9]}
+		"tab_hover":
+			return {"corner": KitBox.Corner.SQUARE, "fill_top": Color(acc, 0.0), "fill_bottom": Color(acc, 0.12), "bar_side": 2, "bar": Color(acc, 0.55), "bar_width": 2.0, "margin": [14, 7, 14, 9]}
+		"tab_selected":
+			return {"corner": KitBox.Corner.SQUARE, "fill_top": Color(hi, 0.0), "fill_bottom": Color(hi, 0.18), "bar_side": 2, "bar": hi, "bar_width": 3.0, "margin": [14, 7, 14, 9]}
+		"card", "card_hover":
+			var cd := {"corner": cut, "corner_size": cb, "fill_top": rai0.darkened(0.12), "fill_bottom": rai1.darkened(0.16), "grain": grain,
+				"grain_color": Color(0, 0, 0, ga * 0.7), "rim": Color(0, 0, 0, 0.6), "rim_width": 1.0, "lip": Color(1, 1, 1, 0.07),
+				"rule": Color(acc, 0.12), "rule_inset": 3.0, "margin": [14, 10]}
+			if part == "card_hover":
+				cd["fill_top"] = rai0.darkened(0.02)
+				cd["fill_bottom"] = rai1.darkened(0.06)
+				cd["rule"] = Color(hi, 0.75)
+				cd["glow"] = Color(acc, 0.16)
+				cd["glow_size"] = 5.0
+				cd["bar_side"] = 1
+				cd["bar"] = hi
+				cd["bar_width"] = 3.0
+				cd["bar_inset"] = 0.18
+			return cd
+		"icon", "well":
+			return {"corner": cut, "corner_size": cb * 0.7, "fill_top": well, "fill_bottom": well.lightened(0.05), "burn": Color(0, 0, 0, 0.55),
+				"burn_size": 5.0, "rim": Color(acc, 0.32), "rim_width": 1.0, "margin": [6, 6]}
+		"field", "field_focus":
+			var f := {"corner": cut, "corner_size": cb * 0.6, "fill_top": well, "fill_bottom": well.lightened(0.04), "burn": Color(0, 0, 0, 0.5),
+				"burn_size": 4.0, "rim": Color(0, 0, 0, 0.7), "rim_width": 1.2, "bar_side": 2, "bar": Color(acc, 0.45), "bar_width": 1.5, "margin": [12, 7]}
+			if part == "field_focus":
+				f["bar"] = hi
+				f["bar_width"] = 2.5
+				f["rim"] = Color(acc, 0.7)
+				f["glow"] = Color(acc, 0.14)
+				f["glow_size"] = 4.0
+			return f
+		"slider":
+			return {"corner": cut, "corner_size": 3.0, "fill_top": well, "fill_bottom": well.lightened(0.08), "rim": Color(0, 0, 0, 0.8),
+				"rim_width": 1.0, "burn": Color(0, 0, 0, 0.45), "burn_size": 2.0, "margin": [0, 4]}
+		"slider_fill":
+			return {"corner": cut, "corner_size": 3.0, "fill_top": hi, "fill_bottom": acc.darkened(0.15), "lip": Color(1, 1, 1, 0.35),
+				"rim": Color(0, 0, 0, 0.6), "rim_width": 1.0, "margin": [0, 4]}
+		"scroll":
+			return {"corner": KitBox.Corner.ROUND, "corner_size": 3.0, "fill_top": Color(0, 0, 0, 0.3), "fill_bottom": Color(0, 0, 0, 0.3), "margin": [5, 5]}
+		"scroll_grab", "scroll_grab_hl":
+			var hl := part == "scroll_grab_hl"
+			return {"corner": KitBox.Corner.ROUND, "corner_size": 3.0, "fill_top": Color(hi if hl else acc, 0.85 if hl else 0.55),
+				"fill_bottom": Color(acc, 0.75 if hl else 0.45), "margin": [5, 5]}
+		"hud":
+			# (no grain on the HUD: a textured pass per plate costs a draw call each, and
+			# the speckle barely reads through a see-through plate anyway)
+			return {"corner": cut, "corner_size": cb, "fill_top": Color(surf0, 0.88), "fill_bottom": Color(surf1, 0.92),
+				"rim": Color(0, 0, 0, 0.6), "rim_width": 1.2, "rule": Color(acc, 0.32), "rule_inset": 3.0,
+				"lip": Color(1, 1, 1, 0.06), "margin": [14, 8]}
+		"chip", "chip_bad":
+			return {"corner": cut, "corner_size": 5.0, "fill_top": Color(deep0, 0.94), "fill_bottom": Color(deep1, 0.96),
+				"rim": Color(acc, 0.5) if part == "chip" else Color(color_of(set_id, "bad"), 0.85), "rim_width": 1.0, "lip": Color(1, 1, 1, 0.06), "margin": [10, 3]}
+		"popup", "popup_hover":
+			if part == "popup_hover":
+				return {"corner": cut, "corner_size": 4.0, "fill_top": Color(acc, 0.18), "fill_bottom": Color(acc, 0.26), "bar_side": 1, "bar": hi, "bar_width": 3.0, "margin": [10, 4]}
+			return {"corner": cut, "corner_size": cb, "fill_top": rai0.darkened(0.2), "fill_bottom": rai1.darkened(0.3), "grain": grain,
+				"grain_color": Color(0, 0, 0, ga * 0.6), "rim": Color(acc, 0.55), "rim_width": 1.2, "shadow": Color(0, 0, 0, 0.5),
+				"shadow_offset": Vector2(0, 6), "shadow_size": 10.0, "margin": [10, 8]}
+		"doc":
+			# A real paper document (newspaper, telegram, letters): cream, fibres, a burnt edge.
+			return {"corner": KitBox.Corner.SQUARE, "fill_top": Color("#F1E6CB"), "fill_bottom": Color("#E3D2AE"), "grain": _grain("paper"),
+				"grain_color": Color(0.36, 0.24, 0.1, 0.2), "burn": Color(0.42, 0.27, 0.1, 0.32), "burn_size": 14.0, "rim": Color(0, 0, 0, 0.35),
+				"rim_width": 1.0, "shadow": Color(0, 0, 0, 0.5), "shadow_offset": Vector2(0, 8), "shadow_size": 16.0, "margin": [26, 22]}
+	return {}
+
+
+## The kit's UI faces: body text, its semibold, condensed labels and numbers.
+static func font(kind: String = "body") -> Font:
+	if _fonts.has(kind):
+		return _fonts[kind]
+	var path := str({"body": FONT_BODY, "bold": FONT_BOLD, "label": FONT_LABEL, "number": FONT_NUMBER}.get(kind, FONT_BODY))
+	var f: Font = null
+	if ResourceLoader.exists(path):
+		var ff := load(path) as FontFile
+		if ff != null:
+			var v := FontVariation.new()
+			v.base_font = ff
+			if kind == "label":
+				v.spacing_glyph = 1
+			f = v
+	if f == null:
+		f = ThemeDB.fallback_font
+	_fonts[kind] = f
+	return f
+
+
 # ------------------------------------------------------------------ the Godot theme
 
 static func _write_theme(t: Theme) -> void:
 	var empty := StyleBoxEmpty.new()
+	t.default_font = font("body")
+	t.default_font_size = ts(16)
 	# Buttons (OptionButton, MenuButton and CheckButton fall back to these).
 	for type: String in ["Button", "OptionButton", "MenuButton"]:
 		t.set_stylebox("normal", type, box("button"))
@@ -248,17 +548,29 @@ static func _write_theme(t: Theme) -> void:
 		t.set_stylebox("disabled", type, box("button_disabled"))
 		t.set_stylebox("focus", type, focus_ring())
 		_button_colors(t, type, c("btn"), c("btn_hover"), c("btn_off"))
-		t.set_color("font_outline_color", type, c("btn_outline"))
-		t.set_constant("outline_size", type, 4)
+		t.set_color("font_outline_color", type, Color(c("btn_outline"), 0.6))
+		t.set_constant("outline_size", type, 2)
+		t.set_font("font", type, font("bold"))
+		t.set_constant("h_separation", type, 8)
+	t.set_icon("arrow", "OptionButton", _icon("arrow", 16))
+	t.set_constant("arrow_margin", "OptionButton", 10)
+	# The call to action, the quiet text button.
+	_button_variation(t, "PrimaryButton", "primary", "primary_hover", "primary_pressed", c("rim"), c("rim"), Color(c("rim"), 0.5))
+	t.set_constant("outline_size", "PrimaryButton", 0)
+	_button_variation(t, "GhostButton", "ghost", "ghost_hover", "ghost_hover", c("ink_soft"), c("accent_hi"), c("faint"))
+	t.set_constant("outline_size", "GhostButton", 0)
 	# Check boxes and switches: the set's own marks.
 	for type: String in ["CheckBox", "CheckButton"]:
-		for st: String in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+		for st: String in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
 			t.set_stylebox(st, type, empty)
-		t.set_icon("checked", type, texture(current, "check_on"))
-		t.set_icon("unchecked", type, texture(current, "check_off"))
-		t.set_icon("checked_disabled", type, texture(current, "check_on"))
-		t.set_icon("unchecked_disabled", type, texture(current, "check_off"))
-		_button_colors(t, type, c("ink"), c("ink"), c("ink_soft"))
+		t.set_stylebox("focus", type, focus_ring())
+		t.set_icon("checked", type, _icon("check_on", 24))
+		t.set_icon("unchecked", type, _icon("check_off", 24))
+		t.set_icon("checked_disabled", type, _icon("check_on", 24))
+		t.set_icon("unchecked_disabled", type, _icon("check_off", 24))
+		t.set_icon("radio_checked", type, _icon("radio_on", 22))
+		t.set_icon("radio_unchecked", type, _icon("radio_off", 22))
+		_button_colors(t, type, c("ink"), c("accent_hi"), c("ink_soft"))
 		t.set_constant("outline_size", type, 0)
 		t.set_constant("h_separation", type, 8)
 	# Text fields.
@@ -266,25 +578,27 @@ static func _write_theme(t: Theme) -> void:
 	t.set_stylebox("focus", "LineEdit", box("field_focus"))
 	t.set_stylebox("read_only", "LineEdit", box("field"))
 	t.set_color("font_color", "LineEdit", c("ink"))
-	t.set_color("font_placeholder_color", "LineEdit", c("ink_soft"))
-	t.set_color("caret_color", "LineEdit", c("ink"))
-	t.set_color("selection_color", "LineEdit", Color(c("accent"), 0.4))
-	# Sliders.
+	t.set_color("font_placeholder_color", "LineEdit", Color(c("ink_soft"), 0.7))
+	t.set_color("caret_color", "LineEdit", c("accent_hi"))
+	t.set_color("selection_color", "LineEdit", Color(c("accent"), 0.45))
+	t.set_font("font", "LineEdit", font("bold"))
+	# Sliders: a dark trough, a metal fill up to the knob, the set's knob.
 	for type: String in ["HSlider", "VSlider"]:
 		t.set_stylebox("slider", type, box("slider"))
 		t.set_stylebox("grabber_area", type, box("slider_fill"))
 		t.set_stylebox("grabber_area_highlight", type, box("slider_fill"))
-		t.set_icon("grabber", type, texture(current, "grabber"))
-		t.set_icon("grabber_highlight", type, texture(current, "grabber_hl"))
-		t.set_icon("grabber_disabled", type, texture(current, "grabber"))
+		t.set_icon("grabber", type, _icon("knob", 24))
+		t.set_icon("grabber_highlight", type, _icon("knob_hl", 26))
+		t.set_icon("grabber_disabled", type, _icon("knob", 24))
 		t.set_constant("center_grabber", type, 1)
-	# Scrollbars (vertical: every list and tab body scrolls that way).
-	t.set_stylebox("scroll", "VScrollBar", box("scroll"))
-	t.set_stylebox("scroll_focus", "VScrollBar", box("scroll"))
-	t.set_stylebox("grabber", "VScrollBar", box("scroll_grab"))
-	t.set_stylebox("grabber_highlight", "VScrollBar", box("scroll_grab_hl"))
-	t.set_stylebox("grabber_pressed", "VScrollBar", box("scroll_grab_hl"))
-	# Tabs.
+	# Scrollbars: slim, the set's metal.
+	for type: String in ["VScrollBar", "HScrollBar"]:
+		t.set_stylebox("scroll", type, box("scroll"))
+		t.set_stylebox("scroll_focus", type, box("scroll"))
+		t.set_stylebox("grabber", type, box("scroll_grab"))
+		t.set_stylebox("grabber_highlight", type, box("scroll_grab_hl"))
+		t.set_stylebox("grabber_pressed", type, box("scroll_grab_hl"))
+	# Tabs: words on the surface, the chosen one underlined in the set's metal.
 	for type: String in ["TabContainer", "TabBar"]:
 		t.set_stylebox("tab_unselected", type, box("tab"))
 		t.set_stylebox("tab_hovered", type, box("tab_hover"))
@@ -292,26 +606,46 @@ static func _write_theme(t: Theme) -> void:
 		t.set_stylebox("tab_disabled", type, box("tab"))
 		t.set_stylebox("tab_focus", type, focus_ring())
 		t.set_color("font_unselected_color", type, c("tab"))
-		t.set_color("font_hovered_color", type, c("tab"))
+		t.set_color("font_hovered_color", type, c("ink"))
 		t.set_color("font_selected_color", type, c("tab_sel"))
 		t.set_color("font_outline_color", type, Color(0, 0, 0, 0))
-		t.set_constant("tab_separation", type, 4)
+		t.set_constant("tab_separation", type, 2)
+		t.set_font("font", type, font("label"))
+		t.set_font_size("font_size", type, ts(18))
 	t.set_stylebox("panel", "TabContainer", box("card"))
 	t.set_stylebox("tabbar_background", "TabContainer", empty)
-	# Popups, dropdown lists and tooltips: on paper.
-	t.set_stylebox("panel", "PopupMenu", box("paper"))
-	t.set_stylebox("hover", "PopupMenu", box("card_hover"))
+	# Popups, dropdown lists and tooltips: a raised plate rimmed in the set's metal.
+	t.set_stylebox("panel", "PopupMenu", box("popup"))
+	t.set_stylebox("hover", "PopupMenu", box("popup_hover"))
 	t.set_color("font_color", "PopupMenu", c("ink"))
-	t.set_color("font_hover_color", "PopupMenu", c("ink"))
-	t.set_color("font_disabled_color", "PopupMenu", c("ink_soft"))
-	t.set_stylebox("panel", "TooltipPanel", box("paper"))
+	t.set_color("font_hover_color", "PopupMenu", c("accent_hi"))
+	t.set_color("font_disabled_color", "PopupMenu", c("faint"))
+	t.set_color("font_separator_color", "PopupMenu", c("ink_soft"))
+	t.set_font("font", "PopupMenu", font("bold"))
+	t.set_icon("checked", "PopupMenu", _icon("check_on", 20))
+	t.set_icon("unchecked", "PopupMenu", _icon("check_off", 20))
+	t.set_icon("radio_checked", "PopupMenu", _icon("radio_on", 18))
+	t.set_icon("radio_unchecked", "PopupMenu", _icon("radio_off", 18))
+	t.set_constant("v_separation", "PopupMenu", 8)
+	t.set_stylebox("panel", "TooltipPanel", box("popup"))
 	t.set_color("font_color", "TooltipLabel", c("ink"))
-	# Separators: a thin rule in the set's accent.
-	var line := StyleBoxLine.new()
-	line.color = Color(c("ink_soft"), 0.6)
-	line.thickness = 2
-	t.set_stylebox("separator", "HSeparator", line)
-	t.set_constant("separation", "HSeparator", 10)
+	t.set_font("font", "TooltipLabel", font("body"))
+	# Separators: a fine rule with the set's ornament in the middle.
+	var rule := Rule.new()
+	rule.color = Color(c("accent"), 0.55)
+	rule.motif = str(kit()["knob"])
+	t.set_stylebox("separator", "HSeparator", rule)
+	t.set_constant("separation", "HSeparator", 12)
+	var vline := StyleBoxLine.new()
+	vline.color = Color(c("accent"), 0.35)
+	vline.thickness = 1
+	vline.vertical = true
+	t.set_stylebox("separator", "VSeparator", vline)
+	# Plain labels and rich text read in the set's light ink.
+	t.set_color("font_color", "Label", c("ink"))
+	t.set_color("default_color", "RichTextLabel", c("ink"))
+	t.set_font("normal_font", "RichTextLabel", font("body"))
+	t.set_font("bold_font", "RichTextLabel", font("bold"))
 	_variations(t)
 
 
@@ -324,11 +658,35 @@ static func _button_colors(t: Theme, type: String, normal: Color, hover: Color, 
 	t.set_color("font_disabled_color", type, off)
 
 
+## A button variation on three kit parts.
+static func _button_variation(t: Theme, name: String, normal: String, hover: String, pressed: String, text: Color, text_hover: Color, off: Color) -> void:
+	t.set_type_variation(name, "Button")
+	t.set_stylebox("normal", name, box(normal))
+	t.set_stylebox("hover", name, box(hover))
+	t.set_stylebox("pressed", name, box(pressed))
+	t.set_stylebox("hover_pressed", name, box(pressed))
+	t.set_stylebox("disabled", name, box("button_disabled") if normal != "ghost" else box("ghost"))
+	t.set_stylebox("focus", name, focus_ring())
+	_button_colors(t, name, text, text_hover, off)
+
+
+static var _icons: Dictionary = {}
+
+
+## A vector theme icon in the current set (kept per set, so swaps reuse them).
+static func _icon(kind: String, px: float) -> KitIcon:
+	var key := "%s/%s/%d" % [current, kind, int(px)]
+	if not _icons.has(key):
+		_icons[key] = KitIcon.make(kind, px, c("accent"), c("ink"), c("well"), c("rim"), str(kit()["knob"]), int(kit()["corner"]) == 1)
+	return _icons[key]
+
+
 ## Named surfaces and text styles screens pick with `theme_type_variation`.
 static func _variations(t: Theme) -> void:
 	for pair: Array in [["FramePanel", "frame"], ["PaperPanel", "paper"], ["PosterPanel", "poster"],
 			["HeaderPanel", "header"], ["CardPanel", "card"], ["CardHoverPanel", "card_hover"], ["IconPanel", "icon"],
-			["HudPanel", "hud"], ["ChipPanel", "chip"], ["ChipBadPanel", "chip_bad"]]:
+			["HudPanel", "hud"], ["ChipPanel", "chip"], ["ChipBadPanel", "chip_bad"], ["WellPanel", "well"], ["DocPanel", "doc"],
+			["PopupPlate", "popup"]]:
 		t.set_type_variation(pair[0], "PanelContainer")
 		t.set_stylebox("panel", pair[0], box(pair[1]))
 	# Tab-like toggles made of Buttons (MenuScreen tabs, bet pickers, ledger tabs).
@@ -337,29 +695,44 @@ static func _variations(t: Theme) -> void:
 	t.set_stylebox("hover", "TabButton", box("tab_hover"))
 	t.set_stylebox("pressed", "TabButton", box("tab_selected"))
 	t.set_stylebox("hover_pressed", "TabButton", box("tab_selected"))
-	t.set_stylebox("disabled", "TabButton", box("button_disabled"))
-	_button_colors(t, "TabButton", c("tab"), c("tab"), c("btn_off"))
+	t.set_stylebox("disabled", "TabButton", box("tab"))
+	_button_colors(t, "TabButton", c("tab"), c("ink"), c("faint"))
+	t.set_color("font_pressed_color", "TabButton", c("tab_sel"))
+	t.set_color("font_hover_pressed_color", "TabButton", c("tab_sel"))
 	t.set_constant("outline_size", "TabButton", 0)
 	t.set_stylebox("focus", "TabButton", focus_ring())
+	t.set_font("font", "TabButton", font("label"))
+	t.set_font_size("font_size", "TabButton", ts(17))
 	t.set_type_variation("TabButtonSelected", "Button")
 	for st: String in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
 		t.set_stylebox(st, "TabButtonSelected", box("tab_selected"))
 	t.set_stylebox("focus", "TabButtonSelected", focus_ring())
 	_button_colors(t, "TabButtonSelected", c("tab_sel"), c("tab_sel"), c("tab_sel"))
 	t.set_constant("outline_size", "TabButtonSelected", 0)
+	t.set_font("font", "TabButtonSelected", font("label"))
+	t.set_font_size("font_size", "TabButtonSelected", ts(17))
 	# Labels.
-	for pair: Array in [["InkLabel", "ink"], ["SoftInkLabel", "ink_soft"], ["HudLabel", "hud"], ["GoldLabel", "gold"],
-			["BadLabel", "bad"], ["GoodLabel", "good"], ["WarnLabel", "warn"]]:
+	for pair: Array in [["InkLabel", "ink"], ["SoftInkLabel", "ink_soft"], ["HudLabel", "hud"], ["GoldLabel", "accent_hi"],
+			["BadLabel", "bad"], ["GoodLabel", "good"], ["WarnLabel", "warn"], ["FaintLabel", "faint"]]:
 		t.set_type_variation(pair[0], "Label")
 		t.set_color("font_color", pair[0], c(pair[1]))
+	# Condensed small caps over a section or a value ("TEAM CHITIN"), and big numbers.
+	t.set_type_variation("EyebrowLabel", "Label")
+	t.set_font("font", "EyebrowLabel", font("label"))
+	t.set_color("font_color", "EyebrowLabel", c("accent"))
+	t.set_type_variation("NumberLabel", "Label")
+	t.set_font("font", "NumberLabel", font("number"))
+	t.set_color("font_color", "NumberLabel", c("ink"))
+	t.set_type_variation("DocInkLabel", "Label")
+	t.set_color("font_color", "DocInkLabel", Color("#2B1C10"))
 	for pair: Array in [["TitleLabel", "ink", false], ["HeaderTitle", "title", true]]:
 		t.set_type_variation(pair[0], "Label")
 		t.set_font("font", pair[0], display_font())
 		t.set_color("font_color", pair[0], c(pair[1]))
 		t.set_color("font_outline_color", pair[0], c("outline"))
-		t.set_constant("outline_size", pair[0], 8 if pair[2] else 0)
-		t.set_color("font_shadow_color", pair[0], Color(0, 0, 0, 0.45) if pair[2] else Color(c("ink"), 0.12))
-		t.set_constant("shadow_offset_x", pair[0], 2)
+		t.set_constant("outline_size", pair[0], 6 if pair[2] else 0)
+		t.set_color("font_shadow_color", pair[0], Color(0, 0, 0, 0.5))
+		t.set_constant("shadow_offset_x", pair[0], 0)
 		t.set_constant("shadow_offset_y", pair[0], 3 if pair[2] else 2)
 
 
@@ -393,19 +766,25 @@ static func wood_sign() -> StyleBoxFlat:
 	return hud_flat()
 
 
-## The HUD card: the set's dark ground (leather brown, barn green, gunmetal,
-## baize) with its trim (brass, wheat, gold). Flat and light so the HUD stays quiet.
+## The HUD card: the set's dark surface, see-through, with a hairline of its metal
+## and the kit's corners (cut or round). Flat and light so the HUD stays quiet;
+## new each call so callers may tint it.
 static func hud_flat() -> StyleBoxFlat:
-	var s: Dictionary = SETS.get(current if current != &"" else &"base", SETS[&"base"])
+	var k := kit()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(str(s["hud_bg"]))
-	sb.border_color = Color(str(s["hud_rim"]))
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(int(s["radius"]))
-	sb.shadow_color = Color(0, 0, 0, 0.3)
-	sb.shadow_size = 6
+	sb.bg_color = Color(kc("surface", current, 1).darkened(0.1), 0.84)
+	sb.border_color = Color(kc("accent"), 0.42)
+	sb.set_border_width_all(1)
+	var cut := int(k["corner"]) == 0
+	sb.set_corner_radius_all(int(k["cs_btn"]) if cut else int(k["cs_btn"]))
+	sb.corner_detail = 1 if cut else 6
+	sb.shadow_color = Color(0, 0, 0, 0.32)
+	sb.shadow_size = 8
 	sb.shadow_offset = Vector2(0, 3)
-	sb.set_content_margin_all(10)
+	sb.content_margin_left = 14
+	sb.content_margin_right = 14
+	sb.content_margin_top = 9
+	sb.content_margin_bottom = 9
 	sb.anti_aliasing = true
 	return sb
 
@@ -459,39 +838,28 @@ static func panel(variation: String = "PaperPanel") -> PanelContainer:
 	return p
 
 
-## The one bar style for health, boss, water and progress bars: a dark inked
-## trough with an outline, and a fill with a lighter lip along its top edge.
+## The one bar style for health, boss, water and progress bars (KitBar): a dark
+## trough with quarter ticks, a fill with a lit top edge, and a pale trail that
+## lingers a moment where the value just fell from.
 static func bar(color: Color, min_size: Vector2 = Vector2(240, 18), max_value: float = 100.0) -> ProgressBar:
-	var b := ProgressBar.new()
+	var b := KitBar.new()
 	b.custom_minimum_size = min_size
 	b.max_value = max_value
 	b.value = max_value
 	b.show_percentage = false
 	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(Palette.OUTLINE, 0.85)
-	bg.border_color = Palette.OUTLINE
-	bg.set_border_width_all(2)
-	bg.set_corner_radius_all(4)
-	bg.shadow_color = Color(0, 0, 0, 0.25)
-	bg.shadow_size = 2
-	b.add_theme_stylebox_override("background", bg)
+	b.ticks = 4 if min_size.x >= 120.0 else 0
+	b.add_theme_stylebox_override("background", KitBox.make({"corner": KitBox.Corner.CUT, "corner_size": 4.0,
+		"fill_top": Color(0.03, 0.02, 0.02, 0.92), "fill_bottom": Color(0.09, 0.07, 0.06, 0.92), "rim": Color(0, 0, 0, 0.9),
+		"rim_width": 1.5, "burn": Color(0, 0, 0, 0.5), "burn_size": 2.0}))
 	b.add_theme_stylebox_override("fill", bar_fill(color))
 	return b
 
 
 ## The fill of a bar(): the colour with a lighter lip on top (call again to recolour).
-static func bar_fill(color: Color) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = color
-	sb.border_color = color.lightened(0.35)
-	sb.border_width_top = 3
-	sb.set_corner_radius_all(3)
-	sb.expand_margin_left = -2
-	sb.expand_margin_right = -2
-	sb.expand_margin_top = -2
-	sb.expand_margin_bottom = -2
-	return sb
+static func bar_fill(color: Color) -> StyleBox:
+	return KitBox.make({"corner": KitBox.Corner.CUT, "corner_size": 3.0, "fill_top": color.lightened(0.22), "fill_bottom": color.darkened(0.18),
+		"lip": Color(1, 1, 1, 0.4), "expand": -2.0})
 
 
 ## The type scale: every UI font size snaps to one of these steps (fine print,
@@ -510,7 +878,13 @@ static func ts(size: int) -> int:
 	for s in TYPE_SCALE:
 		if absi(s - size) <= absi(best - size):
 			best = s
-	return best if is_equal_approx(text_scale, 1.0) else roundi(best * text_scale)
+	return roundi(best * text_scale * KIT_TEXT_GROW)
+
+
+## The kit's UI face (Barlow, semi-condensed) sets narrower than the old default
+## font, so every step of the type scale reads a little larger to keep the same
+## presence (16 -> 18, 22 -> 25, 30 -> 34).
+const KIT_TEXT_GROW := 1.12
 
 
 ## Sets the UI text size (0.9 - 1.3) and redraws the screens that follow the set.
@@ -605,9 +979,53 @@ static func title(text: String, size: int = 30, on_header: bool = false) -> Labe
 static func button(text: String) -> Button:
 	var b := Button.new()
 	b.text = tc(text)
-	b.custom_minimum_size.y = 40
+	b.custom_minimum_size.y = 42
 	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_size_override("font_size", ts(17))
 	return b
+
+
+## The screen's one call to action (Start, Ready, Buy...): the set's metal.
+static func primary_button(text: String) -> Button:
+	var b := button(text)
+	b.theme_type_variation = "PrimaryButton"
+	return b
+
+
+## A quiet text-only button (Quit, Back, Cancel): a plate appears on hover.
+static func ghost_button(text: String) -> Button:
+	var b := button(text)
+	b.theme_type_variation = "GhostButton"
+	b.custom_minimum_size.y = 34
+	return b
+
+
+## Condensed capitals in the set's metal, over a value or a group ("TEAM CHITIN").
+static func eyebrow(text: String, size: int = 13, color: Color = Color(0, 0, 0, 0)) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.uppercase = true
+	l.theme_type_variation = "EyebrowLabel"
+	l.add_theme_font_size_override("font_size", ts(size))
+	if color.a > 0.0:
+		l.add_theme_color_override("font_color", color)
+	return l
+
+
+## A big figure in the kit's condensed bold (counters, ammo, prices, timers).
+static func number(text: String, size: int = 30, color: Color = Color(0, 0, 0, 0)) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.theme_type_variation = "NumberLabel"
+	l.add_theme_font_size_override("font_size", ts(size))
+	if color.a > 0.0:
+		l.add_theme_color_override("font_color", color)
+	return l
+
+
+## A private copy of the HUD plate (grained, see-through, the set's corners).
+static func hud_box() -> KitBox:
+	return box_for(current, "hud")
 
 
 ## A row with a left-aligned caption and a control on the right.
@@ -624,16 +1042,25 @@ static func row(caption: String, control: Control) -> HBoxContainer:
 	return r
 
 
-## A section heading inside a settings tab or list: a Title Case caption over a rule.
+## A section heading inside a settings tab or list: condensed capitals in the
+## set's metal over a fine rule.
 static func section(text: String) -> VBoxContainer:
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
-	var l := label(tc(text), 18)
+	v.add_theme_constant_override("separation", 0)
+	var l := label(tc(text), 16)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	if not display_is_decorative(): # an ornate face (Snake Eyes) stays on big titles only
-		l.add_theme_font_override("font", display_font())
+	l.theme_type_variation = "EyebrowLabel"
+	l.uppercase = true
+	l.add_theme_constant_override("line_spacing", 0)
 	v.add_child(l)
-	v.add_child(HSeparator.new())
+	var line := ColorRect.new()
+	line.color = Color(c("accent"), 0.35)
+	line.custom_minimum_size = Vector2(0, 1)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(line)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 4)
+	v.add_child(gap)
 	return v
 
 
@@ -684,7 +1111,7 @@ static func check(value: bool, on_change: Callable) -> CheckBox:
 ## The set's ornament rule (rope and beetle, wheat stalk, bandolier, suits and dice).
 static func divider(width: float = 360.0) -> TextureRect:
 	var tr := Ornament.new()
-	tr.custom_minimum_size = Vector2(width, 22)
+	tr.custom_minimum_size = Vector2(width, 20)
 	tr.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	return tr
 
@@ -744,19 +1171,9 @@ const GAP_GROUP := 12
 const FADE_TIME := 0.12
 
 
-## The keyboard-focus ring: a thin outline in the set's highlight, outside the button.
-static func focus_ring() -> StyleBoxFlat:
-	if not _boxes.has("_focus"):
-		var f := StyleBoxFlat.new()
-		f.draw_center = false
-		f.set_border_width_all(2)
-		f.set_corner_radius_all(6)
-		f.set_expand_margin_all(3)
-		f.anti_aliasing = true
-		_boxes["_focus"] = f
-	var sb := _boxes["_focus"] as StyleBoxFlat
-	sb.border_color = c("focus")
-	return sb
+## The keyboard-focus mark: the set's metal round the control, with the kit's braces.
+static func focus_ring() -> StyleBox:
+	return box("focus")
 
 
 ## The dimmed backdrop behind every full-screen menu (the set's dim colour).
@@ -1154,54 +1571,135 @@ static func vignette() -> Texture2D:
 
 # ------------------------------------------------------------------ live ornaments
 
+## The set's ornament rule: a fine double line that meets a small emblem in the
+## middle (Frontier a star, Sheaf a wheat ear, Irons crossed cartridges, Snake
+## Eyes the four suits, Mandibles a pair of jaws). Drawn, so it's sharp everywhere.
 class Ornament extends TextureRect:
 	func _ready() -> void:
-		expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_refresh()
-		UiStyle.notifier.changed.connect(_refresh)
+		texture = null
+		UiStyle.notifier.changed.connect(queue_redraw)
 
 	func _exit_tree() -> void:
-		if UiStyle.notifier.changed.is_connected(_refresh):
-			UiStyle.notifier.changed.disconnect(_refresh)
+		if UiStyle.notifier.changed.is_connected(queue_redraw):
+			UiStyle.notifier.changed.disconnect(queue_redraw)
 
 	func _enter_tree() -> void:
-		if is_node_ready() and not UiStyle.notifier.changed.is_connected(_refresh):
-			UiStyle.notifier.changed.connect(_refresh)
-			_refresh()
+		if is_node_ready() and not UiStyle.notifier.changed.is_connected(queue_redraw):
+			UiStyle.notifier.changed.connect(queue_redraw)
+			queue_redraw()
 
-	func _refresh() -> void:
-		texture = UiStyle.texture(UiStyle.current, "divider")
+	func _draw() -> void:
+		UiStyle.draw_ornament(self, Rect2(Vector2.ZERO, size), UiStyle.c("accent"), str(UiStyle.kit()["knob"]))
 
 
+## Draws the ornament rule into `ci` across `r` (also used by Rule separators).
+static func draw_ornament(ci: CanvasItem, r: Rect2, col: Color, motif: String) -> void:
+	var cy := r.get_center().y
+	var cx := r.get_center().x
+	var gap := 18.0
+	var faded := Color(col, 0.0)
+	# Two hairlines that fade out toward the ends.
+	for side: int in [-1, 1]:
+		var a := Vector2(cx + side * gap, cy)
+		var b := Vector2(r.position.x + 4.0 if side < 0 else r.end.x - 4.0, cy)
+		ci.draw_polyline_colors(PackedVector2Array([a, b]), PackedColorArray([col, faded]), 1.2, true)
+		ci.draw_polyline_colors(PackedVector2Array([a + Vector2(side * 4.0, 3.0), b + Vector2(-side * r.size.x * 0.12, 3.0)]), PackedColorArray([Color(col, 0.5), faded]), 1.0, true)
+		ci.draw_circle(Vector2(cx + side * (gap - 6.0), cy), 1.6, col, true, -1.0, true)
+	var e := Vector2(cx, cy)
+	match motif:
+		"star":
+			ci.draw_colored_polygon(KitIcon._star(e, 7.0, 3.0, 5), col)
+		"seed":
+			ci.draw_line(e + Vector2(0, 7), e + Vector2(0, -8), col, 1.4, true)
+			for i in 3:
+				var y := 3.0 - i * 4.0
+				for s: int in [-1, 1]:
+					var leaf := PackedVector2Array()
+					for j in 9:
+						var t := j / 8.0
+						leaf.append(e + Vector2(s * (sin(t * PI) * 2.4 + t * 2.0), y - t * 4.5))
+					ci.draw_colored_polygon(leaf, col)
+		"rivet":
+			for s: int in [-1, 1]:
+				var d := Vector2(s * 0.7, -0.7).normalized()
+				var n := Vector2(-d.y, d.x)
+				var base := e - d * 7.0
+				ci.draw_colored_polygon(PackedVector2Array([base + n * 1.8, base + d * 9.5 + n * 1.8, base + d * 12.5, base + d * 9.5 - n * 1.8, base - n * 1.8]), col)
+		"chip":
+			var k := 3.6
+			ci.draw_colored_polygon(PackedVector2Array([e + Vector2(-k * 2.2, -k), e + Vector2(-k * 1.3, 0), e + Vector2(-k * 2.2, k), e + Vector2(-k * 3.1, 0)]), col) # diamond
+			ci.draw_circle(e + Vector2(-k * 0.45, -0.6), k * 0.55, col, true, -1.0, true) # club / spade-ish dots
+			ci.draw_circle(e + Vector2(k * 0.45, -0.6), k * 0.55, col, true, -1.0, true)
+			ci.draw_colored_polygon(PackedVector2Array([e + Vector2(-k * 0.95, 0), e + Vector2(k * 0.95, 0), e + Vector2(0, k * 1.2)]), col) # heart
+			ci.draw_colored_polygon(PackedVector2Array([e + Vector2(k * 2.2, -k), e + Vector2(k * 3.1, k * 0.3), e + Vector2(k * 1.3, k * 0.3)]), col) # spade
+			ci.draw_line(e + Vector2(k * 2.2, 0), e + Vector2(k * 2.2, k), col, 1.4)
+		"hex":
+			for s: int in [-1, 1]:
+				var jaw := PackedVector2Array()
+				for j in 9:
+					var t := j / 8.0
+					jaw.append(e + Vector2(s * (7.5 - sin(t * PI * 0.9) * 5.0 - t * 2.0), -6.0 + t * 12.0))
+				ci.draw_polyline(jaw, col, 2.0, true)
+			ci.draw_circle(e, 2.2, col, true, -1.0, true)
+		_:
+			ci.draw_colored_polygon(PackedVector2Array([e + Vector2(0, -5), e + Vector2(5, 0), e + Vector2(0, 5), e + Vector2(-5, 0)]), col)
+
+
+## A separator style that draws the ornament rule.
+class Rule extends StyleBox:
+	var color := Color.WHITE
+	var motif := "star"
+
+	func _get_minimum_size() -> Vector2:
+		return Vector2(0, 16)
+
+	func _draw(item: RID, rect: Rect2) -> void:
+		# StyleBoxes draw on a canvas item RID; borrow a helper node's drawing calls.
+		var cy := rect.get_center().y
+		var cx := rect.get_center().x
+		var faded := Color(color, 0.0)
+		for side: int in [-1, 1]:
+			var a := Vector2(cx + side * 12.0, cy)
+			var b := Vector2(rect.position.x if side < 0 else rect.end.x, cy)
+			RenderingServer.canvas_item_add_polyline(item, PackedVector2Array([a, b]), PackedColorArray([color, faded]), 1.0, true)
+		RenderingServer.canvas_item_add_polygon(item, PackedVector2Array([Vector2(cx, cy - 4), Vector2(cx + 4, cy), Vector2(cx, cy + 4), Vector2(cx - 4, cy)]), PackedColorArray([color]))
+
+
+## The full-screen backdrop of the set: its deep colour falling off to near-black,
+## the set's grain, a vignette, and (Snake Eyes) the cards and dice on the table.
 class Backdrop extends TextureRect:
 	var set_id: StringName = &""
 
 	func _ready() -> void:
 		expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		stretch_mode = TextureRect.STRETCH_TILE
-		_refresh()
-		UiStyle.notifier.changed.connect(_refresh)
+		texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+		texture = null
+		UiStyle.notifier.changed.connect(queue_redraw)
 
 	func _exit_tree() -> void:
-		if UiStyle.notifier.changed.is_connected(_refresh):
-			UiStyle.notifier.changed.disconnect(_refresh)
+		if UiStyle.notifier.changed.is_connected(queue_redraw):
+			UiStyle.notifier.changed.disconnect(queue_redraw)
 
 	func _enter_tree() -> void:
-		if is_node_ready() and not UiStyle.notifier.changed.is_connected(_refresh):
-			UiStyle.notifier.changed.connect(_refresh)
-			_refresh()
-
-	func _refresh() -> void:
-		texture = UiStyle.texture(set_id if set_id != &"" else UiStyle.current, "backdrop")
-		queue_redraw()
+		if is_node_ready() and not UiStyle.notifier.changed.is_connected(queue_redraw):
+			UiStyle.notifier.changed.connect(queue_redraw)
+			queue_redraw()
 
 	func _draw() -> void:
-		# A soft vignette over the tiles.
-		draw_texture_rect(UiStyle.vignette(), Rect2(Vector2.ZERO, size), false)
-		# Sets with things lying on the table (Snake Eyes: cards, dice, chips) pin them to the corners.
 		var sid := set_id if set_id != &"" else UiStyle.current
+		var r := Rect2(Vector2.ZERO, size)
+		var bd: Array = UiStyle.kit(sid)["backdrop"]
+		var top := Color(str(bd[0]))
+		var bot := Color(str(bd[1]))
+		draw_polygon(PackedVector2Array([r.position, Vector2(r.end.x, 0), r.end, Vector2(0, r.end.y)]),
+			PackedColorArray([top, top.darkened(0.2), bot, bot]))
+		var g := UiStyle._grain(str(UiStyle.kit(sid)["grain"]))
+		if g != null:
+			draw_texture_rect(g, r, true, Color(0, 0, 0, float(UiStyle.kit(sid)["grain_a"]) * 1.2))
+		draw_texture_rect(UiStyle.vignette(), r, false)
+		# Sets with things lying on the table (Snake Eyes: cards, dice, chips) pin them to the corners.
 		var k := clampf(size.y / 1080.0, 0.6, 1.6)
 		for corner: String in ["tl", "tr", "bl", "br"]:
 			var t := UiStyle.texture(sid, "scatter_" + corner)

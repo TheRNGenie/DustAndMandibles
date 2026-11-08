@@ -45,8 +45,9 @@ func _ready() -> void:
 	add_child(keeper)
 	keeper.setup({"hat": "gambler", "facial": "pencil", "hair": "ponytail", "hair_color": "black", "outfit": "duster",
 		"neck": "bolo", "extra": "none", "paint": "white"}, Color("#5A1E4A"))
-	# Lucky himself leans on the rail beside the booth now (LuckyNpc); the booth
-	# stands unattended (the dummy behind it is kept for the old views, hidden).
+	# Lucky himself is LuckyNpc: on the rail beside the booth until the team finds
+	# hive amber, then leaning on this counter (the dummy here is kept for the old
+	# views, hidden).
 	keeper.visible = false
 	# Warm amber light from the case and a lantern, and his painted sign.
 	var glow := OmniLight3D.new()
@@ -55,8 +56,8 @@ func _ready() -> void:
 	glow.omni_range = 4.0
 	glow.position = Vector3(0, 1.5, -0.4)
 	add_child(glow)
-	# His board on the roof's front edge: the name, and the small print.
-	for line: Array in [["LUCKY'S CURIOS", 0.0034, 3.42, AmberRules.GLOW], ["no questions asked", 0.0019, 3.2, Palette.BONE]]:
+	# His board on the roof's front edge: just the name (no tagline: Logan).
+	for line: Array in [["LUCKY'S CURIOS", 0.0034, 3.32, AmberRules.GLOW]]:
 		var sign := Label3D.new()
 		sign.text = str(line[0])
 		sign.font_size = 72
@@ -115,7 +116,7 @@ func _process(delta: float) -> void:
 		return
 	# The greeting, once each time someone walks up.
 	var me := _local_player()
-	var near := me != null and me.global_position.distance_to(global_position) < GREET_RANGE
+	var near := Amber.found and me != null and me.global_position.distance_to(global_position) < GREET_RANGE # (he's here)
 	if near and not _greeted:
 		_greeted = true
 		say(AmberRules.LUCKY_GREETING)
@@ -193,8 +194,8 @@ func menu_items(tab: int) -> Array:
 				row["desc"] = "%s\n%s finished by Lucky: keeps its level and mods." % [fin["desc"], Gun.weapon(gid).display_name]
 				if player != null and player.gun.owns(gid) and AmberRules.is_lucky(player.gun.code_of(gid)):
 					row["disabled"] = "You carry it."
-				elif player != null and not player.gun.owns(gid) and player.gun.owned.size() >= Gun.MAX_WEAPONS:
-					row["disabled"] = "Your three weapon slots are full. Drop one first (Q)."
+				elif player != null and not player.gun.owns(gid) and Gun.slot_refusal(player.gun.owned, gid) != "":
+					row["disabled"] = Gun.slot_refusal(player.gun.owned, gid) # Weapon Slots: one gun of each kind
 			"look":
 				row["name"] = str(item["name"])
 				row["icon"] = AmberRules.ITEM

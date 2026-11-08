@@ -70,7 +70,7 @@ const STEPS: Array[Dictionary] = [
 		"body": "",
 		"tasks": ["Grab Your Revolver", "Dust Mites Shot"], "keys": [["fire", "Shoot"], ["reload", "Reload"]], "marker": "Dust Mite"},
 	{"title": "Pick Your Iron", "voice": "kettle", "line": "Silas Kettle, gunsmith. That revolver's six honest shots. I sell rifles that punch through a shell, shotguns for close work, and a few odd ones that do tricks. You can carry three.",
-		"body": "You carry three guns, one in each of slots 1, 2 and 3. Press 1, 2 or 3 to switch to that slot, or roll the mouse wheel to cycle through what you carry.",
+		"body": "You carry three guns: a primary in slot 1, a secondary in slot 2 and a heavy in slot 3 (heavies load from your crop harvests). Press 1, 2 or 3 to switch to that slot, or roll the mouse wheel to cycle through what you carry.",
 		"tasks": [], "keys": [["select_1", "Slot 1"], ["select_2", "Slot 2"], ["select_3", "Slot 3"], ["next_item", "Cycle"], ["accept", "Continue"]], "read": true},
 	{"title": "Pell's Toes", "voice": "stroud", "line": "Now, the law. No barrel dips more than thirty degrees below the horizon. In seventy-one Governor Pell fired down from the rim at a rattlesnake and shot off three of his own toes. If a Governor can't shoot downhill safely, no man can. Pell's Toes, folks call it.",
 		"body": "",

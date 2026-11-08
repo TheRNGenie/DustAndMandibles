@@ -25,9 +25,9 @@ func ui_rules() -> String:
 	return "Bet on the hand closest to 9. Player pays 1:1, Banker 0.95:1, Tie 8:1. Player and Banker bets push on a tie."
 
 
-func _decorate(st: SurfaceTool) -> void:
-	for i in 3:
-		MeshKit.add_box(st, Transform3D(Basis(), Vector3(-0.5 + i * 0.5, 0.99, 0.1)), Vector3(0.36, 0.01, 0.3), [Color("#2E6FA8"), Color("#C9302C"), Palette.GLOW_YELLOW][i])
+## The racetrack table with its printed Player / Banker / Tie layout (gen/casino_table_art.gd).
+func _art_kind() -> String:
+	return "baccarat"
 
 
 func ui_choices() -> Array:

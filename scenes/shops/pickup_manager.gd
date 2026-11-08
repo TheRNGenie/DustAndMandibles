@@ -64,8 +64,8 @@ func try_pick_up(peer_id: int, pickup: WeaponPickup) -> void:
 	if owned.has(pickup.weapon_id):
 		Economy.notify(peer_id, "You already carry a %s." % Gun.weapon(pickup.weapon_id).display_name)
 		return
-	if owned.size() >= Gun.MAX_WEAPONS:
-		Economy.notify(peer_id, "Your three weapon slots are full. Drop one first (Q).")
+	if Gun.slot_refusal(owned, pickup.weapon_id) != "": # Weapon Slots: one gun of each kind
+		Economy.notify(peer_id, Gun.slot_refusal(owned, pickup.weapon_id))
 		return
 	owned[pickup.weapon_id] = pickup.level
 	for n: Node in get_tree().get_nodes_in_group("players"):

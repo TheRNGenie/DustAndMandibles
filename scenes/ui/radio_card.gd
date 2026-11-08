@@ -34,17 +34,21 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card = PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(UiStyle.c("hud_bg"), 0.93)
-	sb.border_color = UiStyle.c("hud_rim")
-	sb.set_border_width_all(2)
-	sb.border_width_left = 6
-	sb.set_corner_radius_all(6)
-	sb.set_content_margin_all(10)
-	sb.content_margin_left = 12
-	sb.shadow_color = Color(0, 0, 0, 0.4)
-	sb.shadow_size = 6
+	# The HUD kit's plate with the set's metal down its left edge (a radio on the wire).
+	var sb := KeyHints.kit_box("plate").duplicate() as KitBox
+	sb.bar_side = 1
+	sb.bar = UiStyle.kc("accent")
+	sb.bar_width = 4.0
+	sb.bar_inset = 0.12
 	_card.add_theme_stylebox_override("panel", sb)
+	UiStyle.notifier.changed.connect(func() -> void:
+		var fresh := KeyHints.kit_box("plate").duplicate() as KitBox
+		fresh.bar_side = 1
+		fresh.bar = UiStyle.kc("accent")
+		fresh.bar_width = 4.0
+		fresh.bar_inset = 0.12
+		_card.add_theme_stylebox_override("panel", fresh)
+		_restyle())
 	_card.position = Vector2(24, TOP)
 	_card.custom_minimum_size = Vector2(WIDTH, 0)
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -71,21 +75,17 @@ func _ready() -> void:
 	_dot.custom_minimum_size = Vector2(9, 9)
 	_dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	wire.add_child(_dot)
-	var w := UiStyle.label("Lucky Mandible Wireless", 12, Color(UiStyle.c("hud"), 0.6))
-	w.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	w.autowrap_mode = TextServer.AUTOWRAP_OFF
+	var w := KeyHints.eyebrow("Lucky Mandible Wireless", 12)
 	wire.add_child(w)
-	_name = UiStyle.label("", 22, UiStyle.c("title"))
-	_name.add_theme_font_override("font", UiStyle.display_font())
-	_name.add_theme_color_override("font_outline_color", Palette.OUTLINE)
+	_name = Label.new()
+	_name.theme_type_variation = "HeaderTitle"
+	_name.add_theme_font_size_override("font_size", UiStyle.ts(22))
 	_name.add_theme_constant_override("outline_size", 4)
-	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_name.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(_name)
-	_role = UiStyle.label("", 13, Color(UiStyle.c("hud"), 0.65))
-	_role.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_role.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_role = KeyHints.ink("", 14, true)
 	col.add_child(_role)
+	_restyle()
 	_card.visible = false
 	_sub = Subtitle.new()
 	add_child(_sub)
@@ -94,12 +94,21 @@ func _ready() -> void:
 	add_child(_voice)
 
 
+## The speaker's name in the set's display face, unless that face is too ornate
+## to read at a glance (then the kit's bold UI face).
+func _restyle() -> void:
+	if UiStyle.display_is_decorative():
+		_name.add_theme_font_override("font", UiStyle.font("bold"))
+	else:
+		_name.remove_theme_font_override("font")
+
+
 ## A round brass-rimmed frame on a warm sepia ground, the portrait clipped inside.
 func _portrait_frame() -> Control:
 	var ring := Panel.new()
 	var rsb := StyleBoxFlat.new()
-	rsb.bg_color = Color("#3A2614")
-	rsb.border_color = Color("#C9A04A")
+	rsb.bg_color = UiStyle.kc("well")
+	rsb.border_color = UiStyle.kc("accent")
 	rsb.set_border_width_all(4)
 	rsb.set_corner_radius_all(int(PORTRAIT * 0.5))
 	rsb.anti_aliasing = true

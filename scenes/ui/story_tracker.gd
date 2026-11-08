@@ -13,22 +13,23 @@ var _mark: UiStyle.Mark
 
 
 func _ready() -> void:
-	theme_type_variation = "HudPanel"
+	add_theme_stylebox_override("panel", KeyHints.kit_box("plate"))
+	add_to_group("story_tracker") # the partner alerts card sits under it
 	anchor_left = 0.0
 	anchor_top = 0.0
 	offset_left = 24
-	offset_top = 70
+	offset_top = HudStatus.HOME_TOP + HudStatus.HOME_STEP + 4.0 # under your Homestead plate
 	custom_minimum_size = Vector2(400, 0)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 1)
+	col.add_theme_constant_override("separation", 3)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(col)
-	_head = UiStyle.label("", 13, Color(UiStyle.c("hud"), 0.7))
-	_head.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_head.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_head = KeyHints.eyebrow("", 13)
 	col.add_child(_head)
-	_goal = UiStyle.label("", 17, UiStyle.c("title"))
+	_goal = UiStyle.label("", 17)
+	_goal.theme_type_variation = "GoldLabel"
+	_goal.add_theme_font_override("font", UiStyle.font("bold"))
 	_goal.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_goal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_goal.custom_minimum_size.x = 380
@@ -40,7 +41,7 @@ func _ready() -> void:
 	_mark = UiStyle.mark("info", UiStyle.status_color("info", true), 12)
 	_mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_mark)
-	_status = UiStyle.label("", 15, UiStyle.c("hud"))
+	_status = UiStyle.label("", 15)
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size.x = 360

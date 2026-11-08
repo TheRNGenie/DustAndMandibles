@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"ricochet_rifle"
+slot = 0
+display_name = "Ricochet Rifle"
+description = "A showman's trick rifle. Its rounds glance off rock and hard shell once and fly on for a second bite at 60%. Hard to call, wonderful when it works."
+damage = 40.0
+mag_size = 5
+fire_interval = 0.7
+reload_time = 2.6
+pellets = 1
+range = 250.0
+price_chitin = 55
+upgrade_costs = PackedInt32Array(15, 30)
+shake = 0.3
+sound = &"sharpshooter"
+recoil_deg = 2.6
+recoil_yaw_deg = 0.4
+recoil_recover = 0.3
+role = "Trick shots"
+special = &"ricochet"
+sound_pitch = 1.2

@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"trapdoor_springfield"
+slot = 0
+display_name = "Trapdoor Springfield"
+description = "Army surplus with a heavy cartridge. Every shot goes clean through every bug in its line: a column of climbers is one bullet's work."
+damage = 50.0
+mag_size = 1
+fire_interval = 0.2
+reload_time = 1.2
+pellets = 1
+range = 350.0
+pierce_armor = true
+price_chitin = 40
+upgrade_costs = PackedInt32Array(10, 25)
+shake = 0.45
+sound = &"buffalo"
+recoil_deg = 4.0
+recoil_yaw_deg = 0.6
+recoil_recover = 0.35
+role = "Penetration"
+special = &"pierce_line"
+sound_pitch = 1.25

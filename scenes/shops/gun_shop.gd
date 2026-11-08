@@ -52,6 +52,22 @@ const SHELF: Array[Dictionary] = [
 	{"kind": "mods", "id": &"telescope_rifle"},
 ]
 
+## Weapon Slots: the menu's tabs: one per slot to buy from, then Upgrades (rarity) and Modifications.
+const TAB_RARITY := 3
+const TAB_MODS := 4
+## What a full slot's old gun fetches when a new one replaces it.
+const TRADE_IN := 0.5
+
+
+## Every gun the gunsmith deals in (Gun.ORDER): a buy, a rarity and a mods row each.
+static func shelf() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for kind: String in ["buy", "upgrade", "mods"]:
+		for id: StringName in Gun.ORDER:
+			out.append({"kind": kind, "id": id})
+	return out
+
+
 ## Host: what every peer owns, peer_id -> {weapon id: level}.
 static var loadouts: Dictionary = {}
 ## Host: each peer's whip (WeaponMods code); everyone always has one.
@@ -124,11 +140,11 @@ func menu_title() -> String:
 
 
 func menu_tagline() -> String:
-	return StyleCombo.streak_note() + "New irons, and every gun upgraded from Common up to Legendary, paid in your own %s. You can carry three guns; drop one with Q to make room." % ResNames.personal()
+	return StyleCombo.streak_note() + "New irons, and every gun upgraded from Common up to Legendary, paid in your own %s. One gun to a slot: a primary, a secondary and a heavy. Buying another for a full slot trades the old one in at half price." % ResNames.personal()
 
 
 func menu_tabs() -> Array:
-	return ["Guns", "Rarity", "Workshop Mods"]
+	return ["Primaries", "Secondaries", "Heavies", "Upgrades", "Modifications"]
 
 
 func menu_items(tab: int) -> Array:
@@ -137,24 +153,31 @@ func menu_items(tab: int) -> Array:
 		return []
 	var chitin := Economy.amount(NetworkManager.cliff_of(multiplayer.get_unique_id()), &"chitin")
 	var out: Array = []
-	for item: Dictionary in SHELF:
+	for item: Dictionary in shelf():
 		var id: StringName = item["id"]
 		var w := Gun.weapon(id)
 		if Defs.is_retired(id) and not gun.owns(id):
 			continue # retired for now (Defs.RETIRED)
 		if id == &"dino_rifle" and not Perks.has_secret(multiplayer.get_unique_id(), &"weapon", id) and not gun.owns(id):
 			continue # secret: only once its code has been entered
-		if tab == 0 and item["kind"] == "buy":
+		if tab < TAB_RARITY and item["kind"] == "buy" and Gun.slot_of(id) == tab:
 			var why := ""
 			if gun.owns(id):
 				why = "Already in your holster."
-			elif gun.owned.size() >= Gun.MAX_WEAPONS:
-				why = "Your three weapon slots are full. Drop one first (Q)."
+			var extra := ""
+			if w.crop != &"":
+				var crop := Defs.crop(w.crop)
+				extra += "
+Fed with %s loads: %d rounds a load (from the root cellar when you reload)." % [crop.display_name if crop != null else String(w.crop), w.shots_per_harvest]
+			var holder := Gun.slot_holder(gun.owned, id)
+			if holder != &"" and why == "":
+				extra += "
+Trades in your %s for %s." % [Gun.weapon(holder).display_name, UiStyle.cost(int(Gun.weapon(holder).price_chitin * TRADE_IN), "chitin")]
 			out.append({"id": "buy:%s" % id, "name": w.display_name, "icon": id, "desc": "%s
-%s" % [w.description, w.stat_line()],
+%s%s" % [w.description, w.stat_line(), extra],
 					"price": UiStyle.cost(w.price_chitin, "chitin"), "price_ok": chitin >= w.price_chitin, "disabled": why,
 					"buttons": [[&"buy", "Buy"]]})
-		elif tab == 1 and item["kind"] == "upgrade":
+		elif tab == TAB_RARITY and item["kind"] == "upgrade":
 			# Rarity: Common (white) up through Uncommon, Rare and Epic; Legendary takes Meteor Iron too.
 			var level := gun.level_of(id) if gun.owns(id) else 0
 			var maxed := level >= GunRarity.MAX
@@ -175,7 +198,7 @@ func menu_items(tab: int) -> Array:
 			out.append({"id": "upgrade:%s" % id, "name": "%s  ·  %s" % [w.display_name, GunRarity.label(level)], "icon": id,
 					"desc": _upgrade_desc(w, level), "price": price, "rarity": level,
 					"price_ok": ok, "disabled": why, "buttons": [[&"buy", "Upgrade to %s" % GunRarity.name_of(level + 1) if not maxed else "Upgrade"]]})
-		elif tab == 2 and item["kind"] == "mods":
+		elif tab == TAB_MODS and item["kind"] == "mods":
 			# Only guns you carry, so the list stays short.
 			if not gun.owns(id):
 				continue
@@ -191,7 +214,7 @@ func menu_items(tab: int) -> Array:
 	var p := _player_of(multiplayer.get_unique_id())
 	if p != null and p.whip != null:
 		var wc := p.whip.code
-		if tab == 1:
+		if tab == TAB_RARITY:
 			var lvl := WeaponMods.level(wc)
 			var maxed := lvl >= WeaponMods.WHIP_LEVEL_COSTS.size()
 			var cost: int = 0 if maxed else WeaponMods.WHIP_LEVEL_COSTS[lvl]
@@ -202,12 +225,12 @@ func menu_items(tab: int) -> Array:
 			if WeaponMods.is_golden(wc):
 				gold_why = "It already shines."
 			elif not WeaponMods.can_gild(wc):
-				gold_why = "Max the whip's level and fit all three workshop mods first."
+				gold_why = "Max the whip's level and fit all three of its modifications first."
 			out.append({"id": "gild:whip", "name": "The Golden Whip", "icon": &"planks",
 					"desc": "Gild the whole lash in gold: +60% damage, 15% more reach, lashes 20% quicker. The gunsmith's masterpiece.",
 					"price": "" if WeaponMods.is_golden(wc) else UiStyle.cost(WeaponMods.GOLDEN_COST, "chitin"),
 					"price_ok": chitin >= WeaponMods.GOLDEN_COST, "disabled": gold_why, "buttons": [[&"buy", "Gild it"]]})
-		elif tab == 2:
+		elif tab == TAB_MODS:
 			var mods := WeaponMods.list(&"whip")
 			for i in mods.size():
 				var m: Dictionary = mods[i]
@@ -216,17 +239,17 @@ func menu_items(tab: int) -> Array:
 						"desc": str(m["desc"]), "price": "" if fitted else UiStyle.cost(int(m["cost"]), "chitin"),
 						"price_ok": chitin >= int(m["cost"]), "disabled": "Fitted." if fitted else "", "buttons": [[&"buy", "Fit it"]]})
 	if p != null and p.dynamite != null:
-		# The Powder Satchel and its mods come after the guns (the Rarity tab is about the guns).
-		out = out + _dynamite_items(tab, p.dynamite.code, chitin)
-	if tab == 0:
+		# The Powder Satchel and its mods come after the guns (the Upgrades tab is about the guns).
+		out = out + _dynamite_items(tab - 2, p.dynamite.code, chitin)
+	if tab < TAB_RARITY:
 		# Cheapest first (Logan).
 		out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return _price_of(a) < _price_of(b))
-	elif tab == 1:
+	elif tab == TAB_RARITY:
 		# What you carry first, then the rest, each keeping the shelf's order (Logan).
 		var mine := out.filter(func(it: Dictionary) -> bool: return str(it["disabled"]) != "Buy it first." and it.has("rarity"))
 		mine.append_array(out.filter(func(it: Dictionary) -> bool: return not it.has("rarity"))) # whip and satchel after your guns
 		out = mine + out.filter(func(it: Dictionary) -> bool: return str(it["disabled"]) == "Buy it first." and it.has("rarity"))
-	if tab == 2 and out.is_empty():
+	if tab == TAB_MODS and out.is_empty():
 		out.append({"id": "", "name": "Nothing to work on", "icon": &"hammer", "desc": "Mods are fitted to the guns you carry.",
 				"price": "", "price_ok": true, "disabled": "Buy a gun first.", "buttons": []})
 	return Perks.discount_menu(out, &"gunsmiths_friend", NetworkManager.cliff_of(multiplayer.get_unique_id())) # Perk: Gunsmith's Friend
@@ -303,9 +326,6 @@ func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
 	if kind == "buy":
 		if owned.has(id):
 			return
-		if owned.size() >= Gun.MAX_WEAPONS:
-			Economy.notify(peer_id, "Your three weapon slots are full. Drop one first (Q).")
-			return
 		if id == &"dino_rifle" and not Perks.has_secret(peer_id, &"weapon", id):
 			return
 		if Defs.is_retired(id):
@@ -341,6 +361,15 @@ func _buy(peer_id: int, kind: String, id: StringName, slot: int = -1) -> void:
 	if streak > 0.0:
 		StyleCombo.use_streak(peer_id)
 		Economy.notify(peer_id, "Hot Streak: %d%% off. Silas tips his hat too." % roundi(streak * 100.0))
+	if kind == "buy":
+		# Weapon Slots: a gun already in this one's slot is traded in at half price.
+		var holder := Gun.slot_holder(owned, id)
+		if holder != &"":
+			var back := int(Gun.weapon(holder).price_chitin * TRADE_IN)
+			owned.erase(holder)
+			if back > 0:
+				Economy.earn(payer, {&"chitin": back})
+			Economy.notify(peer_id, "Traded in your %s for %s." % [Gun.weapon(holder).display_name, UiStyle.cost(back, "chitin")])
 	owned[id] = level
 	var player := _player_of(peer_id)
 	if player != null:

@@ -224,8 +224,8 @@ func _host(peer_id: int, op: StringName, what: StringName, n: int) -> void:
 			if owned.has(what):
 				Economy.notify(peer_id, "You already carry a %s." % Gun.weapon(what).display_name)
 				return
-			if owned.size() >= Gun.MAX_WEAPONS:
-				Economy.notify(peer_id, "Your three weapon slots are full. Store or drop one first.")
+			if Gun.slot_refusal(owned, what) != "": # Weapon Slots: one gun of each kind
+				Economy.notify(peer_id, Gun.slot_refusal(owned, what).replace("Drop it first (Q).", "Store or drop it first."))
 				return
 			var level := int(weapons[what])
 			weapons.erase(what)

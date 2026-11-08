@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"flashbang_pistol"
+slot = 1
+display_name = "Flashbang Pistol"
+description = "A wide-bore pistol firing magnesium shells. The flash stuns every bug within 10 metres for two seconds: they freeze and stop biting. Bosses blink it off fast."
+damage = 8.0
+mag_size = 2
+fire_interval = 0.7
+reload_time = 2.2
+pellets = 1
+range = 50.0
+price_chitin = 35
+upgrade_costs = PackedInt32Array(10, 25)
+shake = 0.25
+sound = &"mortar"
+recoil_deg = 2.5
+role = "Hard stun"
+special = &"flash"
+sound_pitch = 1.6

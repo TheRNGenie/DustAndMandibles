@@ -960,8 +960,8 @@ func _gun_deal() -> Dictionary:
 	var best := {}
 	var best_dps := _dps(gun_id, gun_code) * 1.15 if force_gun == &"" else INF
 	for item: Dictionary in GunShop.SHELF:
-		if item["kind"] != "buy" or item["id"] == &"dino_rifle":
-			continue
+		if item["kind"] != "buy" or item["id"] == &"dino_rifle" or Gun.slot_of(item["id"]) != WeaponDef.Slot.PRIMARY:
+			continue # (Weapon Slots: the partner sticks to its primary)
 		var w := Gun.weapon(item["id"])
 		if w == null or w.price_chitin > own:
 			continue

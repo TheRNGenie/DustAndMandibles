@@ -3,6 +3,16 @@ extends Resource
 ## A player weapon. Bought (and upgraded) with chitin at the gun shop.
 
 @export var id: StringName = &""
+## Weapon Slots: which hotbar slot it lives in. Each slot holds one gun; buying
+## another for a full slot sells the old one back at half price.
+enum Slot { PRIMARY, SECONDARY, HEAVY }
+@export var slot: Slot = Slot.PRIMARY
+## Heavies: the crop one load of ammunition costs (one harvest fills the
+## magazine: `mag_size` is the shots per harvest). &"" = ordinary ammunition.
+@export var crop: StringName = &""
+## Heavies: rounds one harvest of `crop` loads (they wait in the gun's crop
+## reserve and go into the magazine as you reload).
+@export var shots_per_harvest: int = 0
 @export var display_name: String = ""
 @export var description: String = ""
 @export var damage: float = 25.0
@@ -74,11 +84,25 @@ func stat_line() -> String:
 	if special == &"smoke":
 		return "  ·  ".join(PackedStringArray(["No Damage", "%d s of Smoke" % roundi(mag_size * fire_interval),
 				"Reaches %d m" % int(range), "Refills Itself"]))
-	var parts: PackedStringArray = ["Damage %d%s" % [int(damage), (" x%d" % pellets) if pellets > 1 else ""],
+	if automatic and damage <= 0.0:
+		# Weapon Slots sprays that do no harm themselves (tar, rust).
+		return "  ·  ".join(PackedStringArray(["No Damage", "%d s of Spray" % roundi(mag_size * fire_interval),
+				"Reaches %d m" % int(range), "Refills Itself" if reload_time <= 0.0 else "%.1f s Reload" % reload_time]))
+	if automatic and crop != &"":
+		# Heavy sprays (fire, acid): damage a puff, seconds a harvest.
+		return "  ·  ".join(PackedStringArray(["Damage %d a Puff" % int(damage), "%d s a Crop Load" % roundi(shots_per_harvest * fire_interval),
+				"Reaches %d m" % int(range)]))
+	if damage <= 0.0:
+		return "  ·  ".join(PackedStringArray(["No Damage", "%d Round%s" % [mag_size, "" if mag_size == 1 else "s"],
+				"%.1f s Reload" % reload_time, "Reaches %d m" % int(range)]))
+	var splash := special == &"mortar" or special == &"rocket"
+	var parts: PackedStringArray = ["Damage %d%s%s" % [int(damage), (" x%d" % pellets) if pellets > 1 else "", " Splash" if splash else ""],
 			"%d Round%s" % [mag_size, "" if mag_size == 1 else "s"], "%.1f s Reload" % reload_time,
 			"Pierces Armour" if pierce_armor else "Stopped by Armour"]
 	if falloff_start < range:
 		parts.append("Weaker Past %d m" % int(falloff_start))
 	if weak_bonus > 1.0:
 		parts.append("Weak Spots x%s" % String.num(WeakSpot.MULTIPLIER * weak_bonus, 1).trim_suffix(".0"))
+	if crop != &"":
+		parts.append("%d a Crop Load" % shots_per_harvest)
 	return "  ·  ".join(parts)

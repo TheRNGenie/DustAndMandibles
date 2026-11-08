@@ -12,6 +12,8 @@ var _feed: VBoxContainer
 var _spare: Array[Label] = []
 var _card: HudPromptCard
 var _prompt_text := ""
+## Debug: --prompttest="Title|E: Do this   F: That" pins the prompt card ("|" breaks lines).
+var _prompt_test := ""
 var _over: Control
 var _over_strap: PanelContainer
 var _over_scroll: ScrollContainer
@@ -21,6 +23,8 @@ var _over_label: Label
 var _keep_going: Button
 var _build_mode: BuildMode
 var _boss_box: VBoxContainer
+var _boss_plate: PanelContainer
+var _boss_pcts: Array[Label] = []
 ## One name + bar per boss on the field (two in the finale).
 var _boss_bars: Array[ProgressBar] = []
 var _boss_labels: Array[Label] = []
@@ -32,12 +36,14 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_to_group("hud_feed")
+	_prompt_test = GameState.flag_value("--prompttest").replace("|", char(10))
 	_feed = VBoxContainer.new()
 	_feed.anchor_left = 1.0
 	_feed.anchor_right = 1.0
-	_feed.offset_left = -700
+	_feed.offset_left = -620
 	_feed.offset_right = -24
 	_feed.offset_top = 90 # pushed below the wave preview while it shows (_process)
+	_feed.add_theme_constant_override("separation", 4)
 	_feed.alignment = BoxContainer.ALIGNMENT_BEGIN
 	add_child(_feed)
 
@@ -93,11 +99,13 @@ func _ready() -> void:
 	inner.add_child(footer)
 	# After a win: keep the waves coming past the last one (host decides).
 	_keep_going = MenuScreen.wood_button("Keep Going (Endless)")
+	_keep_going.theme_type_variation = "PrimaryButton" # the call to action when it shows
 	_keep_going.visible = false
 	_keep_going.pressed.connect(func() -> void: GameState.continue_endless())
 	footer.add_child(_keep_going)
 	# Story: the host retries a lost chapter or rides on to the next one.
 	_story_btn = MenuScreen.wood_button("Retry Chapter")
+	_story_btn.theme_type_variation = "PrimaryButton"
 	_story_btn.visible = false
 	_story_btn.pressed.connect(func() -> void:
 		var next := str(_story_btn.get_meta("chapter", ""))
@@ -111,23 +119,39 @@ func _ready() -> void:
 		SceneFade.go(NetworkManager.MENU_SCENE))
 	footer.add_child(back)
 
+	# Boss bars: a plate under the phase plaque, one name and bar per boss.
+	_boss_plate = KeyHints.plate("plate_tight")
+	_boss_plate.anchor_left = 0.5
+	_boss_plate.anchor_right = 0.5
+	_boss_plate.offset_left = -330
+	_boss_plate.offset_right = 330
+	_boss_plate.offset_top = 104
+	_boss_plate.visible = false
+	add_child(_boss_plate)
 	_boss_box = VBoxContainer.new()
-	_boss_box.anchor_left = 0.5
-	_boss_box.anchor_right = 0.5
-	_boss_box.offset_left = -320
-	_boss_box.offset_right = 320
-	_boss_box.offset_top = 110
-	_boss_box.visible = false
-	add_child(_boss_box)
-	_boss_box.add_theme_constant_override("separation", 2)
+	_boss_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boss_box.add_theme_constant_override("separation", 3)
+	_boss_plate.add_child(_boss_box)
 	for k in 2:
-		var label := _outlined("", 20, UiStyle.hud_c("bad"))
-		_boss_box.add_child(label)
+		var head := HBoxContainer.new()
+		head.add_theme_constant_override("separation", 8)
+		head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_boss_box.add_child(head)
+		var skull := UiStyle.mark("warn", UiStyle.hud_c("bad"), 16)
+		head.add_child(skull)
+		var label := KeyHints.ink("", 18 if k == 0 else 16)
+		label.add_theme_font_override("font", UiStyle.font("bold"))
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		head.add_child(label)
+		var pct := KeyHints.number("", 16)
+		head.add_child(pct)
 		var bar := UiStyle.bar(Palette.TEAM_WEST if k == 0 else Palette.TEAM_WEST.lerp(Palette.GLOW_YELLOW, 0.35),
-				Vector2(640, 22 if k == 0 else 18)) # one bar style everywhere
+				Vector2(636, 20 if k == 0 else 15)) # one bar style everywhere
 		_boss_box.add_child(bar)
 		_boss_labels.append(label)
 		_boss_bars.append(bar)
+		_boss_pcts.append(pct)
 	WaveDirector.wave_announced.connect(_on_wave_announced)
 	Economy.notice.connect(func(t: String) -> void: add_line(t, UiStyle.c("title")))
 	GameState.game_over.connect(_on_game_over)
@@ -157,10 +181,14 @@ func bind_player(player: Player, bugs: BugManager, builds: BuildManager) -> void
 func _process(_delta: float) -> void:
 	# The feed sits under the wave preview card when that's up in the corner.
 	# Maps: never over the other cliffs' homestead bars stacked top-right.
-	var top := maxf(90.0, 76.0 + (WorldLayout.cliff_count() - 2) * 50.0)
+	var top := HudStatus.right_stack_bottom() + 10.0
 	for c in get_parent().get_children():
 		if c is HudWavePreview and (c as Control).visible:
 			top = (c as Control).position.y + (c as Control).size.y + 10.0
+	# ...and under the style grade letter, which hangs under the wave card.
+	var hud_root := get_parent() as Hud
+	if hud_root != null and hud_root.combo != null:
+		top = maxf(top, hud_root.combo.bottom() + 6.0)
 	_feed.offset_top = top
 	if _build_mode != null and _build_mode.active and not _build_mode.menu_open:
 		var hud := get_parent() as Hud
@@ -169,7 +197,7 @@ func _process(_delta: float) -> void:
 	elif _build_mode != null and _build_mode.menu_open:
 		_card.show_text("")
 	else:
-		_card.show_text(_prompt_text)
+		_card.show_text(_prompt_text if _prompt_test == "" else _prompt_test)
 	_update_boss_bar()
 
 
@@ -180,11 +208,11 @@ func _update_boss_bar() -> void:
 		var b := n as Bug
 		if is_instance_valid(b) and b.def.behavior == BugDef.Behavior.BOSS and b.is_alive():
 			bosses.append(b)
-	_boss_box.visible = not bosses.is_empty()
+	_boss_plate.visible = not bosses.is_empty()
 	for k in _boss_bars.size():
 		var on := k < bosses.size()
 		_boss_bars[k].visible = on
-		_boss_labels[k].visible = on
+		_boss_labels[k].get_parent().visible = on
 		if not on:
 			continue
 		var boss := bosses[k]
@@ -193,6 +221,7 @@ func _update_boss_bar() -> void:
 			add_line(boss.def.boss_tip if boss.def.boss_tip != "" else "%s Is Coming!" % UiStyle.tc(boss.def.display_name), UiStyle.hud_c("bad"))
 		_boss_bars[k].max_value = boss.health.max_hp
 		_boss_bars[k].value = boss.health.hp
+		_boss_pcts[k].text = "%d%%" % ceili(100.0 * maxf(boss.health.hp, 0.0) / maxf(boss.health.max_hp, 1.0))
 		var status := boss.boss.hud_status() if boss.boss != null else ""
 		_boss_labels[k].text = "%s  ·  %s%s" % [UiStyle.tc(boss.def.display_name), WorldLayout.map().name_of(boss.cliff_id), # Maps:
 				("  ·  " + status) if status != "" else ""]
@@ -226,9 +255,11 @@ func add_line(text: String, color: Color = Color(0, 0, 0, 0)) -> void:
 func _line(text: String, color: Color) -> Label:
 	var l: Label = _spare.pop_back() if not _spare.is_empty() else null
 	if l == null:
-		l = _outlined(text, 16, color)
+		l = UiStyle.label(text, 16, color)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		l.add_theme_stylebox_override("normal", StyleBoxFlat.new())
+		# Each line sits on its own small plate (no loose text over the sky); the
+		# kit's shared feed plate, so it follows the UI set by itself.
+		l.add_theme_stylebox_override("normal", KeyHints.kit_box("feed"))
 		l.size_flags_horizontal = Control.SIZE_SHRINK_END
 		l.autowrap_mode = TextServer.AUTOWRAP_OFF # one line, hugging its text
 	else:
@@ -236,16 +267,11 @@ func _line(text: String, color: Color) -> Label:
 		l.add_theme_color_override("font_color", color)
 		l.add_theme_font_size_override("font_size", UiStyle.ts(16))
 		l.modulate.a = 1.0
-	# Each line sits on its own small dark plate (no loose text over the sky).
-	var plate := l.get_theme_stylebox("normal") as StyleBoxFlat
-	plate.bg_color = Color(UiStyle.c("hud_bg"), 0.82) # Theme: the set's HUD card
-	plate.border_color = UiStyle.c("hud_rim")
-	plate.border_width_left = 3
-	plate.set_corner_radius_all(3)
-	plate.content_margin_left = 8
-	plate.content_margin_right = 8
-	plate.content_margin_top = 1
-	plate.content_margin_bottom = 1
+	# A long line (a boss tip) wraps across the feed's full width; short ones hug their text.
+	var long := text.length() > 64
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if long else TextServer.AUTOWRAP_OFF
+	l.size_flags_horizontal = Control.SIZE_FILL if long else Control.SIZE_SHRINK_END
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if long else HORIZONTAL_ALIGNMENT_RIGHT
 	return l
 
 
@@ -320,6 +346,10 @@ func _on_game_over(won: bool, reason: String) -> void:
 	_keep_going.visible = won and multiplayer.is_server() and ch == null # the host decides whether to ride on
 	_over.visible = true
 	UiStyle.fade_in(_over)
+	# The front page fills in over a few frames: fit again whenever its size settles.
+	var page := _over_scroll.get_child(0) as Control
+	if not page.minimum_size_changed.is_connected(_refit_over):
+		page.minimum_size_changed.connect(_refit_over)
 	_fit_over.call_deferred()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	GameState.set_menu(self, true)
@@ -337,8 +367,19 @@ func _story_end(ch: StoryChapter, won: bool, reason: String) -> void:
 	_fit_over.call_deferred()
 
 
+var _refit_queued := false
+
+
+func _refit_over() -> void:
+	if _refit_queued or _over == null or not _over.visible:
+		return
+	_refit_queued = true
+	_fit_over.call_deferred()
+
+
 ## The front page scrolls only when the screen is too short for it.
 func _fit_over() -> void:
+	_refit_queued = false
 	if not _over.visible:
 		return
 	# Wrapped lines only know their height once laid out at their real width.
@@ -349,6 +390,18 @@ func _fit_over() -> void:
 	var chrome := frame.get_combined_minimum_size().y - _over_scroll.custom_minimum_size.y
 	var room := _over.size.y - 48.0 - chrome
 	_over_scroll.custom_minimum_size = Vector2(content.x, clampf(content.y, 120.0, maxf(room, 120.0)))
+	# Belt and braces: some sequences (a game over straight after a wave) left the
+	# page laid out at 0 height until something else resized it; nudge the layout
+	# until the size takes.
+	for k in 4:
+		await get_tree().process_frame
+		if not _over.visible or _over_scroll.size.y >= _over_scroll.custom_minimum_size.y - 1.0:
+			break
+		_paper.update_minimum_size()
+		_over_scroll.update_minimum_size()
+		var holder := frame.get_parent() as Container
+		if holder != null:
+			holder.queue_sort()
 
 
 func _cliff_owner_name(cid: int) -> String:

@@ -11,6 +11,7 @@ const LINES := {
 
 var player: Player
 var _box: VBoxContainer
+var _ribbon: PanelContainer
 var _title: Label
 var _sub: Label
 var _tween: Tween
@@ -19,32 +20,35 @@ var _tween: Tween
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var ribbon := PanelContainer.new()
-	# The set's HUD card stretched edge to edge, trimmed top and bottom.
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(UiStyle.c("hud_bg"), 0.9)
-	sb.border_color = UiStyle.c("hud_rim")
-	sb.border_width_top = 3
-	sb.border_width_bottom = 3
-	sb.content_margin_top = 10
-	sb.content_margin_bottom = 12
-	ribbon.add_theme_stylebox_override("panel", sb)
-	ribbon.anchor_left = 0.0
-	ribbon.anchor_right = 1.0
-	ribbon.anchor_top = 0.3
-	ribbon.anchor_bottom = 0.3
-	ribbon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(ribbon)
+	# A wide plate in the set's deep colour (stitched or riveted, as the set is):
+	# the display title, the set's ornament rule, one line under it.
+	var center := CenterContainer.new()
+	center.anchor_left = 0.0
+	center.anchor_right = 1.0
+	center.anchor_top = 0.3
+	center.anchor_bottom = 0.3
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(center)
 	_box = VBoxContainer.new()
-	_box.add_theme_constant_override("separation", 0)
+	_box.add_theme_constant_override("separation", 2)
 	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ribbon.add_child(_box)
-	_title = KeyHints.text("", 64, UiStyle.c("title"))
-	_title.add_theme_font_override("font", UiStyle.display_font())
-	_title.add_theme_constant_override("outline_size", 12)
+	_ribbon = KeyHints.plate("ribbon")
+	_ribbon.custom_minimum_size.x = 640
+	_ribbon.add_child(_box)
+	center.add_child(_ribbon)
+	_title = Label.new()
+	_title.theme_type_variation = "HeaderTitle"
+	_title.uppercase = true
+	_title.add_theme_font_size_override("font_size", UiStyle.ts(64))
+	_title.add_theme_constant_override("outline_size", 10)
+	_title.add_theme_constant_override("shadow_offset_y", 4)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_box.add_child(_title)
-	_sub = KeyHints.text("", 22, UiStyle.c("hud"))
+	var rule := UiStyle.divider(420)
+	_box.add_child(rule)
+	_sub = KeyHints.ink("", 22)
+	_sub.add_theme_font_override("font", UiStyle.font("bold"))
 	_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_box.add_child(_sub)
 	modulate.a = 0.0
@@ -78,13 +82,13 @@ func show_card(title: String, sub: String, color: Color) -> void:
 	visible = true
 	if _tween != null:
 		_tween.kill()
-	_box.pivot_offset = _box.size * 0.5
-	_box.scale = Vector2(1.6, 1.6)
+	_ribbon.pivot_offset = _ribbon.size * 0.5
+	_ribbon.scale = Vector2(1.35, 1.35)
 	modulate.a = 0.0
 	_tween = create_tween()
 	_tween.set_parallel(true)
 	_tween.tween_property(self, "modulate:a", 1.0, 0.15)
-	_tween.tween_property(_box, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_tween.tween_property(_ribbon, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_tween.chain().tween_interval(1.8)
 	_tween.chain().tween_property(self, "modulate:a", 0.0, 0.6)
 	_tween.chain().tween_callback(func() -> void: visible = false)

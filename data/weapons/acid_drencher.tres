@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"acid_drencher"
+slot = 2
+crop = &"herbs"
+shots_per_harvest = 40
+display_name = "Acid Drencher"
+description = "Refined bug acid in a garden sprayer (the herbs keep it from eating the tank). An 18-metre cone that burns and, after a couple of seconds on a bug, eats its armour away."
+damage = 12.0
+mag_size = 40
+fire_interval = 0.2
+reload_time = 1.5
+pellets = 1
+range = 18.0
+price_chitin = 75
+upgrade_costs = PackedInt32Array(15, 35)
+shake = 0.05
+automatic = true
+spin_up = 0.1
+sound = &"slide"
+recoil_deg = 0.2
+recoil_yaw_deg = 0.1
+recoil_recover = 0.15
+role = "Armour melt"
+special = &"acid"
+sound_pitch = 1.0
+draw_speed = 0.67

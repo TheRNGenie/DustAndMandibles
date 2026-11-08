@@ -159,7 +159,7 @@ func _build() -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(center)
 	var frame := UiStyle.panel("FramePanel")
-	frame.custom_minimum_size = Vector2(540, 0)
+	frame.custom_minimum_size = Vector2(560, 0)
 	center.add_child(frame)
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 0)
@@ -170,6 +170,7 @@ func _build() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
 	card.add_child(col)
+	col.add_child(UiStyle.section("Riders"))
 	_boxes = HBoxContainer.new()
 	_boxes.alignment = BoxContainer.ALIGNMENT_CENTER
 	_boxes.add_theme_constant_override("separation", UiStyle.GAP_GROUP)
@@ -182,7 +183,9 @@ func _build() -> void:
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	footer.add_child(_status)
-	var unpause := MenuScreen.wood_button("Unpause")
+	var unpause := UiStyle.primary_button("Unpause") # the screen's one call to action
+	unpause.focus_mode = Control.FOCUS_ALL
+	unpause.custom_minimum_size.x = 150
 	unpause.pressed.connect(press_unpause)
 	footer.add_child(unpause)
 
@@ -195,7 +198,7 @@ func _refresh() -> void:
 	for id in peers:
 		var go := ready_ids.has(id)
 		var cell := UiStyle.panel("CardPanel")
-		cell.custom_minimum_size = Vector2(120, 0)
+		cell.custom_minimum_size = Vector2(132, 116)
 		var v := VBoxContainer.new()
 		v.alignment = BoxContainer.ALIGNMENT_CENTER
 		v.add_theme_constant_override("separation", 4)
@@ -203,10 +206,11 @@ func _refresh() -> void:
 		var m := UiStyle.mark("good" if go else "bad", UiStyle.c("good") if go else UiStyle.c("bad"), 34)
 		m.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		v.add_child(m)
-		var name_l := UiStyle.label(_name_of(id), 16)
+		var name_l := UiStyle.label(_name_of(id), 17)
+		name_l.add_theme_font_override("font", UiStyle.font("bold"))
 		name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(name_l)
-		var state := UiStyle.label("Ready" if go else "Waiting", 14, UiStyle.c("good") if go else UiStyle.c("ink_soft"))
+		var state := UiStyle.eyebrow("Ready" if go else "Waiting", 14, UiStyle.c("good") if go else UiStyle.c("ink_soft"))
 		state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(state)
 		_boxes.add_child(cell)

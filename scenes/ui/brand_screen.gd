@@ -131,7 +131,7 @@ func _column(id: StringName) -> Control:
 	var set_id := BrandTable.theme_of(id)
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", _set_box(set_id, "poster"))
-	p.custom_minimum_size = Vector2(300, 540)
+	p.custom_minimum_size = Vector2(310, 560)
 	_cols.append(p)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
@@ -141,21 +141,19 @@ func _column(id: StringName) -> Control:
 	iron.custom_minimum_size = Vector2(0, 190)
 	v.add_child(iron)
 	_irons.append(iron)
-	var ink := Color(str(UiStyle.SETS[set_id]["ink"]))
-	var soft := Color(str(UiStyle.SETS[set_id]["ink_soft"]))
-	var name_l := _set_title(set_id, BrandTable.name_of(id), 28, ink)
+	var ink := UiStyle.color_of(set_id, "ink")
+	var soft := UiStyle.color_of(set_id, "ink_soft")
+	var name_l := _set_title(set_id, BrandTable.name_of(id), 28, UiStyle.color_of(set_id, "title"))
 	v.add_child(name_l)
 	var motto := _plain(str(BrandTable.BRANDS[id]["motto"]), 15, soft)
 	motto.add_theme_font_override("font", _set_font(set_id))
 	v.add_child(motto)
-	var rule := TextureRect.new()
-	rule.texture = UiStyle.texture(set_id, "divider")
-	rule.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	rule.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	rule.custom_minimum_size = Vector2(240, 18)
+	var rule := SetRule.new()
+	rule.set_id = set_id
+	rule.custom_minimum_size = Vector2(240, 20)
 	v.add_child(rule)
 	for line: String in BrandTable.BRANDS[id]["lines"]:
-		var l := _plain("-  " + line, 15, ink)
+		var l := _plain("\u2022  " + line, 15, ink)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		l.custom_minimum_size.x = 250
 		v.add_child(l)
@@ -166,13 +164,15 @@ func _column(id: StringName) -> Control:
 	b.text = "Take %s" % BrandTable.name_of(id)
 	b.custom_minimum_size = Vector2(0, 46)
 	b.focus_mode = Control.FOCUS_NONE
-	b.add_theme_font_size_override("font_size", 18)
-	for pair: Array in [["normal", "button"], ["hover", "button_hover"], ["pressed", "button_pressed"], ["disabled", "button_disabled"]]:
+	b.add_theme_font_size_override("font_size", UiStyle.ts(18))
+	b.add_theme_font_override("font", UiStyle.font("bold"))
+	# Each column's call to action in its own set's metal.
+	for pair: Array in [["normal", "primary"], ["hover", "primary_hover"], ["pressed", "primary_pressed"], ["hover_pressed", "primary_pressed"], ["disabled", "button_disabled"]]:
 		b.add_theme_stylebox_override(pair[0], _set_box(set_id, pair[1]))
-	var s: Dictionary = UiStyle.SETS[set_id]
-	b.add_theme_color_override("font_color", Color(str(s["btn"])))
-	b.add_theme_color_override("font_hover_color", Color(str(s["btn_hover"])))
-	b.add_theme_color_override("font_outline_color", Color(str(s["btn_outline"])))
+	var dark := UiStyle.color_of(set_id, "rim")
+	for k: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		b.add_theme_color_override(k, dark)
+	b.add_theme_constant_override("outline_size", 0)
 	b.pressed.connect(_pick.bind(id))
 	b.mouse_entered.connect(func() -> void: iron.hovered = true)
 	b.mouse_exited.connect(func() -> void: iron.hovered = false)
@@ -205,14 +205,18 @@ func _refresh() -> void:
 
 # ------------------------------------------------------------------ styling from a given set
 
-static func _set_box(set_id: StringName, part: String) -> StyleBoxTexture:
-	var sb := StyleBoxTexture.new()
-	UiStyle._fill_box(sb, part, set_id)
-	return sb
+static func _set_box(set_id: StringName, part: String) -> StyleBox:
+	return UiStyle.box_for(set_id, part)
 
 
 static func _set_font(set_id: StringName) -> Font:
 	var s: Dictionary = UiStyle.SETS[set_id]
+	var path := str(s.get("file", ""))
+	if path != "" and ResourceLoader.exists(path):
+		var fv0 := FontVariation.new()
+		fv0.base_font = load(path) as FontFile
+		fv0.spacing_glyph = int(s["spacing"])
+		return fv0
 	var sf := SystemFont.new()
 	sf.font_names = PackedStringArray(s["fonts"])
 	sf.font_weight = int(s["weight"])
@@ -301,3 +305,14 @@ class BrandIron extends Control:
 		draw_line(shank_top, shank_top + Vector2(0, 22), Color(1.0, 0.5, 0.15, 0.8 * h), 5.0, true)
 		# A twisted handle ring near the bottom.
 		draw_arc(Vector2(cx, size.y - 14), 9.0, 0.0, TAU, 20, Color("#1E1A18"), 4.0, true)
+
+
+## A column's ornament rule in its own set's metal and emblem.
+class SetRule extends Control:
+	var set_id: StringName = &"base"
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		UiStyle.draw_ornament(self, Rect2(Vector2.ZERO, size), UiStyle.color_of(set_id, "accent"), str(UiStyle.kit(set_id)["knob"]))

@@ -175,11 +175,7 @@ func close() -> void:
 func _build_page() -> PanelContainer:
 	var page := PanelContainer.new()
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = PAPER
-	sb.set_content_margin_all(22)
-	var aged := UiStyle.aged_paper(PAPER, INK.lightened(0.3), 2, 22.0)
-	page.add_theme_stylebox_override("panel", aged if aged is StyleBoxTexture else sb)
+	page.theme_type_variation = "DocPanel" # the kit's document paper: cream, fibres, a burnt edge
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 4)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
