@@ -19,4 +19,4 @@ breach_dps = 10.0
 size = 1.2
 shell_color = Color(0.42, 0.239, 0.478, 1)
 first_wave = 2
-counter = "Pin it: a Lasso Harpoon (or a bear trap up top) roots a spider, and a rooted spider can't leap."
+counter = "Pin it: a Snare Launcher (or a bear trap up top) roots a spider, and a rooted spider can't leap."

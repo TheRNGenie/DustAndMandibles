@@ -42,6 +42,10 @@ func run(gallery: Node, w: Node, h: Hud, p: Player) -> void:
 	# Two crewed guns in the crewed spot (the second on the tower over the first),
 	# then the ten cliff turrets along the rest of the front row.
 	var crew_ids: Array[StringName] = [&"cf_iron_mule", &"cf_crop_howitzer"]
+	if GameState.flag_value("--crewids") != "": # another pair: --crewids=cf_sky_hound,cf_thunder_mule
+		crew_ids.clear()
+		for cid_s: String in GameState.flag_value("--crewids").split(",", false):
+			crew_ids.append(StringName(cid_s))
 	if g._wants("uni_crewed"):
 		var keep_wave := GameState.wave
 		GameState.wave = 10 # (crewed guns unlock at wave 5)
@@ -131,6 +135,26 @@ func run(gallery: Node, w: Node, h: Hud, p: Player) -> void:
 			cam.global_position = ct.global_position + face * 6.0 + side * 3.0 + Vector3.UP * 4.5
 			cam.look_at(ct.global_position + Vector3.UP * 2.0, Vector3.UP)
 			cam.make_current(), func() -> void: cam.fov = 60.0, 0.5)
+		# Seated in each: the gunner's own view, then from the side (is the seat
+		# where the model's seat is?).
+		for c: UniversalCrewedTurret in crewed:
+			if not is_instance_valid(c):
+				continue
+			await g._step("uni_seat_%s" % c.def.id, func() -> void:
+				hud.visible = true
+				if prev != null:
+					prev.make_current()
+				player.global_position = c.global_position + c.global_basis.z * 2.5
+				c._take_seat(), Callable(), 1.6)
+			await g._step("uni_seat_%s_side" % c.def.id, func() -> void:
+				hud.visible = false
+				var f2 := -c.global_basis.z
+				var s2 := f2.cross(Vector3.UP).normalized()
+				cam.global_position = c.global_position + s2 * 5.0 + Vector3.UP * 2.2 - f2 * 1.0
+				cam.look_at(c.global_position + Vector3.UP * 1.3, Vector3.UP)
+				cam.make_current(), func() -> void:
+					c._leave_seat()
+					hud.visible = true, 0.5)
 	# The far wall: what the crops did (from over the canyon, near the wall).
 	await g._step("uni_marks", func() -> void:
 		var wall := cb.face_point(far, WorldLayout.CLIFF_HEIGHT - 10.0, lip.z)
@@ -141,11 +165,20 @@ func run(gallery: Node, w: Node, h: Hud, p: Player) -> void:
 	# The card and the wheel, from the player's own eyes.
 	if not turrets.is_empty():
 		var t0 := turrets[0]
+		# A kill tally on it, by crop (the card shows each beside the name).
+		TurretTallies.counts[String(t0.name)] = 52
+		TurretTallies.crop_counts[String(t0.name)] = {&"corn": 40, &"cotton": 12}
 		await g._step("uni_card", func() -> void:
 			hud.visible = true
 			if prev != null:
 				prev.make_current()
 			_look_at_turret(t0), Callable(), 1.2)
+		# More than three crops: the tally gets its own row.
+		await g._step("uni_card_many", func() -> void:
+			TurretTallies.counts[String(t0.name)] = 131
+			TurretTallies.crop_counts[String(t0.name)] = {&"corn": 40, &"cotton": 32, &"barrel_cactus": 21, &"tumbleweed_vine": 18,
+				&"sarsaparilla": 11, &"firecracker_chili": 9}
+			_look_at_turret(t0), Callable(), 1.0)
 		await g._step("uni_wheel", func() -> void:
 			_look_at_turret(t0)
 			CropWheel.open_for(t0)

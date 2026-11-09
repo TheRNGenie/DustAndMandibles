@@ -14,4 +14,4 @@ role = "Grown for your partner: hold a root and left click to send them a tonic.
 seed_item = &"seed_sarsaparilla"
 loads_per_harvest = 2
 load_item = &"sarsaparilla_load"
-turret_family = "Crewed guns"
+turret_family = "any crop-fed turret (Mark)"

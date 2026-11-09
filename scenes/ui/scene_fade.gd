@@ -1,12 +1,12 @@
 class_name SceneFade
 extends CanvasLayer
 ## Loading (Logan): whenever a button leads to something that has to load, the
-## screen fades to a themed loading screen (LoadingScreen: a wanted poster, a
-## canyon vista, a field-guide page, the rider's brand plate or the Gazette,
-## each with its own spinner) quickly, the work happens behind it, and it fades
-## away only once the new screen is ready and running smoothly, so a load never
-## looks like the game froze. A quick load inside the menus (cover) fades to
-## black and only brings the brand plate up if it runs long.
+## screen fades to a themed loading screen (LoadingScreen: the canyon vista with
+## its dynamite fuse, or by night with a revolver cylinder) quickly, the work
+## happens behind it, and it fades away only once the new screen is ready and
+## running smoothly, so a load never looks like the game froze. A quick load
+## inside the menus (cover) fades to black and only brings the night cylinder
+## up if it runs long.
 ##   go(path)     change scene (menu to world, world back to menu)
 ##   cover(work)  a load inside the current scene (`work` may await)
 ## The layer hangs off the tree's root, so it outlives the scene change.
@@ -23,7 +23,7 @@ const MAX_READY := 12.0 ## nor this for a scene that says it's still loading
 const NOTE_AFTER := 0.8 ## a black screen this long says what it's waiting on
 ## A scene change keeps its loading screen up at least this long (no flash of it).
 const MIN_SHOW := 1.1
-## A load inside the current scene shows the brand plate only once it's taken this long.
+## A load inside the current scene shows its loading screen only once it's taken this long.
 const COVER_CARD_AFTER := 0.5
 const CARD_IN := 0.22
 
@@ -154,7 +154,7 @@ func _init() -> void:
 
 
 func _process(_delta: float) -> void:
-	# A cover that runs long brings the brand plate up over the black.
+	# A cover that runs long brings the loading screen up over the black.
 	if _is_cover and _card == null and _black_since >= 0 and Time.get_ticks_msec() - _black_since > COVER_CARD_AFTER * 1000.0:
 		_ctx = {"to": "cover", "brand": Brand.local_id()}
 		_add_card(LoadingScreen.pick(_ctx), 0.0)

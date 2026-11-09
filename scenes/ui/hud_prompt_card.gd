@@ -122,6 +122,34 @@ func show_turret(info: Dictionary) -> void:
 	var tl := KeyHints.text("Tier %d" % int(info.get("tier", 1)), 13, UiStyle.c("accent_hi"))
 	tier.add_child(tl)
 	top.add_child(tier)
+	# Its kills beside the name: the crop that made them and how many, kept
+	# apart per crop. More than three crops take a row of their own under it.
+	var kills: Array = info.get("kills", [])
+	if not kills.is_empty() or int(info.get("kills_total", 0)) > 0:
+		var where := top
+		if kills.size() > 3:
+			where = HBoxContainer.new()
+			where.alignment = BoxContainer.ALIGNMENT_CENTER
+			where.add_theme_constant_override("separation", 10)
+			where.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			col.add_child(where)
+		else:
+			var gap := Control.new()
+			gap.custom_minimum_size.x = 2
+			top.add_child(gap)
+		if kills.is_empty():
+			where.add_child(KeyHints.number(str(int(info.get("kills_total", 0))), 17))
+		for k: Variant in kills:
+			var pair := k as Array
+			var tally := HBoxContainer.new()
+			tally.add_theme_constant_override("separation", 4)
+			tally.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			tally.add_child(HudWaveSummary.crop_icon(StringName(str(pair[0])), 24))
+			tally.add_child(KeyHints.number(str(int(pair[1])), 17))
+			where.add_child(tally)
+		var kl := KeyHints.eyebrow("Kills", 11)
+		kl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		where.add_child(kl)
 	var crop_row := HBoxContainer.new()
 	crop_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	crop_row.add_theme_constant_override("separation", 8)

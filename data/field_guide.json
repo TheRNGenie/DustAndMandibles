@@ -104,14 +104,14 @@
     "dust_mite": {
       "lore": "Rust-red scuttlers that come in clouds. One shot each, but there are always more.",
       "tips": [
-        "Gatling Posts and Chili Mortars eat swarms.",
+        "Gatling Posts, Crop Hoppers and Harvest Mortars eat swarms.",
         "Never let a pack reach the lip unchallenged."
       ]
     },
     "wolf_spider": {
       "lore": "Fast, long-legged hunters that leap up the rock in bounds.",
       "tips": [
-        "Lasso Harpoons pin them mid-climb.",
+        "A Snare Launcher pins them mid-climb.",
         "Watch for sudden leaps near the top."
       ]
     },
@@ -209,8 +209,8 @@
       "tips": [
         "She clings about halfway up and spits for half a minute before climbing on.",
         "Her tail bulb swells green before every spit.",
-        "Acid eats a turret for 14 seconds unless a Water Cannon near it fires: each shot washes every turret around it.",
-        "A Water Cannon hit on her rinses out the spit she's winding up."
+        "Acid eats a turret for 14 seconds unless a Storm Blower near it fires: each blast washes every turret around it.",
+        "A Storm Blower blast on her rinses out the spit she's winding up."
       ]
     },
     "locust": {
@@ -345,7 +345,7 @@
     "duck_gun": {
       "lore": "A punt gun meant for a whole flock of ducks. Now it's for dragonflies.",
       "tips": [
-        "Air defence goes in the second row from the lip.",
+        "Air defense: on the cliff edge, always at the top of a three-high stack.",
         "Slow but hits hard: good against a lone bandit."
       ]
     },
@@ -621,13 +621,224 @@
       "tips": [
         "Crop-fed: it fires only after you load it with a barrel cactus load (E), and the load lasts one wave."
       ]
+    },
+    "cf_crop_hopper": {
+      "lore": "Three brass barrels and an open hopper. Pour in any crop and it hoses the far wall, spinning faster the longer it fires.",
+      "tips": [
+        "The swarm gun of the crop-fed line: pair it with corn and every bullet bounces on to a second bug.",
+        "Herbs stack poison on a crowd fast; cotton slows the whole pack."
+      ]
+    },
+    "cf_harvest_mortar": {
+      "lore": "A squat iron mortar that lobs a packed crop shell onto the far wall. The splash catches whole clusters.",
+      "tips": [
+        "Slow shells miss quick bugs: let it work the thick of a crowd.",
+        "Chili makes every shell burst wider; sulfur sets the dead going off in turn."
+      ]
+    },
+    "cf_crop_flak_post": {
+      "lore": "A bell-mouthed scatter cannon on a post, fed from a drum. Every shot sprays a wide patch of the wall.",
+      "tips": [
+        "Its 45 degree cone covers more wall than any other cliff gun.",
+        "Cotton or tumbleweed turns it into a crowd-stopper."
+      ]
+    },
+    "cf_thresher_post": {
+      "lore": "A revolver drum on a post: three quick shots, a click while the drum resets, three more.",
+      "tips": [
+        "Steady pressure on one lane. The pause between bursts is when it reloads the drum.",
+        "Sarsaparilla's mark on every burst makes the rest of your guns hit harder."
+      ]
+    },
+    "cf_homestead_rifle": {
+      "lore": "A long bolt-action rifle on a pivot bracket, loaded at the breech with crop rounds. Picks off the big ones.",
+      "tips": [
+        "A narrow 15 degree cone: point it where the heavies climb.",
+        "Prickly pear lets it punch through what armour it doesn't already pierce."
+      ]
+    },
+    "cf_rail_driver": {
+      "lore": "Copper rails and four coils fling a crop spike straight through a line of climbers.",
+      "tips": [
+        "The spike carries on through bugs lined up behind the first, and each one takes the crop.",
+        "It charges between shots: watch the capacitor glow."
+      ]
+    },
+    "cf_crop_cannon": {
+      "lore": "The biggest gun on the cliff: one crop-packed round, a cloud of smoke, and something on the far wall stops climbing.",
+      "tips": [
+        "Five seconds between shots. Save it for the bosses and the armoured brutes.",
+        "Barrel cactus staggers whatever it hits for half a second."
+      ]
+    },
+    "cf_storm_blower": {
+      "lore": "A brass horn on a pressure tank. Each blast is a shockwave that throws small bugs off the wall.",
+      "tips": [
+        "Heavy bugs only slip a few metres; small ones fall all the way down.",
+        "Its blast washes the Acid Matriarch's acid off every turret near it."
+      ]
+    },
+    "cf_snare_launcher": {
+      "lore": "A Y-frame launcher that weaves the crop into a bola and flings it, tying a climber to the rock.",
+      "tips": [
+        "Barely hurts, but a pinned bug is a sitting target for the rifles.",
+        "Tumbleweed gives the vines a chance to root the next one too."
+      ]
+    },
+    "cf_frontier_sentinel": {
+      "lore": "Two barrels in one housing: a quick one for swarms, a heavy one it swaps to when something big climbs into view.",
+      "tips": [
+        "It picks the barrel for you: heavy bugs get the big gun.",
+        "A good first crop-fed turret when you don't know what's coming."
+      ]
+    },
+    "cf_sky_hopper": {
+      "lore": "Twin short barrels on a swivel, fed from a crop box. Fills the sky over your homestead with crop shot.",
+      "tips": [
+        "Air defense: it sits on top of a three-high stack on the cliff edge.",
+        "Cotton slows fliers so the rest of your guns can catch them."
+      ]
+    },
+    "cf_cloud_popper": {
+      "lore": "A steep mortar with a fuse dial: its shells burst in the air among the fliers.",
+      "tips": [
+        "Air bursts catch a whole flock at once.",
+        "Chili widens every burst."
+      ]
+    },
+    "cf_hawk_eye": {
+      "lore": "A scoped rifle on a counterweighted cradle that picks the biggest flier out of the sky.",
+      "tips": [
+        "For the big and armoured fliers; leave the flocks to the Sky Hopper.",
+        "Sarsaparilla marks a flier for everything else that's shooting at it."
+      ]
+    },
+    "cf_flyswatter": {
+      "lore": "A wide tube that throws a crop-woven net over a flier and drags it down.",
+      "tips": [
+        "A netted flier is held in the air for the other guns.",
+        "Barely hurts on its own."
+      ]
+    },
+    "cf_skyward_battery": {
+      "lore": "Three small barrels for flocks and one heavy one it swaps to for the big fliers.",
+      "tips": [
+        "It swaps barrels by itself when a heavy flier comes in.",
+        "The priciest air gun, and the only one good at everything."
+      ]
+    },
+    "cf_crop_blaster": {
+      "lore": "A wide-bore pump shotgun on the porch rail. Anything that reaches your door gets a face full of crop.",
+      "tips": [
+        "Goes on a house mount. Short range, every shot a spray.",
+        "Chili turns each blast into a small explosion."
+      ]
+    },
+    "cf_feed_porch_gun": {
+      "lore": "Twin barrels belt-fed from a crop box on the railing. Never stops firing while something is in the yard.",
+      "tips": [
+        "Goes on a house mount. Weak against armour.",
+        "Prickly pear fixes the armour problem."
+      ]
+    },
+    "cf_roof_perch": {
+      "lore": "A long rifle on a bipod at the peak of your roof. Sees the whole yard.",
+      "tips": [
+        "Goes on a house mount and covers the whole yard, not just near the house.",
+        "One big shot every few seconds: perfect for breachers that matter."
+      ]
+    },
+    "cf_porch_fog": {
+      "lore": "A tank of crop brew that breathes a coloured fog round the house. Bugs in it take the crop every second.",
+      "tips": [
+        "No aiming: everything in the fog gets slowed and gets the crop.",
+        "Herbs in the fog poison a whole crowd at the door."
+      ]
+    },
+    "cf_homestead_bastion": {
+      "lore": "An armoured box on the house wall with a drum and an auto-loader: steady shots with a small splash.",
+      "tips": [
+        "The toughest house gun. Its barrel pulls in when it's empty.",
+        "Steady and dependable with any crop."
+      ]
+    },
+    "cf_crop_mine": {
+      "lore": "A pressure mine packed with crop. The first bug to step on it goes up with everything near it.",
+      "tips": [
+        "One use. Load it once after you place it: it keeps the sack until it goes off.",
+        "Put it where the breachers walk to your door."
+      ]
+    },
+    "cf_stake_pit": {
+      "lore": "Crop-hardened spikes in loose earth. The first bug in takes the lot, then they break.",
+      "tips": [
+        "One use, one big bug. Heavy bugs take the full hit.",
+        "Barrel cactus staggers whatever survives it."
+      ]
+    },
+    "cf_tangle_line": {
+      "lore": "A crop-fibre trip wire between two stakes. It wraps the first bug across and roots it.",
+      "tips": [
+        "One use. Stretch it across the path a breacher takes.",
+        "A rooted bug is easy work for the house guns."
+      ]
+    },
+    "cf_crop_palisade": {
+      "lore": "A timber frame packed with crop bundles. Blocks the way; anything that claws at it gets the crop.",
+      "tips": [
+        "Not repaired: build another when it's chewed through.",
+        "Loaded with sulfur, it goes up when it falls."
+      ]
+    },
+    "cf_scatter_patch": {
+      "lore": "A patch of loose crop on the ground: slows what walks through and gives it the crop, until it is trampled flat.",
+      "tips": [
+        "Wears out as bugs walk through it.",
+        "Cotton on the patch slows them twice over."
+      ]
+    },
+    "cf_iron_mule": {
+      "lore": "Six barrels you crank yourself. Spins up over two seconds, overheats after eight.",
+      "tips": [
+        "Ease off before it overheats: two seconds to cool.",
+        "Left alone it fires on its own at half power."
+      ]
+    },
+    "cf_crop_howitzer": {
+      "lore": "A howitzer you aim with a big iron wheel: four crop shells in a volley, then the rack refills.",
+      "tips": [
+        "Drop the volley into the thickest crowd.",
+        "Chili or sulfur in the shells and the crowd goes up."
+      ]
+    },
+    "cf_sky_hound": {
+      "lore": "A long scoped cannon on a swivel chair. Takes fliers and bosses.",
+      "tips": [
+        "Right click scopes in: a closer view and a quarter more damage.",
+        "It shoots climbers too, not just fliers."
+      ]
+    },
+    "cf_vortex_engine": {
+      "lore": "A crop-fired turbine that throws a spinning vortex onto the far wall. Bugs in it are held and take the crop every second.",
+      "tips": [
+        "Throw it on a crowd, then let the other guns work them.",
+        "It needs time to cool between vortices."
+      ]
+    },
+    "cf_thunder_mule": {
+      "lore": "Three salvo barrels and a heavy cannon on one seat. It cycles them for you: salvo, heavy shot, salvo.",
+      "tips": [
+        "You just aim; it picks the barrel.",
+        "Can stand on the tower over another crewed gun."
+      ]
     }
   },
   "crops": {
     "corn": {
       "lore": "Sweet canyon corn. Grows like a weed and keeps a rancher fed.",
       "tips": [
-        "Each harvest gives 4 loads for the Corn Hopper line, plus a little to keep.",
+        "In a crop-fed turret: Ricochet. Every hit bounces on to a second bug at half damage.",
+        "Each harvest gives 4 sacks for the root cellar. A sack loads any crop-fed turret for a wave.",
         "Plant it between waves for quick chitin for the team pot at the market.",
         "Left click with corn out to eat it when your belly growls."
       ]
@@ -635,23 +846,25 @@
     "prickly_pear": {
       "lore": "A stubborn cactus fruit. Takes its time, but it's food, water and medicine in one.",
       "tips": [
-        "Each harvest gives 2 loads for the Water Cannon line, plus a little to keep.",
+        "In a crop-fed turret: Armour Pierce. Hits ignore half a bug's armour.",
+        "Each harvest gives 2 sacks for the root cellar. A sack loads any crop-fed turret for a wave.",
         "Eating a pear heals a little and quenches thirst.",
         "The pads give back more water than they drink."
       ]
     },
     "firecracker_chili": {
-      "lore": "Hot enough to light a fuse. The Chili Mortar won't fire without it.",
+      "lore": "Hot enough to light a fuse. In a crop-fed turret every hit goes off like a firecracker.",
       "tips": [
-        "Each harvest gives 3 loads for the Chili Mortar line, plus a little to keep.",
-        "Keep a stock before building a Chili Mortar: every shot burns one.",
+        "In a crop-fed turret: Explosive. Every hit splashes the bugs round it.",
+        "Each harvest gives 3 sacks for the root cellar. A sack loads any crop-fed turret for a wave.",
         "The market pays your own scrap for chilies, the only crop that does."
       ]
     },
     "herbs": {
       "lore": "Desert sage, dried and bundled. Better than any snake-oil tonic.",
       "tips": [
-        "Each harvest gives 2 loads for the Herb Rifle line, plus a little to keep.",
+        "In a crop-fed turret: Poison. Damage over 3 seconds, stacking three times.",
+        "Each harvest gives 2 sacks for the root cellar. A sack loads any crop-fed turret for a wave.",
         "Carry a few into every wave: a dose heals 50 HP.",
         "Herbs fetch the most chitin per unit at the market."
       ]
@@ -659,7 +872,8 @@
     "sarsaparilla": {
       "lore": "A twining vine with heart-shaped leaves and a thick, knobbly root that brews the canyon's best tonic. You don't grow it for yourself: you grow it for whoever is guarding your wall.",
       "tips": [
-        "Each harvest gives 2 loads for the crewed guns, plus a little to keep.",
+        "In a crop-fed turret: Mark. The bug takes a fifth more damage from everything for 3 seconds.",
+        "Each harvest gives 2 sacks for the root cellar. A sack loads any crop-fed turret for a wave.",
         "Hold a root (hotbar 4) and left click to send your partner a tonic: their turrets fire 15% faster.",
         "Each tonic adds 60 s, stacking up to 3 minutes. The clock only runs during a wave, so send them any time.",
         "Can't use it yourself? Store roots in your partner's deposit box and let them brew for you.",
@@ -669,25 +883,29 @@
     "cotton": {
       "lore": "Soft canyon cotton, braided into ropes, bolas and nets.",
       "tips": [
-        "Each harvest gives 3 loads for the Lasso Harpoon line."
+        "In a crop-fed turret: Slow. A quarter off its speed for 2 seconds, stacking to half.",
+        "Each harvest gives 3 sacks for the root cellar. A sack loads any crop-fed turret for a wave."
       ]
     },
     "sulfur_root": {
       "lore": "A gnarly yellow root that smells like a struck match.",
       "tips": [
-        "Thirsty and slow, but each harvest gives 2 loads for the Dynamite Lobber line."
+        "In a crop-fed turret: Volatile. A bug killed bursts and hurts the bugs beside it.",
+        "Thirsty and slow. Each harvest gives 2 sacks for the root cellar. A sack loads any crop-fed turret for a wave."
       ]
     },
     "barrel_cactus": {
       "lore": "A squat ribbed cactus that never needs watering.",
       "tips": [
-        "Plant it and forget it: one load for the Siege Mortar."
+        "In a crop-fed turret: Stagger. Every hit stops it for a moment.",
+        "Plant it and forget it. Each harvest gives 1 sack for the root cellar. A sack loads any crop-fed turret for a wave."
       ]
     },
     "tumbleweed_vine": {
       "lore": "A fast vine that balls up into tumbleweeds.",
       "tips": [
-        "Each harvest gives 4 loads for the Tripwire Fence line."
+        "In a crop-fed turret: Entangle. Now and then vines root it for a second.",
+        "Each harvest gives 4 sacks for the root cellar. A sack loads any crop-fed turret for a wave."
       ]
     }
   },
@@ -734,7 +952,7 @@
       "icon": "amber",
       "lore": "A gambler in a black duster with a booth by the airship's starboard rail. \"I hear the railroad lost a strongbox. Got anything shiny?\" He deals only in hive amber.",
       "tips": [
-        "He comes aboard once the story is past chapter 4, or from wave 8 in a normal run.",
+        "He trades once the story is past chapter 4, from wave 8 in a normal run, or as soon as your team finds hive amber: then he leaves the rail for his booth.",
         "Sells Lucky's finish on the gunsmith's irons (they keep their level and mods), an exclusive wardrobe look, one-night favours (a supply drop, a bounty top-up) and the three amber turret blueprints.",
         "Blueprints you buy or find are yours for good: the team can craft that turret in any run you ride in."
       ]
@@ -751,6 +969,21 @@
         "It blows teammates off their feet but never hurts them, and leaves the turrets be.",
         "The loudest thing in the canyon: on the floor it wakes every sleeper for 150 m and brings them running.",
         "Modifications: Bigger Blast, Heavier Charge, and Coal Oil to set the survivors burning."
+      ]
+    },
+    "crop_fed_turrets": {
+      "title": "Crop-Fed Turrets",
+      "icon": "corn_load",
+      "lore": "Crop-fed turrets hit harder than the standard ones, and they take any crop. Load one with a sack from your root cellar and the crop decides what every hit does. One sack lasts one wave: when the wave ends it's spent, and the turret points its barrel up and waits for the next.",
+      "stats": "Q on a turret: pick the crop  ·  E: reload the last crop  ·  1 sack a wave  ·  Tiers 2 and 3 from waves 5 and 10 (U)",
+      "tips": [
+        "Corn: Ricochet. Chili: Explosive. Prickly Pear: Armour Pierce.",
+        "Cotton: Slow. Herbs: Poison. Sulfur Root: Volatile.",
+        "Barrel Cactus: Stagger. Tumbleweed Vine: Entangle. Sarsaparilla: Mark.",
+        "Forgot to load one? You can still load an empty turret during a wave.",
+        "In the build phase you can swap crops: the sack you swap out comes back.",
+        "The ring round a turret's base shows its crop's colour; grey means empty.",
+        "Obstructions take one sack and keep it until they go off."
       ]
     }
   },

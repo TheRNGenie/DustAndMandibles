@@ -30,6 +30,26 @@ static func has(id: StringName) -> bool:
 	return Defs.is_universal(id)
 
 
+## Has its fal model (assets/rigged/turrets, Nov 2026): the turret shows that
+## instead of the code parts (UniRig.wrap).
+static func rigged(id: StringName) -> bool:
+	return has(id) and RiggedTurret.has(id)
+
+
+## The code spec cut down for a rigged model: its rest angles, aim and seat
+## stay; the places tied to the code parts (where the crop pours in, the idle
+## wisps) go back to their defaults, and the base ring fits the model's base.
+static func rigged_spec(s: Dictionary, ring_r: float) -> Dictionary:
+	var out := s.duplicate()
+	out.erase("parts")
+	out.erase("pour")
+	out.erase("idle_at")
+	out.erase("muzzles")
+	out.erase("heavy_muzzles")
+	out["ring_r"] = ring_r
+	return out
+
+
 ## The id's group: &"cliff", &"air", &"house", &"ground" or &"crewed".
 static func group_of(id: StringName) -> StringName:
 	if Defs.UNIVERSAL_AA.has(id):

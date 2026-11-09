@@ -5,7 +5,10 @@ extends LoadingScreen
 ## at its own pace, under a sky in one of four palettes: amber sunset, purple
 ## dusk, pale dawn, or blood-red dust storm. Dust motes float across the front.
 ## The loading indicator is a lit dynamite fuse burning left to right along the
-## bottom toward a bundle of dynamite, sparks spitting off the flame.
+## bottom toward a bundle of dynamite, sparks spitting off the flame; or, with
+## `meter` &"cylinder", the same country by night under a moon and stars with a
+## revolver cylinder in the corner loading a chamber for every sixth of the way
+## (Logan liked both meters, and this backdrop: Nov 2026).
 
 ## [sky top, sky horizon, sun, far, mid, near, front, haze]
 const PALETTES: Dictionary = {
@@ -13,7 +16,16 @@ const PALETTES: Dictionary = {
 	&"dusk": [Color("#1E1838"), Color("#8A5A8A"), Color("#F0B8C0"), Color("#5E4670"), Color("#3E2E54"), Color("#281E3C"), Color("#120E1E"), Color("#9A6A9A")],
 	&"dawn": [Color("#7A9AC0"), Color("#F4DCC0"), Color("#FFF6E0"), Color("#C4A8A0"), Color("#9A7A78"), Color("#6A5054"), Color("#2E2226"), Color("#F0D8C8")],
 	&"storm": [Color("#3A120E"), Color("#C2502E"), Color("#FFB070"), Color("#8A3424"), Color("#5E2018"), Color("#3A140E"), Color("#1A0806"), Color("#D06A3A")],
+	&"night": [Color("#05071A"), Color("#3A4A78"), Color("#EEE8D2"), Color("#1E2646"), Color("#151B36"), Color("#0E1228"), Color("#05060C"), Color("#5A6A9C")],
 }
+
+## The meter: &"fuse" (dynamite) or &"cylinder" (a revolver's, by night).
+var meter: StringName = &"fuse"
+## Cylinder: chambers loaded so far, how far it has turned (radians).
+var _loaded := 0
+var _turn := 0.0
+var _turn_to := 0.0
+var _stars: Array[Vector3] = []
 
 var _pal: Array = []
 var _layers: Array = [] # [PackedFloat32Array heights, speed, colour index, base y]
@@ -23,8 +35,11 @@ var _palette_id: StringName = &"sunset"
 
 
 func _build() -> void:
-	_palette_id = _choose_palette()
+	_palette_id = &"night" if meter == &"cylinder" else _choose_palette()
 	_pal = PALETTES[_palette_id]
+	if _palette_id == &"night":
+		for i in 140:
+			_stars.append(Vector3(rng.randf(), pow(rng.randf(), 1.6) * 0.62, rng.randf_range(0.3, 1.0)))
 	# Each plane: a long strip of heights (it scrolls and wraps), mesa-topped
 	# far away, buttes and spires in the middle, a broken rim up close.
 	_layers = [
@@ -73,6 +88,16 @@ func _ridge(n: int, rough: float, amp: float, mesa: bool) -> PackedFloat32Array:
 
 
 func _tick(delta: float) -> void:
+	if meter == &"cylinder":
+		# A chamber lights for every sixth of the way; the cylinder turns to bring
+		# the next one up, with a slow creep so it never sits dead still.
+		var want := clampi(int(floor(shown * 6.0 + 0.001)), 0, 6)
+		while _loaded < want:
+			_loaded += 1
+			_turn_to += TAU / 6.0
+		_turn_to += delta * 0.18
+		_turn = lerpf(_turn, _turn_to, clampf(delta * 9.0, 0.0, 1.0))
+		return
 	# Sparks off the fuse's flame.
 	var flame := _flame_pos()
 	for i in 2:
@@ -104,14 +129,26 @@ func _flame_pos() -> Vector2:
 func _draw() -> void:
 	var s := sc()
 	# Sky: a vertical gradient, the sun low on the horizon, haze above the land.
-	var bands := 24
+	var bands := 96 # (fine enough that the sky reads as a smooth gradient)
 	for i in bands:
 		var k := float(i) / bands
 		draw_rect(Rect2(0, size.y * 0.75 * k, size.x, size.y * 0.75 / bands + 1.0), (_pal[0] as Color).lerp(_pal[1], pow(k, 1.4)))
-	var sun := Vector2(size.x * 0.66, size.y * 0.56)
-	for i in 6:
-		draw_circle(sun, size.y * (0.06 + 0.05 * i), Color(_pal[2], 0.08))
-	draw_circle(sun, size.y * 0.075, _pal[2])
+	if _palette_id == &"night":
+		# Stars, twinkling, and a high moon with a soft halo.
+		for st: Vector3 in _stars:
+			var tw := 0.55 + 0.45 * sin(t * (1.5 + st.z * 2.0) + st.x * 40.0)
+			draw_circle(Vector2(st.x * size.x, st.y * size.y), (0.8 + st.z * 1.1) * s, Color(1, 1, 0.92, 0.75 * st.z * tw))
+		var moon := Vector2(size.x * 0.8, size.y * 0.42) # (clear of the title)
+		for i in 5:
+			draw_circle(moon, size.y * (0.05 + 0.025 * i), Color(_pal[2], 0.045))
+		draw_circle(moon, size.y * 0.048, _pal[2])
+		draw_circle(moon + Vector2(-0.012, -0.008) * size.y, size.y * 0.009, Color(_pal[2].darkened(0.12), 0.8))
+		draw_circle(moon + Vector2(0.014, 0.012) * size.y, size.y * 0.006, Color(_pal[2].darkened(0.1), 0.8))
+	else:
+		var sun := Vector2(size.x * 0.66, size.y * 0.56)
+		for i in 6:
+			draw_circle(sun, size.y * (0.06 + 0.05 * i), Color(_pal[2], 0.08))
+		draw_circle(sun, size.y * 0.075, _pal[2])
 	draw_rect(Rect2(0, size.y * 0.75, size.x, size.y * 0.25), _pal[6])
 	# The planes, back to front, each drifting at its own pace.
 	for li in _layers.size():
@@ -139,7 +176,7 @@ func _draw() -> void:
 	# Dust motes drifting with the wind.
 	for m: Vector3 in _motes:
 		var p := Vector2(fposmod(m.x * size.x + t * 40.0 * m.z * s, size.x), m.y * size.y * 0.85 + sin(t * 0.7 + m.x * 20.0) * 8.0 * s)
-		draw_circle(p, 1.6 * s * m.z, Color(_pal[2], 0.35 * m.z))
+		draw_circle(p, 1.6 * s * m.z, Color(_pal[2], (0.18 if _palette_id == &"night" else 0.35) * m.z))
 	vignette(0.6)
 	# Where we're going.
 	var title := destination()
@@ -159,7 +196,44 @@ func _draw() -> void:
 	text(rye, Vector2(size.x * 0.5, size.y * 0.2), title, fit_px(rye, title, 88.0, size.x * 0.8), Color("#F6E6C4"), HORIZONTAL_ALIGNMENT_CENTER, -1.0, int(10 * s), Color(0.08, 0.04, 0.03, 0.85))
 	if sub != "":
 		text(font(BARLOW_BOLD), Vector2(size.x * 0.5, size.y * 0.29), sub.to_upper(), 28.0, Color("#F6E6C4", 0.85), HORIZONTAL_ALIGNMENT_CENTER, -1.0, int(6 * s), Color(0, 0, 0, 0.6))
-	_fuse()
+	if meter == &"cylinder":
+		_cylinder(Vector2(size.x - 130.0 * s, size.y - 130.0 * s), 74.0 * s)
+		text(font(BARLOW_BOLD), Vector2(size.x - 230.0 * s, size.y - 130.0 * s), note_text(), 22.0, Color("#F6E6C4", 0.85), HORIZONTAL_ALIGNMENT_RIGHT)
+	else:
+		_fuse()
+
+
+## A revolver cylinder head on: the fluted steel drum, six chambers round the
+## ratchet, loaded chambers showing a brass rim and primer and glowing warm, the
+## one at the top (under the hammer) marked by a brass notch.
+func _cylinder(c: Vector2, r: float) -> void:
+	var steel := Color("#7F8A94")
+	for i in 4: # a faint warm glow round it, so it reads on the dark ledge
+		draw_circle(c, r * (1.12 + 0.1 * i), Color(0.95, 0.8, 0.5, 0.025))
+	draw_circle(c + Vector2(0, r * 0.06), r * 1.04, Color(0, 0, 0, 0.5))
+	draw_circle(c, r, steel.darkened(0.35))
+	draw_circle(c, r * 0.94, steel)
+	for i in 6: # flutes between the chambers
+		var a := _turn + TAU * (float(i) + 0.5) / 6.0 - PI * 0.5
+		draw_circle(c + Vector2(cos(a), sin(a)) * r * 0.86, r * 0.13, steel.darkened(0.45))
+	for i in 6:
+		var a := _turn + TAU * float(i) / 6.0 - PI * 0.5
+		var p := c + Vector2(cos(a), sin(a)) * r * 0.56
+		draw_circle(p, r * 0.24, steel.darkened(0.55))
+		if i < _loaded:
+			draw_circle(p, r * 0.215, Color("#D9A845"))
+			draw_circle(p, r * 0.17, Color("#F0CC72"))
+			draw_circle(p, r * 0.07, Color("#B87A3A"))
+			draw_arc(p, r * 0.27, 0, TAU, 24, Color(1.0, 0.8, 0.4, 0.35), r * 0.06)
+		else:
+			draw_circle(p, r * 0.17, Color("#0E0C0B"))
+	draw_circle(c, r * 0.22, steel.darkened(0.2)) # ratchet and axle
+	for i in 6:
+		var a := _turn + TAU * float(i) / 6.0
+		draw_line(c + Vector2(cos(a), sin(a)) * r * 0.1, c + Vector2(cos(a), sin(a)) * r * 0.22, steel.darkened(0.5), r * 0.04)
+	draw_circle(c, r * 0.08, steel.lightened(0.3))
+	draw_rect(Rect2(c + Vector2(-r * 0.06, -r * 1.12), Vector2(r * 0.12, r * 0.12)), Color("#E8C06A"))
+	draw_arc(c, r * 1.0, 0, TAU, 48, Color(0, 0, 0, 0.5), r * 0.03)
 
 
 ## A bare dead tree in silhouette, its roots on the ledge at `g`.

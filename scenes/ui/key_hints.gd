@@ -39,7 +39,8 @@ static func chip(key: String) -> PanelContainer:
 	var l := Label.new()
 	l.text = key
 	l.theme_type_variation = "InkLabel"
-	l.add_theme_font_override("font", UiStyle.font("number"))
+	# (The number face's Q reads as a 0 on a keycap: Q gets the bold face.)
+	l.add_theme_font_override("font", UiStyle.font("bold" if key.begins_with("Q") else "number"))
 	l.add_theme_font_size_override("font_size", UiStyle.ts(CHIP_FONT))
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

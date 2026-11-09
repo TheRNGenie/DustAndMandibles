@@ -126,8 +126,8 @@ func menu_items(tab: int) -> Array:
 		var d := CraftTable.def_for(id)
 		var icon: Variant = IconStudio.turret(MenuScreen.instance, id, Palette.team_color(cid)) if MenuScreen.instance != null else CraftTable.model_of(id)
 		out.append({"id": String(id), "name": d.display_name, "icon": icon,
-				"desc": "%s\n%s" % [d.stat_line(), d.role], "price": "3 Parts", "price_ok": true,
-				"disabled": "", "buttons": [[&"craft", "Craft"]]})
+				"desc": d.description if d.description != "" else UiStyle.tc(d.role), "price": "3 Parts", "price_ok": true,
+				"disabled": "", "buttons": [[&"craft", "Craft"]], "chart": StatChart.turret(d)}) # its numbers in the stat chart (Logan)
 	if out.is_empty():
 		out.append({"id": "", "name": "No Full Set of Parts", "icon": &"hammer",
 				"desc": "You need one mount, one barrel and one load. Big bugs and bosses drop them; see the Parts tab.",
@@ -164,10 +164,9 @@ func _amber_items(cid: int) -> Array:
 		var icon: Variant = IconStudio.turret(MenuScreen.instance, id, Palette.team_color(cid)) if MenuScreen.instance != null else &"amber"
 		out.append({"id": String(id), "name": d.display_name, "icon": icon,
 				"desc": "%s
-%s
-Parts: %s" % [d.stat_line(), d.role, ", ".join(need)],
+Parts: %s" % [d.description, ", ".join(need)],
 				"price": UiStyle.cost(AmberRules.amber_cost(id), "amber"), "price_ok": Economy.amount(cid, AmberRules.ITEM) >= AmberRules.amber_cost(id),
-				"disabled": why, "buttons": [[&"craft", "Craft"]]})
+				"disabled": why, "buttons": [[&"craft", "Craft"]], "chart": StatChart.amber(d)}) # its numbers in the stat chart (Logan)
 	return out
 
 

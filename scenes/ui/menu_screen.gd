@@ -15,7 +15,9 @@ extends CanvasLayer
 ##   signal menu_changed (or ui_changed) to redraw.
 ## Item dictionaries: {id, name, desc, icon (StringName for ItemIcon or Texture2D),
 ##   price (String), price_ok (bool), note (String), disabled (String reason),
-##   buttons ([[action, label], ...]; the first is also the row click)}.
+##   buttons ([[action, label], ...]; the first is also the row click),
+##   chart (StatChart data: a list with any charts gets a stat chart column on
+##   the right, showing the row under the mouse or keyboard focus)}.
 
 static var instance: MenuScreen
 
@@ -46,6 +48,13 @@ var _hint_box: HBoxContainer
 var _hint_tabs := -1
 var _frame: PanelContainer
 var _tab_rule: ColorRect
+## The stat chart column (StatChart), shown when the list has charts.
+var _chart: PanelContainer
+var _chart_body: VBoxContainer
+var _charted := false
+## The row whose chart shows (its id, or name when it has none) and that row.
+var _chart_key := ""
+var _chart_row: Control
 
 
 func _ready() -> void:
@@ -278,15 +287,35 @@ func refresh() -> void:
 	var keep_focus := _focus_path()
 	for c in _body.get_children():
 		c.queue_free()
+	var picks: Array = [] # [row, item] for the stat chart
 	if provider.has_method("menu_build_body"):
+		_set_charted(false)
 		provider.call("menu_build_body", _body, self)
 	else:
 		var items: Array = provider.call("menu_items", tab) if provider.has_method("menu_items") else []
 		_items_sig = hash(items)
+		_set_charted(items.any(func(it: Dictionary) -> bool: return it.has("chart")))
 		for item: Dictionary in items:
-			_body.add_child(_row(item))
+			var row := _row(item)
+			_body.add_child(row)
+			picks.append([row, item])
 		if items.is_empty():
 			_body.add_child(UiStyle.status("Nothing here right now.", "info", 16))
+	if _charted:
+		# The chart shows the row it showed before the rebuild, else the first with one.
+		_chart_row = null
+		var pick: Array = []
+		for p: Array in picks:
+			if _key_of(p[1]) == _chart_key:
+				pick = p
+				break
+		if pick.is_empty():
+			for p: Array in picks:
+				if (p[1] as Dictionary).has("chart"):
+					pick = p
+					break
+		if not pick.is_empty():
+			_pick(pick[0], pick[1], true) # (rebuilt: its numbers may have changed)
 	_scroll.set_deferred("scroll_vertical", keep_scroll)
 	if not keep_focus.is_empty():
 		_restore_focus.call_deferred(keep_focus)
@@ -379,11 +408,28 @@ func _build() -> void:
 	_tab_rule.custom_minimum_size.y = 1
 	_tab_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inner.add_child(_tab_rule)
+	# The list, and beside it on the right the stat chart when the rows have one.
+	var mid := HBoxContainer.new()
+	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	mid.add_theme_constant_override("separation", 14)
+	inner.add_child(mid)
 	_scroll = ScrollContainer.new()
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.follow_focus = true
-	inner.add_child(_scroll)
+	mid.add_child(_scroll)
+	_chart = UiStyle.panel("CardPanel")
+	_chart.custom_minimum_size.x = StatChart.WIDTH
+	_chart.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_chart.visible = false
+	mid.add_child(_chart)
+	var chart_scroll := ScrollContainer.new()
+	chart_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_chart.add_child(chart_scroll)
+	_chart_body = VBoxContainer.new()
+	_chart_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chart_scroll.add_child(_chart_body)
 	_body = VBoxContainer.new()
 	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_body.add_theme_constant_override("separation", UiStyle.GAP_ROW)
@@ -406,9 +452,11 @@ func _size_frame() -> void:
 	var want := Vector2(WIDTH, HEIGHT)
 	if provider != null and provider.has_method("menu_size"):
 		want = provider.call("menu_size")
-		var room := _root.size - Vector2(24, 24)
-		if room.x > 100.0 and room.y > 100.0:
-			want = want.min(room)
+	if _charted:
+		want.x += StatChart.WIDTH + 14.0 # the stat chart column
+	var room := _root.size - Vector2(24, 24)
+	if room.x > 100.0 and room.y > 100.0:
+		want = want.min(room)
 	_frame.offset_left = -want.x * 0.5
 	_frame.offset_right = want.x * 0.5
 	_frame.offset_top = -want.y * 0.5
@@ -437,9 +485,14 @@ func _row(item: Dictionary) -> Control:
 	row.custom_minimum_size.y = 84
 	row.mouse_filter = Control.MOUSE_FILTER_STOP
 	# The row under the mouse lifts (the kit's hover card: a lit bar on its left).
+	# With a stat chart, the row it shows stays lit, and pointing at a row shows its chart.
 	if disabled == "":
 		row.mouse_entered.connect(func() -> void: row.theme_type_variation = "CardHoverPanel")
-		row.mouse_exited.connect(func() -> void: row.theme_type_variation = "CardPanel")
+		row.mouse_exited.connect(func() -> void:
+			if row != _chart_row:
+				row.theme_type_variation = "CardPanel")
+	if _charted:
+		row.mouse_entered.connect(func() -> void: _pick(row, item))
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 14)
 	row.add_child(h)
@@ -526,6 +579,8 @@ func _row(item: Dictionary) -> Control:
 		var action: StringName = StringName(str(b[0]))
 		var id: Variant = item.get("id")
 		btn.pressed.connect(func() -> void: provider.call("menu_press", id, action))
+		if _charted: # keyboard and pad: the focused row's chart
+			btn.focus_entered.connect(func() -> void: _pick(row, item))
 		line_r.add_child(btn)
 	if str(item.get("note", "")) != "":
 		var note := ink_label(str(item["note"]), 14, UiStyle.c("ink_soft"))
@@ -534,6 +589,46 @@ func _row(item: Dictionary) -> Control:
 	if disabled != "":
 		row.modulate = Color(1, 1, 1, 0.78)
 	return row
+
+
+## Shows or hides the stat chart column (and widens the frame for it).
+func _set_charted(on: bool) -> void:
+	if on == _charted:
+		return
+	_charted = on
+	_chart.visible = on
+	if not on:
+		_chart_row = null
+	_size_frame()
+
+
+static func _key_of(item: Dictionary) -> String:
+	var id := str(item.get("id", ""))
+	return id if id != "" else "name:" + str(item.get("name", ""))
+
+
+## Shows `item`'s stat chart in the column and lights its row. Rows without a
+## chart (the whip, the satchel) show their name and description there instead.
+func _pick(row: Control, item: Dictionary, force: bool = false) -> void:
+	if not _charted:
+		return
+	var key := _key_of(item)
+	if _chart_row != null and is_instance_valid(_chart_row) and _chart_row != row:
+		_chart_row.theme_type_variation = "CardPanel"
+	_chart_row = row
+	if is_instance_valid(row):
+		row.theme_type_variation = "CardHoverPanel"
+	if not force and key == _chart_key and _chart_body.get_child_count() > 0 and not _chart_body.get_child(0).is_queued_for_deletion():
+		return
+	_chart_key = key
+	for c in _chart_body.get_children():
+		_chart_body.remove_child(c)
+		c.queue_free()
+	if item.has("chart"):
+		_chart_body.add_child(StatChart.build(item["chart"]))
+	else:
+		_chart_body.add_child(StatChart.build({"title": str(item.get("name", "")), "special": [],
+			"note": str(item.get("desc", "")), "plain": true}))
 
 
 ## How many of each thing the quantity sliders were last set to (kept across the

@@ -5,7 +5,7 @@ extends PanelContainer
 ## turrets earn their keep. Fades after a few seconds.
 
 const SHOW_FOR := 9.0
-const TOP := 4
+const TOP := 5
 
 var cliff_id := 0
 var _by_source: Dictionary = {}
@@ -39,6 +39,10 @@ func _on_killed(_bug: String, bug_cliff: int, source: String, source_cliff: int,
 		return
 	_total += 1
 	var key := source if source != "" else "Other"
+	# Crop-fed turrets: a row per crop it used (Logan), "<source>|<crop>".
+	var crop := StringName(_loot.get(&"crop", &""))
+	if crop != &"":
+		key += "|" + String(crop)
 	_by_source[key] = int(_by_source.get(key, 0)) + 1
 	if source_cliff >= 0 and source_cliff != bug_cliff:
 		if source_cliff == cliff_id:
@@ -93,12 +97,21 @@ func _show() -> void:
 		rank.add_theme_font_override("font", UiStyle.font("number"))
 		rank.custom_minimum_size.x = 14
 		row.add_child(rank)
-		var l := KeyHints.ink(UiStyle.tc(n), 16)
+		# The name, and right beside it the crop it fired (a row per crop when it
+		# used several), in a fixed-width column so the bars line up.
+		var crop := StringName(n.get_slice("|", 1)) if n.contains("|") else &""
+		var who := HBoxContainer.new()
+		who.add_theme_constant_override("separation", 6)
+		who.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		who.custom_minimum_size.x = 220
+		var l := KeyHints.ink(UiStyle.tc(n.get_slice("|", 0)), 16)
 		l.add_theme_font_override("font", UiStyle.font("bold"))
 		if i == 0:
 			l.add_theme_color_override("font_color", lead)
-		l.custom_minimum_size.x = 200
-		row.add_child(l)
+		who.add_child(l)
+		if crop != &"":
+			who.add_child(crop_icon(crop, 24))
+		row.add_child(who)
 		# The shared bar, scaled to the best gun.
 		var bar := UiStyle.bar(UiStyle.c("accent") if i == 0 else UiStyle.c("ink_soft"), Vector2(180, 12), best)
 		bar.value = int(_by_source[n])
@@ -144,9 +157,15 @@ func _show() -> void:
 	_tween.tween_callback(func() -> void: visible = false)
 
 
+## A crop's round badge at `px` (the kill tallies and the turret card).
+static func crop_icon(crop: StringName, px: int) -> Control:
+	return CropChip.make(crop, px)
+
+
 ## For the debug view: fake a wave's tally and show it.
 func demo() -> void:
-	_by_source = {"Gatling Post": 132, "Buffalo Rifle Nest": 61, "Your revolver": 24, "Chili Mortar": 18}
+	_by_source = {"Gatling Post": 132, "Crop Hopper|corn": 77, "Buffalo Rifle Nest": 61, "Crop Hopper|cotton": 30,
+		"Harvest Mortar|sulfur_root": 24, "Your revolver": 18}
 	_saved_by_me = 190
 	_saved_by_them = 151
 	_total = 235

@@ -51,15 +51,24 @@ const VOLLEY_GAP := 0.28
 
 func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: String, _stack_level: int = 0) -> void:
 	super.setup(d, cid, c, pos, owner_label, _stack_level)
-	for ch in get_children():
-		if ch is MeshInstance3D:
-			ch.queue_free() # the merged ghost model: the live parts replace it
-			break
 	spec = UniversalBuilder.spec(d.id, Palette.team_color(cid))
-	rig = UniRig.make(spec, self, _head, _gun)
+	if UniversalBuilder.rigged(d.id):
+		# Its fal model (Nov 2026), built under the pivots by Turret.setup.
+		rig = UniRig.wrap(self, _recoil_len)
+		spec = UniversalBuilder.rigged_spec(spec, rig.rigged_ring_r())
+		if _empty_sign != null:
+			_empty_sign.position.y = rig.rigged_top(self) + 0.35
+	else:
+		for ch in get_children():
+			if ch is MeshInstance3D:
+				ch.queue_free() # the merged ghost model: the live parts replace it
+				break
+		rig = UniRig.make(spec, self, _head, _gun)
+		_head.position.z = float(spec.get("head_z", 0.0))
 	if spec.has("seat"):
 		_seat_eye = spec["seat"]
-	_head.position.z = float(spec.get("head_z", 0.0))
+		if rig.rigged:
+			_seat_eye = _rigged_eye()
 	if not rig.muzzles.is_empty():
 		_muzzle = rig.muzzles[0]
 	_rest_pitch = float(spec.get("rest_pitch", UniKit.REST_UP))
@@ -68,6 +77,17 @@ func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: Strin
 	if _pip != null:
 		_pip.visible = false
 	add_to_group("universal_turrets")
+
+
+## The gunner's eye on a fal model (head space): just over the gun, a little
+## behind its pivot, looking down the barrel. (The code models' seat spots
+## don't fit these models: the Iron Mule's put you inside its cab.)
+func _rigged_eye() -> Vector3:
+	var box := AABB()
+	if _gun_mi != null and _gun_mi.mesh != null and _gun_mi.mesh.get_surface_count() > 0:
+		box = _gun_mi.mesh.get_aabb()
+	var back := clampf(box.end.z * 0.5, 0.25, 1.2)
+	return Vector3(0.0, _gun.position.y + maxf(box.end.y, 0.2) + 0.5, back)
 
 
 func _make_synchronizer() -> MultiplayerSynchronizer:
@@ -345,7 +365,13 @@ func interact_prompt() -> String:
 		keys.append(["U", "Tier %d (%s)" % [tier + 2, UiStyle.cost(up, ResNames.PERSONAL_ID)]])
 	elif tier < 2:
 		notes.append("Tier %d at wave %d" % [tier + 2, TurretDef.UNI_TIER_WAVES[tier + 1]])
-	return "@turret:" + JSON.stringify({"name": def.display_name, "tier": tier + 1, "job": def.job,
+	var kills: Array = []
+	var by: Dictionary = TurretTallies.crop_kills_of(self)
+	for c: Variant in by:
+		kills.append([String(c), int(by[c])])
+	kills.sort_custom(func(a: Array, b: Array) -> bool: return int(a[1]) > int(b[1]))
+	return "@turret:" + JSON.stringify({"name": def.display_name, "tier": tier + 1, "job": def.job, "kills": kills,
+		"kills_total": TurretTallies.kills_of(self),
 		"crop": String(crop), "crop_name": CropEffects.short_name(crop) if crop != &"" else "",
 		"effect": CropEffects.effect_name(crop), "color": CropEffects.color_of(crop).to_html(false),
 		"last": CropEffects.short_name(last_crop) if last_crop != &"" else "None",
@@ -419,7 +445,10 @@ func _aim_visual(delta: float) -> void:
 		ctx.color = CropEffects.color_of(crop)
 	ctx.loaded = is_loaded
 	_glow_k = move_toward(_glow_k, smoothstep(0.6, 1.0, ctx.load_k) if is_loaded else 0.0, delta / 0.4)
-	rig.set_crop(ctx.color, _glow_k * (0.85 + 0.15 * sin(ctx.t * 2.4)) + (heat * 0.6 if def.id == &"cf_iron_mule" else 0.0), is_loaded or ctx.drain_k < 0.6)
+	var glow := _glow_k * (0.85 + 0.15 * sin(ctx.t * 2.4)) + (heat * 0.6 if def.id == &"cf_iron_mule" else 0.0)
+	if rig.rigged and _me != null and crew_peer == multiplayer.get_unique_id():
+		glow *= 0.2 # from the seat the gun is seen edge-on, all rim: keep the model's own look
+	rig.set_crop(ctx.color, glow, is_loaded or ctx.drain_k < 0.6)
 	look.update(delta, ctx, is_loaded, crop)
 	# Unmanned aim (the seat's aim is set after, in _after_visual).
 	if crew_peer == 0 or _me == null:
@@ -439,7 +468,10 @@ func _aim_visual(delta: float) -> void:
 		var step := deg_to_rad(maxf(def.turn_speed, 30.0)) * delta
 		_head.rotation.y = rotate_toward(_head.rotation.y, yaw, step)
 		_gun.rotation.x = rotate_toward(_gun.rotation.x, pitch, step)
-	UniversalBuilder.animate(def.id, rig, ctx, delta)
+	if rig.rigged:
+		rig.rigged_tick(delta, spin_up)
+	else:
+		UniversalBuilder.animate(def.id, rig, ctx, delta)
 	if tier != _shown_tier:
 		_shown_tier = tier
 		health.max_hp = def.hp_at(tier) * perk_hp
@@ -509,6 +541,8 @@ func _leave_seat(tell_host: bool = true) -> void:
 
 
 func _draw_shot() -> void:
+	if rig != null and rig.rigged:
+		rig.rigged_shot()
 	var n := clampi(shots - _drawn, 1, 4)
 	_drawn = shots
 	_idle_t = 0.0

@@ -11,7 +11,7 @@ const WIDTH := 840.0
 const COLS := 3
 const TILE := Vector2(150, 128)
 const ICON_SIZE := 60
-const DETAIL_WIDTH := 262.0
+const DETAIL_WIDTH := 300.0
 const TOP := 78.0
 ## Room kept clear under the window when the HUD status card can't be found
 ## (normally the window stops just above that card's live top: _status_top).
@@ -33,7 +33,7 @@ var _detail_icon: TextureRect
 var _detail_name: Label
 var _detail_price: HBoxContainer
 var _detail_status: VBoxContainer
-var _detail_stats: HFlowContainer
+var _detail_chart: VBoxContainer
 var _detail_desc: Label
 var _detail_role: Label
 var _detail_where: Label
@@ -184,10 +184,10 @@ func _build_detail() -> Control:
 	_detail_status = VBoxContainer.new()
 	_detail_status.add_theme_constant_override("separation", 2)
 	v.add_child(_detail_status)
-	_detail_stats = HFlowContainer.new()
-	_detail_stats.add_theme_constant_override("h_separation", 5)
-	_detail_stats.add_theme_constant_override("v_separation", 5)
-	v.add_child(_detail_stats)
+	# The stat chart (Logan): the numbers as a ledger, Special Characteristics
+	# under, then the write-up.
+	_detail_chart = VBoxContainer.new()
+	v.add_child(_detail_chart)
 	_detail_desc = UiStyle.label("", 15)
 	_detail_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	v.add_child(_detail_desc)
@@ -430,7 +430,7 @@ func _show_detail(id: StringName, payer: int) -> void:
 	for c in _detail_price.get_children():
 		_detail_price.remove_child(c)
 		c.queue_free()
-	for box: Container in [_detail_status, _detail_stats]:
+	for box: Container in [_detail_status, _detail_chart]:
 		for c in box.get_children():
 			box.remove_child(c)
 			c.queue_free()
@@ -454,46 +454,19 @@ func _show_detail(id: StringName, payer: int) -> void:
 	if not BuildMode.unlocked(id): # Tiers
 		_detail_status.add_child(UiStyle.status(Defs.lock_reason(id, GameState.tier_wave()), "lock", 14))
 	_detail_status.visible = _detail_status.get_child_count() > 0
-	var stats := Defs.turret(id).stat_line() if Defs.is_turret(id) else _structure_stats(id)
-	for part: String in stats.split("·", false):
-		if part.strip_edges() != "":
-			_detail_stats.add_child(_stat_chip(part.strip_edges()))
-	_detail_stats.visible = _detail_stats.get_child_count() > 0
+	# The numbers as a stat chart (its job, weakness, ammo and tier are rows in it).
+	var chart := StatChart.turret(Defs.turret(id)) if Defs.is_turret(id) else StatChart.structure(Defs.structure(id))
+	if not chart.is_empty():
+		_detail_chart.add_child(StatChart.build(chart, false))
+	_detail_chart.visible = _detail_chart.get_child_count() > 0
 	_detail_desc.text = BuildMode._description(id)
-	# Turrets (Helper 3): their one job, weakness and any upkeep.
-	_detail_role.text = Defs.turret(id).role_line().replace("   ·   ", "  ·  ") if Defs.is_turret(id) else ""
-	_detail_role.visible = _detail_role.text != ""
+	_detail_role.text = ""
+	_detail_role.visible = false
 	_detail_where.text = _where(id)
-	if Defs.TURRETS.has(id): # Tiers: which tier, and when it opens
+	if Defs.TURRETS.has(id):
 		var d := Defs.turret(id)
-		_detail_where.text = "%s Tier%s.  %s" % [d.era_name(), "" if d.tier == 0 else " (from Wave %d)" % d.unlock_wave(), _detail_where.text]
 		if d.anti_air:
 			_detail_where.text = "Air Defense: shoots fliers first. Sits on top of a 3-high stack on the cliff edge (the scaffold goes up free).  " + _detail_where.text
-
-
-## One of the detail card's numbers as a small chip ("Range 98 m").
-static func _stat_chip(text: String) -> PanelContainer:
-	var p := UiStyle.panel("ChipPanel")
-	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var l := UiStyle.label(text, 14)
-	l.add_theme_font_override("font", UiStyle.font("bold"))
-	l.autowrap_mode = TextServer.AUTOWRAP_OFF
-	p.add_child(l)
-	return p
-
-
-## Walls, traps and the like: their toughness (and reach, for traps and lights).
-static func _structure_stats(id: StringName) -> String:
-	var d := Defs.structure(id)
-	if d == null:
-		return ""
-	var parts: PackedStringArray = ["%s HP" % TurretDef._num(d.max_hp)]
-	match d.kind:
-		StructureDef.Kind.BARBED_WIRE, StructureDef.Kind.BEAR_TRAP, StructureDef.Kind.DYNAMITE_CRATE:
-			parts.append("Reach %s m" % TurretDef._num(d.radius))
-		StructureDef.Kind.LANTERN:
-			parts.append("Lights %s m" % TurretDef._num(d.radius))
-	return "  ·  ".join(parts)
 
 
 static func _where(id: StringName) -> String:

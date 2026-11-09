@@ -286,8 +286,23 @@ func stat_line(upgrade: int = 0) -> String:
 	elif special == SPECIAL_BELL:
 		parts.append("Tolls Every %s s" % _num(every))
 	else:
-		parts.append(("%s Shots/s" % _num(1.0 / every)) if every < 1.0 else ("1 Shot / %s s" % _num(every)))
+		parts.append(rate_text(upgrade))
 	parts.append("Range %d m" % int(roundf(range_at(upgrade))))
+	parts.append_array(special_parts(upgrade))
+	return "  ·  ".join(parts)
+
+
+## "9.1 Shots/s", or "1 Shot / 1.6 s" for the slow ones.
+func rate_text(upgrade: int = 0) -> String:
+	var every := interval_at(upgrade)
+	return ("%s Shots/s" % _num(1.0 / every)) if every < 1.0 else ("1 Shot / %s s" % _num(every))
+
+
+## Everything past damage, rate and range: what it does besides hitting (the
+## stat chart's Special Characteristics). `with_cone` false leaves out the
+## aiming cone, for when the chart shows it on its own.
+func special_parts(_upgrade: int = 0, with_cone: bool = true) -> PackedStringArray:
+	var parts: PackedStringArray = []
 	match special:
 		SPECIAL_KILN: parts.append("Entombs Bugs Below Half HP")
 		SPECIAL_BELL: parts.append("Bugs Turn on Each Other %s s, Fliers Drop" % _num(effect_size))
@@ -316,9 +331,9 @@ func stat_line(upgrade: int = 0) -> String:
 		parts.append("Fliers Only")
 	if yard_wide:
 		parts.append("Whole Yard")
-	if cone_deg > 0.0 and not anti_air:
+	if with_cone and cone_deg > 0.0 and not anti_air:
 		parts.append("%d° Cone" % int(cone_deg))
-	return "  ·  ".join(parts)
+	return parts
 
 
 ## 6, 6.5, 0.3: whole numbers plain, the rest to one decimal.

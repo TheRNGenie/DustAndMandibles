@@ -4,17 +4,16 @@ extends Control
 ## screens than just a cut to black... a themed background with a loading
 ## circle"). SceneFade fades one in instead of plain black, feeds it `progress`
 ## (0..1) as the load moves along, and fades it away when the new screen runs
-## smoothly. Five styles, each its own script drawn in code:
-##   wanted       LoadingWanted      a wanted poster for the destination, a spinning sheriff's star
-##   vista        LoadingVista       layered canyon silhouettes drifting, a dynamite fuse burning along
-##   field_guide  LoadingFieldGuide  a naturalist's page on a bug, a pen nib drawing a circle
-##   brand        LoadingBrand       the rider's brand plate, a revolver cylinder lighting its chambers
-##   gazette      LoadingGazette     the Dry Gulch Gazette rolling off the press
+## smoothly. Two styles, both the canyon vista drawn in code (Logan kept these
+## two, Nov 2026; the wanted poster, field guide page, brand plate and Gazette
+## are retired to D:/DustAndMandibles-archive/retired/loading_screens):
+##   vista     LoadingVista  layered canyon silhouettes drifting, a dynamite fuse burning along
+##   cylinder  LoadingVista  the same canyon by night, a revolver cylinder lighting its chambers
 ## `ctx` says what's loading (SceneFade.context()): "to" (world / menu / first /
 ## cover), "map" (display name), "endless", "tutorial", "chapter" (number),
 ## "chapter_title", "wave", "brand", "bug" (a bug id for the field guide).
 
-const STYLES: Array[StringName] = [&"wanted", &"vista", &"field_guide", &"brand", &"gazette"]
+const STYLES: Array[StringName] = [&"vista", &"cylinder"]
 
 const RYE := "res://assets/fonts/Rye-Regular.ttf"
 const EWERT := "res://assets/fonts/Ewert-Regular.ttf"
@@ -40,41 +39,30 @@ static var _last_pick := -1
 
 
 static func make(style: StringName, context: Dictionary = {}) -> LoadingScreen:
-	var s: LoadingScreen = null
-	match style:
-		&"wanted":
-			s = LoadingWanted.new()
-		&"vista":
-			s = LoadingVista.new()
-		&"field_guide":
-			s = LoadingFieldGuide.new()
-		&"gazette":
-			s = LoadingGazette.new()
-		_:
-			s = LoadingBrand.new()
+	var s := LoadingVista.new()
+	if style == &"cylinder":
+		s.meter = &"cylinder"
 	s.ctx = context
 	s.name = "Loading_%s" % style
 	return s
 
 
-## The style that suits a load: the Gazette on the way back to town, a canyon
-## vista on first launch and for story chapters, the brand plate for loads
-## inside the menus, and for a ride out the poster, vista, field guide and brand
-## take turns (never the same one twice running). --loadstyle=<id> forces one.
+## The style that suits a load: the dynamite fuse at dawn on first launch and
+## for story chapters, the night cylinder on the way back to town and for loads
+## inside the menus, and for a ride out the two take turns (never the same one
+## twice running). --loadstyle=<id> forces one.
 static func pick(context: Dictionary) -> StringName:
 	var forced := GameState.flag_value("--loadstyle")
 	if STYLES.has(StringName(forced)):
 		return StringName(forced)
 	match str(context.get("to", "world")):
-		"menu":
-			return &"gazette"
+		"menu", "cover":
+			return &"cylinder"
 		"first":
 			return &"vista"
-		"cover":
-			return &"brand"
-	var pool: Array[StringName] = [&"wanted", &"vista", &"field_guide", &"brand"]
 	if int(context.get("chapter", 0)) > 0:
-		pool = [&"vista", &"field_guide", &"wanted"]
+		return &"vista" # (a chapter keeps its own hour of the day)
+	var pool: Array[StringName] = [&"vista", &"cylinder"]
 	var i := randi() % pool.size()
 	if i == _last_pick and pool.size() > 1:
 		i = (i + 1) % pool.size()

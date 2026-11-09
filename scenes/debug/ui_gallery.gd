@@ -81,24 +81,14 @@ func _loading_shots() -> void:
 	if not (_only.is_empty() or Array(_only).any(func(o: String) -> bool: return o.begins_with("load_") or "load_".begins_with(o))):
 		return
 	var cases: Array = [
-		["load_wanted_endless", &"wanted", {"to": "world", "map": "Canyon", "endless": true}, 0.35],
-		["load_wanted_story", &"wanted", {"to": "world", "map": "Three-Cliff Mesa", "chapter": 1, "chapter_title": "Holding the Line"}, 0.7],
 		["load_vista_story", &"vista", {"to": "world", "map": "Canyon", "chapter": 2, "chapter_title": "Dust and Dynamite"}, 0.3],
 		["load_vista_first", &"vista", {"to": "first"}, 0.55],
 		["load_vista_storm", &"vista", {"to": "world", "map": "Pinwheel Buttes", "chapter": 4, "chapter_title": "Red Sky"}, 0.8],
-		["load_vista_menu", &"vista", {"to": "menu"}, 0.5],
-		["load_guide_beetle", &"field_guide", {"to": "world", "map": "Canyon", "bug": "rattler_beetle"}, 0.4],
-		["load_guide_spider", &"field_guide", {"to": "world", "map": "Canyon", "bug": "wolf_spider"}, 0.4],
-		["load_guide_boss", &"field_guide", {"to": "world", "map": "Canyon", "bug": "queen_spider"}, 0.6],
-		["load_guide_scorpion", &"field_guide", {"to": "world", "map": "Three-Cliff Mesa", "bug": "spitter_scorpion"}, 0.6],
-		["load_guide_flier", &"field_guide", {"to": "world", "map": "Pinwheel Buttes", "bug": "dragonfly_bandit"}, 0.6],
-		["load_brand_base", &"brand", {"to": "world", "map": "Canyon", "brand": &"none", "set": &"base"}, 0.5],
-		["load_brand_irons", &"brand", {"to": "world", "map": "Canyon", "brand": &"irons", "set": &"irons"}, 0.34],
-		["load_brand_sheaf", &"brand", {"to": "world", "map": "Canyon", "brand": &"sheaf", "set": &"sheaf"}, 0.67],
-		["load_brand_snake", &"brand", {"to": "world", "map": "Canyon", "brand": &"snake", "set": &"snake"}, 0.84],
-		["load_brand_mandibles", &"brand", {"to": "world", "map": "Canyon", "brand": &"mandibles", "set": &"mandibles"}, 1.0],
-		["load_gazette_menu", &"gazette", {"to": "menu", "map": "Canyon"}, 0.5],
-		["load_gazette_story", &"gazette", {"to": "world", "map": "Canyon", "chapter": 1, "chapter_title": "Holding the Line"}, 0.5],
+		["load_vista_endless", &"vista", {"to": "world", "map": "Canyon", "endless": true}, 0.45],
+		["load_cylinder_world", &"cylinder", {"to": "world", "map": "Three-Cliff Mesa"}, 0.34],
+		["load_cylinder_endless", &"cylinder", {"to": "world", "map": "Canyon", "endless": true}, 0.67],
+		["load_cylinder_menu", &"cylinder", {"to": "menu"}, 0.84],
+		["load_cylinder_cover", &"cylinder", {"to": "cover"}, 0.5],
 	]
 	var holder: Array = [null]
 	for c: Array in cases:
@@ -473,6 +463,23 @@ func _world_tour(world: Node) -> void:
 	for hc in GameState.homestead_hp.size():
 		GameState.homestead_hp[hc] = GameState.homestead_max[hc]
 		GameState.homestead_changed.emit(hc, GameState.homestead_hp[hc], GameState.homestead_max[hc])
+	# The HUD with a crop-loaded heavy out (its ammo lines), a special in slot 2,
+	# and the round's Chitin badge counting.
+	if _wants("hud_loadout"):
+		var g := player.gun
+		g.grant(&"harvest_gatling", 0)
+		g.grant(&"crop_syringe", 0)
+		var hc: Dictionary = g.get("heavy_crop")
+		hc[&"harvest_gatling"] = &"herbs"
+		g.equip(&"harvest_gatling")
+		g.ammo = int(g.mag_size() * 0.6)
+		var badge := hud.feed.get("_badge") as HudChitinBadge
+		if badge != null:
+			badge.add(48)
+			badge.add(29)
+		await _step("hud_loadout_heavy", func() -> void: pass, Callable(), 2.0)
+		await _step("hud_loadout_special", func() -> void: g.equip(&"crop_syringe"), Callable(), 1.5)
+		g.equip(&"revolver")
 	await _step("hud_prompt", func() -> void: hud.feed.set("_prompt_text", "Water Barrel\nE: Fill Bucket   F: Drink"),
 		func() -> void: hud.feed.set("_prompt_text", ""))
 	# Warm the build menu's icons first (they render lazily, a few per frame).
@@ -544,6 +551,22 @@ func _world_tour(world: Node) -> void:
 				MenuScreen.instance.tab = tab
 				MenuScreen.instance.refresh(),
 			func() -> void: MenuScreen.instance.close())
+	# The stat chart column (StatChart) on a chosen row: an upgrade's arrows, a
+	# special, a heavy, a modified gun.
+	var smith := world.find_child("GunShop", true, false)
+	if smith != null:
+		for cs: Array in [["chart_gun_upgrade", 3, 0], ["chart_special", 1, 0], ["chart_heavy", 2, 1], ["chart_gun_mods", 4, 0]]:
+			await _step(str(cs[0]), func() -> void:
+				MenuScreen.instance.open(smith)
+				MenuScreen.instance.tab = int(cs[1])
+				MenuScreen.instance.refresh()
+				get_tree().create_timer(0.4, true, false, true).timeout.connect(func() -> void:
+					var items: Array = smith.call("menu_items", int(cs[1]))
+					var body := MenuScreen.instance.get("_body") as Node
+					var n := mini(int(cs[2]), items.size() - 1)
+					if body != null and n >= 0 and n < body.get_child_count():
+						MenuScreen.instance.call("_pick", body.get_child(n), items[n], true)),
+				func() -> void: MenuScreen.instance.close())
 	var home := Homestead.of(cid)
 	if home != null and home.get_node_or_null("Ledger") != null:
 		await _step("menu_house_ledger", func() -> void: MenuScreen.instance.open(home.get_node("Ledger")),
@@ -551,11 +574,22 @@ func _world_tour(world: Node) -> void:
 	if home != null and home.get_node_or_null("Chest") != null:
 		await _step("menu_chest", func() -> void: MenuScreen.instance.open(home.get_node("Chest")),
 			func() -> void: MenuScreen.instance.close())
-	for t in 3:
+	for t in 7:
 		await _step("menu_guide_t%d" % t, func() -> void:
 			FieldGuide.open()
 			MenuScreen.instance.tab = t
 			MenuScreen.instance.refresh(),
+			func() -> void: MenuScreen.instance.close())
+	# The long tabs further down (Guns, Turrets, Crops): pages of the scroll.
+	for tp: Array in [[0, 1], [0, 2], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7], [2, 9], [2, 11], [2, 13], [3, 1], [3, 2], [4, 1], [4, 2]]:
+		await _step("menu_guide_t%d_p%d" % [tp[0], tp[1]], func() -> void:
+			FieldGuide.open()
+			MenuScreen.instance.tab = int(tp[0])
+			MenuScreen.instance.refresh()
+			get_tree().create_timer(0.3, true, false, true).timeout.connect(func() -> void:
+				var sc := MenuScreen.instance.get("_scroll") as ScrollContainer
+				if sc != null:
+					sc.scroll_vertical = int(sc.size.y * 0.92) * int(tp[1])),
 			func() -> void: MenuScreen.instance.close())
 	await _step("menu_wardrobe", func() -> void: Wardrobe.open(), func() -> void: MenuScreen.instance.close(), 1.5)
 	if _wants("map"): # the map's terrain survey runs a few seconds after load

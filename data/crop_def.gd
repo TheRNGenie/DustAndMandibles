@@ -23,7 +23,7 @@ extends Resource
 @export var loads_per_harvest: int = 0
 ## The load item a harvest adds to the stockpile ("corn_load"). Not sold anywhere.
 @export var load_item: StringName = &""
-## The turret line this crop feeds, for the catalog and field guide ("Corn Hopper line").
+## What a sack of this crop does in a crop-fed turret, for prompts ("any crop-fed turret (Ricochet)").
 @export var turret_family: String = ""
 
 

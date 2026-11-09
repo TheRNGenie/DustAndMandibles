@@ -421,7 +421,8 @@ func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 			_stolen_loot[_next_loot] = [bug.cliff_id, bug.stolen]
 			_mark_stolen.rpc(_next_loot, bug.stolen)
 	_pop.rpc(bug.global_position, bug.def.shell_color, float(bug.spec["scale"]))
-	_announce_kill.rpc(bug.def.display_name, bug.cliff_id, source, source_cliff, int(EconomyLedger.kill_pay(bug.def.scrap_drop, bug.def.chitin_drop)[&"scrap"]))
+	_announce_kill.rpc(bug.def.display_name, bug.cliff_id, source, source_cliff, int(EconomyLedger.kill_pay(bug.def.scrap_drop, bug.def.chitin_drop)[&"scrap"]),
+			bug.crop_of_kill(source)) # universal turrets: which crop did it (the kill tallies)
 	bug.queue_free()
 
 
@@ -444,8 +445,11 @@ func _pop(pos: Vector3, color: Color, size: float) -> void:
 
 
 @rpc("authority", "call_local", "reliable")
-func _announce_kill(bug_name: String, bug_cliff: int, source: String, source_cliff: int, scrap: int) -> void:
-	bug_killed.emit(bug_name, bug_cliff, source, source_cliff, {&"scrap": scrap})
+func _announce_kill(bug_name: String, bug_cliff: int, source: String, source_cliff: int, scrap: int, crop: StringName = &"") -> void:
+	var loot := {&"scrap": scrap}
+	if crop != &"":
+		loot[&"crop"] = crop # (a universal crop-fed turret's kill: which crop)
+	bug_killed.emit(bug_name, bug_cliff, source, source_cliff, loot)
 
 
 func _on_bug_fled(bug: Bug) -> void:

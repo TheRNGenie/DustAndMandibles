@@ -12,10 +12,14 @@ const RANKS: Array[int] = [50, 100, 500]
 
 ## turret node name -> kills. Read by Turret.interact_prompt via kills_of().
 static var counts: Dictionary = {}
+## Crop-fed turrets: turret node name -> {crop: kills} (the turret card shows
+## each crop's tally with its icon).
+static var crop_counts: Dictionary = {}
 
 
 func _ready() -> void:
 	counts = {}
+	crop_counts = {}
 
 
 ## Host: start watching bugs die.
@@ -30,6 +34,11 @@ func bind(bugs: BugManager) -> void:
 
 static func kills_of(turret: Node) -> int:
 	return int(counts.get(String(turret.name), 0))
+
+
+## A crop-fed turret's kills by crop ({&"corn": 40, &"herbs": 12}).
+static func crop_kills_of(turret: Node) -> Dictionary:
+	return crop_counts.get(String(turret.name), {})
 
 
 ## " · 132 kills" for a prompt's title line ("" before the first kill).
@@ -57,13 +66,19 @@ func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:
 			best_d = d
 			best = t
 	if best != null:
-		_set_kills.rpc(String(best.name), kills_of(best) + 1)
+		var crop := bug.crop_of_kill(source)
+		var by: Dictionary = crop_kills_of(best)
+		_set_kills.rpc(String(best.name), kills_of(best) + 1, crop, int(by.get(crop, 0)) + 1 if crop != &"" else 0)
 
 
 @rpc("authority", "call_local", "reliable")
-func _set_kills(turret_name: String, n: int) -> void:
+func _set_kills(turret_name: String, n: int, crop: StringName = &"", crop_n: int = 0) -> void:
 	var before := int(counts.get(turret_name, 0))
 	counts[turret_name] = n
+	if crop != &"":
+		if not crop_counts.has(turret_name):
+			crop_counts[turret_name] = {}
+		(crop_counts[turret_name] as Dictionary)[crop] = crop_n
 	if _rank(n) == _rank(before):
 		return
 	for t: Node in get_tree().get_nodes_in_group("turrets"):

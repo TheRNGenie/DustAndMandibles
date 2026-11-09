@@ -12,6 +12,7 @@ static func hit(t: Turret, crop: StringName, b: Bug, at: Vector3, dir: Vector3, 
 		crop_on: bool = true) -> Vector3:
 	if b == null or not is_instance_valid(b) or not b.is_alive():
 		return Vector3.INF
+	b.note_crop_hit(crop, source) # (the kill tallies)
 	b.receive_hit(damage, at, dir, pierce, 1.0, source, t.cliff_id, CropEffects.armour_ignored(crop, t.tier))
 	if crop_on and crop != &"":
 		return CropEffects.on_hit(crop, t, b, damage, b.global_position, source)

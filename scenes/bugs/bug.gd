@@ -875,6 +875,21 @@ func _on_died(source: String, source_cliff: int) -> void:
 
 ## Host: last time each crop tag was sent (so a gatling's every hit doesn't send one).
 var _tag_sent: Dictionary = {}
+## Host: the crop of the last universal turret hit, and whose shot it was (the
+## kill tallies show which crop did the killing).
+var kill_crop: StringName = &""
+var kill_crop_source := ""
+
+
+## Host: a universal turret's shot (`source`) loaded with `crop` hits this bug.
+func note_crop_hit(crop: StringName, source: String) -> void:
+	kill_crop = crop
+	kill_crop_source = source
+
+
+## Host: the crop that killed it, if a universal turret's shot did.
+func crop_of_kill(source: String) -> StringName:
+	return kill_crop if source == kill_crop_source else &""
 
 
 ## Host: show a crop effect on this bug on every peer, unless it went out recently.

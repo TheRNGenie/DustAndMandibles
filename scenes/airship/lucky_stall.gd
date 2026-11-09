@@ -215,7 +215,8 @@ func menu_items(tab: int) -> Array:
 				var d := Defs.turret(tid)
 				row["name"] = AmberRules.BLUEPRINTS[tid]
 				row["icon"] = IconStudio.turret(MenuScreen.instance, tid, Palette.team_color(_cliff())) if MenuScreen.instance != null else AmberRules.ITEM
-				row["desc"] = "%s\n%s\nCraft at your Workshop: %d amber plus parts. The team fields one." % [d.description, d.stat_line(), AmberRules.amber_cost(tid)]
+				row["desc"] = "%s\nCraft at your Workshop: %d amber plus parts. The team fields one." % [d.description, AmberRules.amber_cost(tid)]
+				row["chart"] = StatChart.amber(d) # its numbers in the stat chart (Logan)
 				if Amber.is_unlocked(tid):
 					row["disabled"] = "The team has this blueprint."
 		out.append(row)

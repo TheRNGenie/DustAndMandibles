@@ -24,6 +24,119 @@ var _trims: Array[Node] = []
 ## Free storage for the animation code between frames (spin angles, timers).
 var state: Dictionary = {}
 
+## Rigged (Nov 2026): the fal model (RiggedTurret: base / head / gun / spin
+## meshes, built under the turret's pivots by Turret.setup) stands in for the
+## code parts. No part list, so the groups' animate() is skipped; the barrels
+## spin, the gun kicks back on a shot and a rim of the crop's colour glows on it.
+var rigged := false
+## Rigged, with no gun part (the Snare Launcher: its ropes would tear): the whole
+## top turns but nothing tilts, so the gun pivot (and its muzzle) stays level.
+var no_pitch := false
+var _gun_mi: MeshInstance3D
+var _spins: Array[Node3D] = []
+var _rim: ShaderMaterial
+var _recoil := 0.0
+var _recoil_len := 0.05
+var _spin_speed := 0.0
+
+const RIM_SHADER := """
+shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_back;
+uniform vec4 color : source_color = vec4(1.0);
+uniform float amount = 0.0;
+void fragment() {
+	float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.2);
+	ALBEDO = color.rgb;
+	ALPHA = clamp(rim * amount, 0.0, 1.0);
+}
+"""
+static var _rim_shader: Shader
+## The crop-coloured rim on a fal model's gun while it's loaded.
+const RIM_ON := true
+
+
+## Wraps a turret whose model is a fal model (Turret.setup built its meshes):
+## its base, head and gun meshes are the holders (scaled for the tiers), its
+## muzzles are the model's, and the gun and spinning barrels get the crop rim.
+static func wrap(t: Turret, recoil_len: float = 0.05) -> UniRig:
+	var r := UniRig.new()
+	r.rigged = true
+	r.glow_mat = StandardMaterial3D.new()
+	r.crop_mat = Materials.toon_unique(0.0)
+	r._recoil_len = recoil_len
+	for n: Node in [t, t._head]:
+		for ch in n.get_children():
+			if ch is MeshInstance3D:
+				r.holders.append(ch as MeshInstance3D)
+				break
+	r._gun_mi = t._gun_mi
+	if r._gun_mi != null:
+		r.holders.append(r._gun_mi)
+	r.no_pitch = r._gun_mi == null or r._gun_mi.mesh == null or r._gun_mi.mesh.get_surface_count() == 0
+	for s: Variant in [t._spin, t._spin_b]:
+		if s != null:
+			r._spins.append(s as Node3D)
+	r.muzzles.append(t._muzzle)
+	if t._muzzle_b != null:
+		r.muzzles.append(t._muzzle_b)
+	if _rim_shader == null:
+		_rim_shader = Shader.new()
+		_rim_shader.code = RIM_SHADER
+	r._rim = ShaderMaterial.new()
+	r._rim.shader = _rim_shader
+	if RIM_ON: # (dark while empty: the model's own look until it's loaded)
+		var lit: Array = [r._gun_mi]
+		lit.append_array(r._spins)
+		for mi: Variant in lit:
+			if mi is GeometryInstance3D:
+				(mi as GeometryInstance3D).material_overlay = r._rim
+	return r
+
+
+## Rigged, every frame: the kick easing back and the barrels winding down
+## (crewed guns: held up by the crank's spin, 0..1).
+func rigged_tick(delta: float, crank: float = 0.0) -> void:
+	_recoil = move_toward(_recoil, 0.0, delta * 6.0)
+	if _gun_mi != null:
+		_gun_mi.position.z = _recoil_len * _recoil * _recoil
+	_spin_speed = maxf(move_toward(_spin_speed, 0.0, delta * 12.0), crank * 34.0)
+	for i in _spins.size():
+		_spins[i].rotate_object_local(Vector3.BACK, _spin_speed * delta * (1.0 if i == 0 else -1.0))
+
+
+## Rigged: a shot (the kick and a spin of the barrels).
+func rigged_shot() -> void:
+	_recoil = 1.0
+	_spin_speed = maxf(_spin_speed, 28.0)
+
+
+## Rigged: the model's top at rest (turret space), for the EMPTY sign over it.
+func rigged_top(t: Turret) -> float:
+	var top := 0.0
+	var at: Array = [0.0, t._head.position.y, t._head.position.y + t._gun.position.y]
+	for i in mini(holders.size(), 3):
+		var mi := holders[i] as MeshInstance3D
+		if mi != null and mi.mesh != null and mi.mesh.get_surface_count() > 0:
+			top = maxf(top, float(at[i]) + mi.mesh.get_aabb().end.y)
+	return top
+
+
+## Rigged: room for the base ring, from the model's footprint at rest (base
+## and head: a model may be all head, like the Thunder Mule's cart).
+func rigged_ring_r() -> float:
+	var half := 0.0
+	for i in mini(holders.size(), 2):
+		var mi := holders[i] as MeshInstance3D
+		if mi == null or mi.mesh == null or mi.mesh.get_surface_count() == 0:
+			continue
+		var box := mi.mesh.get_aabb()
+		for x: float in [box.position.x, box.end.x]:
+			for z: float in [box.position.z, box.end.z]:
+				half = maxf(half, Vector2(x, z).length() * 0.75)
+	if half <= 0.0:
+		return 0.85
+	return clampf(half + 0.08, 0.5, 1.8)
+
 
 ## Builds `spec` under the given pivots: `base` doesn't move, `head` yaws, `gun` pitches.
 static func make(s: Dictionary, base: Node3D, head: Node3D, gun: Node3D) -> UniRig:
@@ -131,6 +244,9 @@ func stretch(n: String, s: Vector3, offset: Vector3 = Vector3.ZERO) -> void:
 func set_crop(color: Color, glow: float, show_fill: bool) -> void:
 	var dark := Color(0.16, 0.16, 0.17)
 	glow_mat.albedo_color = dark.lerp(color * 1.35, clampf(glow, 0.0, 1.0))
+	if _rim != null:
+		_rim.set_shader_parameter("color", color)
+		_rim.set_shader_parameter("amount", clampf(glow, 0.0, 1.5) * 0.9)
 	crop_mat.set_shader_parameter("albedo", color)
 	for n: String in parts:
 		var mi := parts[n] as MeshInstance3D

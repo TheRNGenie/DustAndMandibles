@@ -51,20 +51,28 @@ const SWAY_PERIOD := 2.0
 
 func setup(d: TurretDef, cid: int, c: Vector2i, pos: Vector3, owner_label: String, stack_level: int = 0) -> void:
 	super.setup(d, cid, c, pos, owner_label, stack_level)
-	# Turret.setup put the merged model (the build ghost's) on as the base: the
-	# live parts replace it.
-	for ch in get_children():
-		if ch is MeshInstance3D:
-			ch.queue_free()
-			break
 	spec = UniversalBuilder.spec(d.id, Palette.team_color(cid))
-	rig = UniRig.make(spec, self, _head, _gun)
+	if UniversalBuilder.rigged(d.id):
+		# Its fal model (Nov 2026): Turret.setup built it under the pivots; the
+		# code spec still gives the rest angles, its other places don't fit it.
+		rig = UniRig.wrap(self, _recoil_len)
+		spec = UniversalBuilder.rigged_spec(spec, rig.rigged_ring_r())
+		if _empty_sign != null: # over the model, whatever its height
+			_empty_sign.position.y = rig.rigged_top(self) + 0.35
+	else:
+		# Turret.setup put the merged model (the build ghost's) on as the base: the
+		# live parts replace it.
+		for ch in get_children():
+			if ch is MeshInstance3D:
+				ch.queue_free()
+				break
+		rig = UniRig.make(spec, self, _head, _gun)
 	_rest_pitch = float(spec.get("rest_pitch", UniKit.REST_UP))
 	_loaded_pitch = float(spec.get("loaded_pitch", 0.0))
 	_no_aim = bool(spec.get("no_aim", false)) or d.obstruction
 	if not rig.muzzles.is_empty():
 		_muzzle = rig.muzzles[0]
-	_gun.rotation.x = 0.0 if _no_aim else _rest_pitch
+	_gun.rotation.x = 0.0 if (_no_aim or rig.no_pitch) else _rest_pitch
 	_make_ring(float(spec.get("ring_r", 0.85)))
 	if _pip != null:
 		_pip.visible = false
@@ -140,6 +148,7 @@ func universal_hit(target: Bug, aim: Vector3, damage: float) -> void:
 						t._splash(tgt_ref.get_ref() as Bug, lead, r, damage, source, c))
 		TurretDef.Effect.KNOCKBACK:
 			_hit(target, aim, dir, damage, pierce, source)
+			BossFx.on_water(self, target) # Boss: the blast washes Acid Matriarch acid off nearby turrets
 			if target.is_alive():
 				if TurretDef.is_heavy(target.def):
 					if target.is_climbing():
@@ -162,6 +171,7 @@ func universal_hit(target: Bug, aim: Vector3, damage: float) -> void:
 func _hit(b: Bug, at: Vector3, dir: Vector3, damage: float, pierce: bool, source: String, crop_on: bool = true) -> void:
 	if b == null or not is_instance_valid(b) or not b.is_alive():
 		return
+	b.note_crop_hit(crop, source) # (the kill tallies)
 	b.receive_hit(damage, at, dir, pierce, 1.0, source, cliff_id, CropEffects.armour_ignored(crop, tier))
 	if crop_on and crop != &"":
 		var to := CropEffects.on_hit(crop, self, b, damage, b.global_position, source)
@@ -275,6 +285,8 @@ func splash_fx(at: Vector3, r: float, col: Color) -> void:
 
 func _draw_shot() -> void:
 	_idle_t = 0.0
+	if rig != null and rig.rigged:
+		rig.rigged_shot()
 	var age := ctx.shot_age
 	ctx.shots = shots
 	ctx.shot_age = 0.0
@@ -391,7 +403,10 @@ func _aim_visual(delta: float) -> void:
 	ctx.tracking = false
 	if not _no_aim:
 		_aim_pose(delta, is_loaded)
-	UniversalBuilder.animate(def.id, rig, ctx, delta)
+	if rig.rigged:
+		rig.rigged_tick(delta)
+	else:
+		UniversalBuilder.animate(def.id, rig, ctx, delta)
 	if tier != _vis_tier:
 		_vis_tier = tier
 		_show_tier()
@@ -426,8 +441,10 @@ func _aim_pose(delta: float, is_loaded: bool) -> void:
 	else:
 		ctx.tracking = true
 	yaw = clampf(wrapf(yaw, -PI, PI), -cone, cone)
+	if _fixed_yaw: # a model on a fixed bed (no swivel in its rig)
+		yaw = 0.0
 	_head.rotation.y = rotate_toward(_head.rotation.y, yaw, step)
-	_gun.rotation.x = rotate_toward(_gun.rotation.x, pitch, step * 1.5)
+	_gun.rotation.x = 0.0 if rig.no_pitch else rotate_toward(_gun.rotation.x, pitch, step * 1.5)
 
 
 ## A puff of the crop pouring in where the model takes it (spec "pour").
@@ -744,7 +761,12 @@ func card_info() -> Dictionary:
 		keys.append(["U", "Tier %d (%s)" % [tier + 2, UiStyle.cost(up, ResNames.PERSONAL_ID)]])
 	elif tier < 2 and not def.obstruction:
 		notes.append("Tier %d at wave %d" % [tier + 2, TurretDef.UNI_TIER_WAVES[tier + 1]])
-	return {"name": def.display_name, "tier": tier + 1, "job": def.job,
+	var kills: Array = [] # [[crop, n], ...] most first (the tally, by the crop that did it)
+	var by: Dictionary = TurretTallies.crop_kills_of(self)
+	for c: Variant in by:
+		kills.append([String(c), int(by[c])])
+	kills.sort_custom(func(a: Array, b: Array) -> bool: return int(a[1]) > int(b[1]))
+	return {"name": def.display_name, "tier": tier + 1, "job": def.job, "kills": kills, "kills_total": TurretTallies.kills_of(self),
 		"crop": String(crop), "crop_name": CropEffects.short_name(crop) if crop != &"" else "",
 		"effect": CropEffects.effect_name(crop), "color": CropEffects.color_of(crop).to_html(false),
 		"last": CropEffects.short_name(last_crop) if last_crop != &"" else "None",

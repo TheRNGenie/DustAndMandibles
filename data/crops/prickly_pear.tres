@@ -14,4 +14,4 @@ role = "Slow, but every pear heals 20 HP and quenches thirst when eaten, and the
 seed_item = &"seed_prickly_pear"
 loads_per_harvest = 2
 load_item = &"prickly_pear_load"
-turret_family = "Water Cannon line"
+turret_family = "any crop-fed turret (Armour Pierce)"

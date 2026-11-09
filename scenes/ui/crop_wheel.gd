@@ -135,7 +135,12 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	if not _open or turret == null or not is_instance_valid(turret):
 		return
-	var c := get_viewport_rect().get_center()
+	# Drawn for 1080p and scaled to the window, so it fits at 720p (clear of the
+	# hotbar) and doesn't shrink to a dot at 4K.
+	var vp := get_viewport_rect()
+	var zoom := clampf(vp.size.y / 1080.0, 0.62, 2.0)
+	draw_set_transform(vp.get_center(), 0.0, Vector2(zoom, zoom))
+	var c := Vector2.ZERO
 	var loaded_crop := StringName(turret.get("crop"))
 	KeyHints.draw_wheel_disc(self, c, RADIUS, _aim)
 	var font := UiStyle.font("bold")

@@ -141,11 +141,11 @@ func menu_title() -> String:
 
 
 func menu_tagline() -> String:
-	return StyleCombo.streak_note() + "New irons, and every gun upgraded from Common up to Legendary, paid in your own %s. One gun to a slot: a primary, a secondary and a heavy. Buying another for a full slot trades the old one in at half price." % ResNames.personal()
+	return StyleCombo.streak_note() + "New irons, and every gun upgraded from Common up to Legendary, paid in your own %s. One gun to a slot: a primary, a special and a heavy. Buying another for a full slot trades the old one in at half price." % ResNames.personal()
 
 
 func menu_tabs() -> Array:
-	return ["Primaries", "Secondaries", "Heavies", "Upgrades", "Modifications"]
+	return ["Primaries", "Specials", "Heavies", "Upgrades", "Modifications"]
 
 
 func menu_items(tab: int) -> Array:
@@ -165,19 +165,15 @@ func menu_items(tab: int) -> Array:
 			var why := ""
 			if gun.owns(id):
 				why = "Already in your holster."
+			# The numbers are in its stat chart on the right (Logan): the row keeps the words.
 			var extra := ""
-			if w.crop != &"":
-				var crop := Defs.crop(w.crop)
-				extra += "
-Fed with %s loads: %d rounds a load (from the root cellar when you reload)." % [crop.display_name if crop != null else String(w.crop), w.shots_per_harvest]
 			var holder := Gun.slot_holder(gun.owned, id)
 			if holder != &"" and why == "":
 				extra += "
 Trades in your %s for %s." % [Gun.weapon(holder).display_name, UiStyle.cost(int(Gun.weapon(holder).price_chitin * TRADE_IN), "chitin")]
-			out.append({"id": "buy:%s" % id, "name": w.display_name, "icon": id, "desc": "%s
-%s%s" % [w.description, w.stat_line(), extra],
+			out.append({"id": "buy:%s" % id, "name": w.display_name, "icon": id, "desc": "%s%s" % [w.description, extra],
 					"price": UiStyle.cost(w.price_chitin, "chitin"), "price_ok": chitin >= w.price_chitin, "disabled": why,
-					"buttons": [[&"buy", "Buy"]]})
+					"buttons": [[&"buy", "Buy"]], "chart": StatChart.weapon(w, gun.code_of(id) if gun.owns(id) else -1)})
 		elif tab == TAB_RARITY and item["kind"] == "upgrade":
 			# Rarity: Common (white) up through Uncommon, Rare and Epic; Legendary takes Meteor Iron too.
 			var level := gun.level_of(id) if gun.owns(id) else 0
@@ -198,7 +194,8 @@ Trades in your %s for %s." % [Gun.weapon(holder).display_name, UiStyle.cost(int(
 					why = "Needs a piece of %s. Every boss drops one." % GunRarity.ITEM_NAME
 			out.append({"id": "upgrade:%s" % id, "name": "%s  ·  %s" % [w.display_name, GunRarity.label(level)], "icon": id,
 					"desc": _upgrade_desc(w, level), "price": price, "rarity": level,
-					"price_ok": ok, "disabled": why, "buttons": [[&"buy", "Upgrade to %s" % GunRarity.name_of(level + 1) if not maxed else "Upgrade"]]})
+					"price_ok": ok, "disabled": why, "buttons": [[&"buy", "Upgrade to %s" % GunRarity.name_of(level + 1) if not maxed else "Upgrade"]],
+					"chart": StatChart.weapon(w, gun.code_of(id) if gun.owns(id) else -1, -1 if maxed else level + 1)}) # (the step it buys, after the arrow)
 		elif tab == TAB_MODS and item["kind"] == "mods":
 			# Only guns you carry, so the list stays short.
 			if not gun.owns(id):
@@ -211,7 +208,7 @@ Trades in your %s for %s." % [Gun.weapon(holder).display_name, UiStyle.cost(int(
 				out.append({"id": "mod:%s:%d" % [id, i], "name": "%s: %s" % [w.display_name, m["name"]], "icon": id,
 						"desc": str(m["desc"]), "price": "" if fitted else UiStyle.cost(int(m["cost"]), "chitin"),
 						"price_ok": chitin >= int(m["cost"]), "disabled": "Fitted." if fitted else "",
-						"buttons": [[&"buy", "Fit it"]]})
+						"buttons": [[&"buy", "Fit it"]], "chart": StatChart.weapon(w, code)})
 	var p := _player_of(multiplayer.get_unique_id())
 	if p != null and p.whip != null:
 		var wc := p.whip.code

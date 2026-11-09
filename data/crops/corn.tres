@@ -14,4 +14,4 @@ role = "Fast and cheap: ripe in two minutes. Sell it for scrap, or eat it to sta
 seed_item = &"seed_corn"
 loads_per_harvest = 4
 load_item = &"corn_load"
-turret_family = "Corn Hopper line"
+turret_family = "any crop-fed turret (Ricochet)"
