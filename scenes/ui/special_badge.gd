@@ -6,7 +6,9 @@ extends VBoxContainer
 ##   BASE: Wide Cone                  (grey)
 ##   Visit workbench to upgrade       (until you've fitted a crop once)
 ## Also dyes the held gun's grip wrap and maker's mark for its crop
-## (SpecialGuns.paint_grip) whenever the crop changes.
+## (SpecialGuns.paint_grip) whenever the crop changes, and puts the crop's
+## round marker (CropChip) beside the ammo count while a crop is fitted (Logan,
+## Nov 2026: the fal models carry no crop marking of their own).
 
 const ICON := 32
 const POLL := 0.2
@@ -21,6 +23,9 @@ var _t := 0.0
 ## [weapon id, code] last shown, and the gun model last painted with which crop.
 var _shown: Array = []
 var _painted: Dictionary = {}
+## The crop marker beside the ammo count (in the HUD's ammo row, before the number).
+var _marker: CropChip
+const MARKER := 40
 
 
 func _ready() -> void:
@@ -57,6 +62,33 @@ func _ready() -> void:
 	visible = false
 
 
+func _exit_tree() -> void:
+	_set_marker(&"")
+
+
+## The crop's marker beside the ammo count (&"" = none).
+func _set_marker(crop: StringName) -> void:
+	if _marker != null and is_instance_valid(_marker):
+		if _marker.crop == crop:
+			return
+		_marker.queue_free()
+	_marker = null
+	if crop == &"" or not is_inside_tree():
+		return
+	# The ammo row is the HBox of the count above this badge (Hud: name, row, pips, badge).
+	var row: HBoxContainer = null
+	for c: Node in get_parent().get_children():
+		if c is HBoxContainer:
+			row = c
+			break
+	if row == null:
+		return
+	_marker = CropChip.make(crop, MARKER)
+	_marker.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_marker)
+	row.move_child(_marker, 0)
+
+
 ## The empty-crop badge: a plain circle with a little wrench across it.
 func _draw_wrench() -> void:
 	var s := _wrench.size
@@ -87,12 +119,14 @@ func _process(delta: float) -> void:
 	var gun := _local_gun()
 	if gun == null:
 		visible = false
+		_set_marker(&"")
 		return
 	_paint(gun)
 	var id := gun.def.id if gun.def != null and gun.holding == &"" else &""
 	if not SpecialRules.is_special(id):
 		visible = false
 		_shown = []
+		_set_marker(&"")
 		return
 	visible = true
 	var code := gun.code_of(id)
@@ -101,6 +135,7 @@ func _process(delta: float) -> void:
 		return
 	_shown = key
 	var crop := SpecialCrop.crop_of(code)
+	_set_marker(crop)
 	_icon.visible = crop != &""
 	_wrench.visible = crop == &""
 	if crop != &"":

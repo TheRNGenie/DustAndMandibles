@@ -170,14 +170,26 @@ static func _cloud(p: VfxPool, at: Vector3, r: float, c: Color) -> void:
 
 ## A thorny ball flying one leg, starting `delay` s after the shot; a pop where it lands.
 static func _bramble(p: VfxPool, a: Vector3, b: Vector3, delay: float, c: Color) -> void:
-	var mi := MeshInstance3D.new()
-	var st := MeshKit.begin()
-	MeshKit.add_ellipsoid(st, Transform3D(), Vector3.ONE * 0.1, 4, 7, c.lerp(Color("#5A3E22"), 0.4))
-	for i in 8:
-		var d := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)).normalized()
-		MeshKit.add_box(st, Transform3D(MeshKit.basis_from_y(d), d * 0.11), Vector3(0.02, 0.09, 0.02), c.darkened(0.2))
-	mi.mesh = MeshKit.finish(st)
-	mi.material_override = Materials.toon(0.02)
+	var mi := Node3D.new()
+	# The fal bramble ball, the same one that sits loaded in the pistol's muzzle,
+	# a little bigger in flight so its thorns read at range.
+	var ball: Mesh = ArmoryGuns.parts(&"bramble_pistol").get("shell")
+	if ball != null:
+		var bm := MeshInstance3D.new()
+		bm.mesh = ball
+		bm.position = -ArmoryGuns.pivot(&"bramble_pistol", "shell")
+		mi.add_child(bm)
+		mi.scale = Vector3.ONE * 1.5
+	else:
+		var cm := MeshInstance3D.new()
+		var st := MeshKit.begin()
+		MeshKit.add_ellipsoid(st, Transform3D(), Vector3.ONE * 0.1, 4, 7, c.lerp(Color("#5A3E22"), 0.4))
+		for i in 8:
+			var d := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)).normalized()
+			MeshKit.add_box(st, Transform3D(MeshKit.basis_from_y(d), d * 0.11), Vector3(0.02, 0.09, 0.02), c.darkened(0.2))
+		cm.mesh = MeshKit.finish(st)
+		cm.material_override = Materials.toon(0.02)
+		mi.add_child(cm)
 	mi.visible = false
 	p.add_child(mi)
 	mi.global_position = a

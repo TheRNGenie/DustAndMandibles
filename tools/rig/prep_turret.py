@@ -46,6 +46,14 @@ def classify(c, spec):
             return "spin%d" % i
     if "swing" in spec and inside(c, spec["swing"]["box"]):
         return "swing"
+    for f in spec.get("force", []):  # {"box": [...], "part": "gun"|"head"|"base"}: whole pieces the height rules would split
+        if inside(c, f["box"]):
+            return f["part"]
+    for cap in spec.get("gun_capsule", []):  # [[x,y,z], [x,y,z], radius]: a slanted barrel
+        a, b = Vector(cap[0]), Vector(cap[1])
+        t = max(0.0, min(1.0, (c - a).dot(b - a) / max((b - a).length_squared, 1e-9)))
+        if (c - (a + (b - a) * t)).length <= cap[2]:
+            return "gun"
     if spec.get("static") or spec.get("static_base"):
         return "base"
     if c.y <= spec["yaw_y"]:
@@ -103,10 +111,84 @@ def main():
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         groups = {}
+        lo_hi = {}
         for face in bm.faces:
             c = gl(face.calc_center_median())
-            groups.setdefault(classify(c, spec), []).append(face.index)
+            part = classify(c, spec)
+            groups.setdefault(part, []).append(face.index)
+            if part.startswith("spin"):
+                for v in face.verts:
+                    g = gl(v.co)
+                    a0, a1 = lo_hi.get(part, (g.copy(), g.copy()))
+                    lo_hi[part] = (Vector(map(min, a0, g)), Vector(map(max, a1, g)))
         bm.free()
+        spin_centres = {k: (v[0] + v[1]) * 0.5 for k, v in lo_hi.items()}
+        # Small loose pieces (bolts, levers, slivers) go whole to the part most of
+        # their faces fell in, so nothing floats off or tears when the gun moves.
+        label = {}
+        for part, faces in groups.items():
+            for fi in faces:
+                label[fi] = part
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bm.faces.ensure_lookup_table()
+        seen = set()
+        small = max(40, int(len(bm.faces) * spec.get("island_share", 0.03)))
+        specks = []
+        for f0 in bm.faces:
+            if f0.index in seen:
+                continue
+            island = []
+            stack = [f0]
+            seen.add(f0.index)
+            while stack:
+                f = stack.pop()
+                island.append(f.index)
+                for v in f.verts:
+                    for nf in v.link_faces:
+                        if nf.index not in seen:
+                            seen.add(nf.index)
+                            stack.append(nf)
+            if len(island) > small:
+                continue
+            votes = {}
+            for fi in island:
+                votes[label[fi]] = votes.get(label[fi], 0) + 1
+            win = max(votes, key=votes.get)
+            for fi in island:
+                label[fi] = win
+            if len(votes) == 1 and len(island) <= spec.get("speck_faces", 1500):
+                specks.append(island)
+        # Specks: a small piece that fell wholly in one part (a charm, a bolt, a
+        # lever) goes with whatever it sits against instead, so it can't be left
+        # hanging in the air when the gun turns or tips up.
+        if specks:
+            from mathutils.kdtree import KDTree
+            centres = [f.calc_center_median() for f in bm.faces]
+            tree = KDTree(len(centres))
+            for i, co in enumerate(centres):
+                tree.insert(co, i)
+            tree.balance()
+            moved = 0
+            for island in specks:
+                own = set(island)
+                best = None
+                for fi in island[::max(1, len(island) // 40)]:
+                    for co, j, dist in tree.find_n(centres[fi], len(own) + 24):
+                        if j not in own:
+                            if best is None or dist < best[0]:
+                                best = (dist, label[j])
+                            break
+                if best is not None and best[1] != label[island[0]] and {best[1], label[island[0]]} <= {"base", "head", "gun"}:
+                    for fi in island:
+                        label[fi] = best[1]
+                    moved += 1
+            print("[tp] %s: %d of %d specks moved to the part they touch" % (name, moved, len(specks)))
+        bm.free()
+        groups = {}
+        for fi, part in label.items():
+            groups.setdefault(part, []).append(fi)
+        groups.pop("drop", None)
         # Move every vertex into turret space.
         for v in obj.data.vertices:
             v.co = bl(fit(gl(v.co)))
@@ -163,7 +245,14 @@ def main():
             pts["swing"] = list(fit(spec["swing"]["at"]))
             pts["swing_axis"] = list(rot @ Vector(spec["swing"]["axis"]))
         for i, sp in enumerate(spec.get("spin", [])):
-            pts["spin%d" % i] = list(fit(sp["at"]))
+            at = Vector(sp["at"])
+            if sp.get("auto_centre", True) and ("spin%d" % i) in spin_centres:
+                # Spin about the middle of the cluster itself (across the axis), so the
+                # barrels turn in place instead of orbiting a guessed point.
+                ax = Vector(sp["axis"]).normalized()
+                c = spin_centres["spin%d" % i]
+                at = c - ax * (c - at).dot(ax)
+            pts["spin%d" % i] = list(fit(at))
             pts["spin%d_axis" % i] = list(rot @ Vector(sp["axis"]))
         info["points"] = {k: [round(c, 4) for c in v] for k, v in pts.items()}
         json.dump(info, open(os.path.join(out, name + ".json"), "w"), indent=1)

@@ -129,7 +129,10 @@ func crank(amount: float, delta: float) -> void:
 		return
 	_spin_angle += amount * 26.0 * delta
 	spinner.rotation.z = _spin_angle
-	handle.rotation.x = -_spin_angle * 0.5
+	if ArmoryGuns.part_axis(id, "crank") == "z": # (the fal Harvest Gatling's crank turns on the barrel line)
+		handle.rotation.z = -_spin_angle * 0.5
+	else:
+		handle.rotation.x = -_spin_angle * 0.5
 	if vm.left != null and vm.transform.basis.get_euler().y < 0.02:
 		var rest: Vector3 = WeaponBuilder.left_fist(id)
 		vm.left.position = handle.position + handle.basis * (rest - handle.position)

@@ -5,7 +5,7 @@ extends SceneTree
 ## size and triangle count. No game, no network, no saves touched.
 ##
 ##   Godot --path . --screen 0 --windowed --resolution 1280x720 -s res://tools/armory/armory_preview.gd
-##       -- --out=<dir> [--ids=primary|secondary|heavy|all|id,id,...] [--views=left,right,quarter,fp]
+##       -- --out=<dir> [--ids=primary|secondary|heavy|all|id,id,...] [--views=left,right,quarter,fp,hand]
 
 var _out := ""
 
@@ -141,6 +141,12 @@ func _place(cam: Camera3D, view: String, box: AABB, id: StringName = &"") -> voi
 			cam.fov = 30.0
 			cam.global_position = Vector3(-0.3, 0.16, -0.12)
 			cam.look_at(Vector3(0, 0.0, 0.0), Vector3.UP)
+		"hand":
+			# Where the game holds it (Gun.REST_POS plus ArmoryGuns.rest_offset), at the game's view angle.
+			cam.fov = 85.0
+			var at := Vector3(0.2, -0.19, -0.5) + ArmoryGuns.rest_offset(id)
+			cam.global_position = -at
+			cam.look_at(-at + Vector3(0, 0, -1.0), Vector3.UP)
 		"fp":
 			# About where the viewmodel holds a gun: low and to the right of the eye.
 			cam.fov = 70.0

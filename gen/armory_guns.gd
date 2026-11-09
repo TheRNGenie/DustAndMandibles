@@ -88,16 +88,87 @@ static func _const(script: Script, which: String) -> Dictionary:
 
 
 static func muzzle(id: StringName) -> Vector3:
+	var f := fal(id)
+	if f.has("muzzle"):
+		return _vec(f["muzzle"])
 	return _table(id, "MUZZLE").get(id, Vector3(0, 0.02, -0.3))
 
 
 ## [right fist centre, right grip axis, left (support) fist centre] in gun space.
+## A fal model keeps the code gun's right fist (prep_armory puts its grip there)
+## and brings its own support hand.
 static func hands(id: StringName) -> Array:
-	return _table(id, "HANDS").get(id, [])
+	var h: Array = _table(id, "HANDS").get(id, [])
+	var f := fal(id)
+	if f.has("support") and h.size() >= 3:
+		h = [h[0], h[1], _vec(f["support"])]
+	return h
 
 
 static func pivot(id: StringName, part: String) -> Vector3:
+	var f := fal(id)
+	if not f.is_empty():
+		var p: Dictionary = (f.get("parts", {}) as Dictionary).get(part, {})
+		if p.has("pivot"):
+			return _vec(p["pivot"])
 	return _table(id, "PIVOTS").get("%s_%s" % [id, part], Vector3.ZERO)
+
+
+## The axis a part turns about, where a fal model's differs from the code gun's
+## ("x", "y", "z"; "" = the code gun's own).
+static func part_axis(id: StringName, part: String) -> String:
+	var p: Dictionary = (fal(id).get("parts", {}) as Dictionary).get(part, {})
+	return str(p.get("axis", ""))
+
+
+# ------------------------------------------------------------------ fal models
+
+## The fal.ai models of the Special and heavy weapons (batch 3), fitted into gun
+## space by tools/rig/prep_armory.py: one <id>.glb with a node per part (body,
+## cylinder, ...) and <id>.json with the muzzle, support hand, crop ring and
+## part pivots. Where one exists it replaces the code-built gun; the code gun's
+## moving parts the model doesn't have are simply left out.
+const FAL_DIR := "res://assets/rigged/guns/fal/"
+static var _fal: Dictionary = {}
+
+
+## The fal model's fit (muzzle, support, ring, parts), or {} if there's none.
+static func fal(id: StringName) -> Dictionary:
+	if _fal.has(id):
+		return _fal[id]
+	var out: Dictionary = {}
+	var path := "%s%s.json" % [FAL_DIR, id]
+	if (SpecialGuns.has(id) or UniHeavies.has(id)) and FileAccess.file_exists(path) \
+			and ResourceLoader.exists("%s%s.glb" % [FAL_DIR, id]):
+		var j: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if j is Dictionary:
+			out = j
+	_fal[id] = out
+	return out
+
+
+static func _vec(a: Variant) -> Vector3:
+	var v: Array = a
+	return Vector3(float(v[0]), float(v[1]), float(v[2]))
+
+
+## The fal model's part meshes, by node name ({"body": mesh, "cylinder": mesh, ...}),
+## with the crop ring for the heavies.
+static func _fal_parts(id: StringName) -> Dictionary:
+	var out: Dictionary = {}
+	var packed := load("%s%s.glb" % [FAL_DIR, id]) as PackedScene
+	if packed == null:
+		return out
+	var n := packed.instantiate()
+	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh != null:
+			out[String(mi.name).to_lower()] = mi.mesh
+	n.free()
+	var f := fal(id)
+	if f.has("ring") and UniHeavies.has(id):
+		var r: Dictionary = f["ring"]
+		out["ring"] = UniHeavies._ring(_vec(r["at"]), _vec(r["n"]), float(r["r"]) + 0.006, 0.008)
+	return out
 
 
 # ------------------------------------------------------------------ in the hand
@@ -149,9 +220,11 @@ static func aim_pos(id: StringName) -> Vector3:
 
 ## How the gun sits at rest relative to the standard spot (heavies ride lower and closer).
 static func rest_offset(id: StringName) -> Vector3:
+	var f := fal(id)
+	var shift := _vec(f["rest"]) if f.has("rest") else Vector3.ZERO # (a fal model with a bulky top or back sits a little further out)
 	if slot_of(id) == HEAVY:
-		return Vector3(0.02, -0.05, 0.08)
-	return Vector3.ZERO
+		return Vector3(0.02, -0.05, 0.08) + shift
+	return shift
 
 
 ## Where rounds go in (gun space): the breech just ahead of the hand for most,
@@ -171,6 +244,11 @@ static func parts(id: StringName) -> Dictionary:
 	if _cache.has(id):
 		return _cache[id]
 	var out: Dictionary = {}
+	if not fal(id).is_empty():
+		out = _fal_parts(id)
+		if out.has("body"):
+			_cache[id] = out
+			return out
 	if SpecialGuns.has(id):
 		out = SpecialGuns.build(id)
 		_cache[id] = out

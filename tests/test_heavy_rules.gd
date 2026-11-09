@@ -176,12 +176,20 @@ func test_models_have_a_ring_and_their_moving_parts() -> void:
 		&"powder_keg_launcher": ["shell", "door"], &"crop_blunderbuss": ["door", "rod"]}
 	for id: StringName in HeavyRules.IDS:
 		var p := ArmoryGuns.parts(id)
-		assert_true(p.has("body") and p.has("ring") and p.has("glow"), "%s body, ring, glow" % id)
-		for part: String in need[id]:
-			assert_true(p.has(part), "%s has %s" % [id, part])
+		if not ArmoryGuns.fal(id).is_empty():
+			# The fal model (batch 3): its body, the crop ring, and the parts it was cut into.
+			assert_true(p.has("body") and p.has("ring"), "%s fal body and ring" % id)
+			for part: String in (ArmoryGuns.fal(id).get("parts", {}) as Dictionary):
+				assert_true(p.has(part), "%s fal model has %s" % [id, part])
+				assert_true(need[id].has(part) or ArmoryGuns.LOADED_PARTS.has(part), "%s: %s is a part the gun moves" % [id, part])
+		else:
+			assert_true(p.has("body") and p.has("ring") and p.has("glow"), "%s body, ring, glow" % id)
+			for part: String in need[id]:
+				assert_true(p.has(part), "%s has %s" % [id, part])
 		assert_eq(ArmoryGuns.slot_of(id), ArmoryGuns.HEAVY)
 		assert_true(ArmoryGuns.hands(id).size() == 3, "%s hands" % id)
-		assert_true(ArmoryGuns.muzzle(id).z < -0.3, "%s muzzle forward" % id)
+		# (a fal model's muzzle is where its own barrel ends: the Harvest Gatling's barrels sit just ahead of the grip)
+		assert_true(ArmoryGuns.muzzle(id).z < (-0.1 if not ArmoryGuns.fal(id).is_empty() else -0.3), "%s muzzle forward" % id)
 
 
 func test_hotbar_crop_and_upgrade_trim() -> void:
@@ -189,6 +197,8 @@ func test_hotbar_crop_and_upgrade_trim() -> void:
 	assert_eq(HeavyRules.crop_of_item(&"corn"), &"corn")
 	assert_eq(HeavyRules.crop_of_item(&"water"), &"", "not a crop")
 	for id: StringName in HeavyRules.IDS:
+		if not ArmoryGuns.fal(id).is_empty():
+			continue # (the fal models carry no code-built trim bands)
 		var p := ArmoryGuns.parts(id)
 		assert_true(p.has("trim1") and p.has("trim2"), "%s has upgrade trim" % id)
 	assert_almost(UniHeavies.TRIM_SCALE[1], 1.05)
