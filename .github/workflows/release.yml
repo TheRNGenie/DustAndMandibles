@@ -1,8 +1,9 @@
 # Builds the Windows game and publishes it as a GitHub Release.
 # Runs when a version tag (v1.2.3) is pushed, or by hand from the Actions tab.
-# The release carries the game (one .exe plus the three Epic Online Services
-# DLLs that sit next to it), a zip of those four, and the small setup program
-# that downloads, installs, updates and launches it.
+# The release carries the game (a small .exe, its data DustAndMandibles.pck cut
+# into numbered parts under GitHub's 2 GiB-per-file limit, and the DLLs that sit
+# next to it) and the small setup program that downloads all of it, joins the
+# data back together, installs, updates and launches the game.
 #
 # Online play (Epic lobbies + relay): add these repository secrets (Settings >
 # Secrets and variables > Actions): EOS_PRODUCT_ID, EOS_SANDBOX_ID,
@@ -108,8 +109,31 @@ jobs:
           & $godot --headless --path . --import | Out-Null
           & $godot --headless --path . --export-release "Windows Desktop" builds/windows/DustAndMandibles.exe
           if (-not (Test-Path builds/windows/DustAndMandibles.exe)) { throw "export failed" }
+          if (-not (Test-Path builds/windows/DustAndMandibles.pck)) { throw "export made no .pck" }
           Get-ChildItem builds/windows | Select-Object Name, Length
-          Compress-Archive -Path builds/windows/* -DestinationPath builds/DustAndMandibles-windows.zip -Force
+
+      - name: Cut the game data into parts
+        # GitHub won't take a release file over 2 GiB; the setup joins these back.
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force builds/parts | Out-Null
+          $part = 1900MB
+          $in = [System.IO.File]::OpenRead((Resolve-Path builds/windows/DustAndMandibles.pck))
+          $buf = New-Object byte[] (8MB)
+          $n = 0
+          while ($in.Position -lt $in.Length) {
+            $n++
+            $out = [System.IO.File]::Create((Join-Path $PWD ("builds/parts/DustAndMandibles.pck.{0:D3}" -f $n)))
+            $left = [Math]::Min($part, $in.Length - $in.Position)
+            while ($left -gt 0) {
+              $r = $in.Read($buf, 0, [Math]::Min($buf.Length, $left))
+              $out.Write($buf, 0, $r)
+              $left -= $r
+            }
+            $out.Close()
+          }
+          $in.Close()
+          Get-ChildItem builds/parts | Select-Object Name, Length
 
       - name: Add the setup program
         # Prebuilt from tools/installer/Setup.cs (see the build line at the top of that file).
@@ -122,13 +146,13 @@ jobs:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: Dust & Mandibles ${{ github.event.inputs.tag || github.ref_name }}
           body: |
-            **Easiest:** download **DustAndMandiblesSetup.exe** and run it. It downloads the game, adds Desktop and Start Menu shortcuts, and starts it. The shortcut checks for updates every time you play.
+            Download **DustAndMandiblesSetup.exe** and run it. It downloads everything (the game, its data parts and the online-play files), puts the data back together, adds Desktop and Start Menu shortcuts, and starts the game. The shortcut checks for updates every time you play.
 
-            **Or** download **DustAndMandibles-windows.zip**, unzip it anywhere and run DustAndMandibles.exe. (DustAndMandibles.exe on its own also runs, but online invites need the three .dll files next to it; without them it offers direct IP invites only.)
+            If you installed before v0.1.68, run this new setup once: older setups don't know about the data parts.
 
             Windows may show a "Windows protected your PC" screen because the files are not code-signed. Click **More info**, then **Run anyway**.
           files: |
             builds/windows/DustAndMandibles.exe
             builds/windows/*.dll
-            builds/DustAndMandibles-windows.zip
+            builds/parts/DustAndMandibles.pck.*
             builds/DustAndMandiblesSetup.exe
