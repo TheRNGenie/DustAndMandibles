@@ -410,9 +410,15 @@ func _aim_visual(delta: float) -> void:
 	if tier != _vis_tier:
 		_vis_tier = tier
 		_show_tier()
-	# EMPTY over an unloaded turret during a wave (an emergency load is still possible).
-	var want_sign := 1.0 if (_in_wave and not is_loaded and not def.obstruction) else 0.0
+	# EMPTY over an unloaded turret during a wave (an emergency load is still possible),
+	# and any time you have the crop bag out: bigger, and seen through the scaffold,
+	# so it reads at the bag's reach (CropBagUI).
+	var bag := CropBagUI.held
+	var want_sign := 1.0 if ((_in_wave or bag) and not is_loaded and not def.obstruction) else 0.0
 	_set_sign(move_toward(_sign_a, want_sign, delta / SIGN_FADE))
+	if _empty_sign != null:
+		_empty_sign.no_depth_test = bag
+		_empty_sign.scale = _empty_sign.scale.move_toward(Vector3.ONE * (1.7 if bag else 1.0), delta * 4.0)
 
 
 func _aim_pose(delta: float, is_loaded: bool) -> void:
@@ -656,7 +662,7 @@ func _host_load(peer_id: int, c: StringName) -> void:
 	var payer := Economy.payer_cliff(peer_id, cliff_id)
 	var item := CropEffects.sack_of(c)
 	if item == &"" or not Economy.spend(payer, {item: 1}):
-		Economy.notify(peer_id, "No sacks of %s. Harvest some and store them in the root cellar." % CropEffects.short_name(c).to_lower())
+		Economy.notify(peer_id, "No sacks of %s. Harvest some and make sacks at the root cellar's workbench." % CropEffects.short_name(c).to_lower())
 		return
 	if crop != &"" and GameState.phase != GameState.Phase.WAVE:
 		Economy.earn(payer, {CropEffects.sack_of(crop): 1}) # swapped out before the wave: the sack comes back

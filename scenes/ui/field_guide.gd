@@ -113,7 +113,7 @@ func menu_items(tab: int) -> Array:
 						sells.append(UiStyle.cost(MarketPrices.BASE[r], String(MarketPrices.currency(r))) + " Each")
 				var stats := "Ripe in %s  ·  %d Water  ·  Harvest %s  ·  %s" % [
 						_minutes(c.grow_time), c.water_cost, ", ".join(yields),
-						("Sells for " + ", ".join(sells)) if not sells.is_empty() else "Not Sold: Grown for Your Partner"]
+						("Sells for " + ", ".join(sells)) if not sells.is_empty() else ("Not Sold: Grown for Your Partner" if id == &"sarsaparilla" else "Not Sold: Turret Ammo")]
 				var tips: Array = [c.role] if c.role != "" else []
 				tips.append_array(e.get("tips", []))
 				var crop_icon: Variant = c.harvest.keys()[0] if not c.harvest.is_empty() else null

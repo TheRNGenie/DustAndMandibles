@@ -24,7 +24,7 @@ func _ready() -> void:
 func interact_prompt() -> String:
 	if cellar == null or not cellar.may_use(multiplayer.get_unique_id()):
 		return "Your partner's root cellar"
-	return "Root Cellar (ammo storage)\nE: go down"
+	return "Root Cellar (ammo bins and workbench)\nE: go down"
 
 
 func local_interact(holding: bool) -> void:

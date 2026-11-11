@@ -312,6 +312,139 @@ func _wait(s: float) -> void:
 	await get_tree().create_timer(s, true, false, true).timeout
 
 
+## A stand-in crop bag for the playtest UI steps (the real one is CropBag).
+class GalleryBag extends RefCounted:
+	var set_crop: StringName = &"corn"
+	var cid := 0
+
+	func sacks_of(c: StringName) -> int:
+		return Economy.amount(cid, CropEffects.sack_of(c))
+
+	func is_out() -> bool:
+		return true
+
+	func set_bag_crop(c: StringName) -> void:
+		set_crop = c
+
+
+## A stand-in seed picker (the farm plot's CropPlot.SeedWheel plants for real).
+class GallerySeeds extends RefCounted:
+	var crop: StringName = &"corn"
+
+	func wheel_title() -> String:
+		return "Seeds"
+
+	func wheel_status() -> String:
+		return "Pick a seed to plant"
+
+	func wheel_verb() -> String:
+		return "plant"
+
+	func wheel_keys() -> String:
+		return "Release E: Plant   ·   Esc: Close"
+
+	func sacks_of(c: StringName) -> int:
+		return {&"corn": 4, &"firecracker_chili": 2, &"cotton": 1, &"herbs": 3}.get(c, 0)
+
+	func can_pick(c: StringName) -> bool:
+		return sacks_of(c) > 0
+
+	func can_load_now() -> bool:
+		return true
+
+	func request_load(_c: StringName) -> void:
+		pass
+
+
+## The playtest fixes' UI (Nov 2026), with made-up numbers: the crop bag's
+## wheel, its turret cards, its hotbar icons, the crops you carry, the ammo
+## workbench, the hint card on the right and the dynamite hint at the bottom.
+##   ui_bag_wheel / ui_bag_card_<state> / ui_bag_icons / ui_carry / ui_ammo_bench / ui_hint_card / ui_dyn_hint
+func _playtest_ui(hud: Hud, player: Player) -> void:
+	var bag := GalleryBag.new()
+	bag.cid = player.cliff_id
+	Economy.earn(player.cliff_id, {&"cotton_load": 3, &"herb_load": 9, &"sulfur_load": 1})
+	await _step("ui_bag_wheel", func() -> void:
+		CropWheel.open_for(CropBagUI.Wheel.new(bag), &"alt_fire")
+		if CropWheel.instance != null:
+			CropWheel.instance.set("_aim", Vector2(-120, -40))
+			CropWheel.instance.set("_choice", CropWheel._sector(Vector2(-120, -40))), func() -> void:
+		if CropWheel.instance != null:
+			CropWheel.instance.close(), 0.6)
+	await _step("ui_seed_wheel", func() -> void:
+		CropWheel.open_for(GallerySeeds.new(), &"interact")
+		if CropWheel.instance != null:
+			CropWheel.instance.set("_aim", Vector2(100, 60))
+			CropWheel.instance.set("_choice", CropWheel._sector(Vector2(100, 60))), func() -> void:
+		if CropWheel.instance != null:
+			CropWheel.instance.close(), 1.0)
+	var base := {"name": "Crop Hopper", "tier": 1, "hp": "170 / 170", "bag": "corn", "bag_name": "Corn", "have": 12, "now": "", "now_name": ""}
+	var fire := KeyHints.key_for("fire")
+	var rmb := KeyHints.key_for("alt_fire")
+	var states := {
+		"load": {"status": ["", ""], "keys": [[fire, "Load Corn"], [rmb, "Pick a Crop"]]},
+		"swap": {"now": "sulfur_root", "now_name": "Sulfur", "status": ["Loaded with Sulfur. The sack you swap out comes back.", "info"], "keys": [[fire, "Swap to Corn"], [rmb, "Pick a Crop"]]},
+		"busy": {"now": "sulfur_root", "now_name": "Sulfur", "status": ["Already loaded with Sulfur. Swap it once the wave is over.", "info"], "keys": [[rmb, "Pick a Crop"]]},
+		"nostock": {"bag": "cotton", "bag_name": "Cotton", "have": 0, "status": ["No Cotton sacks in the cellar.", "bad"], "keys": [[rmb, "Pick a Crop"]]},
+		"unset": {"bag": "", "bag_name": "", "have": 0, "status": ["Your bag is empty: pick a crop first.", "info"], "keys": [[rmb, "Pick a Crop"]]},
+	}
+	for st: String in states:
+		var info := base.duplicate()
+		info.merge(states[st], true)
+		await _step("ui_bag_card_%s" % st, func() -> void: hud.feed.set("_prompt_text", "@bag:" + JSON.stringify(info)),
+			func() -> void: hud.feed.set("_prompt_text", ""), 0.6)
+	# The hotbar's slot 9: the bag empty, then set to corn and to cotton.
+	var strip: Array = [null]
+	await _step("ui_bag_icons", func() -> void:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		row.position = Vector2(80, 380)
+		for c: StringName in [&"", &"corn", &"cotton", &"tumbleweed_vine"]:
+			var p := KeyHints.plate("plate")
+			p.custom_minimum_size = Vector2(96, 96)
+			var icon := HudHotbar.ItemIcon.new()
+			icon.item = CropBagUI.ITEM
+			icon.crop = c
+			icon.custom_minimum_size = Vector2(72, 72)
+			p.add_child(icon)
+			row.add_child(p)
+		for raw: StringName in [&"cotton", &"sulfur_root", &"barrel_cactus", &"tumbleweed_vine"]: # carried raw crops (no painted icon)
+			var p2 := KeyHints.plate("plate")
+			p2.custom_minimum_size = Vector2(96, 96)
+			var icon2 := HudHotbar.ItemIcon.new()
+			icon2.item = raw
+			icon2.custom_minimum_size = Vector2(72, 72)
+			p2.add_child(icon2)
+			row.add_child(p2)
+		hud.add_child(row)
+		strip[0] = row, func() -> void: (strip[0] as Node).queue_free(), 0.6)
+	await _step("ui_carry", func() -> void:
+		hud.carry.demo({&"corn": 12, &"firecracker_chili": 25, &"cotton": 8, &"herbs": 3, &"sulfur_root": 1}),
+		func() -> void:
+			hud.carry.visible = false
+			hud.carry.set_process(true), 0.6)
+	# Every kind carried at once, with the bag's turret card up: they mustn't overlap.
+	var full_info := base.duplicate()
+	full_info.merge(states["load"], true)
+	await _step("ui_carry_with_card", func() -> void:
+		hud.carry.demo({&"corn": 12, &"firecracker_chili": 25, &"cotton": 8, &"herbs": 3, &"sulfur_root": 1, &"prickly_pear": 4,
+			&"sarsaparilla": 2, &"barrel_cactus": 6, &"tumbleweed_vine": 9})
+		hud.feed.set("_prompt_text", "@bag:" + JSON.stringify(full_info)),
+		func() -> void:
+			hud.feed.set("_prompt_text", "")
+			hud.carry.visible = false
+			hud.carry.set_process(true), 0.8)
+	await _step("ui_ammo_bench", func() -> void: MenuScreen.instance.open(AmmoBenchMenu.new(AmmoBenchMenu.DemoBench.new())),
+		func() -> void: MenuScreen.instance.close(), 0.8)
+	await _step("ui_hint_card", func() -> void:
+		hud.tutorial.set("_forced", true)
+		hud.tutorial.set("player", player), func() -> void: hud.tutorial.set("_forced", false), 1.2)
+	await _step("ui_dyn_hint", func() -> void:
+		if multiplayer.is_server():
+			player.dynamite.grant(1)
+		player.gun.hold_item(&"grapple"), func() -> void: player.gun.hold_item(&"none"), 1.2)
+
+
 func _wants(step: String) -> bool:
 	if _only.is_empty():
 		return true
@@ -567,6 +700,27 @@ func _world_tour(world: Node) -> void:
 					if body != null and n >= 0 and n < body.get_child_count():
 						MenuScreen.instance.call("_pick", body.get_child(n), items[n], true)),
 				func() -> void: MenuScreen.instance.close())
+	await _playtest_ui(hud, player)
+	# A purchase rebuilds the list: it must not scroll (Logan). Scrolled down with
+	# a lower row's button focused, a rebuild keeps the scroll where it was.
+	if smith != null and _wants("menu_scroll_keep"):
+		MenuScreen.instance.open(smith)
+		MenuScreen.instance.tab = 3
+		MenuScreen.instance.refresh()
+		await _wait(0.6)
+		var sc := MenuScreen.instance.get("_scroll") as ScrollContainer
+		var body := MenuScreen.instance.get("_body") as Node
+		sc.scroll_vertical = 180
+		await _wait(0.2)
+		var btns := body.find_children("*", "Button", true, false).filter(func(b: Button) -> bool: return not b.disabled)
+		if btns.size() > 2:
+			(btns[2] as Button).grab_focus()
+		await _wait(0.2)
+		var before := sc.scroll_vertical
+		MenuScreen.instance.refresh() # what a purchase does
+		await _wait(0.6)
+		print("[menuscroll] before %d after %d (want the same)" % [before, sc.scroll_vertical])
+		await _step("menu_scroll_keep", func() -> void: pass, func() -> void: MenuScreen.instance.close(), 0.3)
 	var home := Homestead.of(cid)
 	if home != null and home.get_node_or_null("Ledger") != null:
 		await _step("menu_house_ledger", func() -> void: MenuScreen.instance.open(home.get_node("Ledger")),
@@ -581,7 +735,7 @@ func _world_tour(world: Node) -> void:
 			MenuScreen.instance.refresh(),
 			func() -> void: MenuScreen.instance.close())
 	# The long tabs further down (Guns, Turrets, Crops): pages of the scroll.
-	for tp: Array in [[0, 1], [0, 2], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7], [2, 9], [2, 11], [2, 13], [3, 1], [3, 2], [4, 1], [4, 2]]:
+	for tp: Array in [[0, 1], [0, 2], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7], [2, 9], [2, 11], [2, 13], [3, 1], [3, 2], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5], [4, 6]]:
 		await _step("menu_guide_t%d_p%d" % [tp[0], tp[1]], func() -> void:
 			FieldGuide.open()
 			MenuScreen.instance.tab = int(tp[0])

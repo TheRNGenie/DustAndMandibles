@@ -39,6 +39,11 @@ func show_text(prompt: String) -> void:
 		if info is Dictionary:
 			show_turret(info)
 			return
+	if prompt.begins_with("@bag:"): # the same turret, seen with the crop bag out (CropBagUI.prompt)
+		var binfo: Variant = JSON.parse_string(prompt.substr(5))
+		if binfo is Dictionary:
+			show_bag(binfo)
+			return
 	var parsed := KeyHints.parse(prompt)
 	var col := _fresh()
 	var titles: Array = parsed["title"]
@@ -172,6 +177,67 @@ func show_turret(info: Dictionary) -> void:
 		var nl := KeyHints.ink(str(n), 13, true)
 		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(nl)
+	var keys: Array = info.get("keys", [])
+	if not keys.is_empty():
+		col.add_child(_rule())
+		col.add_child(KeyHints.row(keys))
+	_settle()
+
+
+## A crop-fed turret seen with the crop bag out (CropBagUI.prompt): its name,
+## tier and health; what's in it now; the bag's crop and how many sacks of it the
+## cellar has; why a click won't load (when it won't); the keys.
+func show_bag(info: Dictionary) -> void:
+	var col := _fresh()
+	var top := HBoxContainer.new()
+	top.alignment = BoxContainer.ALIGNMENT_CENTER
+	top.add_theme_constant_override("separation", 10)
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(top)
+	var nm := KeyHints.ink(UiStyle.tc(str(info.get("name", ""))), 18)
+	nm.add_theme_font_override("font", UiStyle.font("bold"))
+	top.add_child(nm)
+	var tier := KeyHints.plate("pill")
+	tier.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tier.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	tier.add_child(KeyHints.text("Tier %d" % int(info.get("tier", 1)), 13, UiStyle.c("accent_hi")))
+	top.add_child(tier)
+	if str(info.get("hp", "")) != "":
+		var hp := KeyHints.ink("HP %s" % str(info["hp"]), 13, true)
+		hp.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		top.add_child(hp)
+	# In it now  ·  in your bag
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(row)
+	var now := StringName(str(info.get("now", "")))
+	var dot := CropDot.new()
+	dot.color = CropEffects.color_of(now) if now != &"" else CropEffects.EMPTY_COLOR
+	dot.filled = now != &""
+	row.add_child(dot)
+	row.add_child(KeyHints.ink(str(info.get("now_name", "")) if now != &"" else "Empty", 14, now == &""))
+	var arrow := KeyHints.ink("›", 16, true)
+	row.add_child(arrow)
+	var bag := StringName(str(info.get("bag", "")))
+	if bag != &"":
+		row.add_child(HudWaveSummary.crop_icon(bag, 24))
+		var bl := KeyHints.text("Bag: %s" % str(info.get("bag_name", "")), 16, CropEffects.color_of(bag).lightened(0.15))
+		bl.add_theme_font_override("font", UiStyle.font("bold"))
+		row.add_child(bl)
+		var n := int(info.get("have", 0))
+		var cnt := KeyHints.number("x%d" % n, 16)
+		cnt.add_theme_color_override("font_color", UiStyle.c("accent_hi") if n > 0 else UiStyle.hud_c("bad"))
+		cnt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(cnt)
+	else:
+		row.add_child(KeyHints.ink("Bag: Empty", 16, true))
+	var st: Array = info.get("status", ["", ""])
+	if st.size() >= 2 and str(st[0]) != "":
+		var sb := UiStyle.status(str(st[0]), str(st[1]), 14, true)
+		sb.alignment = BoxContainer.ALIGNMENT_CENTER
+		col.add_child(sb)
 	var keys: Array = info.get("keys", [])
 	if not keys.is_empty():
 		col.add_child(_rule())

@@ -38,6 +38,7 @@ var build_menu: HudBuildMenu
 var threat: HudThreatAlert
 var title_card: HudTitleCard
 var summary: HudWaveSummary
+var carry: HudCarry
 var overview: HudOverviewMap
 var tallies: TurretTallies
 var tutorial: HudTutorial
@@ -72,6 +73,8 @@ func _ready() -> void:
 	add_child(title_card)
 	summary = HudWaveSummary.new()
 	add_child(summary)
+	carry = HudCarry.new() # the crops you carry (shows when it changes, and in the cellar)
+	add_child(carry)
 	overview = HudOverviewMap.new()
 	add_child(overview)
 	# These two sit beside the HUD in the world, not in it: the tallies need a
@@ -310,18 +313,31 @@ func _update_dynamite_hud() -> void:
 			_dyn_hint.queue_free()
 			_dyn_hint = null
 		if text != "":
-			# Under the crosshair on a small plate, clear of the backpack card on the canyon floor.
+			# At the bottom, just over the ammo card that counts the bundles (playtest
+			# fixes, Nov 2026: nothing sits on the crosshair).
 			_dyn_hint = KeyHints.plate("plate_tight")
 			_dyn_hint.add_child(KeyHints.row([[KeyHints.key_for("reload"), text]]))
-			_dyn_hint.anchor_left = 0.5
-			_dyn_hint.anchor_right = 0.5
-			_dyn_hint.anchor_top = 0.5
-			_dyn_hint.anchor_bottom = 0.5
-			_dyn_hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
-			_dyn_hint.offset_left = 0
-			_dyn_hint.offset_right = 0
-			_dyn_hint.offset_top = 46
+			_dyn_hint.anchor_left = 1.0
+			_dyn_hint.anchor_right = 1.0
+			_dyn_hint.anchor_top = 1.0
+			_dyn_hint.anchor_bottom = 1.0
+			_dyn_hint.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+			_dyn_hint.grow_vertical = Control.GROW_DIRECTION_BEGIN
+			_dyn_hint.offset_right = -24
+			_dyn_hint.offset_left = -24
+			_dyn_hint.offset_bottom = -_ammo_card_room()
+			_dyn_hint.offset_top = _dyn_hint.offset_bottom
 			add_child(_dyn_hint)
+
+
+## Room under the dynamite hint: from the ammo card's top to the bottom edge, plus a gap.
+func _ammo_card_room() -> float:
+	var card: Node = _ammo_name
+	while card != null and not (card is PanelContainer):
+		card = card.get_parent()
+	if card == null or (card as Control).size.y <= 0.0:
+		return 190.0
+	return get_viewport().get_visible_rect().size.y - (card as Control).get_global_rect().position.y + 10.0
 
 
 func _process(_delta: float) -> void:

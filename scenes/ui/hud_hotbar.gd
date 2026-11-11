@@ -118,14 +118,17 @@ func refresh() -> void:
 	for i in Hotbar.SLOTS:
 		var info := hotbar.slot_info(i)
 		var state := [info["id"], info["count"], bool(info["selected"]), int(info.get("rarity", 0))]
+		var bag_crop := _bag_crop() if info["id"] == CropBagUI.ITEM else &"" # the crop bag wears its set crop's sack
+		state.append(bag_crop)
 		if _shown[i] == state:
 			continue
 		var was: Array = _shown[i] if _shown[i] is Array else []
 		_shown[i] = state
 		_counts[i].text = str(info["count"])
 		_pills[i].visible = str(info["count"]) != ""
-		if was.is_empty() or was[0] != info["id"]:
+		if was.is_empty() or was[0] != info["id"] or (was.size() > 4 and was[4] != bag_crop):
 			_icons[i].item = info["id"]
+			_icons[i].crop = bag_crop
 			_icons[i].queue_redraw()
 			# Icons render a frame later: redraw once they're ready.
 			get_tree().create_timer(0.2).timeout.connect(_icons[i].queue_redraw)
@@ -149,9 +152,20 @@ func refresh() -> void:
 		_panels[i].get_child(0).get_child(1).modulate = Color(1, 1, 1, 1.0 if info["id"] != &"" or picked else 0.55)
 
 
+## The local player's crop bag's set crop (&"" when none, or no bag).
+func _bag_crop() -> StringName:
+	var p: Node = hotbar.player if hotbar != null else null
+	var bag: Variant = p.get("crop_bag") if p != null else null
+	return StringName(bag.get("set_crop")) if bag is Object and is_instance_valid(bag) else &""
+
+
 ## Simple drawn icons for hotbar items (no image files).
 class ItemIcon extends Control:
 	var item: StringName = &""
+	## The crop bag: the crop it's set to (its sack's painted icon), &"" = an empty sack.
+	var crop: StringName = &""
+	## Raw crops drawn as their crop badge (no painted icon yet).
+	const RAW_CHIPS: Array[StringName] = [&"cotton", &"sulfur_root", &"barrel_cactus", &"tumbleweed_vine"]
 	## Where the 3D icon renders live (the hotbar itself).
 	var host: Node
 
@@ -159,6 +173,8 @@ class ItemIcon extends Control:
 		# A painted icon (assets/icons) where there is one; then a picture of the
 		# real model; the drawn icon otherwise.
 		var painted: Texture2D = UiStyle.painted_icon(item) if item != &"" and not GunModels.has(item) else null
+		if item == CropBagUI.ITEM: # the set crop's ammo sack (assets/icons/<sack>.png); drawn when empty
+			painted = UiStyle.painted_icon(CropEffects.sack_of(crop)) if crop != &"" else null
 		var pr := get_node_or_null("Painted") as TextureRect
 		if painted != null:
 			if pr == null:
@@ -174,7 +190,22 @@ class ItemIcon extends Control:
 			return
 		if pr != null:
 			pr.visible = false
-		if item != &"" and host != null:
+		# The raw crops with no painted icon (carried crops, playtest fixes Nov 2026):
+		# their crop badge (CropChip).
+		var chip := get_node_or_null("Chip") as CropChip
+		if item in RAW_CHIPS:
+			if chip == null:
+				chip = CropChip.make(item, 48)
+				chip.name = "Chip"
+				chip.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+				add_child(chip)
+			chip.crop = item
+			chip.visible = true
+			chip.queue_redraw()
+			return
+		if chip != null:
+			chip.visible = false
+		if item != &"" and host != null and item != CropBagUI.ITEM: # (the empty bag is drawn, below)
 			var tex := IconStudio.item(host, item)
 			if tex != null:
 				var side := maxf(size.x, size.y) * 1.1 # fill the width: most items are long guns
@@ -221,6 +252,16 @@ class ItemIcon extends Control:
 			&"chili":
 				_poly([c + Vector2(-s * 0.2, -s * 0.6), c + Vector2(s * 0.25, -s * 0.5), c + Vector2(s * 0.35, s * 0.2), c + Vector2(-s * 0.2, s * 0.9), c + Vector2(-s * 0.35, s * 0.1)], Color("#E3361F"))
 				draw_line(c + Vector2(0, -s * 0.6), c + Vector2(s * 0.2, -s * 0.95), Palette.CACTUS, 3.0)
+			&"crop_bag":
+				# An empty burlap sack, its drawstring loose: set it with right click.
+				var sack := Color("#C9A06A")
+				_poly([c + Vector2(-s * 0.55, -s * 0.35), c + Vector2(s * 0.55, -s * 0.35), c + Vector2(s * 0.75, s * 0.55),
+						c + Vector2(s * 0.4, s * 0.9), c + Vector2(-s * 0.4, s * 0.9), c + Vector2(-s * 0.75, s * 0.55)], sack)
+				_poly([c + Vector2(-s * 0.3, -s * 0.35), c + Vector2(s * 0.3, -s * 0.35), c + Vector2(s * 0.42, -s * 0.75), c + Vector2(-s * 0.42, -s * 0.75)], sack.darkened(0.12))
+				draw_line(c + Vector2(-s * 0.36, -s * 0.38), c + Vector2(s * 0.36, -s * 0.38), Palette.WOOD_DARK, 3.0)
+				draw_line(c + Vector2(s * 0.3, -s * 0.38), c + Vector2(s * 0.55, -s * 0.05), Palette.WOOD_DARK, 2.0)
+				for k in 3:
+					draw_line(c + Vector2(-s * 0.45 + k * s * 0.3, s * 0.05), c + Vector2(-s * 0.38 + k * s * 0.3, s * 0.7), sack.darkened(0.25), 1.5)
 			&"lighter":
 				# A Zippo with its lid flipped open and a little flame.
 				draw_rect(Rect2(c + Vector2(-s * 0.35, -s * 0.05), Vector2(s * 0.7, s * 0.85)), Palette.METAL.lightened(0.3), true)

@@ -101,7 +101,7 @@ const STEPS: Array[Dictionary] = [
 		"body": "",
 		"tasks": ["Grab Your Zippo", "Flip It Open and Light It"], "keys": [["interact", "Take"], ["select_9", "Zippo"], ["alt_fire", "Flip Open"], ["fire", "Light"]], "marker": "Zippo"},
 	{"title": "Plant a Crop", "voice": "stroud", "line": "Now, supper. Your bucket and seed corn are in the chest inside the house. Fetch them, fill your bucket at the well, plant that corn, water it, and pick it. I've hurried it along for you, just this once.",
-		"body": "Every harvest also gives crop sacks for the root cellar. A sack of any crop loads any crop-fed turret for a wave: Q on one picks the crop.",
+		"body": "What you pick is yours to carry, up to 25 of each crop. Down in the root cellar, the workbench makes 3 turret sacks from every crop, and a sack of any crop loads any crop-fed turret for a wave.",
 		"tasks": ["Take the Bucket and Seeds from the Chest", "Fill Your Bucket", "Plant the Corn", "Water the Seedling", "Harvest the Corn"],
 		"keys": [["interact", "Open Chest, Fill, Plant, Water, Pick"], ["select_8", "Bucket"], ["cycle_option", "Change Seed"]], "marker": "House Chest"},
 	{"title": "Medicine", "voice": "stroud", "line": "Sage is your medicine out here, and there's three doses in your chest. Take them. Use one and it patches you up quick. Grow it from sage seed and keep a few on hand. It fetches a good price, but don't sell your last.",

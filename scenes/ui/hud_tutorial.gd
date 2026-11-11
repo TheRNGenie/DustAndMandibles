@@ -1,6 +1,6 @@
 class_name HudTutorial
 extends PanelContainer
-## First-day hints. On wave 1's build phase only, a small card on the left walks
+## First-day hints. On wave 1's build phase only, a small card on the right walks
 ## you through the loop one step at a time: open the build menu, place a turret,
 ## ping your partner, ready up. Each step ticks off as you do it (in any order),
 ## and once the first wave's build phase ends it never shows again (saved as
@@ -27,9 +27,15 @@ var _forced := false
 func _ready() -> void:
 	add_theme_stylebox_override("panel", KeyHints.kit_box("plate"))
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	anchor_top = 0.3
-	anchor_bottom = 0.3
-	offset_left = 24
+	# On the right, under the wave and chitin cards: clear of the crosshair
+	# (playtest fixes, Nov 2026: info cards keep to the edges).
+	anchor_left = 1.0
+	anchor_right = 1.0
+	anchor_top = 0.34
+	anchor_bottom = 0.34
+	offset_left = -24.0 - 300.0
+	offset_right = -24.0
+	grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	custom_minimum_size.x = 300
 	visible = false
 	_forced = GameState.has_flag("--tutorial")

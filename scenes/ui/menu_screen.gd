@@ -16,6 +16,8 @@ extends CanvasLayer
 ## Item dictionaries: {id, name, desc, icon (StringName for ItemIcon or Texture2D),
 ##   price (String), price_ok (bool), note (String), disabled (String reason),
 ##   buttons ([[action, label], ...]; the first is also the row click),
+##   quantity ({min, max, action, verb, unit_cost, resource, have, total_text}:
+##   a slider and one "<verb> N" button; press is menu_press(id, "<action>:<n>")),
 ##   chart (StatChart data: a list with any charts gets a stat chart column on
 ##   the right, showing the row under the mouse or keyboard focus)}.
 
@@ -182,6 +184,23 @@ func _focus_path() -> Array:
 	return [&"row", row.get_index(), f.get_index()]
 
 
+## After a rebuild: put keyboard focus back and the scroll where it was, with
+## the scroll container's follow-focus off so the restored focus doesn't move it
+## (rows may have shrunk, grown or reordered; a frame later the layout settles
+## and the scroll is set again).
+func _settle_scroll(keep: int, focus_path: Array) -> void:
+	_scroll.follow_focus = false
+	if not focus_path.is_empty():
+		_restore_focus(focus_path)
+	_scroll.scroll_vertical = keep
+	await get_tree().process_frame
+	if is_instance_valid(_scroll):
+		_scroll.scroll_vertical = keep
+		await get_tree().process_frame
+		_scroll.scroll_vertical = keep
+		_scroll.follow_focus = true
+
+
 func _restore_focus(path: Array) -> void:
 	if path.is_empty():
 		return
@@ -316,9 +335,9 @@ func refresh() -> void:
 					break
 		if not pick.is_empty():
 			_pick(pick[0], pick[1], true) # (rebuilt: its numbers may have changed)
-	_scroll.set_deferred("scroll_vertical", keep_scroll)
-	if not keep_focus.is_empty():
-		_restore_focus.call_deferred(keep_focus)
+	# The list stays exactly where it was (Logan: buying an upgrade must not
+	# scroll the menu): focus goes back without the scroll chasing it.
+	_settle_scroll.call_deferred(keep_scroll, keep_focus)
 
 
 ## Footer keycaps: close, and how to switch tabs when there are some.
@@ -684,6 +703,8 @@ func _quantity(item: Dictionary, off: bool) -> Control:
 		btn.text = "%s %d" % [str(q.get("verb", "Buy")), v]
 		var cost := unit * v
 		total.text = "Total " + UiStyle.cost(cost, str(q.get("resource", "scrap")))
+		if q.has("total_text"): # what you get rather than what it costs ("Makes %d Sacks")
+			total.text = str(q["total_text"]) % int(cost)
 		total.add_theme_color_override("font_color", UiStyle.c("ink_soft") if cost <= have else UiStyle.c("bad"))
 	show.call(n)
 	s.value_changed.connect(func(v: float) -> void:

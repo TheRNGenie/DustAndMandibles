@@ -16,8 +16,12 @@ const RADIUS := 250.0
 const SLOT_R := 44.0
 
 ## The universal turret (UniversalTurret or UniversalCrewedTurret) being loaded,
-## or the local player's Gun with a universal heavy out (HeavyRules).
-var turret: Node
+## the local player's Gun with a universal heavy out (HeavyRules), or the crop
+## bag's picker (CropBagUI.Wheel). Duck-typed: crop, sacks_of(c), can_load_now(),
+## request_load(c), and optionally can_pick(c), wheel_keys(), wheel_title(),
+## wheel_status(), wheel_verb() ("plant" shows seed packets and no turret
+## effect line), wheel_icon(c), wheel_subtitle(c).
+var turret: Object
 ## Opened by holding a key (R for a heavy): letting go of it loads the crop
 ## pointed at (&"" = click to load, as for turrets).
 var release_action: StringName = &""
@@ -46,7 +50,7 @@ func _exit_tree() -> void:
 
 
 ## Opens the wheel for `t` (the local player's).
-static func open_for(t: Node, release: StringName = &"") -> void:
+static func open_for(t: Object, release: StringName = &"") -> void:
 	if instance == null or t == null:
 		return
 	instance.turret = t
@@ -146,15 +150,19 @@ func _draw() -> void:
 	var font := UiStyle.font("bold")
 	var font_r := UiStyle.font("regular")
 	# The middle: the turret's name and what it's loaded with.
-	var title := UiStyle.tc(str((turret.get("def") as Resource).get("display_name")))
+	# (A provider may name itself and say what it holds: the crop bag, CropBagUI.Wheel.)
+	var title := str(turret.call("wheel_title")) if turret.has_method("wheel_title") else UiStyle.tc(str((turret.get("def") as Resource).get("display_name")))
 	var fs := UiStyle.ts(17)
 	draw_string(font, c + Vector2(-140, -8), title, HORIZONTAL_ALIGNMENT_CENTER, 280, fs, UiStyle.kc("text"))
 	var now := "Loaded: %s" % CropEffects.short_name(loaded_crop) if loaded_crop != &"" else "Empty"
+	if turret.has_method("wheel_status"):
+		now = str(turret.call("wheel_status"))
 	draw_string(font_r, c + Vector2(-140, 16), now, HORIZONTAL_ALIGNMENT_CENTER, 280, UiStyle.ts(13),
 			CropEffects.color_of(loaded_crop).lightened(0.2) if loaded_crop != &"" else Color(0.7, 0.7, 0.7))
 	if _choice >= 0:
 		var pick: StringName = CropEffects.IDS[_choice]
-		draw_string(font_r, c + Vector2(-140, 36), "Release to load" if release_action != &"" else "Click to load", HORIZONTAL_ALIGNMENT_CENTER, 280, UiStyle.ts(12),
+		var verb := _verb() # (the crop bag: "set"; the farm plot's seeds: "plant")
+		draw_string(font_r, c + Vector2(-140, 36), ("Release to %s" if release_action != &"" else "Click to %s") % verb, HORIZONTAL_ALIGNMENT_CENTER, 280, UiStyle.ts(12),
 				UiStyle.kc("accent_hi") if _can_pick(pick) else Color(0.6, 0.6, 0.6))
 	for i in 9:
 		var crop: StringName = CropEffects.IDS[i]
@@ -171,9 +179,10 @@ func _draw() -> void:
 		draw_circle(at, r + 4.0, Color(0, 0, 0, 0.45))
 		draw_circle(at, r, Color(col.darkened(0.55), 0.55) if dim else col.darkened(0.15))
 		draw_circle(at, r - 7.0, Color(UiStyle.kc("well"), 0.9))
-		if _icons.has(crop):
+		var tex := _icon_for(crop)
+		if tex != null:
 			var s := (r - 9.0) * 1.5
-			draw_texture_rect(_icons[crop], Rect2(at - Vector2(s, s) * 0.5 - Vector2(0, 6), Vector2(s, s)), false,
+			draw_texture_rect(tex, Rect2(at - Vector2(s, s) * 0.5 - Vector2(0, 6), Vector2(s, s)), false,
 					Color(1, 1, 1, 0.35) if dim else Color.WHITE)
 		var ring := UiStyle.kc("accent_hi") if loaded else (col.lightened(0.3) if on and not dim else Color(col, 0.5 if dim else 0.85))
 		draw_arc(at, r, 0, TAU, 48, ring, 5.0 if loaded else (3.0 if on else 1.5), true)
@@ -184,13 +193,13 @@ func _draw() -> void:
 				Color(0.6, 0.6, 0.6) if dim else Color.WHITE)
 		# Name and effect just outside the ring, on a dark plate.
 		var name_s := CropEffects.short_name(crop)
-		var eff := CropEffects.effect_name(crop)
+		var eff := _subtitle_for(crop)
 		var text_c := Color(0.55, 0.55, 0.55) if dim else (UiStyle.kc("accent_hi") if on else UiStyle.kc("text"))
 		var lab := c + dir * (RADIUS * 0.66 + SLOT_R + 38.0)
 		var nfs := UiStyle.ts(15)
 		var efs := UiStyle.ts(12)
 		var w := maxf(font.get_string_size(name_s, HORIZONTAL_ALIGNMENT_LEFT, -1, nfs).x, font_r.get_string_size(eff, HORIZONTAL_ALIGNMENT_LEFT, -1, efs).x) + 16.0
-		var plate := Rect2(lab - Vector2(w * 0.5, nfs * 0.5 + 6.0), Vector2(w, nfs + efs + 12.0))
+		var plate := Rect2(lab - Vector2(w * 0.5, nfs * 0.5 + 6.0), Vector2(w, nfs + (efs + 12.0 if eff != "" else 10.0)))
 		draw_rect(plate, Color(0.08, 0.06, 0.05, 0.82))
 		draw_rect(plate, Color(col, 0.35 if dim else 0.8), false, 1.5)
 		draw_string(font, Vector2(plate.position.x, plate.position.y + nfs + 1.0), name_s, HORIZONTAL_ALIGNMENT_CENTER, w, nfs, text_c)
@@ -200,6 +209,30 @@ func _draw() -> void:
 	var keys := str(turret.call("wheel_keys")) if turret.has_method("wheel_keys") else "Click: Load   ·   Q / Right Click: Close"
 	draw_string(font_r, c + Vector2(-200, RADIUS + 100), keys, HORIZONTAL_ALIGNMENT_CENTER, 400,
 			UiStyle.ts(13), UiStyle.kc("text"))
+
+
+## The picture in crop `c`'s segment: the provider's own (wheel_icon), a seed
+## packet when the wheel plants (the farm plot's seed picker), else its ammo sack.
+func _icon_for(c: StringName) -> Texture2D:
+	if turret.has_method("wheel_icon"):
+		return turret.call("wheel_icon", c) as Texture2D
+	if _verb() == "plant":
+		return IconStudio.seed_packet(self, c)
+	return _icons.get(c) as Texture2D
+
+
+## The line under a crop's name: the provider's (wheel_subtitle), nothing when
+## the wheel plants (no turret effect to name), else the crop's turret effect.
+func _subtitle_for(c: StringName) -> String:
+	if turret.has_method("wheel_subtitle"):
+		return str(turret.call("wheel_subtitle", c))
+	if _verb() == "plant":
+		return ""
+	return CropEffects.effect_name(c)
+
+
+func _verb() -> String:
+	return str(turret.call("wheel_verb")) if turret.has_method("wheel_verb") else "load"
 
 
 ## May crop `c` be loaded now? (A heavy also takes a fresh sack of the crop already in it.)

@@ -838,7 +838,7 @@
       "lore": "Sweet canyon corn. Grows like a weed and keeps a rancher fed.",
       "tips": [
         "In a crop-fed turret: Ricochet. Every hit bounces on to a second bug at half damage.",
-        "Each harvest gives 4 sacks for the root cellar. A sack loads any crop-fed turret for a wave.",
+        "Each harvest gives 1 corn to carry. At the root cellar's workbench it makes 3 sacks, and a sack loads any crop-fed turret for a wave.",
         "Plant it between waves for quick chitin for the team pot at the market.",
         "Left click with corn out to eat it when your belly growls."
       ]
@@ -847,7 +847,7 @@
       "lore": "A stubborn cactus fruit. Takes its time, but it's food, water and medicine in one.",
       "tips": [
         "In a crop-fed turret: Armour Pierce. Hits ignore half a bug's armour.",
-        "Each harvest gives 2 sacks for the root cellar. A sack loads any crop-fed turret for a wave.",
+        "Each harvest gives 1 pear to carry. At the root cellar's workbench it makes 3 sacks, and a sack loads any crop-fed turret for a wave.",
         "Eating a pear heals a little and quenches thirst.",
         "The pads give back more water than they drink."
       ]
@@ -856,7 +856,7 @@
       "lore": "Hot enough to light a fuse. In a crop-fed turret every hit goes off like a firecracker.",
       "tips": [
         "In a crop-fed turret: Explosive. Every hit splashes the bugs round it.",
-        "Each harvest gives 3 sacks for the root cellar. A sack loads any crop-fed turret for a wave.",
+        "Each harvest gives 1 chili to carry. At the root cellar's workbench it makes 3 sacks, and a sack loads any crop-fed turret for a wave.",
         "The market pays your own scrap for chilies, the only crop that does."
       ]
     },
@@ -864,7 +864,7 @@
       "lore": "Desert sage, dried and bundled. Better than any snake-oil tonic.",
       "tips": [
         "In a crop-fed turret: Poison. Damage over 3 seconds, stacking three times.",
-        "Each harvest gives 2 sacks for the root cellar. A sack loads any crop-fed turret for a wave.",
+        "Each harvest gives 1 bunch of herbs to carry. At the root cellar's workbench it makes 3 sacks, and a sack loads any crop-fed turret for a wave.",
         "Carry a few into every wave: a dose heals 50 HP.",
         "Herbs fetch the most chitin per unit at the market."
       ]
@@ -873,7 +873,7 @@
       "lore": "A twining vine with heart-shaped leaves and a thick, knobbly root that brews the canyon's best tonic. You don't grow it for yourself: you grow it for whoever is guarding your wall.",
       "tips": [
         "In a crop-fed turret: Mark. The bug takes a fifth more damage from everything for 3 seconds.",
-        "Each harvest gives 2 sacks for the root cellar. A sack loads any crop-fed turret for a wave.",
+        "Each harvest gives 1 root to carry. At the root cellar's workbench it makes 3 sacks, and a sack loads any crop-fed turret for a wave.",
         "Hold a root (hotbar 4) and left click to send your partner a tonic: their turrets fire 15% faster.",
         "Each tonic adds 60 s, stacking up to 3 minutes. The clock only runs during a wave, so send them any time.",
         "Can't use it yourself? Store roots in your partner's deposit box and let them brew for you.",
@@ -884,28 +884,28 @@
       "lore": "Soft canyon cotton, braided into ropes, bolas and nets.",
       "tips": [
         "In a crop-fed turret: Slow. A quarter off its speed for 2 seconds, stacking to half.",
-        "Each harvest gives 3 sacks for the root cellar. A sack loads any crop-fed turret for a wave."
+        "Each harvest gives 1 boll of cotton to carry. At the root cellar's workbench it makes 3 sacks, and a sack loads any crop-fed turret for a wave."
       ]
     },
     "sulfur_root": {
       "lore": "A gnarly yellow root that smells like a struck match.",
       "tips": [
         "In a crop-fed turret: Volatile. A bug killed bursts and hurts the bugs beside it.",
-        "Thirsty and slow. Each harvest gives 2 sacks for the root cellar. A sack loads any crop-fed turret for a wave."
+        "Thirsty and slow. Each harvest gives 1 sulfur root to carry. At the root cellar's workbench it makes 3 sacks, and a sack loads any crop-fed turret for a wave."
       ]
     },
     "barrel_cactus": {
       "lore": "A squat ribbed cactus that never needs watering.",
       "tips": [
         "In a crop-fed turret: Stagger. Every hit stops it for a moment.",
-        "Plant it and forget it. Each harvest gives 1 sack for the root cellar. A sack loads any crop-fed turret for a wave."
+        "Plant it and forget it. Each harvest gives 1 cactus to carry. At the root cellar's workbench it makes 3 sacks, and a sack loads any crop-fed turret for a wave."
       ]
     },
     "tumbleweed_vine": {
       "lore": "A fast vine that balls up into tumbleweeds.",
       "tips": [
         "In a crop-fed turret: Entangle. Now and then vines root it for a second.",
-        "Each harvest gives 4 sacks for the root cellar. A sack loads any crop-fed turret for a wave."
+        "Each harvest gives 1 vine to carry. At the root cellar's workbench it makes 3 sacks, and a sack loads any crop-fed turret for a wave."
       ]
     }
   },
@@ -983,7 +983,42 @@
         "Forgot to load one? You can still load an empty turret during a wave.",
         "In the build phase you can swap crops: the sack you swap out comes back.",
         "The ring round a turret's base shows its crop's colour; grey means empty.",
-        "Obstructions take one sack and keep it until they go off."
+        "Obstructions take one sack and keep it until they go off.",
+        "The crop bag (9) loads them from up to 15 m: no climbing the scaffold to each one."
+      ]
+    },
+    "crop_bag": {
+      "title": "The Crop Bag",
+      "icon": "corn_load",
+      "lore": "A burlap sack on your belt, where the Zippo used to ride. Set it to a crop and you can feed crop-fed turrets from fifteen paces off, without climbing the scaffold to each one.",
+      "stats": "9: Bag Out  ·  Hold Right Click: Pick a Crop  ·  Left Click: Load the Turret You Aim At  ·  Reach 15 m",
+      "tips": [
+        "It loads from the root cellar's sacks, the same as E on the turret.",
+        "In the build phase it swaps a loaded turret's crop (the old sack goes back to the bin); in a wave it only loads an empty turret.",
+        "With the bag out, every empty turret's EMPTY sign shows big, even through the scaffold.",
+        "It only reaches your own cliff's turrets: your partner loads theirs."
+      ]
+    },
+    "root_cellar": {
+      "title": "The Root Cellar and Its Workbench",
+      "icon": "corn_load",
+      "lore": "Every homestead starts with a root cellar beside the house: a bin for each crop's turret ammo and, against the back wall, a workbench. Bring your crops down and the workbench makes 3 sacks of ammo from every one.",
+      "stats": "500 Sacks a Bin  ·  1 Crop Makes 3 Sacks  ·  E on the Workbench",
+      "tips": [
+        "Harvests go into your hands, not the bins: nothing is turret ammo until it's worked at the bench.",
+        "The slider converts as many as you like at once; a full bin stops at 500.",
+        "Keep a few corn, pears and herbs back: they're still food and medicine."
+      ]
+    },
+    "carrying_crops": {
+      "title": "Carrying Crops",
+      "icon": "corn",
+      "lore": "What you harvest is yours to carry, apart from the cellar: up to 25 of each crop. Keys 4 to 6 hold three kinds; the strip over your health card shows everything you carry whenever it changes, and the whole time you're in the cellar.",
+      "stats": "Up to 25 of Each Crop  ·  Q Drops One",
+      "tips": [
+        "You eat, heal, send tonics and sell at the market from what you carry.",
+        "You keep what you carry when you're downed.",
+        "Full up on a crop? Work some at the cellar's workbench."
       ]
     }
   },

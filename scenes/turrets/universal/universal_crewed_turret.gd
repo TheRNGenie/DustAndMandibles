@@ -312,7 +312,7 @@ func _host_load(peer_id: int, c: StringName) -> void:
 	var payer := Economy.payer_cliff(peer_id, cliff_id)
 	var item := CropEffects.sack_of(c)
 	if item == &"" or not Economy.spend(payer, {item: 1}):
-		Economy.notify(peer_id, "No sacks of %s. Harvest some and store them in the root cellar." % CropEffects.short_name(c).to_lower())
+		Economy.notify(peer_id, "No sacks of %s. Harvest some and make sacks at the root cellar's workbench." % CropEffects.short_name(c).to_lower())
 		return
 	if crop != &"" and GameState.phase != GameState.Phase.WAVE:
 		Economy.earn(payer, {CropEffects.sack_of(crop): 1})
