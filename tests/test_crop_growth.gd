@@ -90,6 +90,8 @@ func test_growth_times_hold_in_crop_growth() -> void:
 
 
 func test_corn_seeds_are_cheapest() -> void:
+	if MarketPrices.FLAT_SEED > 0:
+		return # (every seed is one flat price for now)
 	var corn := MarketPrices.seed_price(Defs.crop(&"corn"))
 	for id: StringName in [&"prickly_pear", &"firecracker_chili", &"herbs"]:
 		assert_true(corn < MarketPrices.seed_price(Defs.crop(id)), "corn seeds cheaper than %s" % id)

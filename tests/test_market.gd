@@ -38,6 +38,8 @@ func test_unknown_items_are_worthless() -> void:
 
 
 func test_seed_costs_a_third_of_the_harvest_value() -> void:
+	if MarketPrices.FLAT_SEED > 0:
+		return # (every seed is one flat price for now)
 	# Herbs: 2 herbs x 22 scrap = 44 scrap; a third is 15.
 	assert_eq(MarketPrices.seed_price(Defs.crop(&"herbs")), 15)
 	# Corn is the cheap crop: a fixed 8 scrap per seed.
@@ -56,3 +58,18 @@ func test_every_crop_sells_and_only_sarsaparilla_pays_your_scrap() -> void:
 		var item := PlayerCarry.item_of(c)
 		assert_true(MarketPrices.BASE.has(item), "%s has a vendor price" % item)
 		assert_true(VendorCart.ITEMS.has(item), "%s is on the vendor's list" % item)
+
+
+## For now every seed is 10 team chitin and every crop has a price of its own
+## that sales push down (Logan, Nov 11).
+func test_every_seed_is_ten_and_every_crop_has_its_own_price() -> void:
+	var seen := {}
+	for id: StringName in Defs.CROPS:
+		var c := Defs.crop(id)
+		assert_eq(MarketPrices.seed_price(c), 10, "%s seeds" % c.id)
+		var p := float(MarketPrices.BASE[PlayerCarry.item_of(c.id)])
+		assert_false(seen.has(p), "%s shares its price" % c.id)
+		seen[p] = true
+	var m := MarketPrices.new()
+	m.sell(&"cotton", 3)
+	assert_true(m.price(&"cotton") < float(MarketPrices.BASE[&"cotton"]), "sales push the price down")

@@ -6,8 +6,9 @@ extends RefCounted
 ## don't sell that vegetable. Pure logic so it can be unit-tested.
 
 ## (Canyon Expeditions: nest eggs and Doc's specimen jars, brought up from the floor, sell here too.)
+## Each crop has its own price (Logan, Nov 11; to be balanced later).
 const BASE: Dictionary = {&"corn": 10.0, &"prickly_pear": 16.0, &"chili": 14.0, &"herbs": 22.0,
-	&"cotton": 10.0, &"sulfur_root": 16.0, &"barrel_cactus": 20.0, &"tumbleweed_vine": 10.0, &"sarsaparilla": 3.0,
+	&"cotton": 12.0, &"sulfur_root": 18.0, &"barrel_cactus": 20.0, &"tumbleweed_vine": 8.0, &"sarsaparilla": 3.0,
 	&"egg": 18.0, &"specimen": 14.0}
 ## What each vegetable is paid in.
 const CURRENCY: Dictionary = {&"corn": &"scrap", &"prickly_pear": &"scrap", &"chili": &"scrap", &"herbs": &"scrap",
@@ -20,6 +21,9 @@ const CURRENCY: Dictionary = {&"corn": &"scrap", &"prickly_pear": &"scrap", &"ch
 ## (pear and herbs kept at what their old harvests made them).
 const SEED_OVERRIDE: Dictionary = {&"firecracker_chili": 20, &"corn": 8, &"sarsaparilla": 18, &"prickly_pear": 11, &"herbs": 15,
 	&"cotton": 10, &"sulfur_root": 18, &"barrel_cactus": 24, &"tumbleweed_vine": 10}
+## Every seed costs this much team chitin for now (Logan, Nov 11: "all seeds should
+## cost 10 chitin each for now"). 0 brings back the per-crop prices below it.
+const FLAT_SEED := 10
 const MIN_MULT := 0.5
 const MAX_MULT := 1.5
 ## Each unit sold lowers that vegetable's price by this much (fraction of base).
@@ -35,6 +39,8 @@ const SEED_FRACTION := 1.0 / 3.0
 ## Scrap price of one seed: a third of the crop's average return (harvest yield x
 ## base price), in scrap. Herbs: 2 herbs x 22 scrap = 44 scrap -> 15.
 static func seed_price(crop: CropDef) -> int:
+	if FLAT_SEED > 0:
+		return FLAT_SEED
 	if SEED_OVERRIDE.has(crop.id):
 		return int(SEED_OVERRIDE[crop.id])
 	var value := 0.0
