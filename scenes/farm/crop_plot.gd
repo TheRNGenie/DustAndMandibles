@@ -97,6 +97,8 @@ var _grow_acc := 0.0
 
 
 func _process(delta: float) -> void:
+	if _tap_pending:
+		_tap_tick()
 	if not multiplayer.is_server():
 		return
 	_grow_acc += delta
@@ -129,11 +131,15 @@ func cycle_option() -> void:
 
 func interact_prompt() -> String:
 	if growth.stage == CropGrowth.Stage.EMPTY:
+		# Holding a crop you have seeds for: E plants it straight away (Logan, Nov 11).
+		var held := held_seed()
+		if held != &"":
+			return "E: plant %s (%d seeds)" % [Defs.crop(held).display_name, Economy.amount(_local_cliff(), seed_res(held))]
 		var have := Economy.amount(_local_cliff(), seed_res(seed_def().id))
 		if have <= 0:
-			return "Out of %s seeds\nBuy more at the airship market\nF: change seed" % seed_def().display_name
+			return "Out of %s seeds\nBuy more at the airship market\nHold E: pick a seed" % seed_def().display_name
 		var feeds := ("\nLoads: %s" % seed_def().turret_family) if seed_def().turret_family != "" else ""
-		return "%s seeds: %d\nE: plant   F: change seed%s" % [seed_def().display_name, have, feeds]
+		return "%s seeds: %d\nE: plant   Hold E: pick a seed%s" % [seed_def().display_name, have, feeds]
 	var n := crop_def.display_name
 	match growth.stage:
 		CropGrowth.Stage.PLANTED:
@@ -141,17 +147,113 @@ func interact_prompt() -> String:
 		CropGrowth.Stage.GROWING:
 			return "%s growing: %d%%" % [n, int(growth.fraction() * 100.0)]
 		_:
-			if crop_def.loads_per_harvest > 0: # Turret ammo
-				return "E: harvest %s (%d turret loads)" % [n, crop_def.loads_per_harvest]
+			var raw := 0
+			for k: Variant in crop_def.harvest:
+				if PlayerCarry.crop_of_item(StringName(str(k))) != &"":
+					raw += int(crop_def.harvest[k])
+			if raw > 0: # (into your carry; the cellar's workbench makes the sacks)
+				return "E: harvest %s (%d to carry)" % [n, raw]
 			return "E: harvest %s" % n
 
 
-func local_interact(_holding: bool) -> void:
-	var seed_id := SEEDS[selected_seed % SEEDS.size()]
+## Planting (Logan, Nov 11): on an empty plot, E plants the crop you're holding
+## if you have its seeds; otherwise a tap plants the last seed you picked and
+## holding E opens the seed wheel (the crop wheel's look): let go on a seed to
+## plant it.
+func local_interact(holding: bool) -> void:
+	if growth.stage == CropGrowth.Stage.EMPTY:
+		if holding:
+			if _tap_pending:
+				_tap_pending = false
+				CropWheel.open_for(SeedWheel.new(self), &"interact")
+			return
+		var held := held_seed()
+		if held != &"":
+			plant(held)
+			return
+		_tap_pending = true
+		return
+	_send_use(SEEDS[selected_seed % SEEDS.size()])
+
+
+## A tap on an empty plot (let go before the hold opened the wheel): the last seed.
+var _tap_pending := false
+
+
+func _tap_tick() -> void:
+	if _tap_pending and not Input.is_action_pressed("interact"):
+		_tap_pending = false
+		plant(SEEDS[selected_seed % SEEDS.size()])
+
+
+## Local: plant `crop_id` (and remember it as the seed a tap plants).
+func plant(crop_id: StringName) -> void:
+	var i := SEEDS.find(crop_id)
+	if i >= 0:
+		selected_seed = i
+	_send_use(crop_id)
+
+
+func _send_use(seed_id: StringName) -> void:
 	if multiplayer.is_server():
 		_use(multiplayer.get_unique_id(), seed_id)
 	else:
 		_request_use.rpc_id(1, seed_id)
+
+
+## The crop the local player is holding (hotbar 4-6) if they have its seeds, else &"".
+func held_seed() -> StringName:
+	for n: Node in get_tree().get_nodes_in_group("players"):
+		var pl := n as Player
+		if pl == null or not pl.is_multiplayer_authority() or pl.bot or pl.gun == null:
+			continue
+		var c := PlayerCarry.crop_of_item(pl.gun.holding)
+		if c != &"" and SEEDS.has(c) and Economy.amount(_local_cliff(), seed_res(c)) > 0:
+			return c
+	return &""
+
+
+## Seeds of `c` the local player can plant from (the cliff's stock).
+func seeds_of(c: StringName) -> int:
+	var s := seed_res(c)
+	return Economy.amount(_local_cliff(), s) if s != &"" else 0
+
+
+## The seed picker on the crop wheel (CropWheel duck-typed provider): every crop,
+## its seed count, the last-planted one ringed; let go of E on one to plant it.
+class SeedWheel extends RefCounted:
+	var plot: CropPlot
+	var crop: StringName:
+		get:
+			return CropPlot.SEEDS[CropPlot.selected_seed % CropPlot.SEEDS.size()]
+
+	func _init(p: CropPlot) -> void:
+		plot = p
+
+	func wheel_title() -> String:
+		return "Seeds"
+
+	func wheel_status() -> String:
+		return "Pick a seed to plant"
+
+	func wheel_verb() -> String:
+		return "plant"
+
+	func wheel_keys() -> String:
+		return "Release E: Plant   ·   Esc: Close"
+
+	func sacks_of(c: StringName) -> int:
+		return plot.seeds_of(c) if plot != null and is_instance_valid(plot) else 0
+
+	func can_pick(c: StringName) -> bool:
+		return sacks_of(c) > 0
+
+	func can_load_now() -> bool:
+		return plot != null and is_instance_valid(plot) and plot.growth.stage == CropGrowth.Stage.EMPTY
+
+	func request_load(c: StringName) -> void:
+		if can_load_now():
+			plot.plant(c)
 
 
 @rpc("any_peer", "reliable")
@@ -182,16 +284,16 @@ func _use(peer_id: int, seed_id: StringName) -> void:
 			else:
 				Economy.notify(peer_id, "No water left. Fill up at the well or the water tower tap.")
 		CropGrowth.Stage.RIPE:
-			# Turret ammo: no room for its sacks, it waits on the plot (AmmoStore).
-			if not AmmoStore.can_harvest(payer, crop_def, peer_id):
-				return
+			# The crops go in the harvester's carry (PlayerCarry, 25 of each; Nov 11
+			# playtest fixes); the cellar's ammo workbench turns them into sacks.
 			var picked := crop_def
-			var got := AmmoStore.fit(payer, picked, Brand.harvest(peer_id, Perks.bumper_harvest(peer_id, growth.harvest())), peer_id) # Perk: Bumper Crop; Brand: The Sheaf
-			Economy.earn(payer, got)
-			var sacks := int(got.get(picked.load_item, 0))
-			if sacks > 0 and peer_id > 0:
-				Economy.notify(peer_id, "+%d %s ammo sack%s (%d/%d)." % [sacks, picked.display_name.to_lower(), "" if sacks == 1 else "s",
-						Economy.amount(payer, picked.load_item), AmmoStore.cap(payer)])
+			var carry := PlayerCarry.of(get_tree(), peer_id)
+			if carry != null and carry.amount(picked.id) >= PlayerCarry.CAP:
+				Economy.notify(peer_id, "Your arms are full of %s (%d). Take some down to the cellar's workbench first." % [
+						picked.display_name.to_lower(), PlayerCarry.CAP])
+				return
+			var got := Brand.harvest(peer_id, Perks.bumper_harvest(peer_id, growth.harvest())) # Perk: Bumper Crop; Brand: The Sheaf
+			HarvestRules.deliver(get_tree(), payer, peer_id, picked, got, global_position + Vector3.UP)
 			_fx.rpc(&"rustle")
 	_broadcast()
 

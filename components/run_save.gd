@@ -119,6 +119,13 @@ static func normalize(raw: Dictionary) -> Dictionary:
 		if p is Dictionary and str(key).is_valid_int():
 			players[int(str(key))] = {"food": clampf(_f(p, "food", 1.0), 0.0, 1.0), "water": clampf(_f(p, "water", 1.0), 0.0, 1.0)}
 	out["players"] = players
+	# The crops each player carries (PlayerCarry), by cliff; older saves have none.
+	var carries := {}
+	var raw_carries: Dictionary = raw.get("carries", {}) if raw.get("carries") is Dictionary else {}
+	for key: Variant in raw_carries:
+		if str(key).is_valid_int() and raw_carries[key] is Dictionary:
+			carries[int(str(key))] = _amounts(raw_carries[key])
+	out["carries"] = carries
 	var perks := {}
 	var guns := {}
 	var raw_perks: Dictionary = raw.get("perks", {}) if raw.get("perks") is Dictionary else {}

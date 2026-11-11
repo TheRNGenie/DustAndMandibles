@@ -52,12 +52,20 @@ func try_pick_up(peer_id: int, pickup: WeaponPickup) -> void:
 	if not is_instance_valid(pickup) or pickup.is_queued_for_deletion():
 		return
 	if pickup.item_id != &"":
-		# A dropped crop, medicine or water: back into the picker's stock.
+		# A dropped crop or medicine goes in the picker's carry (PlayerCarry);
+		# water back into the cliff's stock.
 		var cliff := 0
 		for n: Node in get_tree().get_nodes_in_group("players"):
 			if n.get_multiplayer_authority() == peer_id:
 				cliff = (n as Player).cliff_id
-		Economy.earn(cliff, {pickup.item_id: 1})
+		var c := PlayerCarry.crop_of_item(pickup.item_id)
+		var carry := PlayerCarry.of(get_tree(), peer_id)
+		if c != &"" and carry != null:
+			if carry.add(c, 1) <= 0:
+				Economy.notify(peer_id, "Your arms are full of %s (%d)." % [String(pickup.item_id).replace("_", " "), PlayerCarry.CAP])
+				return
+		else:
+			Economy.earn(cliff, {pickup.item_id: 1})
 		pickup.queue_free()
 		return
 	if not GunShop.loadouts.has(peer_id):

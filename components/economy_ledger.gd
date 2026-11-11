@@ -56,7 +56,7 @@ static func shell_pay(chitin_drop: int, size: float) -> int:
 ## build phase before the next wave. It grows with the waves the way the bugs'
 ## shell bonus used to (measured ~0.32-0.45 per bug of wave count per cliff), so
 ## a player's own income per wave stays about where it was.
-const HEAP_MIN := 15
+const HEAP_MIN := 30 # (Logan, Nov 11: enough for a first gun after the first salvage)
 const HEAP_PER_BUG := 0.4
 static func heap_pay(held: int, cfg: WaveConfig = null) -> int:
 	if held < 1 or cfg == null:

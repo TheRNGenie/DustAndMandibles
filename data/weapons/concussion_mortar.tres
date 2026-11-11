@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"concussion_mortar"
+slot = 0
+display_name = "Concussion Mortar"
+description = "A hand-held bronze mortar that lobs small powder charges in a high arc. The shell bursts where it lands, hitting everything in a 4 m blast, and drops over rock lips that straight shots can't reach."
+damage = 160.0
+mag_size = 1
+fire_interval = 0.5
+reload_time = 3.0
+pellets = 1
+spread_deg = 0.0
+range = 60.0
+pierce_armor = false
+price_chitin = 40
+upgrade_costs = PackedInt32Array(15, 30)
+shake = 0.8
+automatic = false
+spin_up = 0.0
+sound = &"mortar"
+recoil_deg = 6.0
+recoil_yaw_deg = 1.5
+recoil_recover = 0.5
+role = "Area denial"
+special = &"mortar"

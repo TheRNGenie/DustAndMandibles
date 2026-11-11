@@ -8,10 +8,10 @@ extends RefCounted
 ##   Light Rain    crops grow 1.5x faster and need no watering; catchers fill ~7x faster
 ##   Thunderstorm  rain effects plus lightning (1 in 10 strikes wrecks a turret)
 ##   Snow (rare)   frost eats growing crops; the cold slows bugs
-##   Dust storm    (rare) you can barely see: turrets reach only ~55% as far
+##   Dust storm    (rare) you can barely see: turret shots miss more with range
 ##   Heat wave     turrets overheat (fire slower); the heat dries crops and catchers,
 ##                 and players get thirsty up to twice as fast
-##   Fog bank      turrets reach only ~65% as far unless a lantern lights them up
+##   Fog bank      turret shots miss more with range unless a lantern lights them up
 ##   Blood moon    (very rare, night only) a much bigger wave; bugs drop 2x chitin
 ## Temperature (degrees F) comes from the time of day plus the weather. It
 ## scales crop growth (happiest 60-90 F), rain-catcher filling, and bug speed
@@ -27,9 +27,9 @@ const BLURBS: Array[String] = [
 	"Light rain: crops grow faster and need no water, and rain catchers fill fast.",
 	"Thunderstorm: rain feeds the crops and fills the catchers, but lightning can wreck a turret.",
 	"SNOW? Frost is killing the crops, but the cold slows the bugs.",
-	"Dust storm! Turrets see only about half as far (lanterns help) and so do you. Get on the guns yourself.",
+	"Dust storm! Turrets miss more the farther they shoot (lanterns help). Your own aim is fine.",
 	"Heat wave: turrets run hot and fire slower, crops and catchers dry out, and you get thirsty fast.",
-	"Fog bank rolling in: turrets can't see far unless a lantern lights the way.",
+	"Fog bank rolling in: turrets miss more the farther they shoot, unless a lantern lights the way.",
 	"BLOOD MOON. A huge swarm is coming, and every bug's shell pays double chitin.",
 ]
 ## Roll weights: plain weather is common, the dramatic kinds are rarer.
@@ -81,17 +81,39 @@ static func bug_speed(_k: int) -> float:
 
 
 ## Turret hit chance multiplier.
-static func turret_accuracy(k: int) -> float:
-	return 0.82 if k == Kind.WINDY else 1.0
+## A turret shot's chance to land, as a multiplier on its hit chance. Wind
+## spoils every shot a little. Fog and dust (Nov 11 playtest fixes) cost
+## accuracy, not range: near full up close, the misses come at range,
+## 1 - p * dist_frac^1.2 (dist_frac = target distance over the turret's range),
+## p halved within LANTERN_FOG_RADIUS of a lantern post.
+const FOG_MISS := 0.45
+const DUST_MISS := 0.55
 
 
-## Turret range multiplier (how far they can see).
-static func turret_range(k: int, lit: bool = false) -> float:
+static func turret_accuracy(k: int, dist_frac: float = 0.0, lit: bool = false) -> float:
+	if k == Kind.WINDY:
+		return 0.82
+	var p := murk_miss(k)
+	if p <= 0.0:
+		return 1.0
+	if lit:
+		p *= 0.5
+	return clampf(1.0 - p * pow(clampf(dist_frac, 0.0, 1.0), 1.2), 0.0, 1.0)
+
+
+## The fog or dust's miss share at full range (0 in any other weather).
+static func murk_miss(k: int) -> float:
 	match k:
-		Kind.DUST_STORM:
-			return 0.8 if lit else 0.55
 		Kind.FOG:
-			return 1.0 if lit else 0.65
+			return FOG_MISS
+		Kind.DUST_STORM:
+			return DUST_MISS
+	return 0.0
+
+
+## Turret range multiplier: the weather no longer shortens it (Nov 11: fog and
+## dust cost accuracy instead, turret_accuracy).
+static func turret_range(_k: int, _lit: bool = false) -> float:
 	return 1.0
 
 

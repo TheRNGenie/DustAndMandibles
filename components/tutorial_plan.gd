@@ -24,11 +24,11 @@ const CHEST_START := {&"bucket": 1, &"herbs": 3}
 ## the zippo and grapple on the table. [kind, caption, position, yaw]
 const GEAR: Array = [
 	[&"revolver", "revolver", Vector3(2.95, 1.01, -1.7), 0.4],
-	[&"lighter", "zippo", Vector3(-1.95, 0.85, -0.5), 0.3],
+	[&"crop_bag", "crop bag", Vector3(-1.95, 0.85, -0.5), 0.3],
 	[&"grapple", "grapple", Vector3(-1.2, 0.86, -0.65), -0.5]]
 
 
-enum Step { PAPER, MOVE, SHOOT, GUNS, PELL, IDEA, SALVAGE, BUILD, SELL, TURRETS, LEVER, WAVE, WEATHER, FARM, MEDICINE, GRAPPLE,
+enum Step { PAPER, MOVE, SHOOT, GUNS, PELL, IDEA, SALVAGE, BUILD, SELL, TURRETS, LEVER, WAVE, CROP_BAG, FARM, MEDICINE, GRAPPLE,
 	AIRSHIP, ECONOMY, UPGRADES, HOUSE, WORKSHOP, DONE }
 
 ## A "look at it" step: the marker held near the middle of the screen this long
@@ -97,9 +97,11 @@ const STEPS: Array[Dictionary] = [
 	{"title": "Hold the Wave", "voice": "stroud", "line": "Here they come, a whole swarm of slow ones. Your Gatling has them covered, but feel free to help it out.",
 		"body": "",
 		"tasks": ["Wave Held"], "keys": [["fire", "Shoot"]], "marker": "Dust Mite"},
-	{"title": "Weather", "voice": "stroud", "line": "Every wave brings its own sky. Rain feeds the crops. Heat slows your turrets. Wind spoils your aim. Fog and dust blind the guns, so hang a lantern. Lightning wrecks turrets. Snow kills crops, but it slows the bugs too. Your zippo's on the table inside. Flip it open and light it; you'll want it on dark nights.",
+	# (Nov 11 playtest fixes: the crop bag replaced the Zippo. The recorded
+	# voice line still mentions the zippo until it's re-voiced.)
+	{"title": "Crop Bag", "voice": "stroud", "line": "Your crop bag's on the table inside. Press 9 for it, hold right click to pick a crop, then left click a turret to feed it a sack from the cellar, from fifteen paces off.",
 		"body": "",
-		"tasks": ["Grab Your Zippo", "Flip It Open and Light It"], "keys": [["interact", "Take"], ["select_9", "Zippo"], ["alt_fire", "Flip Open"], ["fire", "Light"]], "marker": "Zippo"},
+		"tasks": ["Grab Your Crop Bag", "Pick a Crop for It"], "keys": [["interact", "Take"], ["select_9", "Crop Bag"], ["alt_fire", "Hold: Pick a Crop"], ["fire", "Feed a Turret"]], "marker": "Crop Bag"},
 	{"title": "Plant a Crop", "voice": "stroud", "line": "Now, supper. Your bucket and seed corn are in the chest inside the house. Fetch them, fill your bucket at the well, plant that corn, water it, and pick it. I've hurried it along for you, just this once.",
 		"body": "What you pick is yours to carry, up to 25 of each crop. Down in the root cellar, the workbench makes 3 turret sacks from every crop, and a sack of any crop loads any crop-fed turret for a wave.",
 		"tasks": ["Take the Bucket and Seeds from the Chest", "Fill Your Bucket", "Plant the Corn", "Water the Seedling", "Harvest the Corn"],

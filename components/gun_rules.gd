@@ -160,3 +160,48 @@ static func kick_velocity(aim_dir: Vector3, kickback: float) -> Vector3:
 	var back := -flat.normalized() if flat.length() > 0.05 else Vector3.ZERO
 	# Shooting straight down blows you up; straight up pushes you down a little.
 	return back * kickback * (0.35 + 0.65 * flat.length()) + Vector3.UP * (2.0 - aim_dir.y * kickback * 0.4)
+
+
+# ------------------------------------------------------------------ Repeating Crossbow
+
+## Bleed (Nov 10 primary weapons evaluation): each bolt that sticks bleeds
+## BLEED_DPS for BLEED_TIME s, stacking up to BLEED_STACKS (Barbed Heads: more).
+const BLEED_DPS := 3.0
+const BLEED_TIME := 4.0
+const BLEED_STACKS := 5
+## Hollow Bolts: direct damage on a bug that's already bleeding.
+const HOLLOW_MULT := 1.6
+
+
+static func bleed_stacks(id: StringName, code: int) -> int:
+	return BLEED_STACKS + WeaponMods.add(id, code, "stacks")
+
+
+## The Hollow Bolts multiplier for a hit (1 unless the gun has the mod and the bug bleeds).
+static func hollow_mult(def: WeaponDef, code: int, hit: Dictionary) -> float:
+	if def.special != &"bleed" or hit.is_empty() or not WeaponMods.flag(def.id, code, "hollow"):
+		return 1.0
+	var hb := hit.get("collider") as Hitbox
+	var bug: Variant = hb.target if hb != null else null
+	if bug == null or not is_instance_valid(bug) or bug.get("status") == null:
+		return 1.0
+	return HOLLOW_MULT if bug.status.poison_stacks() > 0 else 1.0
+
+
+# ------------------------------------------------------------------ Coach Shotgun slugs
+
+## The Coach Shotgun's slug mode (Nov 10 primary weapons evaluation): hold R to
+## switch. A code bit, so the shot carries it to the host (PlayerNet trusts it:
+## a sidegrade, not a buff to check).
+const SLUG_BIT := 1 << 11
+const SLUG_DAMAGE := 90.0
+const SLUG_RANGE := 100.0
+
+
+static func is_slug(id: StringName, code: int) -> bool:
+	return id == &"coach_shotgun" and code & SLUG_BIT != 0
+
+
+static func toggle_slug(code: int) -> int:
+	return code ^ SLUG_BIT
+

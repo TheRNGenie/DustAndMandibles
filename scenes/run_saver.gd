@@ -110,6 +110,13 @@ func capture() -> Dictionary:
 	if me != null and me.vitals != null:
 		players[me.cliff_id] = {"food": me.vitals.food, "water": me.vitals.water}
 	data["players"] = players
+	# The crops each player carries (PlayerCarry), by cliff.
+	var carries := {}
+	for n: Node in get_tree().get_nodes_in_group("players"):
+		var pl := n as Player
+		if pl != null and not pl.bot and pl.carry != null:
+			carries[pl.cliff_id] = pl.carry.items.duplicate()
+	data["carries"] = carries
 	# Perks: each human's locked loadout and Barn Raising, and the guns they own.
 	var perks := {}
 	var guns := {}
@@ -266,6 +273,11 @@ func resume(data: Dictionary) -> bool:
 		var p: Dictionary = players[cid]
 		_vitals[cid] = p
 		_set_vitals.rpc(cid, float(p["food"]), float(p["water"]))
+	var carries: Dictionary = data.get("carries", {})
+	for n: Node in get_tree().get_nodes_in_group("players"):
+		var pl := n as Player
+		if pl != null and not pl.bot and pl.carry != null and carries.has(pl.cliff_id):
+			pl.carry.restore(carries[pl.cliff_id])
 	print("[save] resumed the run at wave %d: %d of %d builds back up, team scrap %d, chitin W%d E%d" % [GameState.wave,
 			BuildManager.instance.get_child_count() - 1 if BuildManager.instance != null else 0,
 			(data["builds"] as Array).size(), Economy.team_scrap(), Economy.amount(0, &"chitin"), Economy.amount(1, &"chitin")])

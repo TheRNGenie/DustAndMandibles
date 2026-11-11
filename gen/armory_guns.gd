@@ -185,6 +185,9 @@ const ACTS_LIKE: Dictionary = {
 	&"rust_duster": &"bee_smoker", &"glow_worm_launcher": &"flare_gun", &"caltrops_launcher": &"flare_gun",
 	&"phosphor_grenade": &"flare_gun",
 	&"swivel_gun": &"punt_gun",
+	# Nov 10 primaries: the mortar loads like the punt gun (one charge, a long
+	# reload), the crossbow cycles like the lever rifle.
+	&"concussion_mortar": &"punt_gun", &"repeating_crossbow": &"lever_rifle",
 }
 ## Parts that are the loaded round (shown only while loaded, like the harpoon's dart).
 const LOADED_PARTS: Array[String] = ["shell", "rocket", "trap", "anchor"]

@@ -27,12 +27,12 @@ extends Resource
 @export var turret_family: String = ""
 
 
-## Everything one harvest adds to the stockpile: the turret loads first (so a
-## Bumper Crop's extra is a load), then the side crop it still gives.
+## What one harvest gives: the raw crops (they go in the harvester's carry,
+## PlayerCarry; the ammo workbench turns each into 3 sacks), and the pear's
+## water. (Nov 11 playtest fixes: harvests no longer fill ammo sacks;
+## loads_per_harvest is unused now.)
 func harvest_out() -> Dictionary:
 	var out := {}
-	if loads_per_harvest > 0 and load_item != &"":
-		out[load_item] = loads_per_harvest
 	for k: Variant in harvest:
 		out[k] = int(out.get(k, 0)) + int(harvest[k])
 	return out

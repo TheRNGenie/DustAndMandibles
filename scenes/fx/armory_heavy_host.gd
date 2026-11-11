@@ -110,8 +110,12 @@ func _mortar(net: PlayerNet, def: WeaponDef, origin: Vector3, dir: Vector3, poin
 	var start := _muzzle(net, origin, dir)
 	var flight := ArmoryHeavyRules.mortar_flight(start.distance_to(land))
 	var center := land + up * 0.3
-	var radius := ArmoryHeavyRules.MORTAR_RADIUS * ArmoryHeavyRules.radius_scale(def.id, level)
+	var concussion := def.id == &"concussion_mortar"
+	var radius := (ArmoryHeavyRules.CONCUSSION_RADIUS if concussion else ArmoryHeavyRules.MORTAR_RADIUS) 			* ArmoryHeavyRules.radius_scale(def.id, level)
 	_queue_blast(net, flight, center, radius, Gun.damage_for(def.id, level), null)
+	if concussion:
+		_blasts[-1]["ring"] = ArmoryHeavyRules.CONCUSSION_RING
+		_blasts[-1]["burn"] = WeaponMods.flag(def.id, level, "burn")
 	net.armory_fx.rpc(&"hv_mortar", start, center, ArmoryHeavyRules.pack_blast(flight, radius))
 
 
@@ -245,20 +249,24 @@ func _run_blasts(now: float) -> void:
 			var t := ref.get_ref() as Bug
 			if t != null and t.is_alive() and _aim_point(t).distance_to(center) <= ArmoryHeavyRules.ROCKET_FOLLOW:
 				center = _aim_point(t)
-		_blast(center, float(bl["radius"]), float(bl["damage"]), String(bl["source"]), int(bl["cliff"]))
+		_blast(center, float(bl["radius"]), float(bl["damage"]), String(bl["source"]), int(bl["cliff"]),
+				float(bl.get("ring", -1.0)), bool(bl.get("burn", false)))
 
 
 ## Every bug in the radius (climbers, the plateau, the floor and the air) takes
 ## the blast, less toward the edge.
-func _blast(center: Vector3, radius: float, damage: float, source: String, source_cliff: int) -> void:
+func _blast(center: Vector3, radius: float, damage: float, source: String, source_cliff: int,
+		ring: float = -1.0, burn: bool = false) -> void:
 	var hit_cliff := -1
 	for b in _bugs():
-		var share := ArmoryHeavyRules.blast_share(b.global_position.distance_to(center), radius)
+		var share := ArmoryHeavyRules.blast_share(b.global_position.distance_to(center), radius, ring)
 		if share <= 0.0:
 			continue
 		if hit_cliff < 0 and b.is_climbing():
 			hit_cliff = b.cliff_id
 		b.receive_hit(damage * share, center, (b.global_position - center).normalized(), true, 1.0, source, source_cliff)
+		if burn and is_instance_valid(b) and b.is_alive():
+			b.status.burn(ArmoryHeavyRules.CONCUSSION_BURN_DPS, ArmoryHeavyRules.CONCUSSION_BURN_TIME, source, source_cliff)
 	# Bosses with breakable parts and corpse piles react as to any splash.
 	BossFx.on_splash(hit_cliff if hit_cliff >= 0 else WorldLayout.other_cliff(source_cliff), center, radius, damage,
 			source, source_cliff)

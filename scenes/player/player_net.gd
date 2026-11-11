@@ -123,7 +123,13 @@ func _request_consume(kind: StringName) -> void:
 
 func _consume(peer_id: int, kind: StringName) -> void:
 	var payer := Economy.payer_cliff(peer_id, player.cliff_id)
-	if not Economy.spend(payer, {kind: 1}):
+	var c := PlayerCarry.crop_of_item(kind)
+	if c != &"" and player.carry != null:
+		# Food and medicine come out of what you carry (PlayerCarry).
+		if not player.carry.take(c, 1):
+			Economy.notify(peer_id, "You aren't carrying any %s. Pick some!" % String(kind).replace("_", " "))
+			return
+	elif not Economy.spend(payer, {kind: 1}):
 		Economy.notify(peer_id, "No %s left in your stockpile. Grow some!" % String(kind))
 		return
 	if peer_id == multiplayer.get_unique_id():
@@ -236,9 +242,13 @@ func _request_drop_item(item: StringName, pos: Vector3) -> void:
 
 
 func _host_drop_item(peer_id: int, item: StringName, pos: Vector3) -> void:
-	if not Hotbar.NAMES.has(item) or item == &"grapple" or item == &"lighter":
+	if not Hotbar.NAMES.has(item) or item == &"grapple" or item == CropBagUI.ITEM:
 		return
-	if not Economy.spend(Economy.payer_cliff(peer_id, player.cliff_id), {item: 1}):
+	var c := PlayerCarry.crop_of_item(item)
+	if c != &"" and player.carry != null:
+		if not player.carry.take(c, 1): # a crop or medicine from what you carry
+			return
+	elif not Economy.spend(Economy.payer_cliff(peer_id, player.cliff_id), {item: 1}):
 		return
 	PickupManager.instance.spawn_item(item, pos)
 
@@ -309,7 +319,7 @@ func _request_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, se
 		print("[host] confirmed %s shot from peer %d" % [String(id), multiplayer.get_remote_sender_id()])
 	# Trust the host's own record of this gun (level and mods), not the sender's.
 	var owned: Dictionary = GunShop.loadouts.get(multiplayer.get_remote_sender_id(), {})
-	var code := int(owned.get(id, 0))
+	var code := int(owned.get(id, 0)) | (level & GunRules.SLUG_BIT) # (the Coach Shotgun's shell type is the shooter's call)
 	if GameState.has_flag("--netlog"):
 		print("[host] %s shot from peer %d: host code %d (sender said %d), %.1f damage a pellet" % [String(id), multiplayer.get_remote_sender_id(), code, level, Gun.damage_for(id, code)])
 	if Gun.weapon(id).special == &"smoke" or ArmoryEffects.is_spray(Gun.weapon(id).special) or SpecialRules.is_special(id):
@@ -367,9 +377,10 @@ func _server_fire(origin: Vector3, dir: Vector3, id: StringName, level: int, see
 		var dmg := Gun.damage_at(id, level, origin.distance_to(hit["position"]))
 		dmg *= Perks.gun_hit_mult(player.get_multiplayer_authority(), hit, origin.distance_to(hit["position"])) # Perk: Heavy Slugs / Marksman / Lucky Shot / Point Blank
 		dmg *= _crit(def, hit) # Telescope Rifle: weak-spot crits
+		dmg *= GunRules.hollow_mult(def, level, hit) # Repeating Crossbow: Hollow Bolts on a bleeding bug
 		Gun.apply_hit_result(hit, d, dmg, Gun.pierce_for(id, level), player.display_name(), player.cliff_id)
 		if def.special != &"":
-			_server_special(def, hit, salted)
+			_server_special(def, hit, salted, level)
 		if def.suppress_slow < 1.0:
 			var hb := hit["collider"] as Hitbox
 			var bug := hb.target as Bug if hb != null else null
@@ -413,11 +424,15 @@ static func _crit(def: WeaponDef, hit: Dictionary) -> float:
 ## Host: a frontier gun's special on one hit (GunRules): rock salt (collected,
 ## applied once per shot), the harpoon reeling a small bug in, a flare marking a
 ## bug for every turret or burning where it struck rock.
-func _server_special(def: WeaponDef, hit: Dictionary, salted: Array[Bug]) -> void:
+func _server_special(def: WeaponDef, hit: Dictionary, salted: Array[Bug], level: int = 0) -> void:
 	var hb := hit["collider"] as Hitbox
 	var bug := hb.target as Bug if hb != null else null
 	var alive := bug != null and is_instance_valid(bug) and bug.is_alive()
 	match def.special:
+		&"bleed": # Repeating Crossbow: the bolt sticks and bleeds (stacks)
+			if alive:
+				bug.status.poison(GunRules.BLEED_DPS, GunRules.BLEED_TIME, GunRules.bleed_stacks(def.id, level),
+						player.display_name(), player.cliff_id)
 		&"salt":
 			if alive and not salted.has(bug):
 				salted.append(bug)

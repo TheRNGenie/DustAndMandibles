@@ -161,6 +161,9 @@ const WEAPONS: Dictionary = {
 	&"elephant_gun": preload("res://data/weapons/elephant_gun.tres"),
 	&"dino_rifle": preload("res://data/weapons/dino_rifle.tres"), # secret: unlocked with a code
 	&"blunderbuss": preload("res://data/weapons/blunderbuss.tres"),
+	# Nov 10 primary weapons evaluation: replace the Blunderbuss and Pepperbox.
+	&"concussion_mortar": preload("res://data/weapons/concussion_mortar.tres"),
+	&"repeating_crossbow": preload("res://data/weapons/repeating_crossbow.tres"),
 	&"crank_gatling": preload("res://data/weapons/crank_gatling.tres"),
 	# Frontier guns (gen/frontier_guns.gd models, GunRules specials).
 	&"derringer_pair": preload("res://data/weapons/derringer_pair.tres"),
@@ -210,7 +213,15 @@ const WEAPONS: Dictionary = {
 ## Retired for now (Logan, 2026-11-08): still registered so the code and saves
 ## keep working, but not sold, not unlockable and not in the field guide. The
 ## Dino Rifle's models and notes are archived in D:\DustAndMandibles-archive\dino_rifle.
-const RETIRED: Array[StringName] = [&"dino_rifle"]
+## Archived for now (kept registered so old saves and owners still work):
+## the Dino Rifle; the Blunderbuss and Pepperbox (replaced by the Concussion
+## Mortar and Repeating Crossbow, Nov 10 primary weapons evaluation); the Salt
+## Shotgun, Harpoon Pistol, Bee Smoker and Signal Flare Gun (Logan, Nov 11: 10
+## primaries and 10 specials for now: the Weapon Slots primaries go too, so the
+## primaries are exactly the Nov 10 ten). Copies in D:/DustAndMandibles-archive/retired/weapons.
+const RETIRED: Array[StringName] = [&"dino_rifle", &"blunderbuss", &"pepperbox", &"salt_shotgun", &"harpoon_pistol",
+	&"bee_smoker", &"flare_gun", &"volcanic_repeater", &"mares_leg", &"double_rifle", &"trench_broom", &"ricochet_rifle",
+	&"howdah_pistol", &"sharps_carbine", &"trapdoor_springfield", &"swivel_gun"]
 
 
 static func is_retired(id: StringName) -> bool:

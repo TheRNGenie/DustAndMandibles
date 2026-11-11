@@ -14,6 +14,8 @@ const NAMES: Dictionary = {
 	&"double_rifle": "Double Rifle",
 	&"trench_broom": "Trench Broom", &"ricochet_rifle": "Ricochet Rifle", &"howdah_pistol": "Howdah Pistol",
 	&"sharps_carbine": "Sharps Carbine", &"trapdoor_springfield": "Trapdoor Springfield",
+	# Nov 10 primary weapons evaluation (code-built for now: Logan, Nov 11).
+	&"concussion_mortar": "Concussion Mortar", &"repeating_crossbow": "Repeating Crossbow",
 }
 const PIVOTS: Dictionary = {
 	"volcanic_repeater_lever": Vector3(0.0, -0.02, -0.04),
@@ -24,6 +26,12 @@ const PIVOTS: Dictionary = {
 	"howdah_pistol_barrels": Vector3(0.0, -0.006, -0.03),
 	"sharps_carbine_lever": Vector3(0.0, -0.026, -0.03),
 	"trapdoor_springfield_trapdoor": Vector3(0.0, 0.04, -0.05),
+	"concussion_mortar_shell": Vector3(0.0, 0.135, -0.44),
+	"repeating_crossbow_lever": Vector3(0.0, 0.035, 0.02),
+	"repeating_crossbow_limb_l": Vector3(-0.03, 0.03, -0.4),
+	"repeating_crossbow_limb_r": Vector3(0.03, 0.03, -0.4),
+	"repeating_crossbow_string": Vector3(0.0, 0.03, -0.38),
+	"repeating_crossbow_bolt": Vector3(0.0, 0.042, -0.2),
 }
 const MUZZLE: Dictionary = {
 	&"volcanic_repeater": Vector3(0.0, 0.028, -0.53),
@@ -34,6 +42,8 @@ const MUZZLE: Dictionary = {
 	&"howdah_pistol": Vector3(0.0, 0.02, -0.26),
 	&"sharps_carbine": Vector3(0.0, 0.026, -0.56),
 	&"trapdoor_springfield": Vector3(0.0, 0.024, -0.9),
+	&"concussion_mortar": Vector3(0.0, 0.135, -0.44),
+	&"repeating_crossbow": Vector3(0.0, 0.042, -0.43),
 }
 ## [right fist centre, right grip axis, left support fist centre] (gun space).
 const HANDS: Dictionary = {
@@ -45,6 +55,8 @@ const HANDS: Dictionary = {
 	&"howdah_pistol": [Vector3(0.0, -0.05, 0.04), Vector3(0, 0.92, -0.39), Vector3(-0.03, -0.06, 0.04)],
 	&"sharps_carbine": [Vector3(0.0, -0.035, 0.09), Vector3(0, 0.55, -0.83), Vector3(0.0, -0.008, -0.17)],
 	&"trapdoor_springfield": [Vector3(0.0, -0.035, 0.1), Vector3(0, 0.55, -0.83), Vector3(0.0, -0.01, -0.26)],
+	&"concussion_mortar": [Vector3(0.0, -0.05, 0.075), Vector3(0, 0.85, -0.52), Vector3(0.0, -0.02, -0.2)],
+	&"repeating_crossbow": [Vector3(0.0, -0.05, 0.075), Vector3(0, 0.85, -0.52), Vector3(0.0, 0.0, -0.22)],
 }
 
 ## Case-hardened steel: mottled blue, straw and brown.
@@ -74,6 +86,10 @@ static func build(id: StringName) -> Dictionary:
 			return _sharps_carbine()
 		&"trapdoor_springfield":
 			return _trapdoor_springfield()
+		&"concussion_mortar":
+			return _concussion_mortar()
+		&"repeating_crossbow":
+			return _repeating_crossbow()
 	return {}
 
 
@@ -727,3 +743,92 @@ static func _mares_leg() -> Dictionary:
 	# A big loop lever for spinning.
 	lever_loop(lv.m(), PIVOTS["mares_leg_lever"], CASE[0], 1.2)
 	return {"body": k.commit(), "lever": lv.commit()}
+
+
+# ------------------------------------------------------------------ concussion mortar
+
+## A hand-held bronze mortar (Nov 10 primary weapons evaluation): a short, wide
+## bronze tube tipped up on iron trunnion cheeks over a walnut stock with a
+## pistol grip and a leather-padded butt, a brass blast ring at the mouth, a
+## fuse touch-hole on top. The "shell" is the powder charge sitting in the mouth
+## while loaded.
+static func _concussion_mortar() -> Dictionary:
+	var k := F.Kit.new()
+	var sh := F.Kit.new()
+	var back := Vector3(0.0, 0.075, -0.1)
+	var mouth: Vector3 = MUZZLE[&"concussion_mortar"]
+	var axis := (mouth - back).normalized()
+	# The tube: bronze, wide at the mouth, a band at the breech and a blast ring.
+	MeshKit.tube(k.m(), [back, back.lerp(mouth, 0.5), mouth], [0.05, 0.046, 0.05], 20, F.BRASS_DARK)
+	MeshKit.tube(k.m(), [back + axis * 0.02, back + axis * 0.05], [0.056, 0.056], 20, F.BRASS)
+	MeshKit.tube(k.m(), [mouth - axis * 0.03, mouth], [0.058, 0.06], 20, F.BRASS_LIGHT)
+	MeshKit.tube(k.x(), [mouth - axis * 0.002, mouth - axis * 0.12], [0.04, 0.04], 18, F.BORE) # the dark bore
+	F.ball(k.m(), back - axis * 0.012, Vector3(0.05, 0.05, 0.03), F.BRASS_DARK, 6, 14) # rounded breech
+	F.cz(k.m(), back + axis * 0.06 + Vector3(0, 0.05, 0), 0.006, 0.006, 0.012, F.IRON_DARK, 8) # touch-hole boss
+	# Iron trunnion cheeks holding the tube on the stock.
+	for side: float in [-1.0, 1.0]:
+		F.box(k.m(), Vector3(side * 0.05, 0.035, -0.16), Vector3(0.008, 0.07, 0.09), F.IRON)
+		F.cx(k.m(), Vector3(side * 0.052, 0.07, -0.16), 0.012, 0.012, F.IRON_DARK, 10)
+	F.box(k.m(), Vector3(0, 0.0, -0.13), Vector3(0.1, 0.012, 0.16), F.IRON_DARK)
+	# Walnut fore-stock under the tube, pistol grip, trigger and a padded butt.
+	F.box(k.w(), Vector3(0, -0.012, -0.12), Vector3(0.05, 0.03, 0.26), F.WALNUT)
+	F.trigger_and_guard(k, Vector3(0, -0.018, 0.022), 0.027, F.BRASS_DARK)
+	F.pistol_grip(k, Vector3(0, -0.008, 0.05), Vector3(0, -0.105, 0.092), F.WALNUT, F.BRASS, 1.1)
+	var stock := rifle_stock(0.06, 0.0, 0.2, 0.03, 0.05)
+	W.loft(k.w(), stock, F.WALNUT_DARK, 14)
+	F.box(k.x(), Vector3(0, -0.03, 0.27), Vector3(0.045, 0.06, 0.02), F.LEATHER)
+	# --- the powder charge in the mouth (shown while loaded)
+	F.ball(sh.x(), mouth - axis * 0.01, Vector3(0.036, 0.036, 0.036), Color("#3A3330"), 6, 12)
+	F.cz(sh.m(), mouth + Vector3(0, 0.03, 0.0), 0.004, 0.004, 0.02, F.ROPE, 6) # its fuse
+	return {"body": k.commit(), "shell": sh.commit()}
+
+
+# ------------------------------------------------------------------ repeating crossbow
+
+const FLETCH := Color("#C4302A")
+
+
+## A lever-cocked repeating crossbow (Nov 10): a walnut tiller with a pistol
+## grip, a brass gravity magazine of bolts on top, a steel prod (two limbs) at
+## the front with a stirrup, the string, and the cocking lever over the
+## magazine. Near silent. "bolt" is the bolt in the groove while loaded.
+static func _repeating_crossbow() -> Dictionary:
+	var k := F.Kit.new()
+	var lv := F.Kit.new()
+	var ll := F.Kit.new()
+	var lr := F.Kit.new()
+	var sg := F.Kit.new()
+	var bl := F.Kit.new()
+	# Tiller: a long walnut stock with the bolt groove on top.
+	F.box(k.w(), Vector3(0, 0.012, -0.17), Vector3(0.04, 0.04, 0.5), F.WALNUT)
+	F.box(k.x(), Vector3(0, 0.033, -0.2), Vector3(0.008, 0.004, 0.42), F.BORE)
+	F.box(k.m(), Vector3(0, 0.03, -0.41), Vector3(0.05, 0.03, 0.03), F.STEEL) # the prod's iron
+	# Gravity magazine: a brass box of bolts over the action, fletching showing.
+	F.box(k.m(), Vector3(0, 0.075, -0.06), Vector3(0.03, 0.06, 0.16), F.BRASS)
+	F.box(k.m(), Vector3(0, 0.106, -0.06), Vector3(0.034, 0.006, 0.17), F.BRASS_DARK)
+	for i in 4:
+		F.box(k.x(), Vector3(0, 0.111, -0.12 + i * 0.04), Vector3(0.012, 0.006, 0.006), FLETCH)
+	# Stirrup at the nose, pistol grip and trigger, a short butt.
+	F.hoop(k.m(), Vector3(0, -0.01, -0.45), Vector3(0, 0, 1), 0.03, 0.004, F.STEEL, 14)
+	F.trigger_and_guard(k, Vector3(0, -0.018, 0.022), 0.027, F.BRASS_DARK)
+	F.pistol_grip(k, Vector3(0, -0.008, 0.05), Vector3(0, -0.105, 0.092), F.WALNUT, F.BRASS, 1.0)
+	var stock := rifle_stock(0.07, 0.006, 0.22, 0.036, 0.05)
+	W.loft(k.w(), stock, F.WALNUT_DARK, 14)
+	# --- the prod's two limbs (they flex with the shot)
+	for pair: Array in [[ll, -1.0, "limb_l"], [lr, 1.0, "limb_r"]]:
+		var kit: F.Kit = pair[0]
+		var side: float = pair[1]
+		var piv: Vector3 = PIVOTS["repeating_crossbow_" + String(pair[2])]
+		W.bent(kit.m(), [piv, piv + Vector3(side * 0.11, 0.0, -0.012), piv + Vector3(side * 0.22, 0.0, 0.02)], 0.0055, F.STEEL)
+		F.ball(kit.m(), piv + Vector3(side * 0.22, 0.0, 0.02), Vector3.ONE * 0.006, F.BRASS, 4, 8)
+	# --- the string, limb tip to limb tip round the nut
+	W.bent(sg.x(), [Vector3(-0.25, 0.03, -0.38), Vector3(0, 0.04, -0.3), Vector3(0.25, 0.03, -0.38)], 0.0015, F.ROPE)
+	# --- the cocking lever over the magazine
+	W.bent(lv.m(), [PIVOTS["repeating_crossbow_lever"], Vector3(0, 0.07, 0.0), Vector3(0, 0.12, -0.04)], 0.0045, F.BLUED)
+	F.ball(lv.w(), Vector3(0, 0.125, -0.045), Vector3(0.012, 0.012, 0.016), F.WALNUT_LIGHT, 4, 8)
+	# --- the bolt in the groove
+	F.cz(bl.w(), Vector3(0, 0.042, -0.28), 0.004, 0.004, 0.26, F.WALNUT_LIGHT, 8)
+	F.cz(bl.m(), Vector3(0, 0.042, -0.415), 0.0, 0.007, 0.02, F.STEEL, 8)
+	F.box(bl.x(), Vector3(0, 0.048, -0.16), Vector3(0.002, 0.012, 0.03), FLETCH)
+	return {"body": k.commit(), "lever": lv.commit(), "limb_l": ll.commit(), "limb_r": lr.commit(),
+		"string": sg.commit(), "bolt": bl.commit()}

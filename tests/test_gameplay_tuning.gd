@@ -33,9 +33,11 @@ func test_heat_makes_you_thirsty() -> void:
 	assert_true(Weather.thirst_rate(Weather.temperature(15.0, Weather.Kind.HEAT_WAVE)) > 1.5, "heat wave afternoons are thirsty")
 
 
-func test_dust_storm_cuts_turret_range() -> void:
-	assert_true(Weather.turret_range(Weather.Kind.DUST_STORM) < 0.6)
-	assert_true(Weather.turret_range(Weather.Kind.DUST_STORM, true) > Weather.turret_range(Weather.Kind.DUST_STORM))
+func test_dust_storm_costs_accuracy_not_range() -> void:
+	# Nov 11 playtest fixes: the whole cliff stays covered; misses come at range.
+	assert_almost(Weather.turret_range(Weather.Kind.DUST_STORM), 1.0)
+	assert_true(Weather.turret_accuracy(Weather.Kind.DUST_STORM, 1.0) < 0.5)
+	assert_true(Weather.turret_accuracy(Weather.Kind.DUST_STORM, 1.0, true) > Weather.turret_accuracy(Weather.Kind.DUST_STORM, 1.0))
 	assert_true(Weather.is_rain(Weather.Kind.LIGHT_RAIN) and Weather.is_rain(Weather.Kind.THUNDERSTORM))
 
 

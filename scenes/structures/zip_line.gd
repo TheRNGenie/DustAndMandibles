@@ -7,6 +7,9 @@ extends Node3D
 const SAG := 0.05 # of the span
 const SEGMENTS := 24
 
+## The title backdrop raises and drops lines between shots without the build thunk.
+static var quiet := false
+
 var a := Vector3.ZERO
 var b := Vector3.ZERO
 ## The houses at either end (a = cliff_a's tower).
@@ -88,4 +91,5 @@ func setup(from: Vector3, to: Vector3) -> void:
 	mi.mesh = MeshKit.finish(st)
 	mi.material_override = Materials.toon(0.0)
 	add_child(mi)
-	Audio.play_at(&"build", a)
+	if not quiet:
+		Audio.play_at(&"build", a)

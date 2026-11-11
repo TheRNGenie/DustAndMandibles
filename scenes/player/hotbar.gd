@@ -7,7 +7,8 @@ extends Node
 ##        partner a tonic (PartnerTonic)
 ##   7    medicine: herbs (left click with them out heals 50 HP)
 ##   8    water bucket
-##   9    Zippo lighter (always carried)
+##   9    crop bag (always carried; it replaced the Zippo): hold right click to
+##        pick a crop, left click a crop-fed turret within 15 m to feed it (CropBag)
 ##   0    grappling hook launcher (always carried)
 ## Mouse wheel steps through the slots that hold something (left click with the
 ## medicine out takes a dose). Pressing the number
@@ -18,8 +19,12 @@ extends Node
 
 signal changed
 
-const PICKUP_ITEMS: Array[StringName] = [&"sarsaparilla", &"corn", &"prickly_pear", &"chili"]
-const NAMES: Dictionary = {&"sarsaparilla": "Tonic", &"corn": "Corn", &"prickly_pear": "Pear", &"chili": "Chili", &"herbs": "Medicine", &"water": "Bucket", &"grapple": "Grapple", &"lighter": "Zippo"}
+## Slots 4-6 show the first three you carry, in this order (PlayerCarry, Nov 11:
+## the crops you carry, not the cliff's stock; the HUD's strip shows them all).
+const PICKUP_ITEMS: Array[StringName] = [&"sarsaparilla", &"corn", &"prickly_pear", &"chili", &"cotton", &"sulfur_root",
+	&"barrel_cactus", &"tumbleweed_vine"]
+const NAMES: Dictionary = {&"sarsaparilla": "Tonic", &"corn": "Corn", &"prickly_pear": "Pear", &"chili": "Chili", &"herbs": "Medicine", &"water": "Bucket", &"grapple": "Grapple", &"crop_bag": "Crop Bag",
+	&"cotton": "Cotton", &"sulfur_root": "Sulfur", &"barrel_cactus": "Cactus", &"tumbleweed_vine": "Tumbleweed"}
 
 const SLOTS := 10
 
@@ -29,6 +34,8 @@ var selected := 0
 
 func _ready() -> void:
 	player.gun.loadout_changed.connect(func() -> void: changed.emit())
+	if player.carry != null:
+		player.carry.changed.connect(func() -> void: changed.emit())
 	Economy.resources_changed.connect(func(_c: int) -> void: changed.emit())
 
 
@@ -58,7 +65,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 
 
-## Tutorial (Logan): gear you haven't picked up yet (lighter, grapple, water =
+## Tutorial (Logan): gear you haven't picked up yet (crop bag, grapple, water =
 ## the bucket, herbs): its slot stays empty until TutorialRun unlocks it.
 static var locked: Dictionary = {}
 
@@ -75,11 +82,11 @@ func _slot_raw(i: int) -> StringName:
 	if i < 6:
 		var carried: Array[StringName] = []
 		for item in PICKUP_ITEMS:
-			if Economy.amount(_cliff(), item) > 0:
+			if _carried(item) > 0:
 				carried.append(item)
 		return carried[i - 3] if i - 3 < carried.size() else &""
 	if i == 8:
-		return &"lighter"
+		return CropBagUI.ITEM
 	if i == 9:
 		return &"grapple"
 	return &"herbs" if i == 6 else &"water"
@@ -123,7 +130,7 @@ func _drop() -> void:
 	if held == &"none" or (held == &"" and gun.def == null):
 		Economy.notice.emit("Your hands are empty.")
 		return
-	if held == &"grapple" or held == &"lighter":
+	if held == &"grapple" or held == CropBagUI.ITEM:
 		Economy.notice.emit("You always keep the %s." % NAMES[held].to_lower())
 		return
 	if held == &"":
@@ -137,6 +144,14 @@ func _cliff() -> int:
 	return player.cliff_id
 
 
+## How many of food item `item` you carry (PlayerCarry); the cliff's stock for anything else.
+func _carried(item: StringName) -> int:
+	var c := PlayerCarry.crop_of_item(item)
+	if c != &"" and player.carry != null:
+		return player.carry.amount(c)
+	return Economy.amount(_cliff(), item)
+
+
 ## Hotbar labels where the gun's first word won't do.
 const SHORT_NAMES: Dictionary = {&"coach_shotgun": "Shotgun", &"salt_shotgun": "Salt Gun", &"bee_smoker": "Smoker",
 	&"flare_gun": "Flare Gun", &"punt_gun": "Punt Gun", &"derringer_pair": "Derringers", &"harpoon_pistol": "Harpoon",
@@ -145,7 +160,7 @@ const SHORT_NAMES: Dictionary = {&"coach_shotgun": "Shotgun", &"salt_shotgun": "
 	&"ricochet_rifle": "Ricochet", &"howdah_pistol": "Howdah", &"sharps_carbine": "Sharps", &"trapdoor_springfield": "Trapdoor",
 	&"screamer_pistol": "Screamer", &"tar_sprayer": "Tar", &"flashbang_pistol": "Flashbang", &"pepper_bomb_pistol": "Pepper",
 	&"concussion_pistol": "Concussion", &"chain_binder": "Chain", &"rust_duster": "Duster", &"glow_worm_launcher": "Glow-Worm",
-	&"caltrops_launcher": "Caltrops", &"phosphor_grenade": "Phosphor",
+	&"caltrops_launcher": "Caltrops", &"phosphor_grenade": "Phosphor", 
 	&"swivel_gun": "Swivel",
 	# Universal crop-loaded heavies.
 	&"crop_mortar": "Mortar", &"hand_cannon": "Cannon", &"crop_sprayer": "Sprayer", &"spike_driver": "Spikes",
@@ -174,7 +189,12 @@ func slot_info(i: int) -> Dictionary:
 			info["count"] += "$"
 	else:
 		info["label"] = NAMES.get(id, String(id))
-		info["count"] = "" if id == &"grapple" or id == &"lighter" else "x%d" % Economy.amount(_cliff(), id)
+		info["count"] = "" if id == &"grapple" else "x%d" % _carried(id)
+		if PlayerCarry.crop_of_item(id) != &"" and player.carry != null:
+			info["count"] = "%d/%d" % [_carried(id), PlayerCarry.CAP] # (carried crops: "12/25")
+		if id == CropBagUI.ITEM: # the set crop's cellar sacks ("" when nothing is set)
+			var bag := player.crop_bag
+			info["count"] = "x%d" % bag.sacks_of(bag.set_crop) if bag != null and bag.set_crop != &"" else ""
 		if id == &"grapple" and player.dynamite != null and player.dynamite.unlocked():
 			info["count"] = "x%d" % player.dynamite.bundles # the dynamite bundles in your satchel
 		info["selected"] = player.gun.holding == id

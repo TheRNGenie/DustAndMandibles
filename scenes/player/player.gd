@@ -86,7 +86,12 @@ var _last_y := 0.0
 var _vy_smooth := 0.0
 @onready var vitals: PlayerVitals = $Vitals
 var grapple: Grapple
-var lighter: Lighter
+## The crop bag (key 9; it replaced the Zippo, Nov 11 playtest fixes).
+var crop_bag: CropBag
+## The crops you carry, up to 25 of each (PlayerCarry; the host owns it).
+var carry: PlayerCarry
+## Down in the root cellar (the HUD keeps the carried-crops strip up there).
+var in_cellar := false
 var whip: Whip
 ## The grapple's dynamite (left hand, R with the launcher out once the gunsmith's
 ## Powder Satchel is bought).
@@ -165,13 +170,17 @@ func _ready() -> void:
 	dynamite.name = "Dynamite"
 	dynamite.player = self
 	camera.add_child(dynamite)
-	lighter = Lighter.new()
-	lighter.name = "Lighter"
-	lighter.player = self
-	gun.add_child(lighter)
+	carry = PlayerCarry.new()
+	carry.name = "Carry"
+	carry.player = self
+	add_child(carry)
+	crop_bag = CropBag.new()
+	crop_bag.name = "CropBag"
+	crop_bag.player = self
+	gun.add_child(crop_bag)
 	# Built after world.gd set our authority, so they'd default to the host's (1):
-	# a client's grapple rope and zippo RPCs were refused on every other peer.
-	for n: Node in [grapple, whip, lighter, dynamite]:
+	# a client's grapple rope RPCs were refused on every other peer.
+	for n: Node in [grapple, whip, crop_bag, dynamite]:
 		n.set_multiplayer_authority(get_multiplayer_authority())
 	rig = DummyRig.new()
 	rig.name = "Rig"

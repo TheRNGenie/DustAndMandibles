@@ -38,10 +38,10 @@ func test_crop_is_registered_with_its_seed() -> void:
 	assert_true(c.role != "", "has a job line")
 
 
-func test_seed_is_sold_at_the_airship_market_but_roots_are_not_bought() -> void:
+func test_seed_is_sold_at_the_airship_market_and_roots_sell_for_your_scrap() -> void:
 	assert_true(VendorCart.SEEDS.has(&"seed_sarsaparilla"))
 	assert_eq(MarketPrices.seed_price(Defs.crop(&"sarsaparilla")), 18)
-	assert_false(MarketPrices.BASE.has(PartnerTonic.ITEM), "grown for your partner, not for sale")
+	assert_eq(MarketPrices.currency(PartnerTonic.ITEM), ResNames.PERSONAL_ID, "the one crop that pays your own scrap (Logan, Nov 11)")
 
 
 func test_hotbar_chest_and_guide_know_it() -> void:

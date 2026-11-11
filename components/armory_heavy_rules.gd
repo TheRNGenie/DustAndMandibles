@@ -158,10 +158,20 @@ static func mortar_at(from: Vector3, to: Vector3, t: float) -> Vector3:
 
 
 ## Share of a blast's damage at `dist` from its centre (0 outside the radius).
-static func blast_share(dist: float, radius: float) -> float:
+static func blast_share(dist: float, radius: float, ring: float = -1.0) -> float:
 	if radius <= 0.0 or dist > radius:
 		return 0.0
+	if ring >= 0.0: # stepped: full in the inner half, `ring` of it in the outer half (Concussion Mortar)
+		return 1.0 if dist <= radius * 0.5 else ring
 	return lerpf(1.0, BLAST_EDGE, dist / radius)
+
+
+## The Concussion Mortar (Nov 10 primary weapons evaluation): a 4 m blast, the
+## outer 2 m at 60%; Incendiary Filler sets what it catches burning.
+const CONCUSSION_RADIUS := 4.0
+const CONCUSSION_RING := 0.6
+const CONCUSSION_BURN_DPS := 12.0
+const CONCUSSION_BURN_TIME := 3.0
 
 
 # ------------------------------------------------------------------ sprays

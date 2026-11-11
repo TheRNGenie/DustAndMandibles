@@ -20,6 +20,9 @@ var _loot: Dictionary = {} # loot id -> LootDrop (every peer)
 var _stolen_loot: Dictionary = {} # host: loot id -> [cliff, {res: amount}] a thief dropped
 ## Burning chili patches: {cliff, center, radius, dps, left, source, source_cliff}
 var _fires: Array[Dictionary] = []
+## Host: boss spoils (and heavy bugs' rare drops) waiting for the wave's end, when
+## every cliff gets its own copy (Nov 11 playtest fixes: nothing is raced for).
+var _spoils: Dictionary = {}
 
 
 func _ready() -> void:
@@ -39,6 +42,7 @@ func _ready() -> void:
 	FloorSwarm.enabled = not GameState.has_flag("--noswarm")
 	LaneClimber.spit_requested = _on_spit
 	Bug.brood_burst = _on_brood_burst
+	GameState.phase_changed.connect(_on_phase_spoils)
 
 
 ## Story (The Reckoning): the tunnel every boss comes out of (-1: the usual pick).
@@ -362,31 +366,41 @@ var _scrap_carry := ScrapCarry.new()
 const PART_CHANCE_HEAVY := 0.06
 
 
+## Boss and heavy-bug drops (turret parts, Meteor Iron) go to the spoils: at the
+## wave's end every cliff gets its own copy, shown in the wave summary.
 func _drop_parts(bug: Bug) -> void:
-	_drop_meteor_iron(bug)
-	var n := 0
-	if bug.def.boss_tip != "":
-		n = 2
-	elif TurretDef.is_heavy(bug.def) and randf() < PART_CHANCE_HEAVY:
-		n = 1
-	if n <= 0 or bug.cliff_id < 0:
-		return
-	var got: PackedStringArray = []
-	for i in n:
-		var key := CraftTable.random_part()
-		Economy.earn(bug.cliff_id, {key: 1})
-		got.append(CraftTable.part_name(key))
-	Economy.notify_cliff(bug.cliff_id, "Turret part%s from the %s: %s. Craft at the Workshop." % ["s" if n > 1 else "", bug.def.display_name.trim_prefix("The "), ", ".join(got)])
-
-
-## Gun rarity: Meteor Iron, the rare drop a Legendary gun takes (GunRarity).
-## Every boss leaves a piece, and now and then a heavy bug does.
-func _drop_meteor_iron(bug: Bug) -> void:
 	if bug.cliff_id < 0:
 		return
-	if bug.def.boss_tip != "" or (TurretDef.is_heavy(bug.def) and randf() < GunRarity.HEAVY_CHANCE):
-		Economy.earn(bug.cliff_id, {GunRarity.ITEM: 1})
-		Economy.notify_cliff(bug.cliff_id, "A lump of %s from the %s! The gunsmith can make a gun Legendary with it." % [GunRarity.ITEM_NAME, bug.def.display_name.trim_prefix("The ")])
+	var got := BossSpoils.roll(bug.def.boss_tip != "", TurretDef.is_heavy(bug.def), randf(), randf())
+	if got.is_empty():
+		return
+	BossSpoils.add(_spoils, got)
+	var who := bug.def.display_name.trim_prefix("The ")
+	if bug.def.boss_tip != "":
+		for c in WorldLayout.cliff_count():
+			Economy.notify_cliff(c, "The %s is down: spoils for everyone at the wave's end." % who)
+	else:
+		Economy.notify_cliff(bug.cliff_id, "The %s dropped something: everyone gets it at the wave's end." % who)
+
+
+## Host: the wave is over: every cliff gets the spoils, and every peer's wave
+## summary shows them.
+func _on_phase_spoils(p: GameState.Phase) -> void:
+	if not multiplayer.is_server() or p != GameState.Phase.BUILD or _spoils.is_empty():
+		if p == GameState.Phase.WAVE:
+			_spoils.clear()
+		return
+	var got := _spoils.duplicate()
+	_spoils.clear()
+	for c in WorldLayout.cliff_count():
+		Economy.earn(c, got)
+	_show_spoils.rpc(got)
+
+
+@rpc("authority", "call_local", "reliable")
+func _show_spoils(got: Dictionary) -> void:
+	if HudWaveSummary.instance != null and is_instance_valid(HudWaveSummary.instance):
+		HudWaveSummary.instance.add_spoils(got)
 
 
 func _on_bug_died(bug: Bug, source: String, source_cliff: int) -> void:

@@ -20,7 +20,7 @@ func test_selling_lowers_the_price_but_not_below_half() -> void:
 func test_selling_one_item_leaves_others_alone() -> void:
 	var m := MarketPrices.new()
 	m.sell(&"corn", 5)
-	assert_almost(m.price(&"chili"), 5.0)
+	assert_almost(m.price(&"chili"), float(MarketPrices.BASE[&"chili"]))
 
 
 func test_prices_recover_up_to_one_and_a_half() -> void:
@@ -46,7 +46,13 @@ func test_seed_costs_a_third_of_the_harvest_value() -> void:
 	assert_eq(MarketPrices.seed_price(Defs.crop(&"firecracker_chili")), 20)
 
 
-func test_chili_sells_for_chitin_everything_else_for_scrap() -> void:
-	assert_eq(MarketPrices.currency(&"chili"), &"chitin")
-	for k: StringName in [&"corn", &"prickly_pear", &"herbs"]:
-		assert_eq(MarketPrices.currency(k), &"scrap")
+## Every crop sells at the vendor for team chitin; only sarsaparilla pays your
+## own scrap (Logan, Nov 11).
+func test_every_crop_sells_and_only_sarsaparilla_pays_your_scrap() -> void:
+	assert_eq(MarketPrices.currency(&"sarsaparilla"), &"chitin")
+	for k: StringName in [&"corn", &"prickly_pear", &"chili", &"herbs", &"cotton", &"sulfur_root", &"barrel_cactus", &"tumbleweed_vine"]:
+		assert_eq(MarketPrices.currency(k), &"scrap", "%s pays team chitin" % k)
+	for c: StringName in [&"corn", &"prickly_pear", &"firecracker_chili", &"herbs", &"cotton", &"sulfur_root", &"barrel_cactus", &"tumbleweed_vine", &"sarsaparilla"]:
+		var item := PlayerCarry.item_of(c)
+		assert_true(MarketPrices.BASE.has(item), "%s has a vendor price" % item)
+		assert_true(VendorCart.ITEMS.has(item), "%s is on the vendor's list" % item)

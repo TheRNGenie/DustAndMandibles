@@ -1,12 +1,11 @@
 class_name AmmoStore
 extends RefCounted
 ## Turret ammo: how many ammo sacks (turret loads, CropDef.load_item) a cliff
-## can keep of each kind. Without a root cellar you have room for CARRY_CAP of
-## each; the cellar (a house upgrade, RootCellar) has a bin for every kind that
-## holds CELLAR_CAP. A harvest with no room left for its sacks waits on the plot.
+## can keep of each kind. Every house has its root cellar from the start
+## (RootCellar, Logan Nov 11), a bin for every kind holding CELLAR_CAP.
 
 const CARRY_CAP := 4
-const CELLAR_CAP := 20
+const CELLAR_CAP := 500
 
 
 ## Every crop that fills ammo sacks, in seed order.
@@ -19,9 +18,8 @@ static func crops() -> Array[StringName]:
 	return out
 
 
-static func has_cellar(cliff_id: int) -> bool:
-	var h := Homestead.of(cliff_id)
-	return h != null and h.cellar
+static func has_cellar(_cliff_id: int) -> bool:
+	return true # (every house has its cellar from the start now)
 
 
 static func cap(cliff_id: int) -> int:
@@ -50,7 +48,7 @@ static func fit(cliff_id: int, crop: CropDef, got: Dictionary, peer_id: int) -> 
 
 
 static func _hint(cliff_id: int) -> String:
-	return "Load some turrets." if has_cellar(cliff_id) else "Dig a root cellar at the house ledger for more room."
+	return "Load some turrets."
 
 
 ## Host: may this cliff harvest `crop` now (any room for its sacks)? Tells `peer_id` why not.

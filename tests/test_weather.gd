@@ -73,7 +73,11 @@ func test_temperature_and_its_effects() -> void:
 
 
 func test_fog_lanterns_and_dust() -> void:
-	assert_true(Weather.turret_range(Weather.Kind.FOG) < 1.0)
-	assert_almost(Weather.turret_range(Weather.Kind.FOG, true), 1.0)
-	assert_true(Weather.turret_range(Weather.Kind.DUST_STORM) < Weather.turret_range(Weather.Kind.FOG))
+	# Fog and dust: full reach, near full aim up close, misses at range (Nov 11).
+	assert_almost(Weather.turret_range(Weather.Kind.FOG), 1.0)
+	assert_almost(Weather.turret_accuracy(Weather.Kind.FOG, 0.0), 1.0, 0.001, "point blank")
+	assert_almost(Weather.turret_accuracy(Weather.Kind.FOG, 1.0), 0.55, 0.001, "full range")
+	assert_almost(Weather.turret_accuracy(Weather.Kind.FOG, 1.0, true), 0.775, 0.001, "a lantern halves it")
+	assert_true(Weather.turret_accuracy(Weather.Kind.FOG, 0.3) > Weather.turret_accuracy(Weather.Kind.FOG, 0.9), "close beats far")
+	assert_true(Weather.turret_accuracy(Weather.Kind.DUST_STORM, 1.0) < Weather.turret_accuracy(Weather.Kind.FOG, 1.0))
 	assert_eq(Weather.chitin_mult(Weather.Kind.BLOOD_MOON), 2)

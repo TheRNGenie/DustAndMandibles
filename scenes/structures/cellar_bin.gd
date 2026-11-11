@@ -95,7 +95,7 @@ func interact_prompt() -> String:
 	var text := "%s ammo sacks: %d / %d" % [crop.display_name, _count(), AmmoStore.cap(cliff_id)]
 	if crop.turret_family != "":
 		text += "\nLoads %s" % crop.turret_family
-	text += "\nHarvest %s to fill it; Q on a crop-fed turret picks the crop" % crop.display_name.to_lower()
+	text += "\nCarry %s down to the workbench to fill it; the crop bag (9) loads turrets from it" % crop.display_name.to_lower()
 	return text
 
 

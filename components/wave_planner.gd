@@ -76,7 +76,7 @@ func shape_for(w: int) -> StringName:
 
 
 ## Seconds after the wave starts that each pulse leaves the tunnels.
-func pulse_times(shape: StringName) -> Array[float]:
+func pulse_times(shape: StringName, w: int = 0) -> Array[float]:
 	var times: Array[float] = []
 	match shape:
 		STEADY:
@@ -88,8 +88,10 @@ func pulse_times(shape: StringName) -> Array[float]:
 		TWO_PUSHES:
 			times.assign([0.0, 2.0, config.push_gap, config.push_gap + 2.0])
 		_:
+			# Early waves come in quicker pulses (Logan, Nov 11: more action in waves 1-5).
+			var gap := config.early_pulse_interval if w > 0 and w <= config.early_waves else config.pulse_interval
 			for i in rng.randi_range(config.pulses_min, config.pulses_max):
-				times.append(i * config.pulse_interval)
+				times.append(i * gap)
 	return times
 
 
@@ -108,7 +110,7 @@ func plan(w: int) -> Dictionary:
 		pools.append(budget * shares[cid])
 		spent.append(0.0)
 	var shape := shape_for(w)
-	var times := pulse_times(shape)
+	var times := pulse_times(shape, w)
 	var pulses := times.size()
 	var groups: Array = []
 	var options := unlocked(w)

@@ -1,18 +1,21 @@
 class_name MarketPrices
 extends RefCounted
-## Vendor prices. Chili sells for chitin; every other crop sells for scrap
-## (Logan's call). Each vegetable has a base price (in its own currency) and a multiplier from
+## Vendor prices. Every crop sells at the produce vendor for team chitin (internal
+## &"scrap"); only sarsaparilla pays your own scrap (internal &"chitin") (Logan, Nov 11). Each vegetable has a base price (in its own currency) and a multiplier from
 ## 0.5 to 1.5: selling pushes it down, and it drifts back up (to +50%) while you
 ## don't sell that vegetable. Pure logic so it can be unit-tested.
 
 ## (Canyon Expeditions: nest eggs and Doc's specimen jars, brought up from the floor, sell here too.)
-const BASE: Dictionary = {&"corn": 10.0, &"prickly_pear": 16.0, &"chili": 5.0, &"herbs": 22.0, &"egg": 18.0, &"specimen": 14.0}
+const BASE: Dictionary = {&"corn": 10.0, &"prickly_pear": 16.0, &"chili": 14.0, &"herbs": 22.0,
+	&"cotton": 10.0, &"sulfur_root": 16.0, &"barrel_cactus": 20.0, &"tumbleweed_vine": 10.0, &"sarsaparilla": 3.0,
+	&"egg": 18.0, &"specimen": 14.0}
 ## What each vegetable is paid in.
-const CURRENCY: Dictionary = {&"corn": &"scrap", &"prickly_pear": &"scrap", &"chili": &"chitin", &"herbs": &"scrap",
-	&"egg": &"scrap", &"specimen": &"chitin"}
+const CURRENCY: Dictionary = {&"corn": &"scrap", &"prickly_pear": &"scrap", &"chili": &"scrap", &"herbs": &"scrap",
+	&"cotton": &"scrap", &"sulfur_root": &"scrap", &"barrel_cactus": &"scrap", &"tumbleweed_vine": &"scrap",
+	&"sarsaparilla": &"chitin", &"egg": &"scrap", &"specimen": &"chitin"}
 ## Fixed seed prices (scrap) that override the one-third rule.
 ## Corn is the cheap, quick crop: its seeds are a bargain.
-## Sarsaparilla isn't sold at the market (it's grown for your partner), so it has a set price.
+## Sarsaparilla is mostly grown for your partner's tonic, so its seed has a set price.
 ## Turret ammo: harvests now give turret loads (never sold), so every seed has a set price
 ## (pear and herbs kept at what their old harvests made them).
 const SEED_OVERRIDE: Dictionary = {&"firecracker_chili": 20, &"corn": 8, &"sarsaparilla": 18, &"prickly_pear": 11, &"herbs": 15,

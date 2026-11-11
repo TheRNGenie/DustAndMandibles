@@ -188,12 +188,15 @@ func _update_interact(delta: float) -> void:
 		return
 	var target := _look_target()
 	var text := ""
-	if target != null and target.has_method("interact_prompt"):
+	var bag := player.crop_bag
+	if bag != null and bag.is_out() and CropBag.feedable(target, player.cliff_id):
+		text = CropBagUI.prompt(target as Node, bag.set_crop) # the crop bag's turret card
+	elif target != null and target.has_method("interact_prompt"):
 		text = str(target.call("interact_prompt"))
 	if text != _prompt:
 		_prompt = text
 		prompt_changed.emit(text)
-	if target == null or GameState.menu_open:
+	if target == null or GameState.menu_open or _far:
 		_hold = 0.0
 		return
 	# F cycles options on things that have them (seed on a plot, item at a shop).
@@ -213,14 +216,28 @@ func _update_interact(delta: float) -> void:
 			target.call("local_interact", true)
 
 
+## What E would use (within INTERACT_REACH). With the crop bag out the look
+## reaches CropBagUI.REACH, but past arm's length only a crop-fed turret on your
+## own cliff answers (the bag's target; everything else stays at 3.5 m).
+## The look target is past arm's length (only the crop bag's card shows; E does nothing).
+var _far := false
+
+
 func _look_target() -> Object:
 	var cam := player.camera
 	var from := cam.global_position
-	var q := PhysicsRayQueryParameters3D.create(from, from - cam.global_transform.basis.z * INTERACT_REACH,
+	var bag_out := player.crop_bag != null and player.crop_bag.is_out()
+	var reach := CropBagUI.REACH if bag_out else INTERACT_REACH
+	var q := PhysicsRayQueryParameters3D.create(from, from - cam.global_transform.basis.z * reach,
 			WorldLayout.LAYER_WORLD | WorldLayout.LAYER_STRUCTURE | WorldLayout.LAYER_TRAP)
 	q.exclude = [player.get_rid()]
 	var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
 	if hit.is_empty():
 		return null
 	var c: Object = hit["collider"]
-	return c if c != null and c.has_method("local_interact") else null
+	if c == null or not c.has_method("local_interact"):
+		return null
+	_far = from.distance_to(hit["position"]) > INTERACT_REACH
+	if _far and not (bag_out and CropBag.feedable(c, player.cliff_id)):
+		return null
+	return c

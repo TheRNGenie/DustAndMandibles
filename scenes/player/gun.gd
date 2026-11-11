@@ -18,8 +18,8 @@ signal flourished(kind: StringName)
 ## [Foundation] Guns are registered in Defs.WEAPONS with the rest of the content.
 const WEAPONS: Dictionary = Defs.WEAPONS
 ## (The Dino Rifle is retired for now, Defs.RETIRED: out of the list until it comes back.)
-const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun", &"blunderbuss", &"crank_gatling", &"elephant_gun",
-	&"derringer_pair", &"pepperbox", &"salt_shotgun", &"harpoon_pistol", &"bee_smoker", &"flare_gun", &"punt_gun", &"telescope_rifle",
+const ORDER: Array[StringName] = [&"revolver", &"lever_rifle", &"coach_shotgun", &"concussion_mortar", &"blunderbuss", &"crank_gatling", &"elephant_gun",
+	&"derringer_pair", &"repeating_crossbow", &"pepperbox", &"salt_shotgun", &"harpoon_pistol", &"bee_smoker", &"flare_gun", &"punt_gun", &"telescope_rifle",
 	# Weapon Slots Redesign: primaries, secondaries, heavies (ArmoryGuns models).
 	&"volcanic_repeater", &"mares_leg", &"double_rifle", &"trench_broom", &"ricochet_rifle", &"howdah_pistol", &"sharps_carbine", &"trapdoor_springfield",
 	&"swivel_gun",
@@ -59,6 +59,9 @@ signal heavy_loaded(id: StringName, old: StringName, crop: StringName)
 var heavy_pick: StringName = &""
 ## R held with a universal heavy out: seconds held (-1 = not watching).
 var _r_held := -1.0
+## Coach Shotgun: seconds R has been held (-1: not held), and how long a hold switches modes.
+var _slug_held := -1.0
+const SLUG_HOLD := 0.45
 ## The shots a sack load brings, waiting for the load animation to finish.
 var _heavy_pending := -1
 ## Harvest Gatling: rounds of steady fire (the spread widens with it).
@@ -426,7 +429,18 @@ func hold_item(id: StringName) -> void:
 		c.queue_free()
 	var model_id: StringName = {&"water": &"bucket", &"grapple": &"grapple"}.get(id, &"")
 	var model := GunModels.make(model_id) if model_id != &"" else null
-	if model != null:
+	if id == CropBagUI.ITEM:
+		# The crop bag: the cellar's burlap sack with the set crop's patch, at the hip.
+		var p := get_parent().get_parent().get_parent() as Player
+		var bag_mi := MeshInstance3D.new()
+		bag_mi.mesh = AmmoSackBuilder.sack(p.crop_bag.set_crop if p != null and p.crop_bag != null else &"")
+		bag_mi.material_override = Materials.toon(0.004)
+		bag_mi.scale = Vector3.ONE * 0.45
+		bag_mi.position = Vector3(0.0, -0.17, 0.02)
+		bag_mi.rotation.y = PI # the patch faces you
+		_item_mi.mesh = null
+		_item_mi.add_child(bag_mi)
+	elif model != null:
 		_item_mi.mesh = null
 		_item_mi.add_child(model)
 		# Put the part you hold in the fist: the launcher's grip, the bucket's rope handle.
@@ -492,15 +506,21 @@ func reserve_of(id: StringName) -> int:
 
 ## Damage per pellet for a weapon with its level and mods (same formula on every peer).
 static func damage_for(id: StringName, code: int) -> float:
+	if GunRules.is_slug(id, code): # Coach Shotgun slugs: one heavy ball (Rifled Bore: +25%)
+		return GunRules.SLUG_DAMAGE * GunRarity.damage_mult(WeaponMods.level(code)) * WeaponMods.mult(id, code, "slug_damage")
 	return weapon(id).damage * GunRarity.damage_mult(WeaponMods.level(code)) * WeaponMods.mult(id, code, "damage")
 
 
 static func range_for(id: StringName, code: int) -> float:
+	if GunRules.is_slug(id, code):
+		return GunRules.SLUG_RANGE * WeaponMods.mult(id, code, "slug_range")
 	return weapon(id).range * WeaponMods.mult(id, code, "range")
 
 
 ## Damage of one pellet/bullet that hit `dist` metres from the shooter (falloff).
 static func damage_at(id: StringName, code: int, dist: float) -> float:
+	if GunRules.is_slug(id, code):
+		return damage_for(id, code) # (a slug doesn't fall off)
 	return damage_for(id, code) * weapon(id).falloff(dist)
 
 
@@ -514,7 +534,7 @@ static func shot_dirs(id: StringName, dir: Vector3, seed_value: int, code: int =
 	var d := weapon(id)
 	var out: Array[Vector3] = []
 	var pellets := d.pellets + WeaponMods.add(id, code, "pellets")
-	if pellets <= 1 and d.spread_deg <= 0.0:
+	if pellets <= 1 and d.spread_deg <= 0.0 or GunRules.is_slug(id, code):
 		out.append(dir.normalized())
 		return out
 	var rng := RandomNumberGenerator.new()
@@ -542,6 +562,7 @@ var spin := 0.0
 func _process(delta: float) -> void:
 	_cooldown = maxf(_cooldown - delta, 0.0)
 	_heavy_tick(delta)
+	_slug_tick(delta)
 	if def != null and def.automatic:
 		var want := 1.0 if trigger_held and holding == &"" and _stage == Reload.NONE else 0.0
 		spin = move_toward(spin, want, delta / maxf(spin_up_time() if want > 0.0 else spin_up_time() * 2.0, 0.05))
@@ -905,6 +926,14 @@ func zoom_factor() -> float:
 
 
 func reload() -> void:
+	if def != null and def.id == &"coach_shotgun" and holding == &"" and _stage == Reload.NONE and _slug_held < 0.0:
+		# Coach Shotgun: tap R to reload, hold it to switch buckshot / slug (_slug_tick).
+		_slug_held = 0.0
+		return
+	_reload_now()
+
+
+func _reload_now() -> void:
 	if def != null and def.crop_ammo and holding == &"":
 		# Universal heavies: tap R for the last crop again, hold it for the crop wheel.
 		if _stage == Reload.NONE and _r_held < 0.0:
@@ -1025,6 +1054,41 @@ static func apply_hit_result(hit: Dictionary, dir: Vector3, dmg: float, pierce: 
 ## The crop a universal heavy is loaded with (&"" empty or not one).
 func heavy_crop_of(id: StringName) -> StringName:
 	return StringName(heavy_crop.get(id, &""))
+
+
+## Owner: R with the Coach Shotgun out: a tap reloads, a hold switches between
+## buckshot and slugs (Nov 10 primary weapons evaluation). Switching ejects the
+## shells in it and loads the other kind (Express Loader: keeps them).
+func _slug_tick(delta: float) -> void:
+	if _slug_held < 0.0:
+		return
+	if def == null or def.id != &"coach_shotgun" or holding != &"":
+		_slug_held = -1.0
+		return
+	_slug_held += delta
+	if Input.is_action_pressed("reload"):
+		if _slug_held >= SLUG_HOLD:
+			_slug_held = -1.0
+			switch_slug()
+	else:
+		_slug_held = -1.0
+		_reload_now()
+
+
+## Owner: swap the Coach Shotgun's shells (buckshot <-> slugs).
+func switch_slug() -> void:
+	var id := &"coach_shotgun"
+	if not owns(id) or _stage != Reload.NONE:
+		return
+	owned[id] = GunRules.toggle_slug(int(owned[id]))
+	var code := int(owned[id])
+	Economy.notice.emit("Coach Shotgun: %s" % ("slugs (100 m, one hard hit)" if GunRules.is_slug(id, code) else "buckshot (close-range spread)"))
+	if not WeaponMods.flag(id, code, "express"):
+		ammo = 0 # the old shells come out
+		_ammo_by_weapon[id] = 0
+	loadout_changed.emit()
+	if ammo < mag_size():
+		_reload_now()
 
 
 ## Owner: R being held with a universal heavy out (tap = last crop, hold = the

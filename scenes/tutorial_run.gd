@@ -87,7 +87,7 @@ var _last_voice := "" ## who spoke last (a new speaker waits SPEAKER_GAP)
 var _picked := 0 ## pieces of gear picked up (the second brings the hotbar tip)
 var _corn0 := 0
 var _gear: Dictionary = {} ## kind -> TutorialPickup still lying in the house
-var _have: Dictionary = {} ## gear taken: &"revolver", &"lighter", &"grapple", &"bucket", &"herbs"
+var _have: Dictionary = {} ## gear taken: &"revolver", &"crop_bag", &"grapple", &"bucket", &"herbs"
 ## The design the Workshop step's three parts make.
 var _craft_id: StringName = &""
 var _auto := false
@@ -396,11 +396,10 @@ func _check(delta: float) -> void:
 		Step.MEDICINE:
 			if _have.has(&"herbs"):
 				_tasks[0] = true
-		Step.WEATHER:
-			if _have.has(&"lighter"):
+		Step.CROP_BAG:
+			if _have.has(&"crop_bag"):
 				_tasks[0] = true
-			if player.lighter != null and player.lighter.lit:
-				_tasks[0] = true
+			if player.crop_bag != null and player.crop_bag.set_crop != &"":
 				_tasks[1] = true
 		Step.GRAPPLE:
 			_check_grapple(delta)
@@ -662,17 +661,17 @@ func _stash_supplies() -> void:
 		chest.took.connect(_on_chest_took)
 
 
-## Logan: you start with empty hands. The revolver, zippo and grapple lie in the
+## Logan: you start with empty hands. The revolver, crop bag and grapple lie in the
 ## house; the bucket and medicine are in the chest. Gear for steps before
 ## `first` (a --tutorialstep start) is handed straight over.
 func _lay_out_gear(first: int) -> void:
-	for k: StringName in [&"lighter", &"grapple", &"water", &"herbs"]:
+	for k: StringName in [&"crop_bag", &"grapple", &"water", &"herbs"]:
 		Hotbar.locked[k] = true
 	player.gun.remove_weapon(&"revolver")
 	if GunShop.loadouts.has(multiplayer.get_unique_id()):
 		(GunShop.loadouts[multiplayer.get_unique_id()] as Dictionary).erase(&"revolver")
 	var home := Homestead.of(me)
-	var due := {&"lighter": Step.WEATHER, &"revolver": Step.SHOOT, &"bucket": Step.FARM, &"herbs": Step.MEDICINE, &"grapple": Step.GRAPPLE}
+	var due := {&"crop_bag": Step.CROP_BAG, &"revolver": Step.SHOOT, &"bucket": Step.FARM, &"herbs": Step.MEDICINE, &"grapple": Step.GRAPPLE}
 	for k: StringName in due:
 		if first > int(due[k]):
 			_give(k)
@@ -706,8 +705,8 @@ func _give(kind: StringName) -> void:
 				(GunShop.loadouts[uid] as Dictionary)[&"revolver"] = 0
 			player.gun.grant(&"revolver", 0)
 			player.gun.equip(&"revolver")
-		&"lighter":
-			Hotbar.locked.erase(&"lighter")
+		&"crop_bag":
+			Hotbar.locked.erase(&"crop_bag")
 		&"grapple":
 			Hotbar.locked.erase(&"grapple")
 		&"bucket":
@@ -858,7 +857,7 @@ func _fund(cost: Dictionary) -> void:
 ## Where this step's marker points (null: no marker).
 func _marker() -> Variant:
 	# Gear still lying in the house is the marker until it's taken (Logan).
-	var gear_kind: StringName = {Step.WEATHER: &"lighter", Step.SHOOT: &"revolver", Step.GRAPPLE: &"grapple"}.get(step, &"")
+	var gear_kind: StringName = {Step.CROP_BAG: &"crop_bag", Step.SHOOT: &"revolver", Step.GRAPPLE: &"grapple"}.get(step, &"")
 	if gear_kind != &"" and not _have.has(gear_kind):
 		var at: Variant = _gear_at(gear_kind)
 		if at != null:
@@ -934,7 +933,7 @@ func caption() -> String:
 		return "Revolver"
 	if step == Step.GRAPPLE and not _have.has(&"grapple"):
 		return "Grapple"
-	if step == Step.WEATHER and _have.has(&"lighter"):
+	if step == Step.CROP_BAG and _have.has(&"crop_bag"):
 		return ""
 	match step:
 		Step.FARM:
@@ -1029,7 +1028,7 @@ func keep_playing() -> void:
 	if multiplayer.is_server():
 		for id: StringName in AmberRules.IDS:
 			Amber.unlock_blueprint(id, false)
-	for k: StringName in [&"revolver", &"lighter", &"grapple", &"bucket", &"herbs"]:
+	for k: StringName in [&"revolver", &"crop_bag", &"grapple", &"bucket", &"herbs"]:
 		_give(k)
 	if multiplayer.is_server() and world.get_node_or_null("CPU") == null:
 		NetworkManager.cpu_quality = 1
@@ -1126,11 +1125,11 @@ func _auto_step() -> void:
 			elif _plot != null and _plot.growth.stage != CropGrowth.Stage.GROWING:
 				_plot._use(uid, &"corn")
 			_auto_t = 0.0
-		Step.WEATHER:
+		Step.CROP_BAG:
 			if not _tasks[0]:
-				_give(&"lighter")
-			elif player.lighter != null:
-				player.lighter.call("_set_state", true, true)
+				_give(&"crop_bag")
+			elif player.crop_bag != null:
+				player.crop_bag.set_bag_crop(&"corn")
 			_auto_t = -1.0
 		Step.MEDICINE:
 			var mc := _chest()

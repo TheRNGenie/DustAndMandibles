@@ -49,7 +49,7 @@ func test_wave1_is_mites_only_and_within_budget() -> void:
 
 func test_waves_grow_by_a_quarter() -> void:
 	var cfg := Defs.WAVE_CONFIG
-	assert_eq(cfg.bug_count(1), 45)
+	assert_eq(cfg.bug_count(1), 65) # (Nov 11: busier early waves)
 	assert_true(absf(float(cfg.bug_count(4)) / float(cfg.bug_count(3)) - 1.25) < 0.03)
 
 
@@ -68,3 +68,17 @@ func test_split_matches_share() -> void:
 	var plan := planner.plan(9)
 	var spent: Array = plan["spent"]
 	assert_true(float(spent[0]) > float(spent[1]), "wave 9 is west-heavy")
+
+
+func test_early_waves_pulse_quicker() -> void:
+	# Nov 11 playtest: waves 1-5 pulse every early_pulse_interval s, at least pulses_min times.
+	var cfg := Defs.WAVE_CONFIG
+	var defs: Array[BugDef] = []
+	for id: StringName in Defs.active_bug_ids():
+		defs.append(Defs.bug(id))
+	var p := WavePlanner.new(cfg, defs, 2)
+	var early := p.pulse_times(&"", 2)
+	var late := p.pulse_times(&"", 9)
+	assert_true(early.size() >= 4, "at least four pulses early")
+	assert_almost(early[1] - early[0], cfg.early_pulse_interval, 0.01, "early gap")
+	assert_almost(late[1] - late[0], cfg.pulse_interval, 0.01, "later gap")

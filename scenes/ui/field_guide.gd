@@ -48,6 +48,8 @@ func menu_items(tab: int) -> Array:
 	match tab:
 		0:
 			for id: StringName in Gun.ORDER:
+				if Defs.is_retired(id):
+					continue # archived for now (Defs.RETIRED)
 				var w := Gun.weapon(id)
 				var e := FieldGuide.entry("guns", id)
 				var price := "Starter" if w.price_chitin == 0 else UiStyle.cost(w.price_chitin, "chitin")

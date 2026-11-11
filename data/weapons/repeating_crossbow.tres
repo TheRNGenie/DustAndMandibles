@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapon_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"repeating_crossbow"
+slot = 0
+display_name = "Repeating Crossbow"
+description = "A lever-cocked crossbow with a gravity-fed magazine of bolts. Near silent. Bolts stick and bleed: 3 damage a second for 4 s, stacking up to five times."
+damage = 14.0
+mag_size = 10
+fire_interval = 0.18
+reload_time = 1.8
+pellets = 1
+spread_deg = 0.0
+range = 90.0
+pierce_armor = false
+price_chitin = 25
+upgrade_costs = PackedInt32Array(10, 20)
+shake = 0.15
+automatic = false
+spin_up = 0.0
+sound = &"harpoon"
+sound_pitch = 1.35
+recoil_deg = 1.2
+recoil_yaw_deg = 0.4
+recoil_recover = 0.2
+role = "Bleed"
+special = &"bleed"

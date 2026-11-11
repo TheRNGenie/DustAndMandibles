@@ -1,13 +1,15 @@
 class_name VendorCart
 extends StaticBody3D
-## The produce vendor in the airship market. Chilies sell for chitin (for turret and
-## weapon upgrades), other vegetables sell for scrap, and seeds cost scrap. F picks a line, E sells or buys one,
+## The produce vendor in the airship market. Every crop sells here for team chitin
+## except sarsaparilla, which pays your own scrap (Logan, Nov 11), and seeds cost scrap. F picks a line, E sells or buys one,
 ## hold E to repeat. Vegetable prices drop as you sell (down to -50%) and climb
 ## back while you don't (up to +50%); the sign shows today's prices.
 
-const ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili", &"herbs", &"egg", &"specimen"]
+const ITEMS: Array[StringName] = [&"corn", &"prickly_pear", &"chili", &"herbs", &"cotton", &"sulfur_root",
+	&"barrel_cactus", &"tumbleweed_vine", &"sarsaparilla", &"egg", &"specimen"]
 const NAMES: Dictionary = {&"corn": "Corn", &"prickly_pear": "Prickly Pear", &"chili": "Firecracker Chili", &"herbs": "Sage Herbs",
-	&"egg": "Nest Egg", &"specimen": "Specimen Jar"}
+	&"cotton": "Cotton", &"sulfur_root": "Sulfur Root", &"barrel_cactus": "Barrel Cactus", &"tumbleweed_vine": "Tumbleweed Vine",
+	&"sarsaparilla": "Sarsaparilla Root", &"egg": "Nest Egg", &"specimen": "Specimen Jar"}
 const SYNC_INTERVAL := 1.5
 ## Seeds for sale: seed resource -> [name, crop id]. Price = MarketPrices.seed_price.
 const SEEDS: Dictionary = {&"seed_corn": ["Corn Seeds", &"corn"], &"seed_prickly_pear": ["Prickly Pear Seeds", &"prickly_pear"],
@@ -128,7 +130,7 @@ func menu_title() -> String:
 
 
 func menu_tagline() -> String:
-	return StyleCombo.streak_note() + "Chilies and specimen jars sell for your own scrap, other produce and nest eggs for team chitin (prices drop as you sell and recover over time). Seeds cost team chitin."
+	return StyleCombo.streak_note() + "Sarsaparilla and specimen jars sell for your own scrap, every other crop and nest eggs for team chitin (prices drop as you sell and recover over time). Seeds cost team chitin."
 
 
 static func _price_text(item: StringName, p: float) -> String:
@@ -146,7 +148,7 @@ func menu_items(tab: int) -> Array:
 	var out: Array = []
 	if tab == 0:
 		for k: StringName in ITEMS:
-			var have := Economy.amount(cid, k)
+			var have := _have(k)
 			var p := float(_prices.get(k, 0.0))
 			var base := float(MarketPrices.BASE[k])
 			var trend := " Paying well right now." if p > base * 1.15 else (" Flooded: the price is low." if p < base * 0.85 else "")
@@ -177,7 +179,7 @@ func menu_press(id: Variant, action: StringName) -> void:
 	var count := 1
 	match action:
 		&"sellall":
-			count = maxi(Economy.amount(_local_cliff(), StringName(str(id))), 1)
+			count = maxi(_have(StringName(str(id))), 1)
 		&"buy5":
 			count = 5
 		_:
@@ -205,6 +207,15 @@ func _local_cliff() -> int:
 	return NetworkManager.cliff_of(multiplayer.get_unique_id())
 
 
+## How many of `item` you can sell: crops from what you carry (PlayerCarry), the rest from the cliff.
+func _have(item: StringName) -> int:
+	var c := PlayerCarry.crop_of_item(item)
+	var carry := PlayerCarry.of(get_tree(), multiplayer.get_unique_id())
+	if c != &"" and carry != null:
+		return carry.amount(c)
+	return Economy.amount(_local_cliff(), item)
+
+
 ## Host: one sale or one seed purchase. Returns false when it couldn't happen.
 func _sell(peer_id: int, item: StringName) -> bool:
 	var payer := Economy.payer_cliff(peer_id, cliff_id)
@@ -223,7 +234,10 @@ func _sell(peer_id: int, item: StringName) -> bool:
 		return true
 	if not ITEMS.has(item):
 		return false
-	if not Economy.spend(payer, {item: 1}):
+	var c := PlayerCarry.crop_of_item(item)
+	var carry := PlayerCarry.of(get_tree(), peer_id)
+	var sold := carry.take(c, 1) if c != &"" and carry != null else Economy.spend(payer, {item: 1}) # crops from your carry
+	if not sold:
 		var where := "Bring some up from the canyon floor." if SitePlan.NEW_ITEMS.has(item) else "Grow some on a farm plot."
 		Economy.notify(peer_id, "You have no %s to sell. %s" % [String(NAMES[item]).to_lower(), where])
 		return false

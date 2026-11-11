@@ -297,8 +297,15 @@ func _farm(plot: CropPlot, act: String) -> void:
 			# Picks it itself: crops its turrets burn as upkeep go to the pool,
 			# the rest it carries to its chest for you to sell.
 			var crop := plot.crop_def
-			var got: Dictionary = AmmoStore.fit(cliff_id, crop, plot.growth.harvest(), -1) if crop != null else plot.growth.harvest()
+			var got: Dictionary = plot.growth.harvest()
 			plot.call("_broadcast")
+			# Turret ammo: it has no carry or workbench trips, so it makes the sacks
+			# straight away, the bench's rate (3 a crop) into its cliff's bins.
+			if crop != null and crop.load_item != &"":
+				var raw := int(got.get(PlayerCarry.item_of(crop.id), 0))
+				var sacks := mini(raw * HarvestRules.SACKS_PER_CROP, AmmoStore.room(cliff_id, crop.load_item))
+				if sacks > 0:
+					Economy.earn(cliff_id, {crop.load_item: sacks})
 			var keep := _upkeep_crops()
 			for res: StringName in got:
 				if String(res).ends_with("_load"):

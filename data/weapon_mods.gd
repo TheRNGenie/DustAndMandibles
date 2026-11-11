@@ -37,10 +37,11 @@ const MODS: Dictionary = {
 		{"name": "Magazine tube extension", "desc": "Holds four more rounds.", "cost": 15, "fx": {"mag": 4}},
 		{"name": "Brass scope", "desc": "Aiming zooms in much further.", "cost": 20, "fx": {"zoom": 1.8}},
 	],
+	# Coach Shotgun (Slug Toggle, Nov 10): one mod for slugs, one for buckshot, one for switching.
 	&"coach_shotgun": [
-		{"name": "Full choke", "desc": "Tighter pattern that carries a third further.", "cost": 15, "fx": {"spread": 0.6, "range": 1.35}},
-		{"name": "Heavy buckshot", "desc": "Three more pellets in every shell.", "cost": 20, "fx": {"pellets": 3}},
-		{"name": "Sawn-off barrels", "desc": "Quicker second barrel and reloads, but a wider spray.", "cost": 15, "fx": {"fire_interval": 0.6, "reload": 0.75, "spread": 1.35}},
+		{"name": "Rifled bore", "desc": "Slugs: +25% damage and half again the range.", "cost": 15, "fx": {"slug_damage": 1.25, "slug_range": 1.5}},
+		{"name": "Heavy buckshot", "desc": "Three more pellets in every buckshot shell.", "cost": 20, "fx": {"pellets": 3}},
+		{"name": "Express loader", "desc": "Switch buckshot and slugs without losing the shells in it, and reload 25% faster.", "cost": 15, "fx": {"express": true, "reload": 0.75}},
 	],
 	&"elephant_gun": [
 		{"name": "Ground glass", "desc": "A finer lens: aiming zooms in much further.", "cost": 30, "fx": {"zoom": 1.5}},
@@ -51,6 +52,17 @@ const MODS: Dictionary = {
 		{"name": "Fresh twine", "desc": "Re-tied tight: the glass zooms in a third further.", "cost": 15, "fx": {"zoom": 1.3}},
 		{"name": "Rhino loads", "desc": "+20% damage.", "cost": 25, "fx": {"damage": 1.2}},
 		{"name": "Stripper clip", "desc": "All four barrels load in one push: reloads 35% faster.", "cost": 25, "fx": {"reload": 0.65}},
+	],
+	# Nov 10 primary weapons evaluation.
+	&"concussion_mortar": [
+		{"name": "Packed powder", "desc": "A bigger charge: the blast reaches 40% wider.", "cost": 20, "fx": {"radius": 1.4}},
+		{"name": "Brass casing", "desc": "Pre-loaded brass shells: reloads 35% faster.", "cost": 20, "fx": {"reload": 0.65}},
+		{"name": "Incendiary filler", "desc": "Whatever the blast catches burns: 12 damage a second for 3 s.", "cost": 30, "fx": {"burn": true}},
+	],
+	&"repeating_crossbow": [
+		{"name": "Barbed heads", "desc": "Bleed stacks up to 8 times, not 5.", "cost": 15, "fx": {"stacks": 3}},
+		{"name": "Oiled ratchet", "desc": "Cycles bolts a quarter faster.", "cost": 15, "fx": {"fire_interval": 0.75}},
+		{"name": "Hollow bolts", "desc": "+60% damage to a bug that's already bleeding.", "cost": 20, "fx": {"hollow": true}},
 	],
 	&"blunderbuss": [
 		{"name": "Nail charge", "desc": "Six more pieces of scrap in every load.", "cost": 20, "fx": {"pellets": 6}},

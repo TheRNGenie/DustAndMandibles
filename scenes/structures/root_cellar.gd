@@ -1,12 +1,12 @@
 class_name RootCellar
 extends Node3D
-## The root cellar, now the homestead's ammo storage (a house upgrade, bought at
-## the ledger). Slanted cellar doors in a stone surround beside the house: E on
-## them takes you down the stairs into a lantern-lit room dug under the plateau,
-## where a rack holds one bin for every kind of turret ammo sack (CellarBin).
-## E on the stairs climbs back out. Harvests fill your sacks (AmmoStore):
-## without the cellar you can keep AmmoStore.CARRY_CAP of each kind, with it
-## AmmoStore.CELLAR_CAP.
+## The root cellar, the homestead's ammo storage (every house has one from the
+## start, Nov 11). Slanted cellar doors in a stone surround beside the house: E
+## on them takes you down the stairs into a lantern-lit room dug under the
+## plateau, where a rack holds one bin for every kind of turret ammo sack
+## (CellarBin, AmmoStore.CELLAR_CAP each) and the ammo workbench
+## (CropWorkbench) turns the crops you carry into sacks. E on the stairs climbs
+## back out.
 
 ## The room, local to the doors: floor height and centre.
 const ROOM := Vector3(0, -4.6, 0) # (above Player fall detection, WorldLayout.CANYON_FALL_Y)
@@ -84,6 +84,13 @@ func _build_room() -> void:
 	rack_mi.mesh = _rack_mesh()
 	rack_mi.material_override = Materials.toon_house(0.02)
 	rack.add_child(rack_mi)
+	# The ammo workbench against the left wall (Nov 11 playtest fixes): crops in, sacks out.
+	var bench := CropWorkbench.new()
+	bench.name = "Workbench"
+	bench.cellar = self
+	bench.position = Vector3(-s.x * 0.5 + 0.45, 0, 0.6)
+	bench.rotation.y = PI * 0.5 # its long side along the wall, front to the room
+	room.add_child(bench)
 
 
 ## The lantern is unshadowed and sits only 2 m under the yard, so lit all the
@@ -102,6 +109,9 @@ func _process(delta: float) -> void:
 		var h := ROOM_SIZE * 0.5 + Vector3(0.6, 0.0, 0.6)
 		inside = absf(p.x) < h.x and absf(p.z) < h.z and p.y > -0.5 and p.y < ROOM_SIZE.y + 0.5
 	_lamp.visible = inside
+	var me := _local_player()
+	if me != null and home != null and me.cliff_id == home.cliff_id:
+		me.in_cellar = inside # (the HUD keeps the carried-crops strip up down here)
 
 
 ## Can `peer_id` use this cellar? (Your own house only: the cross-canyon rule.)

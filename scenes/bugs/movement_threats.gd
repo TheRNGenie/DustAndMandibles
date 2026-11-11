@@ -57,6 +57,11 @@ func _on_phase(p: GameState.Phase) -> void:
 	if not multiplayer.is_server():
 		return
 	_plan.clear()
+	if p == GameState.Phase.BUILD:
+		# Nothing a wave left behind lingers into the build phase (Logan, Nov 11:
+		# the green acid nests kept eating turrets wave after wave).
+		_hp.clear()
+		_clear_hazards.rpc()
 	if p != GameState.Phase.WAVE or GameState.tutorial:
 		return
 	_t = 0.0
@@ -113,9 +118,21 @@ func _nests_on(cid: int) -> int:
 	return n
 
 
+## Every peer: free the nests and glints, and anything else in "bug_hazards".
+@rpc("authority", "call_local", "reliable")
+func _clear_hazards() -> void:
+	for c: Node in get_children():
+		if c is AcidNest or c is GlintBeetle:
+			c.queue_free()
+	if is_inside_tree():
+		for n: Node in get_tree().get_nodes_in_group("bug_hazards"):
+			n.queue_free()
+
+
 @rpc("authority", "call_local", "reliable")
 func _spawn_nest(nm: String, cid: int, at: Vector3) -> void:
 	var nest := AcidNest.new()
+	nest.add_to_group("bug_hazards")
 	nest.name = nm
 	nest.cliff_id = cid
 	nest.director = self

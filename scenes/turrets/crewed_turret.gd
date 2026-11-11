@@ -191,12 +191,12 @@ func _think_auto(delta: float) -> void:
 	match def.id:
 		&"big_bertha":
 			shots += 1
-			if randf() <= def.hit_chance * Weather.turret_accuracy(GameState.weather):
+			if randf() <= def.hit_chance * weather_hit(_target):
 				TurretEffects.apply(self, _target, aim_point, def.damage_at(tier, TurretDef.is_heavy(_target.def)) * mult)
 		&"whaler":
 			shots += 1
 			chain_end = _target.global_position
-			if randf() <= def.hit_chance * Weather.turret_accuracy(GameState.weather):
+			if randf() <= def.hit_chance * weather_hit(_target):
 				_attach(_target, _target.global_position, mult)
 		&"thunder_mule":
 			# Lead the crowd a little: they keep climbing while the shells fly.

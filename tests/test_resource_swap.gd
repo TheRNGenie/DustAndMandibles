@@ -60,7 +60,8 @@ func test_junk_heap_pays_personal_and_grows() -> void:
 	var total := 0
 	for w in range(0, 20):
 		total += EconomyLedger.heap_pay(w, cfg)
-	assert_true(total > 2500 and total < 4200, "20 heaps pay %d" % total)
+	# (Nov 11: waves 1-5 got busier, count_base 45 -> 65, and the heap scales with the bugs.)
+	assert_true(total > 3500 and total < 5500, "20 heaps pay %d" % total)
 	# Into your own stock, never the pot.
 	var l := EconomyLedger.new()
 	l.reset({&"scrap": 100}, 2)
@@ -70,6 +71,7 @@ func test_junk_heap_pays_personal_and_grows() -> void:
 	assert_eq(l.team_amount(&"scrap"), 200)
 
 
-func test_chili_still_sells_for_your_own_stock() -> void:
-	assert_eq(MarketPrices.currency(&"chili"), ResNames.PERSONAL_ID)
+func test_only_sarsaparilla_sells_for_your_own_stock() -> void:
+	assert_eq(MarketPrices.currency(&"sarsaparilla"), ResNames.PERSONAL_ID)
+	assert_eq(MarketPrices.currency(&"chili"), ResNames.TEAM_ID)
 	assert_eq(MarketPrices.currency(&"corn"), ResNames.TEAM_ID)

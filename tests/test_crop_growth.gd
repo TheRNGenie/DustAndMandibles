@@ -32,8 +32,9 @@ func test_harvest_yields_and_clears() -> void:
 	assert_true(g.harvest().is_empty(), "not ripe yet")
 	g.tick(10000.0)
 	var out := g.harvest()
-	assert_eq(int(out.get(&"corn_load", 0)), 4, "4 turret loads")
-	assert_eq(int(out.get(&"corn", 0)), 2, "and a little corn to eat")
+	# (Nov 11: harvests give the raw crop; the cellar's workbench makes the sacks.)
+	assert_eq(int(out.get(&"corn_load", 0)), 0, "no turret loads from the plot")
+	assert_eq(int(out.get(&"corn", 0)), 1, "one corn to carry")
 	assert_eq(g.stage, CropGrowth.Stage.EMPTY)
 
 
@@ -51,7 +52,7 @@ func test_prickly_pear_gives_pears_and_water() -> void:
 	g.water()
 	g.tick(10000.0)
 	var out := g.harvest()
-	assert_eq(int(out.get(&"prickly_pear_load", 0)), 2)
+	assert_eq(int(out.get(&"prickly_pear_load", 0)), 0)
 	assert_eq(int(out.get(&"prickly_pear", 0)), 1)
 	assert_eq(int(out.get(&"water", 0)), 2)
 
@@ -94,10 +95,10 @@ func test_corn_seeds_are_cheapest() -> void:
 		assert_true(corn < MarketPrices.seed_price(Defs.crop(id)), "corn seeds cheaper than %s" % id)
 
 
-func test_chili_feeds_the_mortar_and_sells_for_chitin() -> void:
+func test_chili_feeds_the_mortar_and_sells_for_team_chitin() -> void:
 	assert_eq(CropEffects.sack_of(&"firecracker_chili"), &"chili_load", "a chili sack loads any crop-fed turret with chili")
 	assert_true(Defs.turret(&"cf_harvest_mortar").ammo_cost.is_empty(), "no per-shot upkeep any more")
-	assert_eq(MarketPrices.currency(&"chili"), &"chitin")
+	assert_eq(MarketPrices.currency(&"chili"), &"scrap")
 	assert_true(Defs.crop(&"firecracker_chili").water_cost > Defs.crop(&"corn").water_cost, "chili is thirsty")
 
 

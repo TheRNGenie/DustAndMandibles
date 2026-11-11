@@ -253,7 +253,7 @@ func _think(delta: float) -> void:
 			return
 	_cooldown = def.interval_at(tier) * Weather.turret_fire_interval(GameState.weather) * perk_rate * Economy.tonic_interval_mult(cliff_id) 			* LatchDirector.jam_mult(cliff_id, global_position) # a latch bug clamped under it # Perk: Well Oiled; Sarsaparilla tonic from the partner
 	shots += 1
-	if randf() <= def.hit_chance * Weather.turret_accuracy(GameState.weather):
+	if randf() <= def.hit_chance * weather_hit(_target):
 		var dmg := def.damage_at(tier, TurretDef.is_heavy(_target.def))
 		if def.anti_air and _target.state != Bug.State.FLYING:
 			dmg *= def.ground_mult # (an anti-air gun turned on a climber)
@@ -381,7 +381,22 @@ static func look_down_bonus(lvl: int) -> float:
 	return LOOK_DOWN_PER_LEVEL * maxi(lvl - 1, 0)
 
 
-## How far the weather lets this turret see (fog: unless a lantern is near).
+## The weather's say in whether a shot at `b` lands (Weather.turret_accuracy:
+## fog and dust miss more the farther the bug, less near a lantern post).
+func weather_hit(b: Node3D) -> float:
+	var w := GameState.weather
+	if Weather.murk_miss(w) <= 0.0 or b == null or not is_instance_valid(b):
+		return Weather.turret_accuracy(w)
+	var reach := maxf(def.range * range_multiplier(), 1.0)
+	var lit := false
+	for l: Array in _lights():
+		if (l[0] as Vector3).distance_to(global_position) < Weather.LANTERN_FOG_RADIUS:
+			lit = true
+			break
+	return Weather.turret_accuracy(w, muzzle_position().distance_to(b.global_position) / reach, lit)
+
+
+## How far the weather lets this turret see (always full now: Weather.turret_range).
 func weather_range() -> float:
 	var w := GameState.weather
 	if w != Weather.Kind.FOG and w != Weather.Kind.DUST_STORM:
@@ -500,7 +515,7 @@ func _draw_shot() -> void:
 	var from := _muzzle.global_position
 	if _muzzle_b != null and shots % 2 == 1:
 		from = _muzzle_b.global_position
-	var spread := deg_to_rad(def.spread_deg)
+	var spread := deg_to_rad(def.spread_deg) * (1.0 + 2.0 * Weather.murk_miss(GameState.weather)) # (fog and dust: wilder tracers)
 	var to := aim_point + Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * from.distance_to(aim_point) * spread
 	if def.special != &"":
 		# Steam cone, flood, twin shells, bolas (scenes/vfx/special_shot_fx.gd).

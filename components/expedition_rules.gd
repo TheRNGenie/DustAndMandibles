@@ -45,7 +45,7 @@ static func countdown_allowed(down: Dictionary) -> bool:
 
 ## How far a shot from this gun carries. The Bee Smoker only hisses.
 static func gun_noise(special: StringName, kickback: float, pellets: int) -> float:
-	if special == &"smoke":
+	if special == &"smoke" or special == &"bleed": # (the Repeating Crossbow is near silent)
 		return 0.0
 	if kickback > 0.0 or pellets > 4:
 		return LOUD_GUN_NOISE

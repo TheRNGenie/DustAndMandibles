@@ -1,7 +1,7 @@
 class_name TutorialPickup
 extends StaticBody3D
 ## Tutorial (Logan): a piece of your gear lying on a surface in the house (the
-## revolver beside the ledger, the zippo and grapple on the table). E takes it;
+## revolver beside the ledger, the crop bag and grapple on the table). E takes it;
 ## TutorialRun hands it over and moves on.
 
 signal taken(kind: StringName)
@@ -30,14 +30,12 @@ func _ready() -> void:
 			model = GunModels.whole(&"revolver", 0.006)
 			holder.rotation = Vector3(0.0, 0.0, PI * 0.5) # lying on its side
 			holder.scale = Vector3.ONE * 1.5
-		&"lighter":
-			model = GunModels.make(&"zippo") if GunModels.has(&"zippo") else null
-			if model == null:
-				var mi := MeshInstance3D.new()
-				mi.mesh = WeaponBuilder.zippo_body()
-				mi.material_override = Materials.toon(0.004)
-				model = mi
-			holder.scale = Vector3.ONE * 1.8
+		&"crop_bag":
+			var mi := MeshInstance3D.new()
+			mi.mesh = AmmoSackBuilder.sack(&"")
+			mi.material_override = Materials.toon(0.006)
+			model = mi
+			holder.scale = Vector3.ONE * 0.6
 		&"grapple":
 			model = GunModels.make(&"grapple")
 			holder.rotation = Vector3(0.0, 0.0, PI * 0.5)

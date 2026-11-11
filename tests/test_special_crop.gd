@@ -110,10 +110,11 @@ func test_old_secondaries_are_primaries_now() -> void:
 
 
 func test_design_doc_stats_and_three_mods_each() -> void:
-	# [damage, mag, range, reload] from the design doc.
-	var want := {&"crop_duster": [8, 12, 10, 1.8], &"barb_sling": [6, 4, 60, 2.0], &"signal_flare": [15, 1, 160, 2.8],
-		&"crop_syringe": [15, 4, 40, 2.0], &"smoke_bellows": [0, 100, 10, 0.0], &"bramble_pistol": [15, 6, 30, 1.8],
-		&"spore_launcher": [18, 3, 50, 2.5], &"venom_needle": [10, 1, 120, 1.5], &"trip_wire_gun": [20, 6, 40, 2.5],
+	# [damage, mag, range, reload] from the design doc (ranges from the Nov 11
+	# playtest fixes: every special reaches the other cliff, 60 m or more).
+	var want := {&"crop_duster": [8, 12, 60, 1.8], &"barb_sling": [6, 4, 60, 2.0], &"signal_flare": [15, 1, 160, 2.8],
+		&"crop_syringe": [15, 4, 65, 2.0], &"smoke_bellows": [0, 100, 60, 0.0], &"bramble_pistol": [15, 6, 65, 1.8],
+		&"spore_launcher": [18, 3, 65, 2.5], &"venom_needle": [10, 1, 120, 1.5], &"trip_wire_gun": [20, 6, 65, 2.5],
 		&"spark_pistol": [12, 8, 60, 1.8]}
 	for id: StringName in want:
 		var w: WeaponDef = Defs.WEAPONS[id]

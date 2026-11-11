@@ -95,7 +95,13 @@ func send_tonic(peer_id: int, from_cliff: int) -> bool:
 	var to := PartnerTonic.partner_of(from_cliff)
 	if to < 0 or to == from_cliff:
 		return false
-	if not spend(payer, {PartnerTonic.ITEM: 1}):
+	# A player's tonic root comes from what they carry (PlayerCarry); the CPU's from the cliff.
+	var carry := PlayerCarry.of(get_tree(), peer_id) if peer_id > 0 else null
+	if carry != null:
+		if not carry.take(PartnerTonic.ITEM, 1):
+			notify(peer_id, "You aren't carrying any sarsaparilla root. Grow some: seeds at the airship market.")
+			return false
+	elif not spend(payer, {PartnerTonic.ITEM: 1}):
 		if peer_id >= 0:
 			notify(peer_id, "No sarsaparilla root left. Grow some: seeds at the airship market.")
 		return false

@@ -14,14 +14,15 @@ const FADE := 0.7
 const SKY_SHADER: Shader = preload("res://shaders/sky.gdshader")
 
 ## Turret line columns (row 0) per stage, and the sky guns / last resorts of the fort.
+## (The current crop-fed turrets, Nov 2026: the old crop-specific ones are retired.)
 const STAGE_TURRETS: Array = [
 	[],
-	[[&"gatling_post", 6], [&"buffalo_rifle", 10], [&"gatling_post", 14]],
-	[[&"gatling_post", 2], [&"buffalo_rifle", 4], [&"cf_harvest_mortar", 6], [&"cf_storm_blower", 8], [&"gatling_post", 10],
-		[&"cf_crop_cannon", 12], [&"buffalo_rifle", 14], [&"cf_snare_launcher", 16], [&"gatling_post", 18]],
+	[[&"cf_homestead_rifle", 6], [&"cf_crop_hopper", 10], [&"cf_homestead_rifle", 14]],
+	[[&"cf_crop_hopper", 2], [&"cf_thresher_post", 4], [&"cf_harvest_mortar", 6], [&"cf_storm_blower", 8], [&"cf_rail_driver", 10],
+		[&"cf_crop_cannon", 12], [&"cf_frontier_sentinel", 14], [&"cf_snare_launcher", 16], [&"cf_crop_flak_post", 18]],
 ]
-const FORT_EXTRAS: Array = [[&"duck_gun", Vector2i(3, 3)], [&"sky_sweeper", Vector2i(3, 17)], [&"sharpshooter_tower", Vector2i(5, 1)],
-	[&"scattergun_post", Vector2i(5, 19)]]
+const FORT_EXTRAS: Array = [[&"cf_sky_hopper", Vector2i(3, 3)], [&"cf_hawk_eye", Vector2i(3, 17)], [&"cf_roof_perch", Vector2i(5, 1)],
+	[&"cf_feed_porch_gun", Vector2i(5, 19)]]
 
 var fade: ColorRect
 var ready_to_film := false
@@ -86,6 +87,12 @@ func _process(delta: float) -> void:
 	var a := 1.0 - clampf(_t / FADE, 0.0, 1.0)
 	a = maxf(a, clampf((_t - (_dur - FADE)) / FADE, 0.0, 1.0))
 	fade.color.a = a
+	# Debug: --filmshot=<dir> saves the middle of each shot (film_<n>.png), quits after one round.
+	var dir := GameState.flag_value("--filmshot")
+	if dir != "" and _t - delta < _dur * 0.5 and _t >= _dur * 0.5:
+		get_viewport().get_texture().get_image().save_png("%s/film_%d.png" % [dir, _shot])
+		if _shot == _shots.size() - 1:
+			get_tree().quit()
 	if _t >= _dur:
 		_next_shot()
 
@@ -189,32 +196,38 @@ func _run_steps(steps: Array[Callable]) -> bool:
 
 func _turret(root: Node3D, id: StringName, cid: int, cell: Vector2i) -> void:
 	var parts := TurretBuilder.build(id, Palette.team_color(cid))
+	# The fal models keep their own textures (RiggedTurret); only code-built ones take the toon look.
+	var textured := bool(parts.get("textured", false))
 	var t := Node3D.new()
 	root.add_child(t)
 	t.global_position = Buildable.cell_center(_cliffs, cid, cell)
 	t.rotation.y = WorldLayout.facing_canyon_yaw(cid)
-	var base := MeshInstance3D.new()
-	base.mesh = parts["base"]
-	base.material_override = Materials.toon(0.025)
+	var base := _part_mi(parts.get("base"), textured, 0.025)
 	t.add_child(base)
-	var head := MeshInstance3D.new()
-	head.mesh = parts["head"]
-	head.material_override = Materials.toon(0.02)
+	var head := _part_mi(parts.get("head"), textured, 0.02)
 	head.position.y = float(parts["head_y"])
-	head.rotation.y = randf_range(-0.4, 0.4)
+	if not bool(parts.get("fixed_yaw", false)):
+		head.rotation.y = randf_range(-0.4, 0.4)
 	t.add_child(head)
-	var gun := MeshInstance3D.new()
-	gun.mesh = parts["gun"]
-	gun.material_override = Materials.toon(0.02)
+	var gun := _part_mi(parts.get("gun"), textured, 0.02)
 	gun.position.y = float(parts["gun_y"])
 	gun.rotation.x = randf_range(0.0, 0.25)
 	head.add_child(gun)
-	if parts.has("spin"):
-		var spin := MeshInstance3D.new()
-		spin.mesh = parts["spin"]
-		spin.material_override = Materials.toon(0.02)
-		spin.position = parts["spin_at"]
-		gun.add_child(spin)
+	for key: String in ["spin", "spin_b"]:
+		if parts.has(key):
+			var spin := _part_mi(parts[key], textured, 0.02)
+			spin.position = parts[key + "_at"]
+			if parts.has(key + "_basis"):
+				spin.basis = parts[key + "_basis"]
+			gun.add_child(spin)
+
+
+func _part_mi(mesh: Variant, textured: bool, outline: float) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh as Mesh
+	if not textured:
+		mi.material_override = Materials.toon(outline)
+	return mi
 
 
 ## The casino airship, hung over the canyon (just its meshes: no deck, no games).
@@ -235,12 +248,14 @@ func _airship() -> Node3D:
 
 
 func _set_stage(stage: int) -> void:
+	ZipLine.quiet = true # (no build thunk on a cut; put back below)
 	for i in _stage_nodes.size():
 		_stage_nodes[i].visible = i == stage
 	for cid in 2:
 		var home := Homestead.of(cid)
 		if home != null:
-			home._set_state([1, 2, 3][stage], stage >= 1, stage >= 2, stage >= 2)
+			home._set_state([1, 2, 3][stage], stage >= 1, stage >= 2, stage >= 2, false, false, false, false) # no build thunk on a cut
+	ZipLine.quiet = false
 	_ship.visible = stage == 2
 	for n: Node in get_tree().get_nodes_in_group("crops"):
 		var plot := n as CropPlot

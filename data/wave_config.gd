@@ -5,10 +5,13 @@ extends Resource
 @export var budget_base: float = 20.0
 @export var budget_linear: float = 12.0
 @export var budget_quad: float = 1.5
-@export var pulses_min: int = 3
+@export var pulses_min: int = 4
 @export var pulses_max: int = 5
 ## Seconds between pulses within a wave.
 @export var pulse_interval: float = 9.0
+## Waves up to early_waves pulse every early_pulse_interval s instead (more action early).
+@export var early_waves: int = 5
+@export var early_pulse_interval: float = 6.5
 ## Share of the budget sent to the heavier cliff, for waves without a scripted split.
 @export var split_min: float = 0.5
 @export var split_max: float = 0.7
@@ -29,7 +32,7 @@ extends Resource
 @export var start_scrap: int = 150
 @export var max_active_bugs: int = 750
 ## Bugs in wave 1 (both cliffs together); each later wave brings `count_growth` times as many.
-@export var count_base: float = 45.0
+@export var count_base: float = 65.0
 @export var count_growth: float = 1.25
 ## From this wave on, the count grows by `late_growth` a wave instead (balance
 ## pass: 1.25x compounding outran every economy; the walls at 10-15 were the curve).
